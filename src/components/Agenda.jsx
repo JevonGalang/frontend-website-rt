@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Calendar as CalendarIcon, MapPin, Clock, Users, ArrowRight } from 'lucide-react';
 
 export default function Agenda({ agendas }) {

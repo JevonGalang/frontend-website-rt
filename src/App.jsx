@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -7,6 +7,40 @@ import Layanan from './components/Layanan';
 import DataWarga from './components/DataWarga';
 import Kas from './components/Kas';
 import Kontak from './components/Kontak';
+import LoginPage from './components/LoginPage';
+import AdminDashboard from './components/AdminDashboard';
+import ProfilWarga from './components/ProfilWarga';
+
+// Predefined Demo Data (Outstanding UX/Developer Experience)
+const DEFAULT_WARGA = [
+  { id: 'WRG-001', name: 'Budi Santoso', username: 'warga', password: 'warga', nik: '3275081102900001', noKk: '3275081212080001', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Laki-laki', usia: 36, statusHidup: 'Hidup' },
+  { id: 'WRG-002', name: 'Siti Aminah', username: 'siti', password: 'warga', nik: '3275084506920002', noKk: '3275081212080001', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Perempuan', usia: 34, statusHidup: 'Hidup' },
+  { id: 'WRG-003', name: 'Andi Wijaya', username: 'andi', password: 'warga', nik: '3275080203850003', noKk: '3275081212080002', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Laki-laki', usia: 41, statusHidup: 'Hidup' },
+  { id: 'WRG-004', name: 'Rina Herawati', username: 'rina', password: 'warga', nik: '3275085208880004', noKk: '3275081212080002', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Perempuan', usia: 38, statusHidup: 'Hidup' },
+  { id: 'WRG-005', name: 'Joko Susilo', username: 'joko', password: 'warga', nik: '3275081510950005', noKk: '3275081212080003', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Laki-laki', usia: 31, statusHidup: 'Hidup' },
+  { id: 'WRG-006', name: 'Dewi Lestari', username: 'dewi', password: 'warga', nik: '3275086111970006', noKk: '3275081212080003', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Perempuan', usia: 29, statusHidup: 'Hidup' },
+  { id: 'WRG-007', name: 'Mbah Slamet', username: 'slamet', password: 'warga', nik: '3275081512450007', noKk: '3275081212080004', alamat: 'Sawangan Green Park Blok D4 No. 2', status: 'Tetap', gender: 'Laki-laki', usia: 72, statusHidup: 'Hidup' },
+  { id: 'WRG-008', name: 'Alm. Pak Subarkah', username: 'subarkah', password: 'warga', nik: '3275081203500008', noKk: '3275081212080005', alamat: 'Sawangan Green Park Blok E5 No. 15', status: 'Tetap', gender: 'Laki-laki', usia: 68, statusHidup: 'Meninggal' }
+];
+
+const DEFAULT_KAS = [
+  { id: 'TX-001', description: 'Iuran Kebersihan & Keamanan Bulanan Warga (Juni)', amount: 10000000, date: '2026-06-30', type: 'income', category: 'Iuran Warga' },
+  { id: 'TX-002', description: 'Honor Satpam Klaster Sawangan Green Park (2 Petugas)', amount: 3500000, date: '2026-07-01', type: 'expense', category: 'Keamanan' },
+  { id: 'TX-003', description: 'Sumbangan Warga untuk Pembelian Alat Fogging Mandiri', amount: 5000000, date: '2026-07-02', type: 'income', category: 'Donasi' },
+  { id: 'TX-004', description: 'Biaya Pengangkutan Sampah Mandiri Ke TPA', amount: 1500000, date: '2026-07-03', type: 'expense', category: 'Kebersihan' },
+  { id: 'TX-005', description: 'Konsumsi & Pembelian Obat Abate Kerja Bakti', amount: 1000000, date: '2026-07-05', type: 'expense', category: 'Kebersihan' }
+];
+
+const DEFAULT_AGENDA = [
+  { id: 'AGD-001', title: 'Kerja Bakti & Fogging Nyamuk DBD', date: '2026-07-12', time: '07:00 - 11:00 WIB', location: 'Area Fasos, Fasum, & Selokan Klaster', category: 'Kerja Bakti', participants: 'Seluruh Warga Blok A - E', description: 'Kegiatan gotong royong membersihkan saluran air tersumbat serta pelaksanaan pengasapan (fogging nyamuk) untuk mencegah penyebaran demam berdarah.' },
+  { id: 'AGD-002', title: 'Rapat Rutin Bulanan Warga SGP', date: '2026-07-25', time: '19:30 WIB - Selesai', location: 'Balai Warga / Lapangan Serbaguna', category: 'Rapat Warga', participants: 'Perwakilan 1 Orang per KK', description: 'Musyawarah bulanan guna membahas evaluasi kinerja satpam, perbaikan CCTV komplek, serta perencanaan perayaan Hari Kemerdekaan 17 Agustus.' },
+  { id: 'AGD-003', title: 'Layanan Posyandu Balita & Senam Lansia', date: '2026-08-05', time: '08:00 - 11:30 WIB', location: 'Pos Satpam Utama Sawangan Green Park', category: 'Kesehatan', participants: 'Ibu Hamil, Balita, & Warga Lansia', description: 'Pemberian imunisasi dasar anak, penimbangan berat badan balita, penyuluhan gizi, dilanjutkan dengan olahraga senam sehat bersama warga lanjut usia.' }
+];
+
+const DEFAULT_SUBMISSIONS = [
+  { id: 'SRT-739102', wargaNama: 'Budi Santoso', wargaNik: '3275081102900001', wargaNoKk: '3275081212080001', wargaAlamat: 'Sawangan Green Park Blok A1 No. 5', wargaKeperluan: 'Persyaratan perpanjangan KTP Elektronik', wargaTipeSurat: 'Surat Pengantar Pembuatan KTP', status: 'Pending', submissionDate: '12 Juni 2026' },
+  { id: 'SRT-945201', wargaNama: 'Andi Wijaya', wargaNik: '3275080203850003', wargaNoKk: '3275081212080002', wargaAlamat: 'Sawangan Green Park Blok B3 No. 12', wargaKeperluan: 'Pengurusan surat nikah di KUA Kecamatan Sawangan', wargaTipeSurat: 'Surat Pengantar Nikah', status: 'Completed', submissionDate: '20 Juni 2026', processedDate: '21 Juni 2026' }
+];
 
 export default function App() {
   // Theme Dark/Light Mode state
@@ -15,105 +49,81 @@ export default function App() {
     return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
 
-  // Kependudukan Data States (Clean variables, ready for Backend API Integration)
-  const [totalKeluarga, setTotalKeluarga] = useState(120); // 120 KK
-  const [totalHidup, setTotalHidup] = useState(420); // Total living residents
-  const [totalMeninggal, setTotalMeninggal] = useState(12); // Total deceased residents
+  // State inisialisasi dari localStorage dengan fallback data demo
+  const [wargaList, setWargaList] = useState(() => {
+    const data = localStorage.getItem('rt_wargalist');
+    if (data) return JSON.parse(data);
+    localStorage.setItem('rt_wargalist', JSON.stringify(DEFAULT_WARGA));
+    return DEFAULT_WARGA;
+  });
 
-  // Keuangan Kas States (Clean variables, ready for Backend API Integration)
-  const [totalPemasukan, setTotalPemasukan] = useState(15000000); // Rp15.000.000
-  const [totalPengeluaran, setTotalPengeluaran] = useState(6000000); // Rp6.000.000
-  const [sisaKasRT, setSisaKasRT] = useState(9000000); // Rp9.000.000 (Sisa kas)
+  const [transaksiKasList, setTransaksiKasList] = useState(() => {
+    const data = localStorage.getItem('rt_kaslist');
+    if (data) return JSON.parse(data);
+    localStorage.setItem('rt_kaslist', JSON.stringify(DEFAULT_KAS));
+    return DEFAULT_KAS;
+  });
 
-  // Kas Transactions List (Dummy local data, easy to fetch from backend)
-  const [transaksiKasList, setTransaksiKasList] = useState([
-    {
-      id: 'TX-001',
-      description: 'Iuran Kebersihan & Keamanan Bulanan Warga (Juni)',
-      amount: 10000000,
-      date: '2026-06-30',
-      type: 'income',
-      category: 'Iuran Warga',
-    },
-    {
-      id: 'TX-002',
-      description: 'Honor Satpam Klaster Sawangan Green Park (2 Petugas)',
-      amount: 3500000,
-      date: '2026-07-01',
-      type: 'expense',
-      category: 'Keamanan',
-    },
-    {
-      id: 'TX-003',
-      description: 'Sumbangan Warga untuk Pembelian Alat Fogging Mandiri',
-      amount: 5000000,
-      date: '2026-07-02',
-      type: 'income',
-      category: 'Donasi',
-    },
-    {
-      id: 'TX-004',
-      description: 'Biaya Pengangkutan Sampah Mandiri Ke TPA',
-      amount: 1500000,
-      date: '2026-07-03',
-      type: 'expense',
-      category: 'Kebersihan',
-    },
-    {
-      id: 'TX-005',
-      description: 'Konsumsi & Pembelian Obat Abate Kerja Bakti',
-      amount: 1000000,
-      date: '2026-07-05',
-      type: 'expense',
-      category: 'Kebersihan',
-    },
-  ]);
+  const [agendaList, setAgendaList] = useState(() => {
+    const data = localStorage.getItem('rt_agendalist');
+    if (data) return JSON.parse(data);
+    localStorage.setItem('rt_agendalist', JSON.stringify(DEFAULT_AGENDA));
+    return DEFAULT_AGENDA;
+  });
 
-  // Agenda List (July & August 2026 dummy data)
-  const [agendaList, setAgendaList] = useState([
-    {
-      id: 'AGD-001',
-      title: 'Kerja Bakti & Fogging Nyamuk DBD',
-      date: '2026-07-12',
-      time: '07:00 - 11:00 WIB',
-      location: 'Area Fasos, Fasum, & Selokan Klaster',
-      category: 'Kerja Bakti',
-      participants: 'Seluruh Warga Blok A - E',
-      description: 'Kegiatan gotong royong membersihkan saluran air tersumbat serta pelaksanaan pengasapan (fogging nyamuk) untuk mencegah penyebaran demam berdarah.',
-    },
-    {
-      id: 'AGD-002',
-      title: 'Rapat Rutin Bulanan Warga SGP',
-      date: '2026-07-25',
-      time: '19:30 WIB - Selesai',
-      location: 'Balai Warga / Lapangan Serbaguna',
-      category: 'Rapat Warga',
-      participants: 'Perwakilan 1 Orang per KK',
-      description: 'Musyawarah bulanan guna membahas evaluasi kinerja satpam, perbaikan CCTV komplek, serta perencanaan perayaan Hari Kemerdekaan 17 Agustus.',
-    },
-    {
-      id: 'AGD-003',
-      title: 'Layanan Posyandu Balita & Senam Lansia',
-      date: '2026-08-05',
-      time: '08:00 - 11:30 WIB',
-      location: 'Pos Satpam Utama Sawangan Green Park',
-      category: 'Kesehatan',
-      participants: 'Ibu Hamil, Balita, & Warga Lansia',
-      description: 'Pemberian imunisasi dasar anak, penimbangan berat badan balita, penyuluhan gizi, dilanjutkan dengan olahraga senam sehat bersama warga lanjut usia.',
-    },
-  ]);
+  const [submissionsList, setSubmissionsList] = useState(() => {
+    const data = localStorage.getItem('rt_submissions');
+    if (data) return JSON.parse(data);
+    localStorage.setItem('rt_submissions', JSON.stringify(DEFAULT_SUBMISSIONS));
+    return DEFAULT_SUBMISSIONS;
+  });
+
+  // Sesi User login
+  const [currentUser, setCurrentUser] = useState(() => {
+    const data = localStorage.getItem('rt_current_user');
+    return data ? JSON.parse(data) : null;
+  });
+
+  const handleUpdateWargaProfile = (updatedCitizen) => {
+    const newList = wargaList.map(w => w.id === updatedCitizen.id ? updatedCitizen : w);
+    setWargaList(newList);
+    localStorage.setItem('rt_wargalist', JSON.stringify(newList));
+    
+    const updatedUser = {
+      ...updatedCitizen,
+      role: 'warga'
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+  };
+
+
+
+  // Dynamic calculations for Warga Statistics
+  const livingWarga = wargaList.filter(w => w.statusHidup !== 'Meninggal');
+  const deceasedWarga = wargaList.filter(w => w.statusHidup === 'Meninggal');
+  
+  const totalHidup = livingWarga.length;
+  const totalMeninggal = deceasedWarga.length;
+  // Count unique No. KK in living warga
+  const totalKeluarga = new Set(livingWarga.map(w => w.noKk)).size;
+
+  // Dynamic calculations for Financial Statistics
+  const totalPemasukan = transaksiKasList
+    .filter(t => t.type === 'income')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  const totalPengeluaran = transaksiKasList
+    .filter(t => t.type === 'expense')
+    .reduce((acc, curr) => acc + curr.amount, 0);
+
+  const sisaKasRT = totalPemasukan - totalPengeluaran;
 
   // Count active agenda for July 2026 (this month)
-  const [activeAgendasCount, setActiveAgendasCount] = useState(0);
-
-  useEffect(() => {
-    // July is index 6 in JS Date (0-11)
-    const count = agendaList.filter(agenda => {
-      const date = new Date(agenda.date);
-      return date.getMonth() === 6 && date.getFullYear() === 2026;
-    }).length;
-    setActiveAgendasCount(count);
-  }, [agendaList]);
+  const activeAgendasCount = agendaList.filter(agenda => {
+    const date = new Date(agenda.date);
+    return date.getMonth() === 6 && date.getFullYear() === 2026;
+  }).length;
 
   // Toggle dark/light theme class on document element
   useEffect(() => {
@@ -127,10 +137,49 @@ export default function App() {
     }
   }, [darkMode]);
 
+  // 1. GATEKEEPER: RENDER LOGIN PAGE IF NOT LOGGED IN
+  if (!currentUser) {
+    return (
+      <LoginPage
+        wargaList={wargaList}
+        setWargaList={setWargaList}
+        setCurrentUser={setCurrentUser}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+    );
+  }
+
+  // 2. ADMIN ROLE: RENDER ADMIN DASHBOARD IF LOGGED IN AS ADMIN
+  if (currentUser.role === 'admin') {
+    return (
+      <AdminDashboard
+        currentUser={currentUser}
+        setCurrentUser={setCurrentUser}
+        wargaList={wargaList}
+        setWargaList={setWargaList}
+        transaksiKasList={transaksiKasList}
+        setTransaksiKasList={setTransaksiKasList}
+        agendaList={agendaList}
+        setAgendaList={setAgendaList}
+        submissionsList={submissionsList}
+        setSubmissionsList={setSubmissionsList}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+    );
+  }
+
+  // 3. WARGA ROLE: RENDER RESIDENT PORTAL IF LOGGED IN AS CITIZEN
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans antialiased">
       {/* Navigation bar */}
-      <Navbar darkMode={darkMode} setDarkMode={setDarkMode} />
+      <Navbar 
+        darkMode={darkMode} 
+        setDarkMode={setDarkMode} 
+        currentUser={currentUser}
+        setCurrentUser={setCurrentUser}
+      />
 
       {/* Main Content Layout */}
       <main>
@@ -141,6 +190,14 @@ export default function App() {
           sisaKasRT={sisaKasRT}
         />
 
+        {/* Profil Saya Warga Section */}
+        <ProfilWarga
+          key={currentUser.id}
+          currentUser={currentUser}
+          onUpdateProfile={handleUpdateWargaProfile}
+          wargaList={wargaList}
+        />
+
         {/* Profil Section */}
         <Profil />
 
@@ -148,13 +205,19 @@ export default function App() {
         <Agenda agendas={agendaList} />
 
         {/* Layanan Section */}
-        <Layanan />
+        <Layanan 
+          key={currentUser.id}
+          currentUser={currentUser}
+          submissionsList={submissionsList}
+          setSubmissionsList={setSubmissionsList}
+        />
 
         {/* Data Warga Section */}
         <DataWarga
           totalKK={totalKeluarga}
           totalHidup={totalHidup}
           totalMeninggal={totalMeninggal}
+          wargaList={wargaList}
         />
 
         {/* Kas RT Section */}

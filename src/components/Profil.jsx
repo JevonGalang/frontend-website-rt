@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Award, Eye, Target, Shield, Heart, HelpCircle } from 'lucide-react';
 
 export default function Profil() {

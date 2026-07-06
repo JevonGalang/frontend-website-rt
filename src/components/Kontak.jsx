@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Phone, MessageSquare, MapPin, Mail, Send, ExternalLink } from 'lucide-react';
 
 export default function Kontak() {

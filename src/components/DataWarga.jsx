@@ -1,21 +1,46 @@
-import React from 'react';
-import { Users, FileText, HeartCrack, ChevronRight, TrendingUp } from 'lucide-react';
+import { Users, FileText, HeartCrack, TrendingUp } from 'lucide-react';
 
-export default function DataWarga({ totalKK, totalHidup, totalMeninggal }) {
+export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaList = [] }) {
   // Calculated stats
   const totalPenduduk = totalHidup; // Living residents
   const rataRataAnggotaKK = (totalPenduduk / totalKK).toFixed(1);
 
-  // Demographic mock data for the custom visual charts (clean variables ready for backend)
+  // Dynamic calculations based on wargaList
+  const livingWarga = wargaList.filter(w => w.statusHidup !== 'Meninggal');
+  
+  // Calculate Gender Breakdown
+  const countLaki = livingWarga.filter(w => w.gender === 'Laki-laki').length;
+  const countPerempuan = livingWarga.filter(w => w.gender === 'Perempuan').length;
+  
+  const lakiLakiVal = livingWarga.length > 0 ? countLaki : 215;
+  const perempuanVal = livingWarga.length > 0 ? countPerempuan : 205;
+  const sumGender = lakiLakiVal + perempuanVal;
+  const pctLaki = sumGender > 0 ? ((lakiLakiVal / sumGender) * 100).toFixed(1) : '51.2';
+  const pctPerempuan = sumGender > 0 ? ((perempuanVal / sumGender) * 100).toFixed(1) : '48.8';
+
   const dataDemografiGender = {
-    lakiLaki: 215,
-    perempuan: 205,
+    lakiLaki: lakiLakiVal,
+    perempuan: perempuanVal,
   };
   
+  // Calculate Age Breakdown
+  const childCount = livingWarga.filter(w => w.usia >= 0 && w.usia <= 14).length;
+  const activeCount = livingWarga.filter(w => w.usia >= 15 && w.usia <= 64).length;
+  const elderlyCount = livingWarga.filter(w => w.usia >= 65).length;
+  
+  const cCount = livingWarga.length > 0 ? childCount : 92;
+  const aCount = livingWarga.length > 0 ? activeCount : 286;
+  const eCount = livingWarga.length > 0 ? elderlyCount : 42;
+  const sumAge = cCount + aCount + eCount;
+  
+  const pctChild = sumAge > 0 ? Math.round((cCount / sumAge) * 100) : 22;
+  const pctActive = sumAge > 0 ? Math.round((aCount / sumAge) * 100) : 68;
+  const pctElderly = sumAge > 0 ? Math.round((eCount / sumAge) * 100) : 10;
+  
   const dataDemografiUsia = [
-    { label: 'Anak-anak (0-14 thn)', count: 92, percentage: 22, color: 'bg-teal-500' },
-    { label: 'Usia Produktif (15-64 thn)', count: 286, percentage: 68, color: 'bg-emerald-500' },
-    { label: 'Lansia (65+ thn)', count: 42, percentage: 10, color: 'bg-amber-500' },
+    { label: 'Anak-anak (0-14 thn)', count: cCount, percentage: pctChild, color: 'bg-teal-500' },
+    { label: 'Usia Produktif (15-64 thn)', count: aCount, percentage: pctActive, color: 'bg-emerald-500' },
+    { label: 'Lansia (65+ thn)', count: eCount, percentage: pctElderly, color: 'bg-amber-500' },
   ];
 
   return (
@@ -117,8 +142,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal }) {
                   {/* Background Track */}
                   <circle cx="18" cy="18" r="15.915" fill="none" stroke="#e2e8f0" strokeWidth="3" className="dark:stroke-slate-800" />
                   
-                  {/* Segment 1: Laki-laki (51.2%) */}
-                  {/* Dasharray: 51.2 48.8 */}
+                  {/* Segment 1: Laki-laki */}
                   <circle
                     cx="18"
                     cy="18"
@@ -126,12 +150,11 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal }) {
                     fill="none"
                     stroke="#10b981"
                     strokeWidth="3.2"
-                    strokeDasharray="51.2 48.8"
+                    strokeDasharray={`${pctLaki} ${100 - parseFloat(pctLaki)}`}
                     strokeDashoffset="0"
                   />
                   
-                  {/* Segment 2: Perempuan (48.8%) */}
-                  {/* Dasharray: 48.8 51.2, offset: -51.2 */}
+                  {/* Segment 2: Perempuan */}
                   <circle
                     cx="18"
                     cy="18"
@@ -139,8 +162,8 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal }) {
                     fill="none"
                     stroke="#0ea5e9"
                     strokeWidth="3.2"
-                    strokeDasharray="48.8 51.2"
-                    strokeDashoffset="-51.2"
+                    strokeDasharray={`${pctPerempuan} ${100 - parseFloat(pctPerempuan)}`}
+                    strokeDashoffset={`-${pctLaki}`}
                   />
                 </svg>
                 
@@ -156,14 +179,14 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal }) {
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 rounded-md bg-emerald-500"></div>
                   <div>
-                    <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Laki-Laki (51.2%)</span>
+                    <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Laki-Laki ({pctLaki}%)</span>
                     <span className="block text-sm font-bold text-slate-900 dark:text-white">{dataDemografiGender.lakiLaki} Jiwa</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-4 h-4 rounded-md bg-sky-500"></div>
                   <div>
-                    <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Perempuan (48.8%)</span>
+                    <span className="block text-xs font-semibold text-slate-700 dark:text-slate-300">Perempuan ({pctPerempuan}%)</span>
                     <span className="block text-sm font-bold text-slate-900 dark:text-white">{dataDemografiGender.perempuan} Jiwa</span>
                   </div>
                 </div>

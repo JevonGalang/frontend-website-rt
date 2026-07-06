@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TrendingUp, TrendingDown, Wallet, Search, Filter, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { TrendingUp, TrendingDown, Wallet, Search, Calendar } from 'lucide-react';
 
 export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transaksiKas }) {
   const [searchTerm, setSearchTerm] = useState('');
