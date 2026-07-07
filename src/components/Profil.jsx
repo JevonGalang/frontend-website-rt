@@ -26,27 +26,6 @@ export default function Profil() {
       gradient: 'from-amber-500 to-orange-500 shadow-amber-500/20',
       description: 'Mengelola laporan keuangan, iuran warga, dan kas RT.',
     },
-    {
-      role: 'Seksi Keamanan',
-      name: 'Pak Joko Susilo',
-      initials: 'JS',
-      gradient: 'from-red-500 to-rose-500 shadow-red-500/20',
-      description: 'Mengoordinasi satpam, jadwal siskamling, dan ketertiban.',
-    },
-    {
-      role: 'Seksi Kebersihan',
-      name: 'Ibu Rina Lestari',
-      initials: 'RL',
-      gradient: 'from-teal-500 to-cyan-500 shadow-teal-500/20',
-      description: 'Mengelola pengangkutan sampah rutin dan keasrian taman.',
-    },
-    {
-      role: 'Seksi Sosial & Keagamaan',
-      name: 'Pak Ahmad Fauzi',
-      initials: 'AF',
-      gradient: 'from-purple-500 to-pink-500 shadow-purple-500/20',
-      description: 'Mengoordinasi kegiatan sosial, santunan, dan acara hari raya.',
-    },
   ];
 
   return (
@@ -252,40 +231,6 @@ export default function Profil() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500 dark:text-slate-400">
-                          {pengurus.description}
-                        </p>
-                      </div>
-                    </div>
-                    {/* Line down to section */}
-                    <div className="w-0.5 h-10 bg-slate-200 dark:bg-slate-700 mt-2"></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Level 3: Seksi-Seksi (Divisions) */}
-            <div className="relative w-full max-w-7xl pt-4">
-              {/* Horizontal line covering the 3 divisions */}
-              <div className="absolute top-0 left-1/6 right-1/6 md:left-[16.6%] md:right-[16.6%] h-0.5 bg-slate-200 dark:bg-slate-700"></div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
-                {pengurusList.slice(3).map((pengurus, index) => (
-                  <div key={index} className="relative flex flex-col items-center">
-                    {/* Vertical link connector */}
-                    <div className="absolute -top-6 w-0.5 h-6 bg-slate-200 dark:bg-slate-700"></div>
-                    
-                    <div className="group p-5 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-sm text-center w-full max-w-[280px] transition-all duration-300 hover:scale-[1.02] hover:shadow-slate-500/5">
-                      <div className="flex flex-col items-center space-y-3">
-                        <div className={`w-12 h-12 rounded-full bg-gradient-to-tr ${pengurus.gradient} text-white flex items-center justify-center font-bold shadow`}>
-                          {pengurus.initials}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-slate-900 dark:text-white text-sm">{pengurus.name}</h4>
-                          <span className="px-2.5 py-0.5 rounded-full bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold mt-1 inline-block">
-                            {pengurus.role}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
                           {pengurus.description}
                         </p>
                       </div>

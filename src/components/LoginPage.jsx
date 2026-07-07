@@ -14,20 +14,106 @@ export default function LoginPage({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const handleLoginSubmit = (e) => {
+  const recordAccessLog = (user) => {
+    try {
+      const logsData = localStorage.getItem('rt_access_logs');
+      const logs = logsData ? JSON.parse(logsData) : [];
+      
+      const newLog = {
+        id: 'LOG-' + Math.floor(Math.random() * 90000 + 10000),
+        username: user.username,
+        name: user.name || user.username,
+        role: user.role || 'warga',
+        loginTime: new Date().toISOString(),
+        ipAddress: '172.20.32.62',
+        userAgent: navigator.userAgent.includes('Chrome') ? 'Google Chrome (Windows)' : 'Mozilla Firefox (Windows)',
+        status: 'Aktif'
+      };
+      
+      logs.unshift(newLog);
+      localStorage.setItem('rt_access_logs', JSON.stringify(logs.slice(0, 100)));
+    } catch (e) {
+      console.error('Gagal mencatat log akses:', e);
+    }
+  };
+
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
 
+    // Validations: Username min 3 characters, Password min 8 characters
+    if (loginData.username.length < 3) {
+      setError('Username/NIK minimal harus 3 karakter.');
+      return;
+    }
+    if (loginData.password.length < 8) {
+      setError('Password minimal harus 8 karakter.');
+      return;
+    }
+
+    // Call API Login
+    try {
+      const response = await fetch('http://172.20.32.62:3333/post/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginData.username,
+          password: loginData.password
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        setError(resData.message || resData.status || 'Username atau password salah.');
+        return;
+      }
+
+      setSuccess('Login Berhasil! Mengalihkan...');
+      
+      // Save token (JWT) to localStorage valid for 1 day
+      localStorage.setItem('rt_token', resData.token);
+      localStorage.setItem('rt_token_time', new Date().getTime().toString());
+
+      // Merge local rich citizen data if exists
+      const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
+      
+      const userSession = {
+        ...localCitizen, // fallback fields
+        id: resData.user.id,
+        username: resData.user.username,
+        email: resData.user.email,
+        role: resData.user.role,
+        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
+      };
+
+      recordAccessLog(userSession);
+      setTimeout(() => {
+        setCurrentUser(userSession);
+        localStorage.setItem('rt_current_user', JSON.stringify(userSession));
+      }, 1000);
+      return;
+
+    } catch (err) {
+      console.warn('API Login offline/error, menggunakan fallback lokal:', err);
+      const proceedOffline = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin masuk menggunakan akun lokal (Offline Mode)?');
+      if (!proceedOffline) {
+        setError('Gagal menghubungkan ke server API.');
+        return;
+      }
+    }
+
+    // LOCAL OFFLINE FALLBACK
     // Check for admin
     if (loginData.username.toLowerCase() === 'admin' && loginData.password === 'admin') {
       const adminUser = {
         id: 'ADM-001',
         name: 'Pak RT (Ahmad Mulyono)',
         username: 'admin',
-        role: 'admin',
+        role: 'rt',
       };
-      setSuccess('Login Admin Berhasil! Mengalihkan...');
+      setSuccess('Login Admin Lokal Berhasil! Mengalihkan...');
+      recordAccessLog(adminUser);
       setTimeout(() => {
         setCurrentUser(adminUser);
         localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
@@ -48,43 +134,14 @@ export default function LoginPage({
         ...citizen,
         role: 'warga',
       };
-      setSuccess(`Login Berhasil! Selamat datang, ${citizen.name}.`);
+      setSuccess(`Login Lokal Berhasil! Selamat datang, ${citizen.name}.`);
+      recordAccessLog(citizenUser);
       setTimeout(() => {
         setCurrentUser(citizenUser);
         localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
       }, 1000);
     } else {
       setError('Username/NIK atau Password salah. Silakan coba lagi.');
-    }
-  };
-
-  const handleQuickLogin = (role) => {
-    setError('');
-    setSuccess('');
-    if (role === 'admin') {
-      setLoginData({ username: 'admin', password: 'admin' });
-      setSuccess('Login Admin Berhasil!');
-      setTimeout(() => {
-        const adminUser = {
-          id: 'ADM-001',
-          name: 'Pak RT (Ahmad Mulyono)',
-          username: 'admin',
-          role: 'admin',
-        };
-        setCurrentUser(adminUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
-      }, 1000);
-    } else {
-      setLoginData({ username: 'warga', password: 'warga' });
-      const citizen = wargaList.find((w) => w.username === 'warga');
-      if (citizen) {
-        setSuccess(`Login Warga Berhasil! Selamat datang, ${citizen.name}.`);
-        setTimeout(() => {
-          const citizenUser = { ...citizen, role: 'warga' };
-          setCurrentUser(citizenUser);
-          localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
-        }, 1000);
-      }
     }
   };
 
@@ -242,30 +299,6 @@ export default function LoginPage({
                     <span>Masuk ke Portal</span>
                   </button>
 
-                  {/* Demo buttons */}
-                  <div className="pt-4 border-t border-slate-100 dark:border-slate-850">
-                    <span className="block text-[9px] text-center text-slate-450 dark:text-slate-400 uppercase tracking-widest font-bold mb-2">
-                      Demo Akses Cepat (Skenario Pengujian)
-                    </span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('warga')}
-                        className="py-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl font-bold flex flex-col items-center text-center gap-0.5 cursor-pointer transition-all"
-                      >
-                        <span className="text-[11px] text-slate-800 dark:text-slate-200">Portal Warga</span>
-                        <span className="text-[9px] text-slate-400 font-mono">warga / warga</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleQuickLogin('admin')}
-                        className="py-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl font-bold flex flex-col items-center text-center gap-0.5 cursor-pointer transition-all"
-                      >
-                        <span className="text-[11px] text-slate-800 dark:text-slate-200">Portal Admin RT</span>
-                        <span className="text-[9px] text-slate-400 font-mono">admin / admin</span>
-                      </button>
-                    </div>
-                  </div>
                 </form>
 
               </div>

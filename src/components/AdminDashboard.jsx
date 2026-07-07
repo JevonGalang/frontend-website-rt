@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
-  AlertCircle, Sparkles, Filter, Eye, EyeOff
+  AlertCircle, Sparkles, Filter, Eye, EyeOff, Activity
 } from 'lucide-react';
 
 export default function AdminDashboard({ 
@@ -32,7 +32,7 @@ export default function AdminDashboard({
   
   // Form States
   const [wargaForm, setWargaForm] = useState({
-    name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup'
+    name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup', statusIuran: 'Lunas'
   });
   const [kasForm, setKasForm] = useState({
     description: '', amount: '', date: new Date().toISOString().split('T')[0], type: 'income', category: 'Iuran Warga'
@@ -53,6 +53,20 @@ export default function AdminDashboard({
   const [promptError, setPromptError] = useState('');
   const [targetId, setTargetId] = useState(null);
   const [targetField, setTargetField] = useState(''); // 'nik' | 'kk' | 'password'
+
+  // Access Logs & Sesi Active states
+  const [logsTrigger, setLogsTrigger] = useState(0);
+  const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
+  const accessLogs = JSON.parse(localStorage.getItem('rt_access_logs') || '[]');
+
+  const handleShowAccessProfile = (username) => {
+    const citizen = wargaList.find(w => w.username.toLowerCase() === username.toLowerCase());
+    if (citizen) {
+      setViewingCitizenProfile(citizen);
+    } else {
+      alert('Data profil kependudukan warga tidak ditemukan di database.');
+    }
+  };
 
   const handleRevealClick = (id, field) => {
     setTargetId(id);
@@ -174,7 +188,7 @@ export default function AdminDashboard({
     setFormError('');
     if (type === 'warga') {
       setWargaForm({
-        name: '', username: '', password: 'warga', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup'
+        name: '', username: '', password: 'warga', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup', statusIuran: 'Lunas'
       });
       setModalType('add_warga');
     } else if (type === 'kas') {
@@ -423,6 +437,18 @@ export default function AdminDashboard({
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => { setActiveTab('logs'); setSearchQuery(''); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === 'logs'
+                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                : 'hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Log Akses Warga</span>
+          </button>
         </nav>
 
         {/* Theme Toggle & Logout */}
@@ -467,6 +493,7 @@ export default function AdminDashboard({
               {activeTab === 'kas' && 'MONITORING KEUANGAN'}
               {activeTab === 'agenda' && 'PENJADWALAN KOMUNITAS'}
               {activeTab === 'layanan' && 'LOKET PELAYANAN SURAT'}
+              {activeTab === 'logs' && 'LOG AKTIVITAS & SESI'}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {activeTab === 'overview' && 'Ringkasan Portal Admin'}
@@ -474,6 +501,7 @@ export default function AdminDashboard({
               {activeTab === 'kas' && 'Buku Kas & Transaksi'}
               {activeTab === 'agenda' && 'Kegiatan & Rapat RT'}
               {activeTab === 'layanan' && 'Layanan Pengajuan Surat'}
+              {activeTab === 'logs' && 'Log Akses Masuk Portal'}
             </h2>
           </div>
           
@@ -1164,6 +1192,112 @@ export default function AdminDashboard({
             </div>
           )}
 
+          {/* TAB 6: LOG AKSES WARGA */}
+          {activeTab === 'logs' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari aktivitas berdasarkan nama/username..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
+                      localStorage.setItem('rt_access_logs', JSON.stringify([]));
+                      setLogsTrigger(t => t + 1);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Semua Log</span>
+                </button>
+              </div>
+              <span className="hidden" aria-hidden="true">{logsTrigger}</span>
+
+              {/* Table rendering logs */}
+              <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+                <table className="w-full border-collapse text-left text-xs font-sans">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-955 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="p-4">ID Log</th>
+                      <th className="p-4">Warga / Pengguna</th>
+                      <th className="p-4">Peran (Role)</th>
+                      <th className="p-4">Waktu Masuk</th>
+                      <th className="p-4">IP Address</th>
+                      <th className="p-4">Aplikasi/Device</th>
+                      <th className="p-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                    {accessLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold italic">
+                          Belum ada aktivitas masuk di portal ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      accessLogs
+                        .filter(log => 
+                          log.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          log.username.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/30 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
+                            <td className="p-4">
+                              <div>
+                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="text-[10px] text-slate-400">@{log.username}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
+                                log.role === 'rt' || log.role === 'admin'
+                                  ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  : log.role === 'sekertaris'
+                                  ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  : log.role === 'bendahara'
+                                  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-400'
+                              }`}>
+                                {log.role}
+                              </span>
+                            </td>
+                            <td className="p-4 text-slate-500 font-semibold">
+                              {new Date(log.loginTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </td>
+                            <td className="p-4 font-mono text-[11px] text-slate-500">{log.ipAddress}</td>
+                            <td className="p-4 text-slate-500">{log.userAgent}</td>
+                            <td className="p-4 text-right">
+                              {log.role === 'warga' ? (
+                                <button
+                                  onClick={() => handleShowAccessProfile(log.username)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                >
+                                  Lihat Profil Warga
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic font-semibold">Bukan Warga</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          )}
+
         </div>
       </main>
 
@@ -1297,13 +1431,13 @@ export default function AdminDashboard({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <label className="font-bold text-slate-655 dark:text-slate-350">Status Rumah</label>
                       <select
                         value={wargaForm.status}
                         onChange={(e) => setWargaForm({ ...wargaForm, status: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
                       >
                         <option value="Tetap">Tetap</option>
                         <option value="Kontrak">Kontrak</option>
@@ -1315,10 +1449,23 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.statusHidup}
                         onChange={(e) => setWargaForm({ ...wargaForm, statusHidup: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
                       >
                         <option value="Hidup">Hidup (Aktif)</option>
                         <option value="Meninggal">Meninggal Dunia</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Status Iuran</label>
+                      <select
+                        value={wargaForm.statusIuran || 'Lunas'}
+                        onChange={(e) => setWargaForm({ ...wargaForm, statusIuran: e.target.value })}
+                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
+                      >
+                        <option value="Lunas">Lunas</option>
+                        <option value="Menunggak (Rp 50.000)">Menunggak (50rb)</option>
+                        <option value="Menunggak (Rp 100.000)">Menunggak (100rb)</option>
                       </select>
                     </div>
                   </div>
@@ -1582,6 +1729,99 @@ export default function AdminDashboard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* VIEWING CITIZEN PROFILE MODAL FROM LOGS */}
+      {viewingCitizenProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            onClick={() => setViewingCitizenProfile(null)}
+          ></div>
+          
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Profil Lengkap Warga</h3>
+              <button 
+                onClick={() => setViewingCitizenProfile(null)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 font-sans text-xs sm:text-sm overflow-y-auto max-h-[80vh]">
+              {/* Visual Avatar */}
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black flex items-center justify-center rounded-2xl text-2xl shadow-lg">
+                  {viewingCitizenProfile.name ? viewingCitizenProfile.name.charAt(0) : 'W'}
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 dark:text-white text-base">{viewingCitizenProfile.name}</h4>
+                  <span className="text-[10px] text-slate-400">ID Warga: {viewingCitizenProfile.id}</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500 font-semibold">Username Login</span>
+                  <span className="font-bold text-slate-900 dark:text-white">@{viewingCitizenProfile.username}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-505 font-semibold">Email Warga</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingCitizenProfile.email || '-'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">NIK (Tersensor)</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {viewingCitizenProfile.nik ? viewingCitizenProfile.nik.slice(0, 6) + '******' + viewingCitizenProfile.nik.slice(12) : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-550 font-semibold">No. KK (Tersensor)</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {viewingCitizenProfile.noKk ? viewingCitizenProfile.noKk.slice(0, 6) + '******' + viewingCitizenProfile.noKk.slice(12) : '-'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Jenis Kelamin</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-205">{viewingCitizenProfile.gender}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Usia</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.usia} Tahun</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-550 font-semibold">Status Rumah</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-450">{viewingCitizenProfile.status}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Status Hidup</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-650' : 'bg-red-50 dark:bg-red-950/30 text-red-655'}`}>{viewingCitizenProfile.statusHidup}</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-955/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
+                <span className="text-slate-800 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
+                  "{viewingCitizenProfile.alamat}"
+                </span>
+              </div>
+
+              <button
+                onClick={() => setViewingCitizenProfile(null)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Tutup Profil
+              </button>
+            </div>
           </div>
         </div>
       )}

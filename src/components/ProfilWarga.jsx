@@ -1,11 +1,20 @@
 import { useState } from 'react';
 import { 
   Edit2, Save, X, Eye, EyeOff, 
-  CheckCircle2, AlertCircle, Info
+  CheckCircle2, AlertCircle,
+  Grid, FileText, Lock, Settings,
+  Heart, MessageCircle, Send, Key
 } from 'lucide-react';
 
-export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = [] }) {
+export default function ProfilWarga({ 
+  currentUser, 
+  onUpdateProfile, 
+  wargaList = [],
+  submissionsList = []
+}) {
   const [isEditing, setIsEditing] = useState(false);
+  const [profileTab, setProfileTab] = useState('biodata'); // 'biodata' | 'surat' | 'keamanan'
+  
   const [formData, setFormData] = useState(() => ({
     name: currentUser ? currentUser.name || '' : '',
     username: currentUser ? currentUser.username || '' : '',
@@ -16,16 +25,15 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
     gender: currentUser ? currentUser.gender || 'Laki-laki' : 'Laki-laki',
     usia: currentUser ? currentUser.usia || '' : '',
     status: currentUser ? currentUser.status || 'Tetap' : 'Tetap',
+    email: currentUser ? currentUser.email || '' : '',
   }));
 
-  const [revealNik, setRevealNik] = useState(false);
-  const [revealKk, setRevealKk] = useState(false);
   const [revealPassword, setRevealPassword] = useState(false);
 
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [promptPasswordInput, setPromptPasswordInput] = useState('');
   const [promptError, setPromptError] = useState('');
-  const [pendingAction, setPendingAction] = useState(''); // 'edit' | 'reveal_nik' | 'reveal_kk' | 'reveal_pwd'
+  const [pendingAction, setPendingAction] = useState(''); // 'edit' | 'reveal_pwd'
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -42,31 +50,21 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
         gender: currentUser.gender || 'Laki-laki',
         usia: currentUser.usia || '',
         status: currentUser.status || 'Tetap',
+        email: currentUser.email || '',
       });
     }
     setIsEditing(false);
   };
 
+  const handleEditClick = () => {
+    setPendingAction('edit');
+    setPromptPasswordInput('');
+    setPromptError('');
+    setShowPasswordPrompt(true);
+  };
+
   const handleRevealToggle = (field) => {
-    if (field === 'nik') {
-      if (revealNik) {
-        setRevealNik(false);
-      } else {
-        setPendingAction('reveal_nik');
-        setPromptPasswordInput('');
-        setPromptError('');
-        setShowPasswordPrompt(true);
-      }
-    } else if (field === 'kk') {
-      if (revealKk) {
-        setRevealKk(false);
-      } else {
-        setPendingAction('reveal_kk');
-        setPromptPasswordInput('');
-        setPromptError('');
-        setShowPasswordPrompt(true);
-      }
-    } else if (field === 'password') {
+    if (field === 'password') {
       if (revealPassword) {
         setRevealPassword(false);
       } else {
@@ -78,23 +76,12 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
     }
   };
 
-  const handleEditClick = () => {
-    setPendingAction('edit');
-    setPromptPasswordInput('');
-    setPromptError('');
-    setShowPasswordPrompt(true);
-  };
-
   const handleConfirmPassword = (e) => {
     e.preventDefault();
     if (promptPasswordInput === currentUser.password) {
       setShowPasswordPrompt(false);
       if (pendingAction === 'edit') {
         setIsEditing(true);
-      } else if (pendingAction === 'reveal_nik') {
-        setRevealNik(true);
-      } else if (pendingAction === 'reveal_kk') {
-        setRevealKk(true);
       } else if (pendingAction === 'reveal_pwd') {
         setRevealPassword(true);
       }
@@ -109,12 +96,21 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
     setSuccess('');
 
     // Validations
-    if (formData.nik.length !== 16 || isNaN(formData.nik)) {
-      setError('NIK harus berupa 16 digit angka.');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formData.email) {
+      setError('Kolom Email wajib diisi.');
       return;
     }
-    if (formData.noKk.length !== 16 || isNaN(formData.noKk)) {
-      setError('Nomor KK harus berupa 16 digit angka.');
+    if (!emailRegex.test(formData.email)) {
+      setError('Format email tidak valid (contoh: nama@domain.com).');
+      return;
+    }
+    if (formData.username.length < 3) {
+      setError('Username minimal harus 3 karakter.');
+      return;
+    }
+    if (formData.password.length < 8) {
+      setError('Password minimal harus 8 karakter.');
       return;
     }
     if (!formData.name || !formData.username || !formData.password || !formData.alamat || !formData.usia) {
@@ -131,43 +127,25 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
       return;
     }
 
-    // Check NIK uniqueness
-    const nikExists = wargaList.some((w) => w.id !== currentUser.id && w.nik === formData.nik);
-    if (nikExists) {
-      setError('NIK sudah terdaftar pada warga lain.');
-      return;
-    }
-
     // Save changes
     const updatedCitizen = {
       ...currentUser,
       name: formData.name,
       username: formData.username,
       password: formData.password,
-      nik: formData.nik,
-      noKk: formData.noKk,
+      nik: currentUser.nik,
+      noKk: currentUser.noKk,
       alamat: formData.alamat,
       gender: formData.gender,
       usia: parseInt(formData.usia) || 30,
       status: formData.status,
+      email: formData.email,
     };
 
     onUpdateProfile(updatedCitizen);
     setIsEditing(false);
     setSuccess('Biodata profil Anda berhasil diperbarui!');
-    setTimeout(() => setSuccess(''), 2500);
-  };
-
-  const getDisplayNik = (fullNik) => {
-    if (revealNik || isEditing) return fullNik;
-    if (!fullNik || fullNik.length < 12) return '****************';
-    return fullNik.slice(0, 6) + '******' + fullNik.slice(12);
-  };
-
-  const getDisplayKk = (fullKk) => {
-    if (revealKk || isEditing) return fullKk;
-    if (!fullKk || fullKk.length < 12) return '****************';
-    return fullKk.slice(0, 6) + '******' + fullKk.slice(12);
+    setTimeout(() => setSuccess(''), 2505);
   };
 
   const getDisplayPassword = (fullPassword) => {
@@ -177,353 +155,462 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
 
   if (!currentUser || currentUser.role !== 'warga') return null;
 
+  // Filter submissions by this citizen
+  const mySubmissions = submissionsList.filter(
+    (sub) => sub.wargaNama?.toLowerCase() === currentUser.name?.toLowerCase() ||
+             sub.wargaNik === currentUser.nik
+  );
+
   return (
     <section
       id="profil-saya"
-      className="py-20 bg-white dark:bg-slate-950 relative border-b border-slate-100 dark:border-slate-800"
+      className="py-12 bg-white dark:bg-slate-950 relative border-b border-slate-200 dark:border-slate-800"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
         
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 font-sans">
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white sm:text-4xl tracking-tight">
-            Profil & Biodata Saya
-          </h2>
-          <p className="mt-4 text-base text-slate-600 dark:text-slate-400">
-            Kelola data administrasi kependudukan Anda secara mandiri. Pastikan data terisi dengan benar untuk keperluan pengurusan berkas.
-          </p>
-        </div>
+        {/* IG Header Section */}
+        <div className="flex flex-col md:flex-row gap-6 md:gap-12 items-center md:items-start pb-8 border-b border-slate-200 dark:border-slate-800">
+          
+          {/* Avatar with Story Gradient Ring */}
+          <div className="relative flex-shrink-0">
+            <div className="p-[3.5px] bg-gradient-to-tr from-yellow-500 via-red-505 via-pink-500 to-purple-600 rounded-full shadow-md animate-pulse-slow">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white dark:border-slate-950 bg-slate-100 dark:bg-slate-900 flex items-center justify-center font-black text-slate-800 dark:text-white text-3xl sm:text-4xl shadow-inner select-none">
+                {currentUser.name ? currentUser.name.charAt(0) : 'W'}
+              </div>
+            </div>
+            <span className="absolute bottom-1 right-1 w-5 h-5 bg-emerald-500 border-4 border-white dark:border-slate-955 rounded-full" title="Sesi Warga Aktif"></span>
+          </div>
 
-        <div className="max-w-3xl mx-auto">
-          <div className="relative group w-full">
-            {/* Ambient outer glow */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur opacity-15 group-hover:opacity-20 transition duration-1000"></div>
-
-            <div className="relative bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800/80 rounded-3xl p-6 sm:p-10 shadow-xl space-y-8">
+          {/* User Details & IG actions */}
+          <div className="flex-1 space-y-4.5 text-center md:text-left">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
+                @{currentUser.username}
+              </h2>
               
-              {/* Card top branding */}
-              <div className="flex flex-col sm:flex-row justify-between items-center pb-6 border-b border-slate-100 dark:border-slate-800 gap-4">
-                <div className="flex items-center gap-3.5 text-center sm:text-left">
-                  <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 font-black flex items-center justify-center rounded-2xl text-xl shadow-inner">
-                    {currentUser.name ? currentUser.name.charAt(0) : 'W'}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
-                      {currentUser.name}
-                    </h3>
-                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider px-2 py-0.5 rounded mt-1.5 inline-block">
-                      ID Warga: {currentUser.id}
-                    </span>
-                  </div>
-                </div>
-
-                {!isEditing && (
+              <div className="flex items-center gap-2">
+                {!isEditing ? (
                   <button
                     onClick={handleEditClick}
-                    className="px-4.5 py-2.5 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-600 hover:text-white dark:text-emerald-450 dark:hover:text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
+                    className="px-5 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-800 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Edit Biodata</span>
+                    <Edit2 className="w-3 h-3" />
+                    <span>Edit Profil</span>
                   </button>
-                )}
-              </div>
-
-              {/* Feedback Messages */}
-              {error && (
-                <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2 animate-pulse">
-                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
-              {success && (
-                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-450 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 animate-bounce" />
-                  <span>{success}</span>
-                </div>
-              )}
-
-              {isEditing ? (
-                /* EDITING PROFILE FORM */
-                <form onSubmit={handleSubmit} className="space-y-6 text-xs sm:text-sm font-sans">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Nama Lengkap *</label>
-                      <input
-                        required
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Username Login *</label>
-                      <input
-                        required
-                        type="text"
-                        value={formData.username}
-                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">NIK (16 Digit) *</label>
-                      <input
-                        required
-                        type="text"
-                        maxLength={16}
-                        value={formData.nik}
-                        onChange={(e) => setFormData({ ...formData, nik: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">No. Kartu Keluarga (16 Digit) *</label>
-                      <input
-                        required
-                        type="text"
-                        maxLength={16}
-                        value={formData.noKk}
-                        onChange={(e) => setFormData({ ...formData, noKk: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5 col-span-2">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Jenis Kelamin</label>
-                      <select
-                        value={formData.gender}
-                        onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
-                      >
-                        <option value="Laki-laki">Laki-laki</option>
-                        <option value="Perempuan">Perempuan</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Usia (Thn) *</label>
-                      <input
-                        required
-                        type="number"
-                        min="1"
-                        max="120"
-                        value={formData.usia}
-                        onChange={(e) => setFormData({ ...formData, usia: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Status Tempat Tinggal</label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
-                      >
-                        <option value="Tetap">Tetap</option>
-                        <option value="Kontrak">Kontrak</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Password Sandi Akun *</label>
-                      <input
-                        required
-                        type="text"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Alamat Rumah Lengkap *</label>
-                    <textarea
-                      required
-                      rows={2}
-                      value={formData.alamat}
-                      onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none focus:border-emerald-500 text-slate-900 dark:text-white"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
+                ) : (
+                  <div className="flex gap-2">
                     <button
                       type="submit"
-                      className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold rounded-xl cursor-pointer shadow-md transition-all flex items-center justify-center gap-1.5"
+                      form="ig-profile-form"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
                     >
-                      <Save className="w-4 h-4" />
-                      <span>Simpan Perubahan</span>
+                      <Save className="w-3 h-3" />
+                      <span>Simpan</span>
                     </button>
                     <button
-                      type="button"
                       onClick={handleCancel}
-                      className="px-6 py-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl cursor-pointer transition-all flex items-center justify-center gap-1"
+                      className="px-4 py-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-850 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3" />
                       <span>Batal</span>
                     </button>
                   </div>
-                </form>
-              ) : (
-                /* READ-ONLY PROFILE DETAIL VIEW */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs sm:text-sm font-sans">
-                  {/* Left stats/visual column */}
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 space-y-4">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
-                        Dokumen Administrasi
-                      </span>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">NIK Penduduk</span>
-                        <div className="font-semibold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
-                          <span>{getDisplayNik(currentUser.nik)}</span>
-                          <button
-                            onClick={() => handleRevealToggle('nik')}
-                            className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                            title={revealNik ? "Sembunyikan NIK" : "Tampilkan NIK (Perlu Sandi)"}
-                          >
-                            {revealNik ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
+                )}
+                <button className="p-2 border border-slate-200 dark:border-slate-800 text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition-colors cursor-pointer">
+                  <Settings className="w-4 h-4 animate-spin-slow" />
+                </button>
+              </div>
+            </div>
 
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">Nomor KK</span>
-                        <div className="font-semibold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
-                          <span>{getDisplayKk(currentUser.noKk)}</span>
-                          <button
-                            onClick={() => handleRevealToggle('kk')}
-                            className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                            title={revealKk ? "Sembunyikan KK" : "Tampilkan KK (Perlu Sandi)"}
-                          >
-                            {revealKk ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+            {/* Stats Row */}
+            <div className="flex items-center justify-center md:justify-start gap-5 sm:gap-7 border-y border-slate-100 dark:border-slate-800/80 py-3 text-xs sm:text-sm">
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-white mr-1">
+                  {mySubmissions.length}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">Pengajuan</span>
+              </div>
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-white mr-1">
+                  {currentUser.status || 'Tetap'}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">Tinggal</span>
+              </div>
+              <div>
+                <span className="font-extrabold text-slate-900 dark:text-white mr-1">
+                  RT 04
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">Wilayah</span>
+              </div>
+              <div>
+                <span className={`font-extrabold mr-1 ${currentUser.statusIuran?.includes('Menunggak') ? 'text-rose-500 dark:text-rose-450' : 'text-emerald-600 dark:text-emerald-450'}`}>
+                  {currentUser.statusIuran || 'Lunas'}
+                </span>
+                <span className="text-slate-500 dark:text-slate-400">Iuran</span>
+              </div>
+            </div>
 
-                    <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 space-y-4">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
-                        Akun & Keamanan
-                      </span>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">Username Login</span>
-                        <span className="font-bold text-slate-900 dark:text-white">{currentUser.username}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-medium">Sandi Akun</span>
-                        <div className="font-semibold text-slate-900 dark:text-white font-mono flex items-center gap-1.5">
-                          <span>{getDisplayPassword(currentUser.password)}</span>
-                          <button
-                            onClick={() => handleRevealToggle('password')}
-                            className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                            title={revealPassword ? "Sembunyikan Sandi" : "Tampilkan Sandi (Perlu Sandi)"}
-                          >
-                            {revealPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right Personal Data Column */}
-                  <div className="p-5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/60 space-y-4">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 pb-2">
-                      Biodata Warga
-                    </span>
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Jenis Kelamin</span>
-                      <span className="font-bold text-slate-850 dark:text-slate-200">{currentUser.gender}</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Usia</span>
-                      <span className="font-bold text-slate-850 dark:text-slate-200">{currentUser.usia} Tahun</span>
-                    </div>
-
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-medium">Status Rumah</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-450">{currentUser.status}</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/50">
-                      <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
-                      <span className="text-slate-800 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
-                        "{currentUser.alamat}"
-                      </span>
-                    </div>
-
-                    {/* Notice bar */}
-                    <div className="mt-4 p-3 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-[10px] text-slate-450 dark:text-slate-400 leading-snug flex gap-2">
-                      <Info className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                      <span>Data ini sinkron langsung ke database RT. Pastikan data valid karena akan digunakan otomatis untuk form persuratan.</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
+            {/* Bio info */}
+            <div className="space-y-1 text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-350">
+              <p className="font-black text-slate-900 dark:text-white text-base">
+                {currentUser.name}
+              </p>
+              <p className="text-slate-400 dark:text-slate-500 italic">
+                Warga Mandiri Sawangan Green Park • ID #{currentUser.id}
+              </p>
+              <p className="pt-1.5 flex items-center justify-center md:justify-start gap-1">
+                <span>🏠</span>
+                <span>{currentUser.alamat}</span>
+              </p>
+              <p className="flex items-center justify-center md:justify-start gap-3 text-slate-500 text-xs">
+                <span>🎂 {currentUser.usia} Tahun</span>
+                <span>•</span>
+                <span>{currentUser.gender === 'Laki-laki' ? '♂️ Laki-laki' : '♀️ Perempuan'}</span>
+              </p>
             </div>
           </div>
         </div>
 
+        {/* IG-style Tabs Navbar */}
+        <div className="flex justify-center border-t border-slate-200 dark:border-slate-800 mt-6 font-sans">
+          <div className="flex gap-12 sm:gap-16">
+            <button
+              onClick={() => setProfileTab('biodata')}
+              className={`flex items-center gap-1.5 py-4 border-t-2 transition-all cursor-pointer text-xs uppercase tracking-widest font-extrabold ${
+                profileTab === 'biodata'
+                  ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white opacity-100'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-60'
+              }`}
+            >
+              <Grid className="w-3.5 h-3.5" />
+              <span>Biodata</span>
+            </button>
+
+            <button
+              onClick={() => setProfileTab('surat')}
+              className={`flex items-center gap-1.5 py-4 border-t-2 transition-all cursor-pointer text-xs uppercase tracking-widest font-extrabold ${
+                profileTab === 'surat'
+                  ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white opacity-100'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-60'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Surat Saya</span>
+            </button>
+
+            <button
+              onClick={() => setProfileTab('keamanan')}
+              className={`flex items-center gap-1.5 py-4 border-t-2 transition-all cursor-pointer text-xs uppercase tracking-widest font-extrabold ${
+                profileTab === 'keamanan'
+                  ? 'border-slate-900 dark:border-white text-slate-900 dark:text-white opacity-100'
+                  : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-60'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Keamanan</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tab content area */}
+        <div className="mt-2">
+          
+          {/* Feedback alerts */}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="mb-4 p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>{success}</span>
+            </div>
+          )}
+
+          {/* TAB 1: BIODATA */}
+          {profileTab === 'biodata' && (
+            isEditing ? (
+              <form id="ig-profile-form" onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm font-sans pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Nama Lengkap *</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Status Tempat Tinggal</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="Tetap">Tetap</option>
+                      <option value="Kontrak">Kontrak</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-1.5 col-span-2">
+                    <label className="font-bold text-slate-655 dark:text-slate-400">Jenis Kelamin</label>
+                    <select
+                      value={formData.gender}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold text-xs"
+                    >
+                      <option value="Laki-laki">Laki-laki</option>
+                      <option value="Perempuan">Perempuan</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-400">Usia (Thn) *</label>
+                    <input
+                      required
+                      type="number"
+                      min="1"
+                      max="120"
+                      value={formData.usia}
+                      onChange={(e) => setFormData({ ...formData, usia: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-655 dark:text-slate-400">Alamat Rumah Lengkap *</label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={formData.alamat}
+                    onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans text-xs sm:text-sm pt-6">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Nama Lengkap</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white">{currentUser.name}</span>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Status Rumah</span>
+                  <span className="font-extrabold text-emerald-600 dark:text-emerald-450">{currentUser.status}</span>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 sm:col-span-2 rounded-2xl space-y-1.5">
+                  <span className="text-slate-500 font-semibold block text-xs">Alamat Domisili Rumah</span>
+                  <p className="text-slate-800 dark:text-slate-200 italic font-medium leading-relaxed">
+                    "{currentUser.alamat}"
+                  </p>
+                </div>
+              </div>
+            )
+          )}
+
+          {/* TAB 2: SURAT SAYA (Submissions Grid like IG posts) */}
+          {profileTab === 'surat' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 pt-6 font-sans">
+              {mySubmissions.length === 0 ? (
+                <div className="col-span-full py-16 text-center text-slate-400 dark:text-slate-550 font-bold italic text-xs">
+                  Belum ada riwayat pengajuan surat pengantar dari Anda.
+                </div>
+              ) : (
+                mySubmissions.map((sub) => (
+                  <div key={sub.id} className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200/60 dark:border-slate-850 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300">
+                    
+                    {/* IG Post Header */}
+                    <div className="p-3 border-b border-slate-150 dark:border-slate-850 flex justify-between items-center bg-white dark:bg-slate-900/50">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-[9px] font-black text-white uppercase">
+                          {currentUser.username.charAt(0)}
+                        </div>
+                        <span className="text-[10.5px] font-extrabold text-slate-800 dark:text-slate-200">
+                          {sub.wargaNama}
+                        </span>
+                      </div>
+                      <span className="text-[8px] font-mono text-slate-400 font-bold bg-slate-100 dark:bg-slate-855 px-2 py-0.5 rounded-full">
+                        {sub.id}
+                      </span>
+                    </div>
+
+                    {/* IG Post Image Area: Document Visual */}
+                    <div className="aspect-square bg-slate-100/70 dark:bg-slate-950/70 flex flex-col justify-center items-center p-6 text-center relative select-none">
+                      <FileText className="w-12 h-12 text-slate-300 dark:text-slate-800 animate-pulse-slow mb-3.5" />
+                      <h5 className="font-extrabold text-slate-800 dark:text-white text-[11px] leading-snug px-2">
+                        {sub.wargaTipeSurat}
+                      </h5>
+                      <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1 max-w-[150px] line-clamp-2">
+                        {sub.wargaKeperluan}
+                      </p>
+                    </div>
+
+                    {/* IG Post Interaction Details */}
+                    <div className="p-3 bg-white dark:bg-slate-900/50 space-y-2">
+                      <div className="flex items-center gap-3.5 text-slate-600 dark:text-slate-400">
+                        <Heart className={`w-4.5 h-4.5 cursor-pointer hover:scale-110 active:scale-95 transition-transform ${sub.status === 'Completed' || sub.status === 'Approved' ? 'fill-rose-500 text-rose-500 animate-bounce' : 'text-slate-400'}`} />
+                        <MessageCircle className="w-4.5 h-4.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" />
+                        <Send className="w-4.5 h-4.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200" />
+                      </div>
+
+                      <div className="text-[11px] font-bold text-slate-850 dark:text-slate-200">
+                        Status: {' '}
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold inline-block ${
+                          sub.status === 'Completed'
+                            ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600'
+                            : sub.status === 'Approved'
+                            ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600'
+                            : sub.status === 'Rejected'
+                            ? 'bg-red-50 dark:bg-red-950/40 text-red-600'
+                            : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 animate-pulse'
+                        }`}>
+                          {sub.status || 'Pending'}
+                        </span>
+                      </div>
+                      
+                      <div className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">
+                        Diajukan: {sub.submissionDate || '12 Juni 2026'}
+                      </div>
+                    </div>
+
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: KEAMANAN (Credentials) */}
+          {profileTab === 'keamanan' && (
+            isEditing ? (
+              <form id="ig-profile-form" onSubmit={handleSubmit} className="space-y-4 text-xs sm:text-sm font-sans pt-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-400">Username Login *</label>
+                    <input
+                      required
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-400">Email Warga *</label>
+                    <input
+                      required
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-655 dark:text-slate-400">Kata Sandi Baru * (Min 8 karakter)</label>
+                  <input
+                    required
+                    type="text"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                  />
+                </div>
+              </form>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans text-xs sm:text-sm pt-6">
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Username Login</span>
+                  <span className="font-extrabold text-slate-950 dark:text-white font-mono">@{currentUser.username}</span>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Email Terdaftar</span>
+                  <span className="font-extrabold text-slate-955 dark:text-white font-medium">{currentUser.email || '-'}</span>
+                </div>
+                <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/80 sm:col-span-2 rounded-2xl flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Sandi Akun (Tersensor)</span>
+                  <div className="font-bold text-slate-955 dark:text-white font-mono flex items-center gap-1.5">
+                    <span>{getDisplayPassword(currentUser.password)}</span>
+                    <button
+                      onClick={() => handleRevealToggle('password')}
+                      className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
+                      title={revealPassword ? "Sembunyikan Sandi" : "Tampilkan Sandi (Masukkan Password)"}
+                    >
+                      {revealPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          )}
+
+        </div>
+
       </div>
 
-      {/* PASSWORD VERIFICATION MODAL */}
+      {/* PASSWORD GATE PROMPT MODAL */}
       {showPasswordPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
             className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
             onClick={() => setShowPasswordPrompt(false)}
           ></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 p-6 space-y-4 animate-scale-up font-sans text-xs">
+
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Verifikasi Keamanan</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Masukkan sandi akun Anda untuk {pendingAction === 'edit' ? 'mengedit data profil.' : pendingAction === 'reveal_nik' ? 'membuka data NIK.' : pendingAction === 'reveal_kk' ? 'membuka data No. KK.' : 'membuka sandi akun.'}
-              </p>
+
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                <Key className="w-4 h-4 text-emerald-500" />
+                <span>Verifikasi Sandi Akun</span>
+              </h3>
+              <button 
+                onClick={() => setShowPasswordPrompt(false)}
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            {promptError && (
-              <div className="p-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 font-semibold flex items-center gap-2">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{promptError}</span>
+            <form onSubmit={handleConfirmPassword} className="p-5 space-y-4 font-sans text-xs">
+              <p className="text-slate-500 dark:text-slate-400">
+                Demi keamanan data kependudukan, silakan masukkan kata sandi akun Anda untuk melanjutkan tindakan ini.
+              </p>
+              
+              <div className="space-y-1.5">
+                <input
+                  required
+                  autoFocus
+                  type="password"
+                  placeholder="Masukkan sandi akun Anda"
+                  value={promptPasswordInput}
+                  onChange={(e) => {
+                    setPromptPasswordInput(e.target.value);
+                    setPromptError('');
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
+                />
+                {promptError && (
+                  <span className="text-red-500 font-semibold block">{promptError}</span>
+                )}
               </div>
-            )}
 
-            <form onSubmit={handleConfirmPassword} className="space-y-4">
-              <input
-                required
-                autoFocus
-                type="password"
-                placeholder="Masukkan Sandi Akun Anda"
-                value={promptPasswordInput}
-                onChange={(e) => setPromptPasswordInput(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-              />
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl cursor-pointer"
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
                 >
-                  Konfirmasi
+                  Verifikasi
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowPasswordPrompt(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold cursor-pointer text-xs text-slate-700 dark:text-slate-350"
                 >
                   Batal
                 </button>
@@ -532,6 +619,7 @@ export default function ProfilWarga({ currentUser, onUpdateProfile, wargaList = 
           </div>
         </div>
       )}
+
     </section>
   );
 }

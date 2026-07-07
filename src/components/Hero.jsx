@@ -1,9 +1,8 @@
-import { Users, Calendar, Wallet, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Users, Calendar, Wallet, CheckCircle2 } from 'lucide-react';
 
-export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT }) {
-  const scrollToProfil = () => {
-    const el = document.getElementById('profil');
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
+export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT, setCurrentPage }) {
+  const navigateToProfil = () => {
+    if (setCurrentPage) setCurrentPage('profil');
   };
 
   const formatCurrency = (value) => {
@@ -47,13 +46,13 @@ export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT }) {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <button
-                onClick={() => document.getElementById('layanan')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => setCurrentPage && setCurrentPage('layanan')}
                 className="inline-flex items-center justify-center px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 dark:from-emerald-500 dark:to-teal-400 text-white font-semibold rounded-2xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-sm"
               >
                 Ajukan Surat Pengantar
               </button>
               <button
-                onClick={scrollToProfil}
+                onClick={navigateToProfil}
                 className="inline-flex items-center justify-center px-6 py-3.5 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 font-semibold rounded-2xl hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer text-sm"
               >
                 Kenali Pengurus RT
@@ -136,17 +135,6 @@ export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT }) {
             </div>
           </div>
           
-        </div>
-
-        {/* Floating Indicator */}
-        <div className="flex justify-center mt-12 lg:mt-20">
-          <button
-            onClick={scrollToProfil}
-            className="flex flex-col items-center gap-1 text-slate-400 hover:text-emerald-500 dark:text-slate-500 dark:hover:text-emerald-400 transition-colors cursor-pointer animate-bounce"
-          >
-            <span className="text-xs uppercase tracking-widest font-bold">Scroll Ke Bawah</span>
-            <ChevronDown className="w-5 h-5" />
-          </button>
         </div>
       </div>
     </section>

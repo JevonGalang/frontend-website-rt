@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-rt-green-light: #f0fdf4;
   --color-rt-green: #10b981;
