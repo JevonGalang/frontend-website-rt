@@ -3,7 +3,8 @@ import {
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
-  AlertCircle, Sparkles, Filter, Eye, EyeOff, Activity
+  AlertCircle, Sparkles, Filter, Activity,
+  FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3
 } from 'lucide-react';
 
 export default function AdminDashboard({ 
@@ -21,7 +22,84 @@ export default function AdminDashboard({
   setDarkMode
 }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
+  const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
   
+  // Nested Sidebar Open States for Bendahara
+  const [isIuranOpen, setIsIuranOpen] = useState(true);
+  const [isKeuanganOpen, setIsKeuanganOpen] = useState(true);
+  const [isLaporanOpen, setIsLaporanOpen] = useState(true);
+
+  // List of Dues types
+  const [jenisIuranList, setJenisIuranList] = useState([
+    { id: 'IUR-001', name: 'Iuran Wajib Kebersihan', amount: 20000, frequency: 'Bulanan', desc: 'Biaya pengangkutan sampah warga ke TPA bulanan.' },
+    { id: 'IUR-002', name: 'Iuran Wajib Keamanan', amount: 30000, frequency: 'Bulanan', desc: 'Gaji petugas satpam komplek perumahan.' },
+    { id: 'IUR-003', name: 'Iuran Sosial Kematian', amount: 10000, frequency: 'Sukarela', desc: 'Dana santunan musibah kematian warga RT 04.' },
+  ]);
+
+  // Payment Form States
+  const [iuranPembayaranForm, setIuranPembayaranForm] = useState({
+    wargaId: '',
+    jenisIuranId: 'IUR-001',
+    amount: 20000,
+    month: 'Juli',
+    date: new Date().toISOString().split('T')[0]
+  });
+
+  const [pemasukanForm, setPemasukanForm] = useState({
+    description: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Donasi'
+  });
+
+  const [pengeluaranForm, setPengeluaranForm] = useState({
+    description: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    category: 'Kebersihan'
+  });
+
+  // Nested Sidebar Open States for Sekretaris
+  const [isWargaOpen, setIsWargaOpen] = useState(true);
+  const [isSuratOpen, setIsSuratOpen] = useState(true);
+  const [isInformasiOpen, setIsInformasiOpen] = useState(true);
+
+  // Secretary Log States
+  const [pendudukMasukList, setPendudukMasukList] = useState([
+    { id: 'IN-011', name: 'Rian Kurniawan', date: '2026-06-15', address: 'Blok B3 No. 12', origin: 'Bandung', status: 'Kontrak' },
+    { id: 'IN-012', name: 'Mega Lestari', date: '2026-06-28', address: 'Blok C2 No. 8', origin: 'Jakarta', status: 'Tetap' }
+  ]);
+  const [pendudukKeluarList, setPendudukKeluarList] = useState([
+    { id: 'OUT-005', name: 'Joni Iskandar', date: '2026-05-10', address: 'Blok A1 No. 3', destination: 'Surabaya', reason: 'Pindah Tugas Kerja' },
+    { id: 'OUT-006', name: 'Suhartono (Alm)', date: '2026-06-02', address: 'Blok D4 No. 1', destination: '-', reason: 'Meninggal Dunia' }
+  ]);
+  const [suratMasukList, setSuratMasukList] = useState([
+    { id: 'SM-001', date: '2026-07-02', sender: 'Kelurahan Sawangan Baru', subject: 'Undangan Rapat Koordinasi Posyandu Kelurahan', status: 'Arsip' },
+    { id: 'SM-002', date: '2026-07-05', sender: 'Kecamatan Sawangan', subject: 'Pemberitahuan Penertiban Administrasi Kependudukan', status: 'Penting' }
+  ]);
+  const [suratKeluarList, setSuratKeluarList] = useState([
+    { id: 'SK-001', date: '2026-07-03', recipient: 'Budi Santoso', subject: 'Surat Pengantar Pembuatan KTP', status: 'Dikirim' },
+    { id: 'SK-002', date: '2026-07-06', recipient: 'Andi Wijaya', subject: 'Surat Pengantar Nikah', status: 'Dikirim' }
+  ]);
+  const [notulenList, setNotulenList] = useState([
+    { id: 'NOT-001', date: '2026-06-25', title: 'Evaluasi Kinerja Satpam Komplek', recorder: 'Bu Riana Sukma', decisions: 'Menambah jam patroli malam dan mengganti portal pintu gerbang selatan yang rusak.' },
+    { id: 'NOT-002', date: '2026-07-05', title: 'Pembahasan Anggaran HUT RI Ke-81', recorder: 'Bu Riana Sukma', decisions: 'Pembentukan panitia perlombaan anak-anak dan penetapan iuran sukarela per rumah sebesar Rp 50.000.' }
+  ]);
+  const [arsipFileList, setArsipFileList] = useState([
+    { id: 'ARC-001', name: 'Laporan_Keuangan_KAS_RT04_2025.xlsx', date: '2025-12-31', size: '2.4 MB', category: 'Keuangan' },
+    { id: 'ARC-002', name: 'Notulen_Rapat_Warga_Desember_2025.docx', date: '2025-12-25', size: '1.2 MB', category: 'Notulen' },
+    { id: 'ARC-003', name: 'SK_Pembentukan_Pengurus_RT04_RW09.pdf', date: '2024-05-12', size: '4.8 MB', category: 'SK Pengurus' }
+  ]);
+
+  // Secretary Form States
+  const [notulenForm, setNotulenForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
+  const [suratMasukForm, setSuratMasukForm] = useState({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
+  const [suratKeluarForm, setSuratKeluarForm] = useState({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
+  const [arsipForm, setArsipForm] = useState({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
+  const [pendudukMasukForm, setPendudukMasukForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
+  const [pendudukKeluarForm, setPendudukKeluarForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
+  const [logsTrigger, setLogsTrigger] = useState(0);
+  const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -32,7 +110,8 @@ export default function AdminDashboard({
   
   // Form States
   const [wargaForm, setWargaForm] = useState({
-    name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup', statusIuran: 'Lunas'
+    name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup',
+    email: '', role: 'warga'
   });
   const [kasForm, setKasForm] = useState({
     description: '', amount: '', date: new Date().toISOString().split('T')[0], type: 'income', category: 'Iuran Warga'
@@ -43,76 +122,86 @@ export default function AdminDashboard({
 
   const [formError, setFormError] = useState('');
 
-  // NIK, KK, and Password Censoring / Reveal States
-  const [revealedNiks, setRevealedNiks] = useState({});
-  const [revealedKks, setRevealedKks] = useState({});
-  const [revealedPasswords, setRevealedPasswords] = useState({});
-  
-  const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
-  const [promptPasswordInput, setPromptPasswordInput] = useState('');
-  const [promptError, setPromptError] = useState('');
-  const [targetId, setTargetId] = useState(null);
-  const [targetField, setTargetField] = useState(''); // 'nik' | 'kk' | 'password'
-
-  // Access Logs & Sesi Active states
-  const [logsTrigger, setLogsTrigger] = useState(0);
-  const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
-  const accessLogs = JSON.parse(localStorage.getItem('rt_access_logs') || '[]');
-
-  const handleShowAccessProfile = (username) => {
-    const citizen = wargaList.find(w => w.username.toLowerCase() === username.toLowerCase());
-    if (citizen) {
-      setViewingCitizenProfile(citizen);
-    } else {
-      alert('Data profil kependudukan warga tidak ditemukan di database.');
-    }
-  };
-
-  const handleRevealClick = (id, field) => {
-    setTargetId(id);
-    setTargetField(field);
-    setPromptPasswordInput('');
-    setPromptError('');
-    setShowPasswordPrompt(true);
-  };
-
-  const handleConfirmPassword = (e) => {
-    e.preventDefault();
-    if (promptPasswordInput === 'admin') {
-      if (targetField === 'nik') {
-        setRevealedNiks(prev => ({ ...prev, [targetId]: true }));
-      } else if (targetField === 'kk') {
-        setRevealedKks(prev => ({ ...prev, [targetId]: true }));
-      } else if (targetField === 'password') {
-        setRevealedPasswords(prev => ({ ...prev, [targetId]: true }));
-      }
-      setShowPasswordPrompt(false);
-    } else {
-      setPromptError('Sandi Admin salah.');
-    }
-  };
-
-  const getDisplayNik = (id, fullNik) => {
-    if (revealedNiks[id]) return fullNik;
-    if (!fullNik || fullNik.length < 12) return '****************';
-    return fullNik.slice(0, 6) + '******' + fullNik.slice(12);
-  };
-
-  const getDisplayKk = (id, fullKk) => {
-    if (revealedKks[id]) return fullKk;
-    if (!fullKk || fullKk.length < 12) return '****************';
-    return fullKk.slice(0, 6) + '******' + fullKk.slice(12);
-  };
-
-  const getDisplayPassword = (id, fullPassword) => {
-    if (revealedPasswords[id]) return fullPassword;
-    return '******';
-  };
-
   // Auto-sync functions for CRUD
   const saveWarga = (updatedList) => {
     setWargaList(updatedList);
     localStorage.setItem('rt_wargalist', JSON.stringify(updatedList));
+  };
+
+  const handleUpdateIuranStatus = (id, newStatus) => {
+    const updated = wargaList.map(w => w.id === id ? { ...w, statusIuran: newStatus, tagihNotification: false } : w);
+    saveWarga(updated);
+  };
+
+  const handleSendBillingAlert = (id) => {
+    const targetWarga = wargaList.find(w => w.id === id);
+    if (!targetWarga) return;
+
+    const updated = wargaList.map(w => w.id === id ? { ...w, tagihNotification: true } : w);
+    saveWarga(updated);
+    alert(`Pemberitahuan tagihan resmi (WhatsApp & Portal Warga) berhasil dikirimkan ke warga: ${targetWarga.name}!`);
+  };
+
+  const handlePrintKasReport = () => {
+    const printWindow = window.open('', '_blank');
+    const tableRows = transaksiKasList.map(t => `
+      <tr style="border-bottom: 1px solid #ddd;">
+        <td style="padding: 10px; font-family: monospace;">${t.date}</td>
+        <td style="padding: 10px;">${t.description}</td>
+        <td style="padding: 10px;">${t.category}</td>
+        <td style="padding: 10px; text-align: center;">${t.type === 'income' ? 'PEMASUKAN' : 'PENGELUARAN'}</td>
+        <td style="padding: 10px; text-align: right; font-weight: bold; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}">${formatRupiah(t.amount)}</td>
+      </tr>
+    `).join('');
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Laporan Keuangan Kas RT 04 Sawangan Green Park</title>
+          <style>
+            body { font-family: sans-serif; padding: 30px; color: #333; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+            th { background-color: #f3f4f6; padding: 12px 10px; text-align: left; }
+            td { border-bottom: 1px solid #eee; }
+            .header { text-align: center; border-bottom: 3px double #333; padding-bottom: 20px; }
+            .summary { margin-top: 30px; display: flex; justify-content: space-between; font-weight: bold; background-color: #f9fafb; padding: 15px; border-radius: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 04 / RW 09</h2>
+            <h3>Perumahan Sawangan Green Park</h3>
+            <p>Dicetak pada: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th>
+                <th>Deskripsi</th>
+                <th>Kategori</th>
+                <th style="text-align: center;">Tipe</th>
+                <th style="text-align: right;">Jumlah</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tableRows}
+            </tbody>
+          </table>
+          <div class="summary">
+            <div>TOTAL PEMASUKAN: ${formatRupiah(totalPemasukan)}</div>
+            <div>TOTAL PENGELUARAN: ${formatRupiah(totalPengeluaran)}</div>
+            <div style="color: #0d9488;">SALDO AKHIR KAS: ${formatRupiah(sisaKas)}</div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   const saveKas = (updatedList) => {
@@ -144,6 +233,8 @@ export default function AdminDashboard({
     wargaList.filter(w => w.statusHidup === 'Hidup').map(w => w.noKk)
   ).size;
 
+  const totalMenunggak = wargaList.filter(w => w.statusIuran?.includes('Menunggak') && w.statusHidup === 'Hidup').length;
+
   const totalPemasukan = transaksiKasList
     .filter(t => t.type === 'income')
     .reduce((acc, curr) => acc + curr.amount, 0);
@@ -171,7 +262,20 @@ export default function AdminDashboard({
     setSelectedItem(item);
     setFormError('');
     if (type === 'warga') {
-      setWargaForm({ ...item });
+      setWargaForm({
+        name: item.name || '',
+        username: item.username || '',
+        password: item.password || '',
+        nik: item.nik || '',
+        noKk: item.noKk || '',
+        alamat: item.alamat || '',
+        gender: item.gender || 'Laki-laki',
+        usia: item.usia || '',
+        status: item.status || 'Tetap',
+        statusHidup: item.statusHidup || 'Hidup',
+        email: item.email || '',
+        role: item.role || 'warga'
+      });
       setModalType('edit_warga');
     } else if (type === 'kas') {
       setKasForm({ ...item });
@@ -188,7 +292,8 @@ export default function AdminDashboard({
     setFormError('');
     if (type === 'warga') {
       setWargaForm({
-        name: '', username: '', password: 'warga', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup', statusIuran: 'Lunas'
+        name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup',
+        email: '', role: 'warga'
       });
       setModalType('add_warga');
     } else if (type === 'kas') {
@@ -221,10 +326,27 @@ export default function AdminDashboard({
   };
 
   // Form Submit Handlers
-  const handleWargaSubmit = (e) => {
+  const handleWargaSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!wargaForm.email) {
+      setFormError('Kolom Email wajib diisi.');
+      return;
+    }
+    if (!emailRegex.test(wargaForm.email)) {
+      setFormError('Format email tidak valid (contoh: nama@domain.com).');
+      return;
+    }
+    if (wargaForm.username.length < 3) {
+      setFormError('Username minimal harus 3 karakter.');
+      return;
+    }
+    if (wargaForm.password.length < 8) {
+      setFormError('Password minimal harus 8 karakter.');
+      return;
+    }
     if (wargaForm.nik.length !== 16 || isNaN(wargaForm.nik)) {
       setFormError('NIK harus berupa 16 digit angka.');
       return;
@@ -248,6 +370,34 @@ export default function AdminDashboard({
         setFormError('NIK sudah terdaftar.');
         return;
       }
+
+      // Call API Register
+      try {
+        const response = await fetch('http://172.20.32.62:3333/post/regist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: wargaForm.username,
+            password: wargaForm.password,
+            email: wargaForm.email,
+            role: wargaForm.role
+          })
+        });
+
+        const resData = await response.json();
+        if (!response.ok) {
+          setFormError(resData.message || resData.status || 'Gagal mendaftarkan akun di server.');
+          return;
+        }
+      } catch (err) {
+        console.warn('API Register offline/error:', err);
+        const proceedLocally = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin mendaftarkan warga secara lokal saja (Offline Mode)?');
+        if (!proceedLocally) {
+          setFormError('Gagal terhubung ke server registrasi.');
+          return;
+        }
+      }
+
       const newWarga = {
         ...wargaForm,
         id: 'WRG-' + Math.floor(Math.random() * 9000 + 1000),
@@ -359,96 +509,578 @@ export default function AdminDashboard({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
-            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Ketua RT</p>
+            <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+              {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
+            </p>
           </div>
         </div>
 
         {/* Sidebar Nav Menus */}
-        <nav className="flex-1 px-4 py-2 space-y-1">
-          <button
-            onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-650/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <LayoutDashboard className="w-4 h-4" />
-            <span>Ringkasan</span>
-          </button>
-          
-          <button
-            onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'warga'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Users className="w-4 h-4" />
-              <span>Data Warga</span>
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-250px)]">
+          {currentUser.role === 'bendahara' ? (
+            <div className="space-y-1.5 font-sans">
+              {/* Dashboard */}
+              <button
+                onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4 text-emerald-450" />
+                <span>Dashboard</span>
+              </button>
+
+              {/* Data Warga */}
+              <button
+                onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'warga'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4 text-sky-400" />
+                <span>Data Warga</span>
+              </button>
+
+              {/* Iuran Header */}
+              <div>
+                <button
+                  onClick={() => setIsIuranOpen(!isIuranOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-4 h-4 text-amber-400" />
+                    <span>Iuran</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+                </button>
+
+                {isIuranOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_jenis' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-400 scale-125' : 'bg-slate-650'}`}></span>
+                      <span>Jenis Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_pembayaran' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Pembayaran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_riwayat' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Riwayat</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_tunggakan' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Tunggakan</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Keuangan Header */}
+              <div>
+                <button
+                  onClick={() => setIsKeuanganOpen(!isKeuanganOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-4 h-4 text-emerald-400" />
+                    <span>Keuangan</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isKeuanganOpen ? '▼' : '▶'}</span>
+                </button>
+
+                {isKeuanganOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('keuangan_pemasukan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'keuangan_pemasukan' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pemasukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Pemasukan</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('keuangan_pengeluaran'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'keuangan_pengeluaran' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pengeluaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Pengeluaran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('keuangan_kas'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'keuangan_kas' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_kas' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Kas RT</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('keuangan_qris'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'keuangan_qris' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Transfer Bank / QRIS</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Laporan Header */}
+              <div>
+                <button
+                  onClick={() => setIsLaporanOpen(!isLaporanOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <BarChart3 className="w-4 h-4 text-pink-400" />
+                    <span>Laporan</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isLaporanOpen ? '▼' : '▶'}</span>
+                </button>
+
+                {isLaporanOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('laporan_bulanan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'laporan_bulanan' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Laporan Bulanan</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('laporan_tahunan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'laporan_tahunan' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Laporan Tahunan</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('laporan_rekap'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'laporan_rekap' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Rekap Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('laporan_export'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'laporan_export' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span>Export Excel/PDF</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalWarga}</span>
-          </button>
+          ) : currentUser.role === 'sekertaris' ? (
+            <div className="space-y-1.5 font-sans">
+              {/* Secretary Specific Sidebar Menu */}
+              {/* Dashboard */}
+              <button
+                onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                <span>Dashboard</span>
+              </button>
 
-          <button
-            onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'kas'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Wallet className="w-4 h-4" />
-            <span>Kas RT Keuangan</span>
-          </button>
+              {/* Data Warga */}
+              <div>
+                <button
+                  onClick={() => setIsWargaOpen(!isWargaOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4 text-sky-400" />
+                    <span>Data Warga</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isWargaOpen ? '▼' : '▶'}</span>
+                </button>
 
-          <button
-            onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'agenda'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <Calendar className="w-4 h-4" />
-              <span>Agenda RT</span>
+                {isWargaOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'warga' 
+                          ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data Penduduk</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_kk' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data KK</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_masuk' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Penduduk Masuk</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_keluar'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_keluar' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_keluar' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Penduduk Keluar</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Surat */}
+              <div>
+                <button
+                  onClick={() => setIsSuratOpen(!isSuratOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-4 h-4 text-sky-400" />
+                    <span>Surat</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                </button>
+
+                {isSuratOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'layanan' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Pengajuan Surat</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_surat_masuk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_surat_masuk' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Surat Masuk</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_surat_keluar'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_surat_keluar' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_keluar' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Surat Keluar</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_surat_template'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_surat_template' 
+                          ? 'text-emerald-455 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_template' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Template Surat</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Informasi */}
+              <div>
+                <button
+                  onClick={() => setIsInformasiOpen(!isInformasiOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Volume2 className="w-4 h-4 text-emerald-400" />
+                    <span>Informasi</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+                </button>
+
+                {isInformasiOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_info_pengumuman' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Pengumuman</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'agenda' 
+                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'agenda' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Agenda RT</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_info_notulen'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_info_notulen' 
+                          ? 'text-emerald-455 font-bold bg-slate-800/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_notulen' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Notulen Rapat</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Pengaduan */}
+              <button
+                onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_pengaduan'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <span>Pengaduan</span>
+              </button>
+
+              {/* Arsip */}
+              <button
+                onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_arsip'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <FolderOpen className="w-4 h-4 text-purple-400" />
+                <span>Arsip</span>
+              </button>
+
+              {/* Laporan */}
+              <button
+                onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_laporan'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-pink-400" />
+                <span>Laporan</span>
+              </button>
+
+              {/* Manajemen Akun */}
+              <button
+                onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_akun_manage'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <User className="w-4 h-4 text-slate-400" />
+                <span>Manajemen Akun</span>
+              </button>
+
+              {/* Pengaturan */}
+              <button
+                onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'pengaturan'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Pengaturan</span>
+              </button>
             </div>
-            <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalAgendas}</span>
-          </button>
+          ) : (
+            <>
+              {/* ORIGINAL SIDEBAR STRUCTURE FOR RT / SEKRETARIS */}
+              <button
+                onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-650/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Ringkasan</span>
+              </button>
+              
+              <button
+                onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'warga'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Users className="w-4 h-4" />
+                  <span>Data Warga</span>
+                </div>
+                <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalWarga}</span>
+              </button>
 
-          <button
-            onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'layanan'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <FileCheck className="w-4 h-4" />
-              <span>Pengajuan Surat</span>
-            </div>
-            {pendingSubmissionsCount > 0 && (
-              <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
-                {pendingSubmissionsCount}
-              </span>
-            )}
-          </button>
+              <button
+                onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'kas'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Wallet className="w-4 h-4" />
+                <span>Kas RT Keuangan</span>
+              </button>
 
-          <button
-            onClick={() => { setActiveTab('logs'); setSearchQuery(''); }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === 'logs'
-                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                : 'hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            <span>Log Akses Warga</span>
-          </button>
+              <button
+                onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'agenda'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-4 h-4" />
+                  <span>Agenda RT</span>
+                </div>
+                <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalAgendas}</span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'layanan'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileCheck className="w-4 h-4" />
+                  <span>Pengajuan Surat</span>
+                </div>
+                {pendingSubmissionsCount > 0 && (
+                  <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
+                    {pendingSubmissionsCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => { setActiveTab('logs'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'logs'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Activity className="w-4 h-4" />
+                <span>Log Akses Warga</span>
+              </button>
+            </>
+          )}
         </nav>
 
         {/* Theme Toggle & Logout */}
@@ -494,6 +1126,9 @@ export default function AdminDashboard({
               {activeTab === 'agenda' && 'PENJADWALAN KOMUNITAS'}
               {activeTab === 'layanan' && 'LOKET PELAYANAN SURAT'}
               {activeTab === 'logs' && 'LOG AKTIVITAS & SESI'}
+              {activeTab.startsWith('iuran_') && 'MANAJEMEN IURAN WARGA'}
+              {activeTab.startsWith('keuangan_') && 'MANAJEMEN KEUANGAN'}
+              {activeTab.startsWith('laporan_') && 'LAPORAN & EKSPOR'}
             </span>
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {activeTab === 'overview' && 'Ringkasan Portal Admin'}
@@ -502,6 +1137,18 @@ export default function AdminDashboard({
               {activeTab === 'agenda' && 'Kegiatan & Rapat RT'}
               {activeTab === 'layanan' && 'Layanan Pengajuan Surat'}
               {activeTab === 'logs' && 'Log Akses Masuk Portal'}
+              {activeTab === 'iuran_jenis' && 'Jenis & Konfigurasi Iuran'}
+              {activeTab === 'iuran_pembayaran' && 'Form Pencatatan Pembayaran'}
+              {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Iuran'}
+              {activeTab === 'iuran_tunggakan' && 'Daftar Warga Menunggak'}
+              {activeTab === 'keuangan_pemasukan' && 'Form Pemasukan Kas'}
+              {activeTab === 'keuangan_pengeluaran' && 'Form Pengeluaran Kas'}
+              {activeTab === 'keuangan_kas' && 'Buku Kas Umum RT'}
+              {activeTab === 'keuangan_qris' && 'Metode Transfer & QRIS'}
+              {activeTab === 'laporan_bulanan' && 'Laporan Keuangan Bulanan'}
+              {activeTab === 'laporan_tahunan' && 'Laporan Keuangan Tahunan'}
+              {activeTab === 'laporan_rekap' && 'Tabel Rekapitulasi Iuran'}
+              {activeTab === 'laporan_export' && 'Ekspor Laporan Kas RT'}
             </h2>
           </div>
           
@@ -527,6 +1174,7 @@ export default function AdminDashboard({
                   <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
                     <Users className="w-6 h-6" />
                   </div>
+              <span className="hidden" aria-hidden="true">{logsTrigger}</span>
                   <div>
                     <span className="block text-2xl font-black text-slate-900 dark:text-white">{totalWarga}</span>
                     <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Jiwa (Warga)</span>
@@ -688,6 +1336,739 @@ export default function AdminDashboard({
             </div>
           )}
 
+          {/* SEKRETARIS: 1. DATA KK */}
+          {activeTab === 'sek_warga_kk' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">No. Kartu Keluarga (KK)</th>
+                      <th className="p-4">Kepala Keluarga</th>
+                      <th className="p-4">Alamat Domisili</th>
+                      <th className="p-4 text-center">Anggota KK</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {(() => {
+                      const kkMap = {};
+                      wargaList.forEach(w => {
+                        if (!w.noKk) return;
+                        if (!kkMap[w.noKk]) {
+                          kkMap[w.noKk] = { noKk: w.noKk, kepala: w.name, alamat: w.alamat, anggota: [] };
+                        }
+                        kkMap[w.noKk].anggota.push(w);
+                      });
+                      const kkList = Object.values(kkMap);
+                      return kkList.map((kk) => (
+                        <tr key={kk.noKk} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{kk.noKk}</td>
+                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{kk.kepala}</td>
+                          <td className="p-4 text-slate-550 dark:text-slate-400">{kk.alamat}</td>
+                          <td className="p-4 text-center">
+                            <span className="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold rounded-md text-[10px]">
+                              {kk.anggota.length} Orang
+                            </span>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 2. PENDUDUK MASUK */}
+          {activeTab === 'sek_warga_masuk' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!pendudukMasukForm.name || !pendudukMasukForm.address) return;
+                  const newEntry = {
+                    id: 'IN-' + Math.floor(Math.random() * 900 + 100),
+                    name: pendudukMasukForm.name,
+                    date: pendudukMasukForm.date,
+                    address: pendudukMasukForm.address,
+                    origin: pendudukMasukForm.origin || '-',
+                    status: pendudukMasukForm.status
+                  };
+                  setPendudukMasukList([newEntry, ...pendudukMasukList]);
+                  setPendudukMasukForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
+                  alert('Warga masuk berhasil dicatat!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Masuk Baru</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Nama Penduduk *</label>
+                    <input
+                      required
+                      type="text"
+                      value={pendudukMasukForm.name}
+                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, name: e.target.value })}
+                      placeholder="Contoh: Rian Kurniawan"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Tanggal Masuk *</label>
+                    <input
+                      required
+                      type="date"
+                      value={pendudukMasukForm.date}
+                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Alamat Domisili RT 04 *</label>
+                    <input
+                      required
+                      type="text"
+                      value={pendudukMasukForm.address}
+                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, address: e.target.value })}
+                      placeholder="Contoh: Blok B3 No. 12"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Daerah Asal</label>
+                    <input
+                      type="text"
+                      value={pendudukMasukForm.origin}
+                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, origin: e.target.value })}
+                      placeholder="Contoh: Bandung"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Masuk</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Tanggal Masuk</th>
+                      <th className="p-4">Nama Penduduk</th>
+                      <th className="p-4">Alamat RT 04</th>
+                      <th className="p-4">Asal Pindahan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {pendudukMasukList.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{p.name}</td>
+                        <td className="p-4 text-slate-500">{p.address}</td>
+                        <td className="p-4 text-slate-500">{p.origin}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 3. PENDUDUK KELUAR */}
+          {activeTab === 'sek_warga_keluar' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!pendudukKeluarForm.name) return;
+                  const newEntry = {
+                    id: 'OUT-' + Math.floor(Math.random() * 900 + 100),
+                    name: pendudukKeluarForm.name,
+                    date: pendudukKeluarForm.date,
+                    address: pendudukKeluarForm.address || '-',
+                    destination: pendudukKeluarForm.destination || '-',
+                    reason: pendudukKeluarForm.reason || 'Pindah Domisili'
+                  };
+                  setPendudukKeluarList([newEntry, ...pendudukKeluarList]);
+                  setPendudukKeluarForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
+                  alert('Catatan keluar berhasil disimpan!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Keluar / Pindah</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Nama Penduduk *</label>
+                    <input
+                      required
+                      type="text"
+                      value={pendudukKeluarForm.name}
+                      onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, name: e.target.value })}
+                      placeholder="Contoh: Joni Iskandar"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Tanggal Keluar *</label>
+                    <input
+                      required
+                      type="date"
+                      value={pendudukKeluarForm.date}
+                      onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Alamat Lama RT 04</label>
+                    <input
+                      type="text"
+                      value={pendudukKeluarForm.address}
+                      onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, address: e.target.value })}
+                      placeholder="Contoh: Blok A1 No. 3"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Tujuan Pindahan / Alasan</label>
+                    <input
+                      type="text"
+                      value={pendudukKeluarForm.destination}
+                      onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, destination: e.target.value })}
+                      placeholder="Contoh: Surabaya"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Keluar</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-405 tracking-wider">
+                      <th className="p-4">Tanggal Keluar</th>
+                      <th className="p-4">Nama Penduduk</th>
+                      <th className="p-4">Alamat Lama</th>
+                      <th className="p-4">Tujuan / Keterangan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {pendudukKeluarList.map((p) => (
+                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-205">{p.name}</td>
+                        <td className="p-4 text-slate-500">{p.address}</td>
+                        <td className="p-4 text-slate-500">{p.destination} ({p.reason})</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 4. SURAT MASUK */}
+          {activeTab === 'sek_surat_masuk' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!suratMasukForm.sender || !suratMasukForm.subject) return;
+                  const newEntry = {
+                    id: 'SM-' + Math.floor(Math.random() * 900 + 100),
+                    date: suratMasukForm.date,
+                    sender: suratMasukForm.sender,
+                    subject: suratMasukForm.subject,
+                    status: suratMasukForm.status
+                  };
+                  setSuratMasukList([newEntry, ...suratMasukList]);
+                  setSuratMasukForm({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
+                  alert('Surat masuk berhasil diregistrasikan!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Masuk Baru</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Pengirim / Instansi Asal *</label>
+                    <input
+                      required
+                      type="text"
+                      value={suratMasukForm.sender}
+                      onChange={(e) => setSuratMasukForm({ ...suratMasukForm, sender: e.target.value })}
+                      placeholder="Contoh: Kelurahan Sawangan Baru"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Hal / Perihal Surat *</label>
+                    <input
+                      required
+                      type="text"
+                      value={suratMasukForm.subject}
+                      onChange={(e) => setSuratMasukForm({ ...suratMasukForm, subject: e.target.value })}
+                      placeholder="Contoh: Rapat Posyandu Kelurahan"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Registrasi Surat Masuk</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">No. Agenda</th>
+                      <th className="p-4">Tanggal Masuk</th>
+                      <th className="p-4">Instansi Pengirim</th>
+                      <th className="p-4">Perihal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {suratMasukList.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
+                        <td className="p-4 font-bold text-slate-600 dark:text-slate-405">{s.date}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.sender}</td>
+                        <td className="p-4 text-slate-500 italic">"{s.subject}"</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 5. SURAT KELUAR */}
+          {activeTab === 'sek_surat_keluar' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!suratKeluarForm.recipient || !suratKeluarForm.subject) return;
+                  const newEntry = {
+                    id: 'SK-' + Math.floor(Math.random() * 900 + 100),
+                    date: suratKeluarForm.date,
+                    recipient: suratKeluarForm.recipient,
+                    subject: suratKeluarForm.subject,
+                    status: suratKeluarForm.status
+                  };
+                  setSuratKeluarList([newEntry, ...suratKeluarList]);
+                  setSuratKeluarForm({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
+                  alert('Surat keluar berhasil dicatat!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Keluar Baru</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Penerima / Warga Tujuan *</label>
+                    <input
+                      required
+                      type="text"
+                      value={suratKeluarForm.recipient}
+                      onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, recipient: e.target.value })}
+                      placeholder="Contoh: Budi Santoso"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Hal / Perihal Surat *</label>
+                    <input
+                      required
+                      type="text"
+                      value={suratKeluarForm.subject}
+                      onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, subject: e.target.value })}
+                      placeholder="Contoh: Surat Pengantar KTP"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Catat Surat Keluar</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">No. Agenda</th>
+                      <th className="p-4">Tanggal Keluar</th>
+                      <th className="p-4">Penerima / Ditujukan</th>
+                      <th className="p-4">Hal / Perihal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {suratKeluarList.map((s) => (
+                      <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
+                        <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{s.date}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.recipient}</td>
+                        <td className="p-4 text-slate-550 dark:text-slate-400 italic font-medium">"{s.subject}"</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 6. TEMPLATE SURAT */}
+          {activeTab === 'sek_surat_template' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  { name: 'Template Surat Pengantar KTP / KK', desc: 'Format standar RT 04 untuk pengurusan KTP/KK di Kelurahan.' },
+                  { name: 'Template Surat Keterangan Domisili Warga', desc: 'Format resmi keterangan tempat tinggal sementara/kontrak.' },
+                  { name: 'Template Surat Pengantar Nikah', desc: 'Format persetujuan menikah untuk warga domisili RT 04.' },
+                  { name: 'Template Surat Izin Keramaian', desc: 'Format permohonan izin acara di lingkungan perumahan.' }
+                ].map((t, idx) => (
+                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-3">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
+                    <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
+                    <button onClick={() => alert(`Mengunduh ${t.name}.docx... (Simulasi Unduh Template)`)} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer">Unduh Format</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 7. KELOLA PENGUMUMAN */}
+          {activeTab === 'sek_info_pengumuman' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <button 
+                onClick={() => {
+                  const title = prompt("Masukkan Judul Pengumuman:");
+                  const body = prompt("Masukkan Isi Detail Pengumuman:");
+                  if (title && body) {
+                    alert(`Pengumuman "${title}" berhasil diterbitkan ke portal warga!`);
+                  }
+                }}
+                className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Buat Pengumuman Baru
+              </button>
+
+              <div className="space-y-4">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">KEBERSIHAN</span>
+                    <span className="text-[10px] text-slate-400 font-bold">07 Juli 2026</span>
+                  </div>
+                  <h4 className="font-extrabold text-sm text-slate-805 dark:text-white">Kerja Bakti Saluran Air Warga</h4>
+                  <p className="text-[11px] text-slate-500 leading-relaxed">Pelaksanaan pembersihan gorong-gorong dan pemangkasan dahan pohon liar akan diadakan hari Minggu depan pukul 07:00 WIB.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 8. NOTULEN RAPAT */}
+          {activeTab === 'sek_info_notulen' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!notulenForm.title || !notulenForm.decisions) return;
+                  const newEntry = {
+                    id: 'NOT-' + Math.floor(Math.random() * 900 + 100),
+                    date: notulenForm.date,
+                    title: notulenForm.title,
+                    recorder: currentUser.name,
+                    decisions: notulenForm.decisions
+                  };
+                  setNotulenList([newEntry, ...notulenList]);
+                  setNotulenForm({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
+                  alert('Notulen rapat berhasil dicatat!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Hasil Rapat Baru</h4>
+                <div className="space-y-3 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Agenda / Topik Rapat *</label>
+                    <input
+                      required
+                      type="text"
+                      value={notulenForm.title}
+                      onChange={(e) => setNotulenForm({ ...notulenForm, title: e.target.value })}
+                      placeholder="Contoh: Pembahasan Anggaran 17 Agustus"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Hasil Musyawarah / Keputusan Rapat *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={notulenForm.decisions}
+                      onChange={(e) => setNotulenForm({ ...notulenForm, decisions: e.target.value })}
+                      placeholder="Tulis keputusan penting rapat..."
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Notulen</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Tanggal Rapat</th>
+                      <th className="p-4">Topik Musyawarah</th>
+                      <th className="p-4">Notulis</th>
+                      <th className="p-4">Hasil / Keputusan Rapat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {notulenList.map((n) => (
+                      <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{n.date}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{n.title}</td>
+                        <td className="p-4 text-slate-500">{n.recorder}</td>
+                        <td className="p-4 text-slate-500 max-w-sm truncate" title={n.decisions}>{n.decisions}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 9. PENGADUAN WARGA */}
+          {activeTab === 'sek_pengaduan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Tanggal / ID</th>
+                      <th className="p-4">Kategori Laporan</th>
+                      <th className="p-4">Deskripsi Aduan</th>
+                      <th className="p-4 text-center">Status</th>
+                      <th className="p-4 text-right">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {(() => {
+                      const allWargaComplaints = [
+                        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' },
+                        { id: 'COM-202', date: '2026-07-04', category: 'Kebersihan', description: 'Saluran air depan blok A3 mampet karena tumpukan sampah plastik.', status: 'Diterima' }
+                      ];
+                      return allWargaComplaints.map((c) => (
+                        <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 font-mono font-bold text-slate-500">{c.date}</td>
+                          <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{c.category}</td>
+                          <td className="p-4 text-slate-550 dark:text-slate-400 max-w-xs truncate" title={c.description}>{c.description}</td>
+                          <td className="p-4 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] ${
+                              c.status === 'Selesai' 
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
+                            }`}>
+                              {c.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right space-x-1.5 font-sans">
+                            <button onClick={() => alert(`Status aduan ${c.id} diubah menjadi 'Sedang Ditinjau'`)} className="py-1 px-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-600 text-[9px] font-bold rounded-lg cursor-pointer">Tinjau</button>
+                            <button onClick={() => alert(`Status aduan ${c.id} diselesaikan!`)} className="py-1 px-2 bg-emerald-600 text-white text-[9px] font-bold rounded-lg cursor-pointer">Selesai</button>
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 10. ARSIP FILE */}
+          {activeTab === 'sek_arsip' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!arsipForm.name) return;
+                  const newEntry = {
+                    id: 'ARC-' + Math.floor(Math.random() * 900 + 100),
+                    name: arsipForm.name,
+                    date: arsipForm.date,
+                    size: arsipForm.size,
+                    category: arsipForm.category
+                  };
+                  setArsipFileList([newEntry, ...arsipFileList]);
+                  setArsipForm({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
+                  alert('Berkas digital berhasil diarsipkan!');
+                }}
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Arsipkan Berkas Baru</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Nama Dokumen File *</label>
+                    <input
+                      required
+                      type="text"
+                      value={arsipForm.name}
+                      onChange={(e) => setArsipForm({ ...arsipForm, name: e.target.value })}
+                      placeholder="Contoh: Laporan_Rapat_Mei_2026.pdf"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Kategori Arsip *</label>
+                    <select
+                      value={arsipForm.category}
+                      onChange={(e) => setArsipForm({ ...arsipForm, category: e.target.value })}
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs"
+                    >
+                      <option value="Laporan Keuangan">Keuangan</option>
+                      <option value="Notulen">Notulen Rapat</option>
+                      <option value="SK Pengurus">SK Pengurus</option>
+                      <option value="Dokumen">Dokumen Umum</option>
+                    </select>
+                  </div>
+                </div>
+                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Arsipkan File</button>
+              </form>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">No. Arsip</th>
+                      <th className="p-4">Nama Dokumen</th>
+                      <th className="p-4">Tanggal Arsip</th>
+                      <th className="p-4 text-right">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {arsipFileList.map((a) => (
+                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-955/20 transition-colors">
+                        <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{a.name} ({a.size})</td>
+                        <td className="p-4 text-slate-500">{a.date}</td>
+                        <td className="p-4 text-right font-sans">
+                          <button onClick={() => alert(`Mengunduh berkas ${a.name}...`)} className="py-1 px-2.5 bg-emerald-600 text-white font-bold text-[9px] rounded-lg cursor-pointer">Unduh</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 11. LAPORAN KEPENDUDUKAN */}
+          {activeTab === 'sek_laporan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 font-sans">
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-slate-800 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.statusHidup !== 'Meninggal').length} Orang</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Penduduk Hidup</span>
+                </div>
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-slate-800 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800 dark:text-white">
+                    {(() => {
+                      const kks = new Set(wargaList.map(w => w.noKk).filter(Boolean));
+                      return kks.size;
+                    })()} KK
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Kepala Keluarga</span>
+                </div>
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-emerald-800/80 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.status === 'Kontrak').length} Rumah</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rumah Sewa / Kontrak</span>
+                </div>
+              </div>
+
+              {/* Gender and residency structure */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-150 dark:border-slate-800">
+                <div className="space-y-3">
+                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between font-bold">
+                      <span>Laki-laki</span>
+                      <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Warga</span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="bg-sky-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between font-bold">
+                      <span>Perempuan</span>
+                      <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Warga</span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="bg-pink-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Status Kependudukan</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between font-semibold border-b border-slate-100 dark:border-slate-800 pb-1">
+                      <span className="text-slate-500">Penduduk Tetap</span>
+                      <span className="font-bold">{wargaList.filter(w => w.status === 'Tetap').length} Orang</span>
+                    </div>
+                    <div className="flex justify-between font-semibold border-b border-slate-100 dark:border-slate-800 pb-1">
+                      <span className="text-slate-500">Penduduk Kontrak</span>
+                      <span className="font-bold">{wargaList.filter(w => w.status === 'Kontrak').length} Orang</span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-slate-500">Penduduk Meninggal</span>
+                      <span className="font-bold text-rose-500">{wargaList.filter(w => w.statusHidup === 'Meninggal').length} Orang</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SEKRETARIS: 12. MANAJEMEN KREDENSIAL LOGIN */}
+          {activeTab === 'sek_akun_manage' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Nama Penduduk</th>
+                      <th className="p-4">Username Login</th>
+                      <th className="p-4">Sandi Warga (Plain)</th>
+                      <th className="p-4 text-right">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {wargaList.filter(w => w.statusHidup !== 'Meninggal').map((w) => (
+                      <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{w.name}</td>
+                        <td className="p-4 font-mono text-slate-500 font-bold">@{w.username || 'warga'}</td>
+                        <td className="p-4 font-mono text-slate-400">•••••••• (Sandi: {w.password})</td>
+                        <td className="p-4 text-right font-sans">
+                          <button 
+                            onClick={() => {
+                              const check = window.confirm(`Reset kata sandi ${w.name} menjadi '${w.username}123'?`);
+                              if (check) {
+                                const updated = wargaList.map(item => item.id === w.id ? { ...item, password: `${w.username}123` } : item);
+                                setWargaList(updated);
+                                localStorage.setItem('rt_wargalist', JSON.stringify(updated));
+                                alert(`Sandi ${w.name} berhasil direset menjadi '${w.username}123'!`);
+                              }
+                            }}
+                            className="py-1 px-2.5 bg-rose-50 hover:bg-rose-105 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 font-bold text-[9px] rounded-lg cursor-pointer"
+                          >
+                            Reset Sandi
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* TAB 2: MANAJEMEN WARGA */}
           {activeTab === 'warga' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in">
@@ -723,13 +2104,15 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Add Button */}
-                <button
-                  onClick={() => openAddModal('warga')}
-                  className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Tambah Warga</span>
-                </button>
+                {currentUser.role !== 'bendahara' && (
+                  <button
+                    onClick={() => openAddModal('warga')}
+                    className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Warga</span>
+                  </button>
+                )}
               </div>
 
               {/* Table */}
@@ -761,26 +2144,8 @@ export default function AdminDashboard({
                       .map((w) => (
                         <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
-                            <div className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                              <span>NIK: {getDisplayNik(w.id, w.nik)}</span>
-                              <button
-                                onClick={() => revealedNiks[w.id] ? setRevealedNiks(prev => ({ ...prev, [w.id]: false })) : handleRevealClick(w.id, 'nik')}
-                                className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                                title={revealedNiks[w.id] ? "Sembunyikan NIK" : "Tampilkan NIK (Perlu Sandi)"}
-                              >
-                                {revealedNiks[w.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                              <span>KK: {getDisplayKk(w.id, w.noKk)}</span>
-                              <button
-                                onClick={() => revealedKks[w.id] ? setRevealedKks(prev => ({ ...prev, [w.id]: false })) : handleRevealClick(w.id, 'kk')}
-                                className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                                title={revealedKks[w.id] ? "Sembunyikan KK" : "Tampilkan KK (Perlu Sandi)"}
-                              >
-                                {revealedKks[w.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
+                            <div className="font-bold text-slate-800 dark:text-white">NIK: {w.nik}</div>
+                            <div className="text-[10px] text-slate-400">KK: {w.noKk}</div>
                           </td>
                           <td className="p-4 space-y-1 font-sans">
                             <span className="font-bold text-slate-905 dark:text-slate-100">{w.name}</span>
@@ -797,16 +2162,7 @@ export default function AdminDashboard({
                           </td>
                           <td className="p-4 space-y-1">
                             <div className="font-semibold text-slate-655 dark:text-slate-350">U: {w.username}</div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                              <span>P: {getDisplayPassword(w.id, w.password)}</span>
-                              <button
-                                onClick={() => revealedPasswords[w.id] ? setRevealedPasswords(prev => ({ ...prev, [w.id]: false })) : handleRevealClick(w.id, 'password')}
-                                className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                                title={revealedPasswords[w.id] ? "Sembunyikan Password" : "Tampilkan Password (Perlu Sandi)"}
-                              >
-                                {revealedPasswords[w.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
+                            <div className="text-[10px] text-slate-400">P: {w.password}</div>
                           </td>
                           <td className="p-4 max-w-[200px] truncate" title={w.alamat}>
                             {w.alamat}
@@ -823,23 +2179,27 @@ export default function AdminDashboard({
                             </div>
                             <div className="text-[10px] text-slate-400">{w.gender}, {w.usia} thn</div>
                           </td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => openEditModal('warga', w)}
-                                className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                title="Edit Data Warga"
-                              >
-                                <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete('warga', w.id)}
-                                className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                title="Hapus Warga"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
-                              </button>
-                            </div>
+                           <td className="p-4 text-right">
+                            {currentUser.role === 'bendahara' ? (
+                              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg font-bold text-[9px] uppercase tracking-wider">Akses Baca</span>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => openEditModal('warga', w)}
+                                  className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                  title="Edit Data Warga"
+                                >
+                                  <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete('warga', w.id)}
+                                  className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                  title="Hapus Warga"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
+                                </button>
+                              </div>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -878,30 +2238,715 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              {/* Toolbar */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari transaksi..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
-                  />
-                </div>
-
+              {/* sub-tabs */}
+              <div className="flex border-b border-slate-100 dark:border-slate-800">
                 <button
-                  onClick={() => openAddModal('kas')}
-                  className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
+                  onClick={() => { setKasSubTab('transaksi'); setSearchQuery(''); }}
+                  className={`py-3 px-6 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                    kasSubTab === 'transaksi'
+                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-450'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Catat Transaksi</span>
+                  Buku Kas Umum
+                </button>
+                <button
+                  onClick={() => { setKasSubTab('tunggakan'); setSearchQuery(''); }}
+                  className={`py-3 px-6 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                    kasSubTab === 'tunggakan'
+                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-450'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Status & Tunggakan Iuran Warga
                 </button>
               </div>
 
-              {/* Table */}
+              {kasSubTab === 'transaksi' ? (
+                <>
+                  {/* Toolbar */}
+                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
+                    <div className="relative flex-1 max-w-md">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari transaksi..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                      />
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        onClick={handlePrintKasReport}
+                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer border border-slate-250/20 dark:border-slate-800"
+                      >
+                        <span>Cetak Laporan</span>
+                      </button>
+                      <button
+                        onClick={() => openAddModal('kas')}
+                        className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>Catat Transaksi</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Table */}
+                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-4">Tanggal / ID</th>
+                          <th className="p-4">Deskripsi Transaksi</th>
+                          <th className="p-4">Kategori</th>
+                          <th className="p-4 text-center">Tipe</th>
+                          <th className="p-4 text-right">Jumlah Uang</th>
+                          <th className="p-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                        {transaksiKasList
+                          .filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map((t) => (
+                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-4 space-y-1 font-mono">
+                                <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                                <div className="text-[10px] text-slate-400">{t.id}</div>
+                              </td>
+                              <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words">
+                                {t.description}
+                              </td>
+                              <td className="p-4 font-semibold text-slate-500 dark:text-slate-450">
+                                {t.category}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] inline-block ${
+                                  t.type === 'income'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-455'
+                                }`}>
+                                  {t.type === 'income' ? 'Masuk' : 'Keluar'}
+                                </span>
+                              </td>
+                              <td className={`p-4 text-right font-bold text-sm font-mono ${
+                                t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-455'
+                              }`}>
+                                {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => openEditModal('kas', t)}
+                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                    title="Edit Transaksi"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete('kas', t.id)}
+                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                    title="Hapus Transaksi"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                /* DAFTAR TUNGGAKAN IURAN WARGA */
+                <div className="space-y-6 animate-fade-in">
+                  {/* Search bar */}
+                  <div className="relative max-w-md">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari nama warga..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    />
+                  </div>
+
+                  {/* Tunggakan table */}
+                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-4">Nama Warga</th>
+                          <th className="p-4">Alamat Rumah</th>
+                          <th className="p-4 text-center">Status Iuran</th>
+                          <th className="p-4 text-right">Aksi Tindakan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                        {wargaList
+                          .filter(w => w.statusHidup === 'Hidup' && w.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .map((w) => (
+                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-4 font-bold text-slate-900 dark:text-white">
+                                {w.name}
+                                <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
+                              </td>
+                              <td className="p-4 text-slate-600 dark:text-slate-350 italic">
+                                {w.alamat}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
+                                  w.statusIuran?.includes('Menunggak')
+                                    ? 'bg-rose-500/10 text-rose-500'
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450'
+                                }`}>
+                                  {w.statusIuran || 'Lunas'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right">
+                                {w.statusIuran?.includes('Menunggak') ? (
+                                  <button
+                                    onClick={() => handleUpdateIuranStatus(w.id, 'Lunas')}
+                                    className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Konfirmasi Lunas
+                                  </button>
+                                ) : (
+                                  <div className="inline-flex gap-1.5">
+                                    <button
+                                      onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 50.000)')}
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                    >
+                                      Set Menunggak 50rb
+                                    </button>
+                                    <button
+                                      onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 100.000)')}
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-55 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                    >
+                                      Set Menunggak 100rb
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+
+          {/* ========================================================================= */}
+          {/* BENDAHARA CUSTOM NESTED TABS */}
+          {/* ========================================================================= */}
+
+          {/* IURAN: 1. Jenis Iuran */}
+          {activeTab === 'iuran_jenis' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Jenis Iuran Warga</h3>
+                  <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 04 Sawangan Green Park.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {jenisIuranList.map((j) => (
+                  <div key={j.id} className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start">
+                      <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                        <Wallet className="w-5 h-5" />
+                      </div>
+                      <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md text-[10px] font-bold font-mono">{j.frequency}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{j.name}</h4>
+                      <p className="text-[10px] text-slate-450 leading-relaxed">{j.desc}</p>
+                    </div>
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+                      <span className="text-xs text-slate-400">Tarif/KK</span>
+                      <span className="font-black text-sm text-emerald-600 dark:text-emerald-400">{formatRupiah(j.amount)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* IURAN: 2. Pembayaran Form */}
+          {activeTab === 'iuran_pembayaran' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pencatatan Pembayaran Iuran Warga</h3>
+                <p className="text-xs text-slate-400">Input data iuran masuk bulanan secara manual setelah verifikasi transfer/tunai.</p>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!iuranPembayaranForm.wargaId) {
+                    alert('Silakan pilih warga terlebih dahulu.');
+                    return;
+                  }
+                  
+                  const targetWarga = wargaList.find(w => w.id === iuranPembayaranForm.wargaId);
+                  const targetJenis = jenisIuranList.find(j => j.id === iuranPembayaranForm.jenisIuranId);
+                  
+                  if (!targetWarga || !targetJenis) return;
+
+                  // Create new kas entry
+                  const newTx = {
+                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
+                    description: `Pembayaran ${targetJenis.name} (${iuranPembayaranForm.month}) - ${targetWarga.name}`,
+                    amount: iuranPembayaranForm.amount,
+                    date: iuranPembayaranForm.date,
+                    type: 'income',
+                    category: 'Iuran Warga'
+                  };
+
+                  // Update warga status to Lunas
+                  const updatedWarga = wargaList.map(w => w.id === targetWarga.id ? { ...w, statusIuran: 'Lunas' } : w);
+                  saveWarga(updatedWarga);
+
+                  // Update kas list
+                  saveKas([newTx, ...transaksiKasList]);
+
+                  alert(`Berhasil mencatat pembayaran iuran ${targetJenis.name} (${iuranPembayaranForm.month}) untuk warga: ${targetWarga.name} sebesar ${formatRupiah(iuranPembayaranForm.amount)}.`);
+                  
+                  // Reset form
+                  setIuranPembayaranForm(prev => ({
+                    ...prev,
+                    wargaId: ''
+                  }));
+                }}
+                className="max-w-xl space-y-4 text-xs sm:text-sm"
+              >
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-600 dark:text-slate-400">Pilih Warga Pembayar *</label>
+                  <select
+                    required
+                    value={iuranPembayaranForm.wargaId}
+                    onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, wargaId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                  >
+                    <option value="">-- Pilih Warga --</option>
+                    {wargaList
+                      .filter(w => w.statusHidup === 'Hidup')
+                      .map(w => (
+                        <option key={w.id} value={w.id}>{w.name} (Blok {w.alamat.split('Blok ').pop() || w.alamat})</option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Jenis Iuran *</label>
+                    <select
+                      value={iuranPembayaranForm.jenisIuranId}
+                      onChange={(e) => {
+                        const selected = jenisIuranList.find(j => j.id === e.target.value);
+                        setIuranPembayaranForm({ 
+                          ...iuranPembayaranForm, 
+                          jenisIuranId: e.target.value,
+                          amount: selected ? selected.amount : 0
+                        });
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      {jenisIuranList.map(j => (
+                        <option key={j.id} value={j.id}>{j.name} ({formatRupiah(j.amount)})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Pembayaran (Rp) *</label>
+                    <input
+                      required
+                      type="number"
+                      value={iuranPembayaranForm.amount}
+                      onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, amount: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Bulan Iuran *</label>
+                    <select
+                      value={iuranPembayaranForm.month}
+                      onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, month: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Transaksi *</label>
+                    <input
+                      required
+                      type="date"
+                      value={iuranPembayaranForm.date}
+                      onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, date: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <button
+                    type="submit"
+                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Simpan Pembayaran Iuran</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* IURAN: 3. Riwayat Iuran */}
+          {activeTab === 'iuran_riwayat' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Transaksi Iuran Warga</h3>
+                  <p className="text-xs text-slate-400">Daftar lengkap bukti setoran iuran warga yang masuk ke kas RT.</p>
+                </div>
+              </div>
               <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Tanggal / ID</th>
+                      <th className="p-4">Deskripsi Pembayaran</th>
+                      <th className="p-4 text-right">Jumlah Uang</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {transaksiKasList
+                      .filter(t => t.category === 'Iuran Warga')
+                      .map((t) => (
+                        <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 font-mono space-y-1">
+                            <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                            <div className="text-[10px] text-slate-400">{t.id}</div>
+                          </td>
+                          <td className="p-4 font-semibold text-slate-900 dark:text-white font-sans">
+                            {t.description}
+                          </td>
+                          <td className="p-4 text-right font-black text-sm text-emerald-600 dark:text-emerald-400 font-mono">
+                            +{formatRupiah(t.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    {transaksiKasList.filter(t => t.category === 'Iuran Warga').length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-slate-450 font-bold italic">Belum ada riwayat transaksi pembayaran iuran.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* IURAN: 4. Tunggakan */}
+          {activeTab === 'iuran_tunggakan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Tunggakan Iuran Warga</h3>
+                <p className="text-xs text-slate-400">Daftar warga yang menunggak kewajiban iuran bulanan.</p>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl font-sans">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Nama Warga</th>
+                      <th className="p-4">Alamat Rumah</th>
+                      <th className="p-4 text-center">Status Iuran</th>
+                      <th className="p-4 text-right">Aksi Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    {wargaList
+                      .filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak'))
+                      .map((w) => (
+                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 font-bold text-slate-900 dark:text-white">
+                            {w.name}
+                            <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
+                          </td>
+                          <td className="p-4 text-slate-600 dark:text-slate-350 italic">
+                            {w.alamat}
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-lg bg-rose-500/10 text-rose-500">
+                              {w.statusIuran}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right font-sans">
+                            <div className="inline-flex gap-1.5">
+                              <button
+                                onClick={() => handleUpdateIuranStatus(w.id, 'Lunas')}
+                                className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Konfirmasi Lunas
+                              </button>
+                              <button
+                                onClick={() => handleSendBillingAlert(w.id)}
+                                className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Tagih Warga
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    {wargaList.filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak')).length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-slate-400 font-bold italic">Tidak ada tunggakan iuran! Seluruh warga lunas.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* KEUANGAN: 1. Pemasukan */}
+          {activeTab === 'keuangan_pemasukan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Catat Pemasukan Kas RT (Luar Iuran)</h3>
+                <p className="text-xs text-slate-400">Input transaksi dana masuk non-iuran seperti sumbangan, donasi, subsidi, dll.</p>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!pemasukanForm.description || !pemasukanForm.amount) {
+                    alert('Silakan isi seluruh formulir.');
+                    return;
+                  }
+
+                  const newTx = {
+                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
+                    description: pemasukanForm.description,
+                    amount: parseInt(pemasukanForm.amount) || 0,
+                    date: pemasukanForm.date,
+                    type: 'income',
+                    category: pemasukanForm.category
+                  };
+
+                  saveKas([newTx, ...transaksiKasList]);
+                  alert('Berhasil mencatat transaksi pemasukan kas.');
+                  setPemasukanForm({
+                    description: '',
+                    amount: '',
+                    date: new Date().toISOString().split('T')[0],
+                    category: 'Donasi'
+                  });
+                }}
+                className="max-w-xl space-y-4 text-xs sm:text-sm"
+              >
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-600 dark:text-slate-400">Keterangan/Deskripsi Pemasukan *</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Contoh: Donasi fogging warga Blok B"
+                    value={pemasukanForm.description}
+                    onChange={(e) => setPemasukanForm({ ...pemasukanForm, description: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Kategori *</label>
+                    <select
+                      value={pemasukanForm.category}
+                      onChange={(e) => setPemasukanForm({ ...pemasukanForm, category: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="Donasi">Donasi / Sukarela</option>
+                      <option value="Subsidi">Subsidi / Dana Desa</option>
+                      <option value="Bunga Bank">Bunga Rekening RT</option>
+                      <option value="Lainnya">Lain-lain</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Uang (Rp) *</label>
+                    <input
+                      required
+                      type="number"
+                      value={pemasukanForm.amount}
+                      onChange={(e) => setPemasukanForm({ ...pemasukanForm, amount: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 max-w-xs">
+                  <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Masuk *</label>
+                  <input
+                    required
+                    type="date"
+                    value={pemasukanForm.date}
+                    onChange={(e) => setPemasukanForm({ ...pemasukanForm, date: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                  />
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    type="submit"
+                    className="py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+                  >
+                    Simpan Pemasukan
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* KEUANGAN: 2. Pengeluaran */}
+          {activeTab === 'keuangan_pengeluaran' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Catat Pengeluaran Kas RT</h3>
+                <p className="text-xs text-slate-400">Input transaksi dana keluar untuk belanja operasional RT, perbaikan fasum, CCTV, kegiatan, dll.</p>
+              </div>
+
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!pengeluaranForm.description || !pengeluaranForm.amount) {
+                    alert('Silakan isi seluruh formulir.');
+                    return;
+                  }
+
+                  const newTx = {
+                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
+                    description: pengeluaranForm.description,
+                    amount: parseInt(pengeluaranForm.amount) || 0,
+                    date: pengeluaranForm.date,
+                    type: 'expense',
+                    category: pengeluaranForm.category
+                  };
+
+                  saveKas([newTx, ...transaksiKasList]);
+                  alert('Berhasil mencatat transaksi pengeluaran kas.');
+                  setPengeluaranForm({
+                    description: '',
+                    amount: '',
+                    date: new Date().toISOString().split('T')[0],
+                    category: 'Kebersihan'
+                  });
+                }}
+                className="max-w-xl space-y-4 text-xs sm:text-sm"
+              >
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-600 dark:text-slate-400">Keterangan/Keperluan Belanja *</label>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Contoh: Honor petugas satpam Juli"
+                    value={pengeluaranForm.description}
+                    onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, description: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Kategori Belanja *</label>
+                    <select
+                      value={pengeluaranForm.category}
+                      onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, category: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="Kebersihan">Operasional Kebersihan</option>
+                      <option value="Keamanan">Operasional Keamanan</option>
+                      <option value="Sosial">Kegiatan Warga / Sosial</option>
+                      <option value="Alat Kantor">ATK & Surat Menyurat</option>
+                      <option value="Lainnya">Pengeluaran Lainnya</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Belanja (Rp) *</label>
+                    <input
+                      required
+                      type="number"
+                      value={pengeluaranForm.amount}
+                      onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, amount: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 max-w-xs">
+                  <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Belanja *</label>
+                  <input
+                    required
+                    type="date"
+                    value={pengeluaranForm.date}
+                    onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, date: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                  />
+                </div>
+
+                <div className="pt-3">
+                  <button
+                    type="submit"
+                    className="py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+                  >
+                    Simpan Pengeluaran
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* KEUANGAN: 3. Kas RT Summary */}
+          {activeTab === 'keuangan_kas' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Buku Kas & Saldo RT</h3>
+                <p className="text-xs text-slate-400">Status keuangan kas RT 04 Sawangan Green Park secara keseluruhan.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-5 bg-emerald-550/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 rounded-2xl shadow-xs">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Total Pemasukan</span>
+                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPemasukan)}</span>
+                </div>
+                <div className="p-5 bg-rose-550/5 dark:bg-rose-500/10 border border-rose-500/10 dark:border-rose-500/20 rounded-2xl shadow-xs">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Total Pengeluaran</span>
+                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPengeluaran)}</span>
+                </div>
+                <div className="p-5 bg-teal-550/5 dark:bg-teal-500/10 border border-teal-500/10 dark:border-teal-500/20 rounded-2xl shadow-xs">
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Saldo Akhir Kas</span>
+                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(sisaKas)}</span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl mt-6">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
@@ -910,62 +2955,254 @@ export default function AdminDashboard({
                       <th className="p-4">Kategori</th>
                       <th className="p-4 text-center">Tipe</th>
                       <th className="p-4 text-right">Jumlah Uang</th>
-                      <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
-                    {transaksiKasList
-                      .filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .map((t) => (
-                        <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                          <td className="p-4 space-y-1 font-mono">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
-                            <div className="text-[10px] text-slate-400">{t.id}</div>
-                          </td>
-                          <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words">
-                            {t.description}
-                          </td>
-                          <td className="p-4 font-semibold text-slate-500 dark:text-slate-450">
-                            {t.category}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] inline-block ${
-                              t.type === 'income'
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                : 'bg-rose-500/10 text-rose-600 dark:text-rose-455'
-                            }`}>
-                              {t.type === 'income' ? 'Masuk' : 'Keluar'}
-                            </span>
-                          </td>
-                          <td className={`p-4 text-right font-bold text-sm font-mono ${
-                            t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-455'
+                    {transaksiKasList.map((t) => (
+                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <td className="p-4 font-mono space-y-1">
+                          <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                          <div className="text-[10px] text-slate-400">{t.id}</div>
+                        </td>
+                        <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words font-sans">
+                          {t.description}
+                        </td>
+                        <td className="p-4 font-semibold text-slate-500 dark:text-slate-450 font-sans">
+                          {t.category}
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] inline-block ${
+                            t.type === 'income'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-455'
                           }`}>
-                            {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
+                            {t.type === 'income' ? 'Masuk' : 'Keluar'}
+                          </span>
+                        </td>
+                        <td className={`p-4 text-right font-bold text-sm font-mono ${
+                          t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-455'
+                        }`}>
+                          {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* KEUANGAN: 4. Transfer Bank / QRIS */}
+          {activeTab === 'keuangan_qris' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rekening Transfer & QRIS RT 04</h3>
+                <p className="text-xs text-slate-400">Informasi pembayaran resmi untuk warga mentransfer iuran bulanan.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                {/* Bank account details card */}
+                <div className="p-6 bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
+                  <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
+                  <div className="flex justify-between items-center">
+                    <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 04</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">BANK MANDIRI</span>
+                  </div>
+                  <div className="space-y-1.5 pt-4 font-sans">
+                    <span className="text-slate-500 text-[10px] font-bold uppercase tracking-wider block">Nomor Rekening RT</span>
+                    <p className="text-xl font-black font-mono tracking-widest text-slate-100">157-00-98234-04-1</p>
+                  </div>
+                  <div className="flex justify-between items-end pt-4 border-t border-slate-800">
+                    <div className="space-y-0.5">
+                      <span className="text-slate-500 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
+                      <p className="text-xs font-black text-slate-200">KAS RT 04 SAWANGAN GREEN PARK</p>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
+                  </div>
+                </div>
+
+                {/* Stylized QRIS Placeholder */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="p-1.5 bg-white rounded-2xl border-4 border-emerald-500 shadow-lg">
+                    {/* Simulated QR Grid with CSS */}
+                    <div className="w-40 h-40 bg-slate-100 flex flex-col items-center justify-center p-2 relative overflow-hidden select-none">
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-slate-900"></div>
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-slate-900"></div>
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-slate-900"></div>
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-slate-900"></div>
+                      <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT04</span>
+                      <div className="mt-2 w-14 h-14 border border-dashed border-slate-450 rounded-md animate-pulse"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 04 / RW 09</h5>
+                    <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LAPORAN: 1. Bulanan */}
+          {activeTab === 'laporan_bulanan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Keuangan Bulanan Kas RT</h3>
+                <p className="text-xs text-slate-400">Rangkuman transaksi kas bulanan berjalan (Juli 2026).</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Income categories summary */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Breakdown Pemasukan</h4>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                      <span className="text-slate-500 font-bold">Iuran Wajib Bulanan</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Iuran Warga').reduce((a,c) => a+c.amount,0))}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                      <span className="text-slate-500 font-bold">Sumbangan & Donasi</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Donasi').reduce((a,c) => a+c.amount,0))}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 font-black text-emerald-650">
+                      <span>Total Pemasukan Bulan Ini</span>
+                      <span>{formatRupiah(totalPemasukan)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expense categories summary */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-xs text-rose-600 dark:text-rose-455 uppercase tracking-wider">Breakdown Pengeluaran</h4>
+                  <div className="space-y-3 text-xs">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                      <span className="text-slate-500 font-bold">Honor Keamanan (Satpam)</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Keamanan').reduce((a,c) => a+c.amount,0))}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                      <span className="text-slate-500 font-bold">Operasional Kebersihan</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Kebersihan').reduce((a,c) => a+c.amount,0))}</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 font-black text-rose-600">
+                      <span>Total Pengeluaran Bulan Ini</span>
+                      <span>{formatRupiah(totalPengeluaran)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LAPORAN: 2. Tahunan */}
+          {activeTab === 'laporan_tahunan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Keuangan Tahunan Kas RT (2026)</h3>
+                <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 04.</p>
+              </div>
+              
+              <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 04</h4>
+                <div className="space-y-4 text-xs font-sans">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <span className="text-slate-500 font-bold">Januari - Juni 2026 (Saldo Awal Terakumulasi)</span>
+                    <span className="font-black text-slate-900 dark:text-white">{formatRupiah(7500000)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <span className="text-slate-500 font-bold">Pemasukan Berjalan (Juli)</span>
+                    <span className="font-black text-emerald-600">{formatRupiah(totalPemasukan)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <span className="text-slate-500 font-bold">Pengeluaran Berjalan (Juli)</span>
+                    <span className="font-black text-rose-500">-{formatRupiah(totalPengeluaran)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 font-black text-sm text-emerald-600 dark:text-emerald-400">
+                    <span>Proyeksi Saldo Bersih Kumulatif Akhir Tahun</span>
+                    <span>{formatRupiah(7500000 + sisaKas)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* LAPORAN: 3. Rekap Iuran */}
+          {activeTab === 'laporan_rekap' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
+                <p className="text-xs text-slate-400">Daftar status lunas warga RT 04 Sawangan Green Park per bulan.</p>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4 min-w-[120px]">Nama Warga</th>
+                      <th className="p-2 text-center">Mei</th>
+                      <th className="p-2 text-center">Juni</th>
+                      <th className="p-2 text-center">Juli</th>
+                      <th className="p-2 text-center">Agustus</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800 font-medium">
+                    {wargaList
+                      .filter(w => w.statusHidup === 'Hidup')
+                      .map((w) => (
+                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 font-bold text-slate-900 dark:text-white font-sans">
+                            {w.name}
+                            <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
                           </td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                onClick={() => openEditModal('kas', t)}
-                                className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                title="Edit Transaksi"
-                              >
-                                <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete('kas', t.id)}
-                                className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                title="Hapus Transaksi"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
-                              </button>
-                            </div>
+                          <td className="p-2 text-center text-emerald-500 font-bold text-sm">✓</td>
+                          <td className="p-2 text-center text-emerald-500 font-bold text-sm">✓</td>
+                          <td className="p-2 text-center">
+                            {w.statusIuran?.includes('Menunggak') ? (
+                              <span className="text-rose-500 font-black text-sm">✗</span>
+                            ) : (
+                              <span className="text-emerald-500 font-black text-sm">✓</span>
+                            )}
                           </td>
+                          <td className="p-2 text-center text-slate-450 italic">Pending</td>
                         </tr>
                       ))}
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
 
+          {/* LAPORAN: 4. Export Excel/PDF */}
+          {activeTab === 'laporan_export' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ekspor & Cetak Laporan Keuangan</h3>
+                <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 04.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas RT (PDF/Printer)</h4>
+                  <p className="text-xs text-slate-400">Cetak lembar laporan fisik transaksi kas masuk & keluar RT secara formal.</p>
+                  <button
+                    onClick={handlePrintKasReport}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Cetak Buku Kas RT
+                  </button>
+                </div>
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Rekapitulasi Iuran (Ekspor Excel)</h4>
+                  <p className="text-xs text-slate-400">Ekspor matriks iuran warga (CSV/Excel format) untuk audit pembukuan.</p>
+                  <button
+                    onClick={() => {
+                      alert('Simulasi ekspor spreadsheet iuran warga RT 04 berhasil diunduh (rt04_iuran_juli.csv).');
+                    }}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                  >
+                    Ekspor CSV Spreadsheet
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -1097,24 +3334,7 @@ export default function AdminDashboard({
                           </td>
                           <td className="p-4 space-y-1">
                             <span className="font-bold text-slate-905 dark:text-slate-100">{sub.wargaNama}</span>
-                            <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1.5 flex-wrap">
-                              <span>NIK: {getDisplayNik(sub.id, sub.wargaNik)}</span>
-                              <button
-                                onClick={() => revealedNiks[sub.id] ? setRevealedNiks(prev => ({ ...prev, [sub.id]: false })) : handleRevealClick(sub.id, 'nik')}
-                                className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                                title={revealedNiks[sub.id] ? "Sembunyikan NIK" : "Tampilkan NIK (Perlu Sandi)"}
-                              >
-                                {revealedNiks[sub.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                              <span>| KK: {getDisplayKk(sub.id, sub.wargaNoKk)}</span>
-                              <button
-                                onClick={() => revealedKks[sub.id] ? setRevealedKks(prev => ({ ...prev, [sub.id]: false })) : handleRevealClick(sub.id, 'kk')}
-                                className="text-slate-400 hover:text-emerald-500 transition-colors p-0.5 cursor-pointer"
-                                title={revealedKks[sub.id] ? "Sembunyikan KK" : "Tampilkan KK (Perlu Sandi)"}
-                              >
-                                {revealedKks[sub.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">NIK: {sub.wargaNik} | KK: {sub.wargaNoKk}</div>
                             <div className="text-[10px] text-slate-500">Alamat: {sub.wargaAlamat}</div>
                           </td>
                           <td className="p-4 font-bold text-emerald-600 dark:text-emerald-450">
@@ -1204,6 +3424,111 @@ export default function AdminDashboard({
                     placeholder="Cari aktivitas berdasarkan nama/username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
+                      localStorage.setItem('rt_access_logs', JSON.stringify([]));
+                      setAccessLogs([]);
+                    }
+                  }}
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-955/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Hapus Semua Log</span>
+                </button>
+              </div>
+
+              {/* Table rendering logs */}
+              <div className="overflow-x-auto border border-slate-100 dark:border-slate-805 rounded-2xl">
+                <table className="w-full border-collapse text-left text-xs font-sans">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-955 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="p-4">ID Log</th>
+                      <th className="p-4">Warga / Pengguna</th>
+                      <th className="p-4">Peran (Role)</th>
+                      <th className="p-4">Waktu Masuk</th>
+                      <th className="p-4">IP Address</th>
+                      <th className="p-4">Aplikasi/Device</th>
+                      <th className="p-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                    {accessLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold italic">
+                          Belum ada aktivitas masuk di portal ini.
+                        </td>
+                      </tr>
+                    ) : (
+                      accessLogs
+                        .filter(log => 
+                          log.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          log.username.toLowerCase().includes(searchQuery.toLowerCase())
+                        )
+                        .map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-955/30 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
+                            <td className="p-4">
+                              <div>
+                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="text-[10px] text-slate-400">@{log.username}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
+                                log.role === 'rt' || log.role === 'admin'
+                                  ? 'bg-emerald-105 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  : log.role === 'sekertaris'
+                                  ? 'bg-blue-105 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  : log.role === 'bendahara'
+                                  ? 'bg-amber-105 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-400'
+                              }`}>
+                                {log.role}
+                              </span>
+                            </td>
+                            <td className="p-4 text-slate-500 font-semibold">
+                              {new Date(log.loginTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </td>
+                            <td className="p-4 font-mono text-[11px] text-slate-500">{log.ipAddress}</td>
+                            <td className="p-4 text-slate-500">{log.userAgent}</td>
+                            <td className="p-4 text-right">
+                              {log.role === 'warga' ? (
+                                <button
+                                  onClick={() => handleShowAccessProfile(log.username)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                >
+                                  Lihat Profil Warga
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic font-semibold">Bukan Warga</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 6: LOG AKSES WARGA */}
+          {activeTab === 'logs' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari aktivitas berdasarkan nama/username..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
@@ -1220,7 +3545,6 @@ export default function AdminDashboard({
                   <span>Hapus Semua Log</span>
                 </button>
               </div>
-              <span className="hidden" aria-hidden="true">{logsTrigger}</span>
 
               {/* Table rendering logs */}
               <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
@@ -1340,7 +3664,7 @@ export default function AdminDashboard({
               {/* WARGA FORM */}
               {(modalType === 'add_warga' || modalType === 'edit_warga') && (
                 <form onSubmit={handleWargaSubmit} className="space-y-4 text-xs font-sans">
-                  <div className="space-y-1.5">
+                  <div className="grid grid-cols-3 gap-3">
                     <label className="font-bold text-slate-655 dark:text-slate-350">Nama Lengkap *</label>
                     <input
                       required
@@ -1374,6 +3698,33 @@ export default function AdminDashboard({
                         onChange={(e) => setWargaForm({ ...wargaForm, password: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                       />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Email Warga *</label>
+                      <input
+                        required
+                        type="email"
+                        placeholder="nama@domain.com"
+                        value={wargaForm.email || ''}
+                        onChange={(e) => setWargaForm({ ...wargaForm, email: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Peran / Jabatan *</label>
+                      <select
+                        value={wargaForm.role || 'warga'}
+                        onChange={(e) => setWargaForm({ ...wargaForm, role: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      >
+                        <option value="warga">Warga (Penduduk)</option>
+                        <option value="rt">Ketua RT</option>
+                        <option value="sekertaris">Sekretaris RT</option>
+                        <option value="bendahara">Bendahara RT</option>
+                      </select>
                     </div>
                   </div>
 
@@ -1431,13 +3782,13 @@ export default function AdminDashboard({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="font-bold text-slate-655 dark:text-slate-350">Status Rumah</label>
                       <select
                         value={wargaForm.status}
                         onChange={(e) => setWargaForm({ ...wargaForm, status: e.target.value })}
-                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Tetap">Tetap</option>
                         <option value="Kontrak">Kontrak</option>
@@ -1449,23 +3800,10 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.statusHidup}
                         onChange={(e) => setWargaForm({ ...wargaForm, statusHidup: e.target.value })}
-                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Hidup">Hidup (Aktif)</option>
                         <option value="Meninggal">Meninggal Dunia</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Status Iuran</label>
-                      <select
-                        value={wargaForm.statusIuran || 'Lunas'}
-                        onChange={(e) => setWargaForm({ ...wargaForm, statusIuran: e.target.value })}
-                        className="w-full px-2 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-[11px]"
-                      >
-                        <option value="Lunas">Lunas</option>
-                        <option value="Menunggak (Rp 50.000)">Menunggak (50rb)</option>
-                        <option value="Menunggak (Rp 100.000)">Menunggak (100rb)</option>
                       </select>
                     </div>
                   </div>
@@ -1673,62 +4011,102 @@ export default function AdminDashboard({
                   >
                     Simpan Agenda
                   </button>
-                 </form>
+                </form>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* PASSWORD PROMPT MODAL FOR REVEALING NIK */}
-      {showPasswordPrompt && (
+      {/* VIEWING CITIZEN PROFILE MODAL FROM LOGS */}
+      {viewingCitizenProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
-            onClick={() => setShowPasswordPrompt(false)}
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs"
+            onClick={() => setViewingCitizenProfile(null)}
           ></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-sm rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden z-10 p-6 space-y-4 animate-scale-up font-sans text-xs">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            <div>
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm">Verifikasi Keamanan</h4>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                Masukkan sandi Admin untuk membuka {targetField === 'nik' ? 'data NIK lengkap.' : targetField === 'kk' ? 'data nomor KK lengkap.' : 'sandi akun warga.'}
-              </p>
+          
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Profil Lengkap Warga</h3>
+              <button 
+                onClick={() => setViewingCitizenProfile(null)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
             </div>
 
-            {promptError && (
-              <div className="p-2.5 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 font-semibold flex items-center gap-2">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{promptError}</span>
+            <div className="p-6 space-y-6 font-sans text-xs sm:text-sm overflow-y-auto max-h-[80vh]">
+              {/* Visual Avatar */}
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-black flex items-center justify-center rounded-2xl text-2xl shadow-lg">
+                  {viewingCitizenProfile.name ? viewingCitizenProfile.name.charAt(0) : 'W'}
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 dark:text-white text-base">{viewingCitizenProfile.name}</h4>
+                  <span className="text-[10px] text-slate-400">ID Warga: {viewingCitizenProfile.id}</span>
+                </div>
               </div>
-            )}
 
-            <form onSubmit={handleConfirmPassword} className="space-y-4">
-              <input
-                required
-                autoFocus
-                type="password"
-                placeholder="Masukkan Sandi Admin"
-                value={promptPasswordInput}
-                onChange={(e) => setPromptPasswordInput(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-55 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-805 rounded-xl outline-none focus:border-emerald-500 text-slate-900 dark:text-white"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold rounded-xl cursor-pointer"
-                >
-                  Konfirmasi
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowPasswordPrompt(false)}
-                  className="px-4 py-2 border border-slate-200 dark:border-slate-800 text-slate-655 text-slate-600 dark:text-slate-300 font-bold rounded-xl cursor-pointer"
-                >
-                  Batal
-                </button>
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500 font-semibold">Username Login</span>
+                  <span className="font-bold text-slate-900 dark:text-white">@{viewingCitizenProfile.username}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Email Warga</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{viewingCitizenProfile.email || '-'}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">NIK (Tersensor)</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {viewingCitizenProfile.nik ? viewingCitizenProfile.nik.slice(0, 6) + '******' + viewingCitizenProfile.nik.slice(12) : '-'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">No. KK (Tersensor)</span>
+                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                    {viewingCitizenProfile.noKk ? viewingCitizenProfile.noKk.slice(0, 6) + '******' + viewingCitizenProfile.noKk.slice(12) : '-'}
+                  </span>
+                </div>
               </div>
-            </form>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-500 font-semibold">Jenis Kelamin</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.gender}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Usia</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.usia} Tahun</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Status Rumah</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-450">{viewingCitizenProfile.status}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                  <span className="text-slate-500 font-semibold">Status Hidup</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' : 'bg-red-50 dark:bg-red-950/30 text-red-600'}`}>{viewingCitizenProfile.statusHidup}</span>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
+                <span className="text-slate-850 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
+                  "{viewingCitizenProfile.alamat}"
+                </span>
+              </div>
+
+              <button
+                onClick={() => setViewingCitizenProfile(null)}
+                className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Tutup Profil
+              </button>
+            </div>
           </div>
         </div>
       )}

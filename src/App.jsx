@@ -13,14 +13,14 @@ import ProfilWarga from './components/ProfilWarga';
 
 // Predefined Demo Data (Outstanding UX/Developer Experience)
 const DEFAULT_WARGA = [
-  { id: 'WRG-001', name: 'Budi Santoso', username: 'warga', password: 'warga', email: 'budi@gmail.com', role: 'warga', nik: '3275081102900001', noKk: '3275081212080001', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Laki-laki', usia: 36, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-002', name: 'Siti Aminah', username: 'siti', password: 'warga', email: 'siti@gmail.com', role: 'warga', nik: '3275084506920002', noKk: '3275081212080001', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Perempuan', usia: 34, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-003', name: 'Andi Wijaya', username: 'andi', password: 'warga', email: 'andi@gmail.com', role: 'warga', nik: '3275080203850003', noKk: '3275081212080002', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Laki-laki', usia: 41, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
-  { id: 'WRG-004', name: 'Rina Herawati', username: 'rina', password: 'warga', email: 'rina@gmail.com', role: 'warga', nik: '3275085208880004', noKk: '3275081212080002', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Perempuan', usia: 38, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
-  { id: 'WRG-005', name: 'Joko Susilo', username: 'joko', password: 'warga', email: 'joko@gmail.com', role: 'warga', nik: '3275081510950005', noKk: '3275081212080003', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Laki-laki', usia: 31, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-006', name: 'Dewi Lestari', username: 'dewi', password: 'warga', email: 'dewi@gmail.com', role: 'warga', nik: '3275086111970006', noKk: '3275081212080003', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Perempuan', usia: 29, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-007', name: 'Mbah Slamet', username: 'slamet', password: 'warga', email: 'slamet@gmail.com', role: 'warga', nik: '3275081512450007', noKk: '3275081212080004', alamat: 'Sawangan Green Park Blok D4 No. 2', status: 'Tetap', gender: 'Laki-laki', usia: 72, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-008', name: 'Alm. Pak Subarkah', username: 'subarkah', password: 'warga', email: 'subarkah@gmail.com', role: 'warga', nik: '3275081203500008', noKk: '3275081212080005', alamat: 'Sawangan Green Park Blok E5 No. 15', status: 'Tetap', gender: 'Laki-laki', usia: 68, statusHidup: 'Meninggal', statusIuran: 'Lunas' }
+  { id: 'WRG-001', name: 'Budi Santoso', username: 'warga', password: 'warga', email: 'budi@gmail.com', role: 'warga', nik: '3275081102900001', noKk: '3275081212080001', noHp: '081234567890', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Laki-laki', usia: 36, statusHidup: 'Hidup', statusIuran: 'Lunas' },
+  { id: 'WRG-002', name: 'Siti Aminah', username: 'siti', password: 'warga', email: 'siti@gmail.com', role: 'warga', nik: '3275084506920002', noKk: '3275081212080001', noHp: '081234567891', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Perempuan', usia: 34, statusHidup: 'Hidup', statusIuran: 'Lunas' },
+  { id: 'WRG-003', name: 'Andi Wijaya', username: 'andi', password: 'warga', email: 'andi@gmail.com', role: 'warga', nik: '3275080203850003', noKk: '3275081212080002', noHp: '081234567892', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Laki-laki', usia: 41, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
+  { id: 'WRG-004', name: 'Rina Herawati', username: 'rina', password: 'warga', email: 'rina@gmail.com', role: 'warga', nik: '3275085208880004', noKk: '3275081212080002', noHp: '081234567893', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Perempuan', usia: 38, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
+  { id: 'WRG-005', name: 'Joko Susilo', username: 'joko', password: 'warga', email: 'joko@gmail.com', role: 'warga', nik: '3275081510950005', noKk: '3275081212080003', noHp: '081234567894', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Laki-laki', usia: 31, statusHidup: 'Hidup', statusIuran: 'Lunas' },
+  { id: 'WRG-006', name: 'Dewi Lestari', username: 'dewi', password: 'warga', email: 'dewi@gmail.com', role: 'warga', nik: '3275086111970006', noKk: '3275081212080003', noHp: '081234567895', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Perempuan', usia: 29, statusHidup: 'Hidup', statusIuran: 'Lunas' },
+  { id: 'WRG-007', name: 'Mbah Slamet', username: 'slamet', password: 'warga', email: 'slamet@gmail.com', role: 'warga', nik: '3275081512450007', noKk: '3275081212080004', noHp: '081234567896', alamat: 'Sawangan Green Park Blok D4 No. 2', status: 'Tetap', gender: 'Laki-laki', usia: 72, statusHidup: 'Hidup', statusIuran: 'Lunas' },
+  { id: 'WRG-008', name: 'Alm. Pak Subarkah', username: 'subarkah', password: 'warga', email: 'subarkah@gmail.com', role: 'warga', nik: '3275081203500008', noKk: '3275081212080005', noHp: '081234567897', alamat: 'Sawangan Green Park Blok E5 No. 15', status: 'Tetap', gender: 'Laki-laki', usia: 68, statusHidup: 'Meninggal', statusIuran: 'Lunas' }
 ];
 
 const DEFAULT_KAS = [
@@ -28,7 +28,8 @@ const DEFAULT_KAS = [
   { id: 'TX-002', description: 'Honor Satpam Klaster Sawangan Green Park (2 Petugas)', amount: 3500000, date: '2026-07-01', type: 'expense', category: 'Keamanan' },
   { id: 'TX-003', description: 'Sumbangan Warga untuk Pembelian Alat Fogging Mandiri', amount: 5000000, date: '2026-07-02', type: 'income', category: 'Donasi' },
   { id: 'TX-004', description: 'Biaya Pengangkutan Sampah Mandiri Ke TPA', amount: 1500000, date: '2026-07-03', type: 'expense', category: 'Kebersihan' },
-  { id: 'TX-005', description: 'Konsumsi & Pembelian Obat Abate Kerja Bakti', amount: 1000000, date: '2026-07-05', type: 'expense', category: 'Kebersihan' }
+  { id: 'TX-005', description: 'Konsumsi & Pembelian Obat Abate Kerja Bakti', amount: 1000000, date: '2026-07-05', type: 'expense', category: 'Kebersihan' },
+  { id: 'TX-050', description: 'Pembayaran Iuran Budi Santoso', amount: 50000, date: '2026-07-06', type: 'income', category: 'Iuran Warga' }
 ];
 
 const DEFAULT_AGENDA = [
@@ -54,7 +55,13 @@ export default function App() {
   // State inisialisasi dari localStorage dengan fallback data demo
   const [wargaList, setWargaList] = useState(() => {
     const data = localStorage.getItem('rt_wargalist');
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed = JSON.parse(data);
+      return parsed.map((w, idx) => ({
+        ...w,
+        noHp: w.noHp || `08123456789${idx}`
+      }));
+    }
     localStorage.setItem('rt_wargalist', JSON.stringify(DEFAULT_WARGA));
     return DEFAULT_WARGA;
   });
@@ -186,6 +193,24 @@ export default function App() {
   }
 
   // 3. WARGA ROLE: RENDER RESIDENT PORTAL IF LOGGED IN AS CITIZEN
+  if (currentUser && currentUser.role === 'warga') {
+    return (
+      <ProfilWarga
+        key={currentUser.id}
+        currentUser={wargaList.find(w => w.id === currentUser.id) || currentUser}
+        setCurrentUser={setCurrentUser}
+        onUpdateProfile={handleUpdateWargaProfile}
+        wargaList={wargaList}
+        submissionsList={submissionsList}
+        setSubmissionsList={setSubmissionsList}
+        agendaList={agendaList}
+        transaksiKasList={transaksiKasList}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans antialiased flex flex-col justify-between">
       {/* Navigation bar */}
@@ -214,10 +239,11 @@ export default function App() {
         {currentPage === 'profil-saya' && (
           <ProfilWarga
             key={currentUser.id}
-            currentUser={currentUser}
+            currentUser={wargaList.find(w => w.id === currentUser.id) || currentUser}
             onUpdateProfile={handleUpdateWargaProfile}
             wargaList={wargaList}
             submissionsList={submissionsList}
+            agendaList={agendaList}
           />
         )}
 

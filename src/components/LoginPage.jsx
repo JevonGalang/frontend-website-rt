@@ -42,12 +42,15 @@ export default function LoginPage({
     setError('');
     setSuccess('');
 
-    // Validations: Username min 3 characters, Password min 8 characters
+    // Validations: Username min 3 characters, Password min 8 characters (exempting demo/local accounts)
+    const isWarga = wargaList.some(w => w.username.toLowerCase() === loginData.username.toLowerCase() || w.nik === loginData.username);
+    const isDemo = ['admin', 'rt', 'sekertaris', 'bendahara'].includes(loginData.username.toLowerCase());
+    
     if (loginData.username.length < 3) {
       setError('Username/NIK minimal harus 3 karakter.');
       return;
     }
-    if (loginData.password.length < 8) {
+    if (!isWarga && !isDemo && loginData.password.length < 8) {
       setError('Password minimal harus 8 karakter.');
       return;
     }
@@ -104,19 +107,55 @@ export default function LoginPage({
     }
 
     // LOCAL OFFLINE FALLBACK
-    // Check for admin
-    if (loginData.username.toLowerCase() === 'admin' && loginData.password === 'admin') {
+    const usernameLower = loginData.username.toLowerCase();
+    
+    // Check for RT (Ketua RT)
+    if ((usernameLower === 'admin' && loginData.password === 'admin') || (usernameLower === 'rt' && loginData.password === 'rt')) {
       const adminUser = {
         id: 'ADM-001',
         name: 'Pak RT (Ahmad Mulyono)',
-        username: 'admin',
+        username: usernameLower,
         role: 'rt',
       };
-      setSuccess('Login Admin Lokal Berhasil! Mengalihkan...');
+      setSuccess('Login Ketua RT Lokal Berhasil! Mengalihkan...');
       recordAccessLog(adminUser);
       setTimeout(() => {
         setCurrentUser(adminUser);
         localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
+      }, 1000);
+      return;
+    }
+
+    // Check for Sekretaris
+    if (usernameLower === 'sekertaris' && loginData.password === 'sekertaris') {
+      const secretaryUser = {
+        id: 'SEC-001',
+        name: 'Bu Sekretaris (Riana Sukma)',
+        username: 'sekertaris',
+        role: 'sekertaris',
+      };
+      setSuccess('Login Sekretaris Lokal Berhasil! Mengalihkan...');
+      recordAccessLog(secretaryUser);
+      setTimeout(() => {
+        setCurrentUser(secretaryUser);
+        localStorage.setItem('rt_current_user', JSON.stringify(secretaryUser));
+      }, 1000);
+      return;
+    }
+
+    // Check for Bendahara
+    if (usernameLower === 'bendahara' && loginData.password === 'bendahara') {
+      const treasurerUser = {
+        id: 'TRE-001',
+        name: 'Pak Bendahara (Hadi Suwarno)',
+        username: 'bendahara',
+        role: 'bendahara',
+      };
+      setSuccess('Login Bendahara Lokal Berhasil! Mengalihkan...');
+      recordAccessLog(treasurerUser);
+      setTimeout(() => {
+        setCurrentUser(treasurerUser);
+        localStorage.setItem('rt_current_user', JSON.stringify(treasurerUser));
       }, 1000);
       return;
     }
@@ -134,7 +173,7 @@ export default function LoginPage({
         ...citizen,
         role: 'warga',
       };
-      setSuccess(`Login Lokal Berhasil! Selamat datang, ${citizen.name}.`);
+      setSuccess(`Login Warga Lokal Berhasil! Selamat datang, ${citizen.name}.`);
       recordAccessLog(citizenUser);
       setTimeout(() => {
         setCurrentUser(citizenUser);
@@ -183,8 +222,8 @@ export default function LoginPage({
             </div>
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 dark:text-white leading-tight">
-              Sistem Informasi Rukun Tetangga <br />
-              & Portal Warga Mandiri
+              SIRATA <br />
+            
             </h1>
 
             <p className="text-sm sm:text-base text-slate-600 dark:text-slate-355 leading-relaxed max-w-lg mx-auto lg:mx-0">
