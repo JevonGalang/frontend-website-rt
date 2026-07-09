@@ -107,6 +107,85 @@ export default function AdminDashboard({
       try { setAccessLogs(JSON.parse(stored)); } catch (e) { setAccessLogs([]); }
     }
   }, [logsTrigger]);
+
+  const [residentServerList, setResidentServerList] = useState([]);
+  const [isLoadingResidents, setIsLoadingResidents] = useState(false);
+  const [residentError, setResidentError] = useState('');
+  const [residentSubTab, setResidentSubTab] = useState('local'); // 'local' | 'server'
+
+  const fetchResidentServerList = async () => {
+    setIsLoadingResidents(true);
+    setResidentError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setResidentError('Token otentikasi tidak ditemukan. Harap login kembali.');
+      setIsLoadingResidents(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/resident', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: Gagal memuat data dari server.`);
+      }
+
+      const data = await response.json();
+      setResidentServerList(data);
+    } catch (err) {
+      console.error('Failed to fetch residents:', err);
+      setResidentError(err.message);
+    } finally {
+      setIsLoadingResidents(false);
+    }
+  };
+
+  const handlePatchResidentKK = async (residentId, newNoKK) => {
+    if (!newNoKK || newNoKK.length < 5) {
+      alert('Nomor KK minimal harus 5 karakter.');
+      return;
+    }
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/admin/resident/${residentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ noKK: newNoKK })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        throw new Error(resData.message || resData.pesan || 'Gagal mengubah nomor KK.');
+      }
+
+      alert('Nomor KK berhasil diperbarui di server!');
+      fetchResidentServerList(); // refresh list
+    } catch (err) {
+      console.error('Error patching KK:', err);
+      alert(`Gagal memperbarui KK: ${err.message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'sek_warga_kk' && residentSubTab === 'server') {
+      fetchResidentServerList();
+    }
+  }, [activeTab, residentSubTab]);
+
   const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,15 +198,113 @@ export default function AdminDashboard({
   // Form States
   const [wargaForm, setWargaForm] = useState({
     name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup',
-    email: '', role: 'warga'
+    email: '', role: 'warga', blok: '', nomor: '', tglLahir: '', noHp: ''
   });
+  const [selectedCitizenForAccount, setSelectedCitizenForAccount] = useState(null);
+  const [accountForm, setAccountForm] = useState({
+    username: '', password: '', email: '', role: 'warga'
+  });
+
+  const openRegisterAccountModal = (citizen) => {
+    setSelectedCitizenForAccount(citizen);
+    setAccountForm({
+      username: '',
+      password: '',
+      email: '',
+      role: 'warga'
+    });
+    setFormError('');
+    setModalType('register_account');
+  };
+
+  const handleAccountRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!accountForm.email) {
+      setFormError('Kolom Email wajib diisi.');
+      return;
+    }
+    if (!emailRegex.test(accountForm.email)) {
+      setFormError('Format email tidak valid (contoh: nama@domain.com).');
+      return;
+    }
+    if (accountForm.username.length < 3) {
+      setFormError('Username minimal harus 3 karakter.');
+      return;
+    }
+    if (accountForm.password.length < 8) {
+      setFormError('Password minimal harus 8 karakter.');
+      return;
+    }
+
+    if (wargaList.some(w => w.username && w.username.toLowerCase() === accountForm.username.toLowerCase())) {
+      setFormError('Username sudah digunakan.');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/post/regist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: accountForm.username,
+          password: accountForm.password,
+          email: accountForm.email,
+          role: accountForm.role
+        })
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        setFormError(resData.message || resData.status || 'Gagal mendaftarkan akun di server.');
+        return;
+      }
+
+      const updated = wargaList.map(w => 
+        w.id === selectedCitizenForAccount.id 
+          ? { 
+              ...w, 
+              username: accountForm.username, 
+              password: accountForm.password, 
+              email: accountForm.email, 
+              role: accountForm.role 
+            } 
+          : w
+      );
+      saveWarga(updated);
+      alert(`Akun berhasil dibuat secara real-time untuk ${selectedCitizenForAccount.name}!`);
+      setModalType('');
+    } catch (err) {
+      console.warn('API Register offline/error:', err);
+      const proceedLocally = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin meregistrasikan akun secara lokal saja (Offline Mode)?');
+      if (proceedLocally) {
+        const updated = wargaList.map(w => 
+          w.id === selectedCitizenForAccount.id 
+            ? { 
+                ...w, 
+                username: accountForm.username, 
+                password: accountForm.password, 
+                email: accountForm.email, 
+                role: accountForm.role 
+              } 
+            : w
+        );
+        saveWarga(updated);
+        setModalType('');
+      } else {
+        setFormError('Gagal menghubungkan ke server registrasi.');
+      }
+    }
+  };
+
   const [kasForm, setKasForm] = useState({
     description: '', amount: '', date: new Date().toISOString().split('T')[0], type: 'income', category: 'Iuran Warga'
   });
   const [agendaForm, setAgendaForm] = useState({
     title: '', date: '', time: '', location: '', category: 'Kegiatan RT', participants: 'Semua Warga', description: ''
   });
-
   const [formError, setFormError] = useState('');
 
   // Auto-sync functions for CRUD
@@ -283,7 +460,11 @@ export default function AdminDashboard({
         status: item.status || 'Tetap',
         statusHidup: item.statusHidup || 'Hidup',
         email: item.email || '',
-        role: item.role || 'warga'
+        role: item.role || 'warga',
+        blok: item.blok || '',
+        nomor: item.nomor || '',
+        tglLahir: item.tglLahir || '',
+        noHp: item.noHp || ''
       });
       setModalType('edit_warga');
     } else if (type === 'kas') {
@@ -302,7 +483,7 @@ export default function AdminDashboard({
     if (type === 'warga') {
       setWargaForm({
         name: '', username: '', password: '', nik: '', noKk: '', alamat: '', gender: 'Laki-laki', usia: '', status: 'Tetap', statusHidup: 'Hidup',
-        email: '', role: 'warga'
+        email: '', role: 'warga', blok: '', nomor: '', tglLahir: '', noHp: ''
       });
       setModalType('add_warga');
     } else if (type === 'kas') {
@@ -339,23 +520,6 @@ export default function AdminDashboard({
     e.preventDefault();
     setFormError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!wargaForm.email) {
-      setFormError('Kolom Email wajib diisi.');
-      return;
-    }
-    if (!emailRegex.test(wargaForm.email)) {
-      setFormError('Format email tidak valid (contoh: nama@domain.com).');
-      return;
-    }
-    if (wargaForm.username.length < 3) {
-      setFormError('Username minimal harus 3 karakter.');
-      return;
-    }
-    if (wargaForm.password.length < 8) {
-      setFormError('Password minimal harus 8 karakter.');
-      return;
-    }
     if (wargaForm.nik.length !== 16 || isNaN(wargaForm.nik)) {
       setFormError('NIK harus berupa 16 digit angka.');
       return;
@@ -364,58 +528,143 @@ export default function AdminDashboard({
       setFormError('Nomor KK harus berupa 16 digit angka.');
       return;
     }
-    if (!wargaForm.name || !wargaForm.username || !wargaForm.alamat || !wargaForm.usia) {
-      setFormError('Semua kolom bertanda wajib harus diisi.');
+    if (!wargaForm.name || !wargaForm.alamat || !wargaForm.usia || !wargaForm.blok || !wargaForm.nomor || !wargaForm.tglLahir || !wargaForm.noHp) {
+      setFormError('Semua kolom bertanda wajib (*) harus diisi.');
       return;
     }
 
     if (modalType === 'add_warga') {
-      // check unique username
-      if (wargaList.some(w => w.username.toLowerCase() === wargaForm.username.toLowerCase() || wargaForm.username.toLowerCase() === 'admin')) {
-        setFormError('Username sudah digunakan.');
-        return;
-      }
       if (wargaList.some(w => w.nik === wargaForm.nik)) {
         setFormError('NIK sudah terdaftar.');
         return;
       }
 
-      // Call API Register
-      try {
-        const response = await fetch('http://172.20.32.62:3333/post/regist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: wargaForm.username,
-            password: wargaForm.password,
-            email: wargaForm.email,
-            role: wargaForm.role
-          })
-        });
+      let isOfflineMode = false;
+      let house_id = null;
+      let family_id = null;
+      const token = localStorage.getItem('rt_token');
 
-        const resData = await response.json();
-        if (!response.ok) {
-          setFormError(resData.message || resData.status || 'Gagal mendaftarkan akun di server.');
+      if (!token) {
+        const proceedLocally = window.confirm('Token otentikasi tidak ditemukan. Apakah Anda ingin mendaftarkan warga secara lokal saja (Offline Mode)?');
+        if (!proceedLocally) {
+          setFormError('Token otentikasi diperlukan untuk menyimpan ke server.');
           return;
         }
-      } catch (err) {
-        console.warn('API Register offline/error:', err);
-        const proceedLocally = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin mendaftarkan warga secara lokal saja (Offline Mode)?');
-        if (!proceedLocally) {
-          setFormError('Gagal terhubung ke server registrasi.');
-          return;
+        isOfflineMode = true;
+      } else {
+        try {
+          // Step 1: POST /admin/house
+          const houseRes = await fetch('http://172.20.32.62:3333/admin/house', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              blok: wargaForm.blok,
+              nomor: parseInt(wargaForm.nomor) || 1,
+              alamat: wargaForm.alamat,
+              status: wargaForm.status === 'Tetap' ? 'pribadi' : 'kontrak'
+            })
+          });
+
+          const houseData = await houseRes.json();
+          if (!houseRes.ok) {
+            throw new Error(houseData.message || houseData.pesan || 'Gagal membuat data rumah di server.');
+          }
+
+          if (houseData.output?.pesan) {
+            if (Array.isArray(houseData.output.pesan)) {
+              house_id = houseData.output.pesan[0]?.insertId;
+            } else {
+              house_id = houseData.output.pesan.insertId;
+            }
+          }
+          if (!house_id) {
+            throw new Error('Gagal mendapatkan ID rumah dari server.');
+          }
+
+          // Step 2: POST /admin/resident
+          const residentRes = await fetch('http://172.20.32.62:3333/admin/resident', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              noKK: wargaForm.noKk,
+              home: house_id,
+              KepalaKeluarga: 1
+            })
+          });
+
+          const residentData = await residentRes.json();
+          if (!residentRes.ok) {
+            const errMsg = residentData.errors?.[0]?.message || residentData.message || residentData.pesan || 'Gagal membuat data KK di server.';
+            throw new Error(errMsg);
+          }
+
+          if (residentData.output?.pesan) {
+            if (Array.isArray(residentData.output.pesan)) {
+              family_id = residentData.output.pesan[0]?.insertId;
+            } else {
+              family_id = residentData.output.pesan.insertId;
+            }
+          }
+          if (!family_id) {
+            throw new Error('Gagal mendapatkan ID keluarga (family) dari server.');
+          }
+
+          // Step 3: POST /admin/datawarga
+          const citizenRes = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              nik: wargaForm.nik,
+              nama: wargaForm.name,
+              jenisKelamin: wargaForm.gender,
+              tglLahir: wargaForm.tglLahir,
+              statusHidup: wargaForm.statusHidup,
+              noHp: wargaForm.noHp,
+              umur: parseInt(wargaForm.usia) || 30,
+              fammilyId: family_id,
+              houseId: house_id
+            })
+          });
+
+          const citizenData = await citizenRes.json();
+          if (!citizenRes.ok) {
+            throw new Error(citizenData.message || citizenData.pesan || 'Gagal menyimpan data warga di server.');
+          }
+
+          alert('Warga berhasil terdaftar secara real-time di server database!');
+        } catch (err) {
+          console.error('Database insertion error:', err);
+          const proceedLocally = window.confirm(`Gagal menyimpan data ke database server: ${err.message}. Apakah Anda ingin menyimpan warga secara lokal saja (Offline Mode)?`);
+          if (!proceedLocally) {
+            setFormError('Gagal menyimpan data ke database server.');
+            return;
+          }
+          isOfflineMode = true;
         }
       }
 
       const newWarga = {
         ...wargaForm,
         id: 'WRG-' + Math.floor(Math.random() * 9000 + 1000),
-        usia: parseInt(wargaForm.usia) || 30
+        usia: parseInt(wargaForm.usia) || 30,
+        username: '',
+        password: '',
+        email: '',
+        role: 'warga'
       };
       saveWarga([...wargaList, newWarga]);
     } else {
       // edit warga
-      if (wargaList.some(w => w.id !== selectedItem.id && w.username.toLowerCase() === wargaForm.username.toLowerCase())) {
+      if (wargaForm.username && wargaList.some(w => w.id !== selectedItem.id && w.username.toLowerCase() === wargaForm.username.toLowerCase())) {
         setFormError('Username sudah digunakan.');
         return;
       }
@@ -1434,43 +1683,181 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 1. DATA KK */}
           {activeTab === 'sek_warga_kk' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">No. Kartu Keluarga (KK)</th>
-                      <th className="p-4">Kepala Keluarga</th>
-                      <th className="p-4">Alamat Domisili</th>
-                      <th className="p-4 text-center">Anggota KK</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {(() => {
-                      const kkMap = {};
-                      wargaList.forEach(w => {
-                        if (!w.noKk) return;
-                        if (!kkMap[w.noKk]) {
-                          kkMap[w.noKk] = { noKk: w.noKk, kepala: w.name, alamat: w.alamat, anggota: [] };
-                        }
-                        kkMap[w.noKk].anggota.push(w);
-                      });
-                      const kkList = Object.values(kkMap);
-                      return kkList.map((kk) => (
-                        <tr key={kk.noKk} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                          <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{kk.noKk}</td>
-                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{kk.kepala}</td>
-                          <td className="p-4 text-slate-550 dark:text-slate-400">{kk.alamat}</td>
-                          <td className="p-4 text-center">
-                            <span className="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold rounded-md text-[10px]">
-                              {kk.anggota.length} Orang
-                            </span>
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
+              
+              {/* Toggle Sub Tab */}
+              <div className="flex border-b border-slate-100 dark:border-slate-800 pb-2">
+                <button
+                  onClick={() => setResidentSubTab('local')}
+                  className={`pb-2 px-4 text-xs font-bold transition-all cursor-pointer border-b-2 ${
+                    residentSubTab === 'local'
+                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Simulasi Lokal
+                </button>
+                <button
+                  onClick={() => setResidentSubTab('server')}
+                  className={`pb-2 px-4 text-xs font-bold transition-all cursor-pointer border-b-2 ${
+                    residentSubTab === 'server'
+                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Database Server (Real-Time)
+                </button>
               </div>
+
+              {residentSubTab === 'local' ? (
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">No. Kartu Keluarga (KK)</th>
+                        <th className="p-4">Kepala Keluarga</th>
+                        <th className="p-4">Alamat Domisili</th>
+                        <th className="p-4 text-center">Anggota KK</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {(() => {
+                        const kkMap = {};
+                        wargaList.forEach(w => {
+                          if (!w.noKk) return;
+                          if (!kkMap[w.noKk]) {
+                            kkMap[w.noKk] = { noKk: w.noKk, kepala: w.name, alamat: w.alamat, anggota: [] };
+                          }
+                          kkMap[w.noKk].anggota.push(w);
+                        });
+                        const kkList = Object.values(kkMap);
+                        return kkList.map((kk) => (
+                          <tr key={kk.noKk} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{kk.noKk}</td>
+                            <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{kk.kepala}</td>
+                            <td className="p-4 text-slate-550 dark:text-slate-400">{kk.alamat}</td>
+                            <td className="p-4 text-center">
+                              <span className="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold rounded-md text-[10px]">
+                                {kk.anggota.length} Orang
+                              </span>
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Search Bar & Actions */}
+                  <div className="flex justify-between items-center gap-4 flex-wrap">
+                    <input
+                      type="text"
+                      placeholder="Cari KK Server (No. KK, Nama Kepala, Alamat)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-sm w-full"
+                    />
+                    <button
+                      onClick={fetchResidentServerList}
+                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    >
+                      Refresh Data
+                    </button>
+                  </div>
+
+                  {isLoadingResidents ? (
+                    <div className="py-12 flex flex-col items-center justify-center gap-3">
+                      <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                      <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data dari server database...</span>
+                    </div>
+                  ) : residentError ? (
+                    <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center gap-3 text-center">
+                      <AlertCircle className="w-8 h-8 text-red-500" />
+                      <div className="space-y-1">
+                        <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Menghubungkan ke Server</h5>
+                        <p className="text-[10px] text-slate-400">{residentError}</p>
+                      </div>
+                      <button
+                        onClick={fetchResidentServerList}
+                        className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                      >
+                        Coba Lagi
+                      </button>
+                    </div>
+                  ) : residentServerList.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 text-xs italic">
+                      Tidak ada data kartu keluarga di server database.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">No. Kartu Keluarga (KK)</th>
+                            <th className="p-4">Kepala Keluarga</th>
+                            <th className="p-4">Alamat Domisili Rumah</th>
+                            <th className="p-4">Status Rumah</th>
+                            <th className="p-4 text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {residentServerList
+                            .filter(r => {
+                              const q = searchQuery.toLowerCase();
+                              const noKK = (r.no_kk || r.noKK || '').toLowerCase();
+                              const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
+                              const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
+                              return noKK.includes(q) || kepala.includes(q) || alamat.includes(q);
+                            })
+                            .map((r) => {
+                              const id = r.family_id || r.id;
+                              const noKK = r.no_kk || r.noKK;
+                              const kepala = r.kepala_keluarga_nama || 'Tidak Diketahui';
+                              const nik = r.kepala_keluarga_nik ? `NIK: ${r.kepala_keluarga_nik}` : '';
+                              const noHp = r.kepala_keluarga_nohp ? ` | HP: ${r.kepala_keluarga_nohp}` : '';
+                              const alamat = r.house_alamat || 'Tidak Diketahui';
+                              const blok = r.house_blok ? ` (Blok ${r.house_blok}` : '';
+                              const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
+                              const status = r.house_status || '-';
+                              return (
+                                <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{noKK}</td>
+                                  <td className="p-4">
+                                    <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
+                                    <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
+                                  </td>
+                                  <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
+                                  <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                      status === 'pribadi' || status === 'Tetap'
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}>
+                                      {status}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-right">
+                                    <button
+                                      onClick={() => {
+                                        const val = window.prompt('Masukkan nomor KK baru (Minimal 5 karakter):', noKK);
+                                        if (val !== null) {
+                                          handlePatchResidentKK(id, val);
+                                        }
+                                      }}
+                                      className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                                    >
+                                      Edit KK
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2422,8 +2809,24 @@ export default function AdminDashboard({
                             </div>
                           </td>
                           <td className="p-4 space-y-1">
-                            <div className="font-semibold text-slate-655 dark:text-slate-350">U: {w.username}</div>
-                            <div className="text-[10px] text-slate-400">P: {w.password}</div>
+                            {w.username ? (
+                              <>
+                                <div className="font-semibold text-slate-655 dark:text-slate-350">U: {w.username}</div>
+                                <div className="text-[10px] text-slate-400">P: {w.password}</div>
+                              </>
+                            ) : (
+                              currentUser.role !== 'bendahara' ? (
+                                <button
+                                  onClick={() => openRegisterAccountModal(w)}
+                                  className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-lg transition-all cursor-pointer text-[10px] flex items-center gap-1"
+                                  title="Daftarkan akun login untuk warga ini"
+                                >
+                                  <span>Registrasi Akun</span>
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic">Belum Ada Akun</span>
+                              )
+                            )}
                           </td>
                           <td className="p-4 max-w-[200px] truncate" title={w.alamat}>
                             {w.alamat}
@@ -4000,6 +4403,7 @@ export default function AdminDashboard({
                 {modalType === 'edit_kas' && 'Edit Catatan Kas'}
                 {modalType === 'add_agenda' && 'Buat Agenda Baru'}
                 {modalType === 'edit_agenda' && 'Edit Detail Agenda'}
+                {modalType === 'register_account' && `Registrasi Akun - ${selectedCitizenForAccount?.name}`}
               </h3>
               <button 
                 onClick={() => setModalType('')}
@@ -4017,6 +4421,68 @@ export default function AdminDashboard({
                 </div>
               )}
 
+              {/* REGISTER ACCOUNT FORM */}
+              {modalType === 'register_account' && (
+                <form onSubmit={handleAccountRegisterSubmit} className="space-y-4 text-xs font-sans">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Username Akun *</label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Username login baru"
+                      value={accountForm.username}
+                      onChange={(e) => setAccountForm({ ...accountForm, username: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Password Akun *</label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Minimal 8 karakter"
+                      value={accountForm.password}
+                      onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Email Warga *</label>
+                    <input
+                      required
+                      type="email"
+                      placeholder="nama@domain.com"
+                      value={accountForm.email}
+                      onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Peran / Jabatan *</label>
+                    <select
+                      value={accountForm.role}
+                      onChange={(e) => setAccountForm({ ...accountForm, role: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="warga">Warga (Penduduk)</option>
+                      <option value="rt">Ketua RT</option>
+                      <option value="sekertaris">Sekretaris RT</option>
+                      <option value="bendahara">Bendahara RT</option>
+                    </select>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                  >
+                    Registrasikan Akun
+                  </button>
+                </form>
+              )}
+
               {/* WARGA FORM */}
               {(modalType === 'add_warga' || modalType === 'edit_warga') && (
                 <form onSubmit={handleWargaSubmit} className="space-y-4 text-xs font-sans">
@@ -4032,57 +4498,7 @@ export default function AdminDashboard({
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Username Akun *</label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="Username login"
-                        value={wargaForm.username}
-                        onChange={(e) => setWargaForm({ ...wargaForm, username: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Password Akun *</label>
-                      <input
-                        required
-                        type="text"
-                        placeholder="Password login"
-                        value={wargaForm.password}
-                        onChange={(e) => setWargaForm({ ...wargaForm, password: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Email Warga *</label>
-                      <input
-                        required
-                        type="email"
-                        placeholder="nama@domain.com"
-                        value={wargaForm.email || ''}
-                        onChange={(e) => setWargaForm({ ...wargaForm, email: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Peran / Jabatan *</label>
-                      <select
-                        value={wargaForm.role || 'warga'}
-                        onChange={(e) => setWargaForm({ ...wargaForm, role: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
-                      >
-                        <option value="warga">Warga (Penduduk)</option>
-                        <option value="rt">Ketua RT</option>
-                        <option value="sekertaris">Sekretaris RT</option>
-                        <option value="bendahara">Bendahara RT</option>
-                      </select>
-                    </div>
-                  </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -4107,6 +4523,30 @@ export default function AdminDashboard({
                         value={wargaForm.noKk}
                         onChange={(e) => setWargaForm({ ...wargaForm, noKk: e.target.value.replace(/\D/g, '') })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Nomor HP *</label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Contoh: 081234567890"
+                        value={wargaForm.noHp || ''}
+                        onChange={(e) => setWargaForm({ ...wargaForm, noHp: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Lahir *</label>
+                      <input
+                        required
+                        type="date"
+                        value={wargaForm.tglLahir || ''}
+                        onChange={(e) => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
                       />
                     </div>
                   </div>
@@ -4156,11 +4596,37 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.statusHidup}
                         onChange={(e) => setWargaForm({ ...wargaForm, statusHidup: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Hidup">Hidup (Aktif)</option>
                         <option value="Meninggal">Meninggal Dunia</option>
                       </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Blok Rumah *</label>
+                      <input
+                        required
+                        type="text"
+                        placeholder="Contoh: A"
+                        value={wargaForm.blok || ''}
+                        onChange={(e) => setWargaForm({ ...wargaForm, blok: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Nomor Rumah *</label>
+                      <input
+                        required
+                        type="number"
+                        min="1"
+                        placeholder="Contoh: 12"
+                        value={wargaForm.nomor || ''}
+                        onChange={(e) => setWargaForm({ ...wargaForm, nomor: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      />
                     </div>
                   </div>
 
