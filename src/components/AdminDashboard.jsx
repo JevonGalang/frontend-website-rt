@@ -189,6 +189,16 @@ export default function AdminDashboard({
   }, [activeTab, residentSubTab]);
 
   const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
+
+  const handleShowAccessProfile = (username) => {
+    const found = wargaList.find(w => w.username?.toLowerCase() === username?.toLowerCase());
+    if (found) {
+      setViewingCitizenProfile(found);
+    } else {
+      alert(`Data warga dengan username @${username} tidak ditemukan di database lokal.`);
+    }
+  };
+
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -2083,7 +2093,7 @@ export default function AdminDashboard({
                   setSuratMasukForm({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
                   alert('Surat masuk berhasil diregistrasikan!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Masuk Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -2156,7 +2166,7 @@ export default function AdminDashboard({
                   setSuratKeluarForm({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
                   alert('Surat keluar berhasil dicatat!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Keluar Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -2442,7 +2452,7 @@ export default function AdminDashboard({
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {arsipFileList.map((a) => (
-                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-955/20 transition-colors">
+                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{a.name} ({a.size})</td>
                         <td className="p-4 text-slate-500">{a.date}</td>
@@ -2660,7 +2670,7 @@ export default function AdminDashboard({
                         setAccessLogs([]);
                       }
                     }}
-                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-955/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-[10px] transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-[10px] transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Trash2 className="w-3 h-3" />
                     <span>Bersihkan Log</span>
@@ -2748,7 +2758,7 @@ export default function AdminDashboard({
                       placeholder="Cari warga (Nama, NIK, No. KK)..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                     />
                   </div>
 
@@ -2757,7 +2767,7 @@ export default function AdminDashboard({
                     <select
                       value={statusFilter}
                       onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none"
+                      className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none"
                     >
                       <option value="All">Semua Warga</option>
                       <option value="Tetap">Status Tetap</option>
@@ -2807,7 +2817,7 @@ export default function AdminDashboard({
                         return matchesSearch;
                       })
                       .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
                             <div className="font-bold text-slate-800 dark:text-white">NIK: {w.nik}</div>
                             <div className="text-[10px] text-slate-400">KK: {w.noKk}</div>
@@ -2954,7 +2964,7 @@ export default function AdminDashboard({
                         placeholder="Cari transaksi..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                       />
                     </div>
 
@@ -2992,7 +3002,7 @@ export default function AdminDashboard({
                         {transaksiKasList
                           .filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((t) => (
-                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 space-y-1 font-mono">
                                 <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
                                 <div className="text-[10px] text-slate-400">{t.id}</div>
@@ -3052,7 +3062,7 @@ export default function AdminDashboard({
                       placeholder="Cari nama warga..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                     />
                   </div>
 
@@ -3071,7 +3081,7 @@ export default function AdminDashboard({
                         {wargaList
                           .filter(w => w.statusHidup === 'Hidup' && w.name.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((w) => (
-                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 font-bold text-slate-900 dark:text-white">
                                 {w.name}
                                 <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
@@ -3100,13 +3110,13 @@ export default function AdminDashboard({
                                   <div className="inline-flex gap-1.5">
                                     <button
                                       onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 50.000)')}
-                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
                                     >
                                       Set Menunggak 50rb
                                     </button>
                                     <button
                                       onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 100.000)')}
-                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-55 dark:bg-slate-800 dark:hover:bg-rose-950/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-55 dark:bg-slate-800 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
                                     >
                                       Set Menunggak 100rb
                                     </button>
@@ -3214,7 +3224,7 @@ export default function AdminDashboard({
                     required
                     value={iuranPembayaranForm.wargaId}
                     onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, wargaId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                   >
                     <option value="">-- Pilih Warga --</option>
                     {wargaList
@@ -3238,7 +3248,7 @@ export default function AdminDashboard({
                           amount: selected ? selected.amount : 0
                         });
                       }}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                     >
                       {jenisIuranList.map(j => (
                         <option key={j.id} value={j.id}>{j.name} ({formatRupiah(j.amount)})</option>
@@ -3253,7 +3263,7 @@ export default function AdminDashboard({
                       type="number"
                       value={iuranPembayaranForm.amount}
                       onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, amount: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
                 </div>
@@ -3264,7 +3274,7 @@ export default function AdminDashboard({
                     <select
                       value={iuranPembayaranForm.month}
                       onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, month: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                     >
                       {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map(m => (
                         <option key={m} value={m}>{m}</option>
@@ -3279,7 +3289,7 @@ export default function AdminDashboard({
                       type="date"
                       value={iuranPembayaranForm.date}
                       onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, date: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
                 </div>
@@ -3319,7 +3329,7 @@ export default function AdminDashboard({
                     {transaksiKasList
                       .filter(t => t.category === 'Iuran Warga')
                       .map((t) => (
-                        <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
                             <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
                             <div className="text-[10px] text-slate-400">{t.id}</div>
@@ -3365,7 +3375,7 @@ export default function AdminDashboard({
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak'))
                       .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-bold text-slate-900 dark:text-white">
                             {w.name}
                             <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
@@ -3451,7 +3461,7 @@ export default function AdminDashboard({
                     placeholder="Contoh: Donasi fogging warga Blok B"
                     value={pemasukanForm.description}
                     onChange={(e) => setPemasukanForm({ ...pemasukanForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                   />
                 </div>
 
@@ -3461,7 +3471,7 @@ export default function AdminDashboard({
                     <select
                       value={pemasukanForm.category}
                       onChange={(e) => setPemasukanForm({ ...pemasukanForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                     >
                       <option value="Donasi">Donasi / Sukarela</option>
                       <option value="Subsidi">Subsidi / Dana Desa</option>
@@ -3477,7 +3487,7 @@ export default function AdminDashboard({
                       type="number"
                       value={pemasukanForm.amount}
                       onChange={(e) => setPemasukanForm({ ...pemasukanForm, amount: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
                 </div>
@@ -3489,7 +3499,7 @@ export default function AdminDashboard({
                     type="date"
                     value={pemasukanForm.date}
                     onChange={(e) => setPemasukanForm({ ...pemasukanForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                   />
                 </div>
 
@@ -3549,7 +3559,7 @@ export default function AdminDashboard({
                     placeholder="Contoh: Honor petugas satpam Juli"
                     value={pengeluaranForm.description}
                     onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                   />
                 </div>
 
@@ -3559,7 +3569,7 @@ export default function AdminDashboard({
                     <select
                       value={pengeluaranForm.category}
                       onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                     >
                       <option value="Kebersihan">Operasional Kebersihan</option>
                       <option value="Keamanan">Operasional Keamanan</option>
@@ -3576,7 +3586,7 @@ export default function AdminDashboard({
                       type="number"
                       value={pengeluaranForm.amount}
                       onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, amount: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
                 </div>
@@ -3588,7 +3598,7 @@ export default function AdminDashboard({
                     type="date"
                     value={pengeluaranForm.date}
                     onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                   />
                 </div>
 
@@ -3640,7 +3650,7 @@ export default function AdminDashboard({
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {transaksiKasList.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 font-mono space-y-1">
                           <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
                           <div className="text-[10px] text-slate-400">{t.id}</div>
@@ -3829,7 +3839,7 @@ export default function AdminDashboard({
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup')
                       .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-bold text-slate-900 dark:text-white font-sans">
                             {w.name}
                             <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
@@ -3899,7 +3909,7 @@ export default function AdminDashboard({
                     placeholder="Cari agenda kegiatan..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
 
@@ -3917,7 +3927,7 @@ export default function AdminDashboard({
                 {agendaList
                   .filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.category.toLowerCase().includes(searchQuery.toLowerCase()))
                   .map((a) => (
-                    <div key={a.id} className="relative bg-slate-50 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
+                    <div key={a.id} className="relative bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
                       {/* Top Accent line */}
                       <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
                       
@@ -3986,7 +3996,7 @@ export default function AdminDashboard({
                     placeholder="Cari pengajuan berdasarkan nama warga..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -4008,7 +4018,7 @@ export default function AdminDashboard({
                     {submissionsList
                       .filter(s => s.wargaNama.toLowerCase().includes(searchQuery.toLowerCase()))
                       .map((sub) => (
-                        <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
                             <span className="font-semibold text-slate-805 dark:text-slate-350">{sub.submissionDate}</span>
                             <div className="text-[10px] text-slate-400">{sub.id}</div>
@@ -4119,7 +4129,7 @@ export default function AdminDashboard({
                         type="password" 
                         placeholder="••••••••" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -4128,7 +4138,7 @@ export default function AdminDashboard({
                         type="password" 
                         placeholder="Minimal 8 karakter" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -4137,7 +4147,7 @@ export default function AdminDashboard({
                         type="password" 
                         placeholder="Ketik ulang kata sandi baru" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
                       />
                     </div>
                     <button type="submit" className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors">Perbarui Kata Sandi</button>
@@ -4151,7 +4161,7 @@ export default function AdminDashboard({
                     <p className="text-[10px] text-slate-400">Konfigurasi data wilayah hukum administrasi RT.</p>
                   </div>
 
-                  <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-sans">
+                  <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-sans">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Tetangga</span>
@@ -4200,7 +4210,7 @@ export default function AdminDashboard({
                     placeholder="Cari aktivitas berdasarkan nama/username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
                 <button
@@ -4210,7 +4220,7 @@ export default function AdminDashboard({
                       setAccessLogs([]);
                     }
                   }}
-                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-955/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Hapus Semua Log</span>
@@ -4221,7 +4231,7 @@ export default function AdminDashboard({
               <div className="overflow-x-auto border border-slate-100 dark:border-slate-805 rounded-2xl">
                 <table className="w-full border-collapse text-left text-xs font-sans">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-955 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
                       <th className="p-4">ID Log</th>
                       <th className="p-4">Warga / Pengguna</th>
                       <th className="p-4">Peran (Role)</th>
@@ -4245,7 +4255,7 @@ export default function AdminDashboard({
                           log.username.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((log) => (
-                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-955/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
                             <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
                             <td className="p-4">
                               <div>
@@ -4293,7 +4303,7 @@ export default function AdminDashboard({
             </div>
           )}
 
-          {/* TAB 6: LOG AKSES WARGA */}
+          {/* TAB 6: LOG AKSES WARGA (DUPLICATE) */}
           {activeTab === 'logs' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
@@ -4305,7 +4315,7 @@ export default function AdminDashboard({
                     placeholder="Cari aktivitas berdasarkan nama/username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
                 <button
@@ -4315,7 +4325,7 @@ export default function AdminDashboard({
                       setLogsTrigger(t => t + 1);
                     }
                   }}
-                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Hapus Semua Log</span>
@@ -4326,7 +4336,7 @@ export default function AdminDashboard({
               <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
                 <table className="w-full border-collapse text-left text-xs font-sans">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-955 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
                       <th className="p-4">ID Log</th>
                       <th className="p-4">Warga / Pengguna</th>
                       <th className="p-4">Peran (Role)</th>
@@ -4350,7 +4360,7 @@ export default function AdminDashboard({
                           log.username.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((log) => (
-                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
                             <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
                             <td className="p-4">
                               <div>
@@ -4400,7 +4410,7 @@ export default function AdminDashboard({
 
           {/* TAB: DATA WIZARD */}
           {activeTab === 'data_wizard' && (
-            <AdminDataWizard darkMode={darkMode} />
+            <AdminDataWizard />
           )}
 
         </div>
@@ -4454,7 +4464,7 @@ export default function AdminDashboard({
                       placeholder="Username login baru"
                       value={accountForm.username}
                       onChange={(e) => setAccountForm({ ...accountForm, username: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
 
@@ -4466,7 +4476,7 @@ export default function AdminDashboard({
                       placeholder="Minimal 8 karakter"
                       value={accountForm.password}
                       onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                     />
                   </div>
 
@@ -4478,7 +4488,7 @@ export default function AdminDashboard({
                       placeholder="nama@domain.com"
                       value={accountForm.email}
                       onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                     />
                   </div>
 
@@ -4487,7 +4497,7 @@ export default function AdminDashboard({
                     <select
                       value={accountForm.role}
                       onChange={(e) => setAccountForm({ ...accountForm, role: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                     >
                       <option value="warga">Warga (Penduduk)</option>
                       <option value="rt">Ketua RT</option>
@@ -4516,7 +4526,7 @@ export default function AdminDashboard({
                       placeholder="Nama lengkap warga"
                       value={wargaForm.name}
                       onChange={(e) => setWargaForm({ ...wargaForm, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                     />
                   </div>
 
@@ -4532,7 +4542,7 @@ export default function AdminDashboard({
                         placeholder="Nomor NIK"
                         value={wargaForm.nik}
                         onChange={(e) => setWargaForm({ ...wargaForm, nik: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -4544,7 +4554,7 @@ export default function AdminDashboard({
                         placeholder="Nomor KK"
                         value={wargaForm.noKk}
                         onChange={(e) => setWargaForm({ ...wargaForm, noKk: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
                       />
                     </div>
                   </div>
@@ -4558,7 +4568,7 @@ export default function AdminDashboard({
                         placeholder="Contoh: 081234567890"
                         value={wargaForm.noHp || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, noHp: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -4568,7 +4578,7 @@ export default function AdminDashboard({
                         type="date"
                         value={wargaForm.tglLahir || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
                       />
                     </div>
                   </div>
@@ -4579,7 +4589,7 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.gender}
                         onChange={(e) => setWargaForm({ ...wargaForm, gender: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Laki-laki">Laki-laki</option>
                         <option value="Perempuan">Perempuan</option>
@@ -4595,7 +4605,7 @@ export default function AdminDashboard({
                         placeholder="Usia"
                         value={wargaForm.usia}
                         onChange={(e) => setWargaForm({ ...wargaForm, usia: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       />
                     </div>
                   </div>
@@ -4606,7 +4616,7 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.status}
                         onChange={(e) => setWargaForm({ ...wargaForm, status: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Tetap">Tetap</option>
                         <option value="Kontrak">Kontrak</option>
@@ -4618,7 +4628,7 @@ export default function AdminDashboard({
                       <select
                         value={wargaForm.statusHidup}
                         onChange={(e) => setWargaForm({ ...wargaForm, statusHidup: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
                       >
                         <option value="Hidup">Hidup (Aktif)</option>
                         <option value="Meninggal">Meninggal Dunia</option>
@@ -4635,7 +4645,7 @@ export default function AdminDashboard({
                         placeholder="Contoh: A"
                         value={wargaForm.blok || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, blok: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -4647,7 +4657,7 @@ export default function AdminDashboard({
                         placeholder="Contoh: 12"
                         value={wargaForm.nomor || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, nomor: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
                       />
                     </div>
                   </div>
@@ -5030,7 +5040,7 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-955/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800">
                 <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
                 <span className="text-slate-800 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
                   "{viewingCitizenProfile.alamat}"

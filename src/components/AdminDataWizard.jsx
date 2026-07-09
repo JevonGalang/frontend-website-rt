@@ -37,7 +37,7 @@ function Toast({ message, type, onClose }) {
   );
 }
 
-export default function AdminDataWizard({ darkMode }) {
+export default function AdminDataWizard() {
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
@@ -102,7 +102,10 @@ export default function AdminDataWizard({ darkMode }) {
   };
 
   useEffect(() => {
-    fetchResidents();
+    const timer = setTimeout(() => {
+      fetchResidents();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   // Validation

@@ -627,7 +627,7 @@ export default function ProfilWarga({
                 </div>
                 <div className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/10 flex items-center gap-2">
                   <Landmark className="w-4 h-4" />
-                  <span>Blok: {currentUser.alamat.split('Blok ').pop() || currentUser.alamat}</span>
+                  <span>Blok: {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'Belum diisi'}</span>
                 </div>
               </div>
 
@@ -1410,7 +1410,7 @@ export default function ProfilWarga({
                   <select
                     value={pengaduanForm.category}
                     onChange={(e) => setPengaduanForm({ ...pengaduanForm, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955/50 border border-slate-205 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                   >
                     <option value="Fasilitas Umum">Fasilitas Umum (Jalan, Lampu, Selokan)</option>
                     <option value="Keamanan">Keamanan & Ketertiban Komplek</option>

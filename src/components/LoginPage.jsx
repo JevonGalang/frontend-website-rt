@@ -185,7 +185,7 @@ export default function LoginPage({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/20 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/90 flex flex-col justify-center relative overflow-hidden font-sans">
       
       {/* Decorative background ambient blobs */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
@@ -314,7 +314,7 @@ export default function LoginPage({
                       placeholder="Masukkan kata sandi"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-955/20 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-slate-900 dark:text-white transition-all text-xs font-medium"
+                      className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-slate-900 dark:text-white transition-all text-xs font-medium"
                     />
                   </div>
                 </div>
