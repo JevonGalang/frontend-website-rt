@@ -4,8 +4,10 @@ import {
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
   AlertCircle, Sparkles, Filter, Activity,
-  FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3
+  FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
+  Database
 } from 'lucide-react';
+import AdminDataWizard from './AdminDataWizard';
 
 export default function AdminDashboard({ 
   currentUser, 
@@ -545,6 +547,19 @@ export default function AdminDashboard({
                 <span>Data Warga</span>
               </button>
 
+              {/* Input Data Wizard */}
+              <button
+                onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'data_wizard'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Database className="w-4 h-4 text-teal-400" />
+                <span>Input Data Baru</span>
+              </button>
+
               {/* Iuran Header */}
               <div>
                 <button
@@ -813,6 +828,19 @@ export default function AdminDashboard({
                 )}
               </div>
 
+              {/* Input Data Wizard */}
+              <button
+                onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'data_wizard'
+                    ? 'bg-emerald-600 text-white shadow-md'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Database className="w-4 h-4 text-teal-400" />
+                <span>Input Data Baru</span>
+              </button>
+
               {/* Surat */}
               <div>
                 <button
@@ -1024,6 +1052,18 @@ export default function AdminDashboard({
               </button>
 
               <button
+                onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                  activeTab === 'data_wizard'
+                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
+                    : 'hover:bg-slate-800 hover:text-white'
+                }`}
+              >
+                <Database className="w-4 h-4" />
+                <span>Input Data Baru</span>
+              </button>
+
+              <button
                 onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
                   activeTab === 'kas'
@@ -1126,6 +1166,7 @@ export default function AdminDashboard({
               {activeTab === 'agenda' && 'PENJADWALAN KOMUNITAS'}
               {activeTab === 'layanan' && 'LOKET PELAYANAN SURAT'}
               {activeTab === 'logs' && 'LOG AKTIVITAS & SESI'}
+              {activeTab === 'data_wizard' && 'INPUT DATA SERVER'}
               {activeTab.startsWith('iuran_') && 'MANAJEMEN IURAN WARGA'}
               {activeTab.startsWith('keuangan_') && 'MANAJEMEN KEUANGAN'}
               {activeTab.startsWith('laporan_') && 'LAPORAN & EKSPOR'}
@@ -1149,6 +1190,7 @@ export default function AdminDashboard({
               {activeTab === 'laporan_tahunan' && 'Laporan Keuangan Tahunan'}
               {activeTab === 'laporan_rekap' && 'Tabel Rekapitulasi Iuran'}
               {activeTab === 'laporan_export' && 'Ekspor Laporan Kas RT'}
+              {activeTab === 'data_wizard' && 'Wizard Input Rumah, KK & Warga'}
             </h2>
           </div>
           
@@ -3620,6 +3662,11 @@ export default function AdminDashboard({
               </div>
 
             </div>
+          )}
+
+          {/* TAB: DATA WIZARD */}
+          {activeTab === 'data_wizard' && (
+            <AdminDataWizard darkMode={darkMode} />
           )}
 
         </div>
