@@ -240,10 +240,15 @@ export default function App() {
           <ProfilWarga
             key={currentUser.id}
             currentUser={wargaList.find(w => w.id === currentUser.id) || currentUser}
+            setCurrentUser={setCurrentUser}
             onUpdateProfile={handleUpdateWargaProfile}
             wargaList={wargaList}
             submissionsList={submissionsList}
+            setSubmissionsList={setSubmissionsList}
             agendaList={agendaList}
+            transaksiKasList={transaksiKasList}
+            darkMode={darkMode}
+            setDarkMode={setDarkMode}
           />
         )}
 

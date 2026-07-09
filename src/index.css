@@ -7,6 +7,18 @@
   --color-rt-green: #10b981;
   --color-rt-green-dark: #047857;
   --color-rt-gold: #fbbf24;
+  --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
 html {
@@ -15,6 +27,7 @@ html {
 
 body {
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #f8fafc; /* light blue-slate background for clean corporate portal feel */
 }
 
 /* Custom scrollbar to match theme */
@@ -25,20 +38,20 @@ body {
   background: transparent;
 }
 .dark ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: #0f172a;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #4b5563;
+  background: #334155;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #475569;
 }
 
 /* Wizard animations */
