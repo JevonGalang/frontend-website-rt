@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
@@ -99,6 +99,14 @@ export default function AdminDashboard({
   const [pendudukMasukForm, setPendudukMasukForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
   const [pendudukKeluarForm, setPendudukKeluarForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
   const [logsTrigger, setLogsTrigger] = useState(0);
+  const [accessLogs, setAccessLogs] = useState([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('rt_access_logs');
+    if (stored) {
+      try { setAccessLogs(JSON.parse(stored)); } catch (e) { setAccessLogs([]); }
+    }
+  }, [logsTrigger]);
   const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -244,6 +252,7 @@ export default function AdminDashboard({
     .reduce((acc, curr) => acc + curr.amount, 0);
 
   const sisaKas = totalPemasukan - totalPengeluaran;
+  const sisaKasRT = sisaKas;
 
   const totalAgendas = agendaList.length;
   const pendingSubmissionsCount = submissionsList.filter(s => s.status === 'Pending' || !s.status).length;
@@ -490,25 +499,25 @@ export default function AdminDashboard({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased">
       
       {/* 1. SIDEBAR */}
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-350 border-r border-slate-800 flex flex-col flex-shrink-0">
+      <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-350 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
         {/* Brand/Logo Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl text-white">
             <Landmark className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-base text-white tracking-tight leading-tight">Admin Portal</h1>
+            <h1 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight leading-tight">Admin Portal</h1>
             <span className="text-[10px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 04 / RW 09</span>
           </div>
         </div>
 
         {/* Admin Info */}
-        <div className="p-4 mx-4 my-3 bg-slate-850 rounded-2xl border border-slate-800/80 flex items-center gap-3">
+        <div className="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-sm">
             AD
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{currentUser.name}</p>
             <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
               {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
             </p>
@@ -524,8 +533,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-emerald-450" />
@@ -537,8 +546,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'warga'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Users className="w-4 h-4 text-sky-400" />
@@ -549,7 +558,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsIuranOpen(!isIuranOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Wallet className="w-4 h-4 text-amber-400" />
@@ -559,49 +568,49 @@ export default function AdminDashboard({
                 </button>
 
                 {isIuranOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_jenis' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-400 scale-125' : 'bg-slate-650'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-650'}`}></span>
                       <span>Jenis Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Pembayaran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_riwayat' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Riwayat</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_tunggakan' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Tunggakan</span>
                     </button>
                   </div>
@@ -612,7 +621,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsKeuanganOpen(!isKeuanganOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Wallet className="w-4 h-4 text-emerald-400" />
@@ -622,49 +631,49 @@ export default function AdminDashboard({
                 </button>
 
                 {isKeuanganOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('keuangan_pemasukan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_pemasukan' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pemasukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pemasukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Pemasukan</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('keuangan_pengeluaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_pengeluaran' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pengeluaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pengeluaran' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Pengeluaran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('keuangan_kas'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_kas' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_kas' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_kas' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Kas RT</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('keuangan_qris'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_qris' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Transfer Bank / QRIS</span>
                     </button>
                   </div>
@@ -675,7 +684,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsLaporanOpen(!isLaporanOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -685,49 +694,49 @@ export default function AdminDashboard({
                 </button>
 
                 {isLaporanOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('laporan_bulanan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_bulanan' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Laporan Bulanan</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_tahunan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_tahunan' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Laporan Tahunan</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_rekap'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_rekap' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Rekap Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_export'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_export' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-405 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-emerald-400 scale-125' : 'bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Export Excel/PDF</span>
                     </button>
                   </div>
@@ -742,8 +751,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-emerald-400" />
@@ -754,7 +763,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsWargaOpen(!isWargaOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Users className="w-4 h-4 text-sky-400" />
@@ -764,7 +773,7 @@ export default function AdminDashboard({
                 </button>
 
                 {isWargaOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
@@ -780,34 +789,12 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data KK</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'sek_warga_masuk' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Penduduk Masuk</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('sek_warga_keluar'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'sek_warga_keluar' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_keluar' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Penduduk Keluar</span>
                     </button>
                   </div>
                 )}
@@ -817,7 +804,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsSuratOpen(!isSuratOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4 text-sky-400" />
@@ -827,13 +814,13 @@ export default function AdminDashboard({
                 </button>
 
                 {isSuratOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'layanan' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -843,8 +830,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_surat_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_surat_masuk' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -854,8 +841,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_surat_keluar'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_surat_keluar' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_keluar' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
@@ -880,7 +867,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Volume2 className="w-4 h-4 text-emerald-400" />
@@ -890,13 +877,13 @@ export default function AdminDashboard({
                 </button>
 
                 {isInformasiOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_info_pengumuman' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -906,8 +893,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'agenda' 
-                          ? 'text-emerald-450 font-bold bg-slate-800/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'agenda' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -933,8 +920,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_pengaduan'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -946,8 +933,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_arsip'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -959,8 +946,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_laporan'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -972,8 +959,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_akun_manage'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <User className="w-4 h-4 text-slate-400" />
@@ -985,8 +972,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'pengaturan'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Settings className="w-4 h-4 text-slate-500" />
@@ -994,72 +981,74 @@ export default function AdminDashboard({
               </button>
             </div>
           ) : (
-            <>
-              {/* ORIGINAL SIDEBAR STRUCTURE FOR RT / SEKRETARIS */}
+            <div className="space-y-1.5 font-sans">
+              {/* Admin RT Specific Sidebar Menu */}
+              {/* Dashboard */}
               <button
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-650/15'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4" />
-                <span>Ringkasan</span>
-              </button>
-              
-              <button
-                onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  activeTab === 'warga'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                    : 'hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4" />
-                  <span>Data Warga</span>
-                </div>
-                <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalWarga}</span>
+                <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                <span>Dashboard</span>
               </button>
 
-              <button
-                onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  activeTab === 'kas'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                    : 'hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <Wallet className="w-4 h-4" />
-                <span>Kas RT Keuangan</span>
-              </button>
+              {/* Data Warga */}
+              <div>
+                <button
+                  onClick={() => setIsWargaOpen(!isWargaOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4 text-sky-400" />
+                    <span>Data Warga</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isWargaOpen ? '▼' : '▶'}</span>
+                </button>
 
-              <button
-                onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  activeTab === 'agenda'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                    : 'hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4" />
-                  <span>Agenda RT</span>
-                </div>
-                <span className="text-xs bg-slate-800 dark:bg-slate-950/60 px-2 py-0.5 rounded-full font-bold text-slate-400">{totalAgendas}</span>
-              </button>
+                {isWargaOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'warga' 
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data Penduduk</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_kk' 
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data KK</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Persetujuan Surat */}
               <button
                 onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'layanan'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                    : 'hover:bg-slate-800 hover:text-white'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <FileCheck className="w-4 h-4" />
-                  <span>Pengajuan Surat</span>
+                  <FileCheck className="w-4 h-4 text-emerald-400" />
+                  <span>Persetujuan Surat</span>
                 </div>
                 {pendingSubmissionsCount > 0 && (
                   <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
@@ -1068,19 +1057,125 @@ export default function AdminDashboard({
                 )}
               </button>
 
+              {/* Monitoring Keuangan */}
               <button
-                onClick={() => { setActiveTab('logs'); setSearchQuery(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-                  activeTab === 'logs'
-                    ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-655/15'
-                    : 'hover:bg-slate-800 hover:text-white'
+                onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'kas'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Activity className="w-4 h-4" />
-                <span>Log Akses Warga</span>
+                <Wallet className="w-4 h-4 text-amber-400" />
+                <span>Monitoring Keuangan</span>
               </button>
-            </>
+
+              {/* Pengumuman */}
+              <button
+                onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_info_pengumuman'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Volume2 className="w-4 h-4 text-sky-400" />
+                <span>Pengumuman</span>
+              </button>
+
+              {/* Agenda RT */}
+              <button
+                onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'agenda'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-emerald-450" />
+                <span>Agenda RT</span>
+              </button>
+
+              {/* Pengaduan */}
+              <button
+                onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_pengaduan'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-500" />
+                <span>Pengaduan</span>
+              </button>
+
+              {/* Arsip */}
+              <button
+                onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_arsip'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <FolderOpen className="w-4 h-4 text-purple-400" />
+                <span>Arsip</span>
+              </button>
+
+              {/* Laporan */}
+              <button
+                onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_laporan'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <BarChart3 className="w-4 h-4 text-pink-400" />
+                <span>Laporan</span>
+              </button>
+
+              {/* Manajemen Akun */}
+              <button
+                onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'sek_akun_manage'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <User className="w-4 h-4 text-slate-400" />
+                <span>Manajemen Akun</span>
+              </button>
+
+              {/* Statistik */}
+              <button
+                onClick={() => { setActiveTab('rt_statistik'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'rt_statistik'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <TrendingUp className="w-4 h-4 text-teal-400" />
+                <span>Statistik</span>
+              </button>
+
+              {/* Pengaturan */}
+              <button
+                onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'pengaturan'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Pengaturan</span>
+              </button>
+            </div>
           )}
+
         </nav>
 
         {/* Theme Toggle & Logout */}
@@ -1105,7 +1200,7 @@ export default function AdminDashboard({
 
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-455 hover:bg-rose-500/10 hover:text-rose-400 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4" />
             <span>Keluar Dashboard</span>
@@ -1282,7 +1377,7 @@ export default function AdminDashboard({
                       </div>
                     ) : (
                       submissionsList.slice().reverse().map((sub, idx) => (
-                        <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-150 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-xs transition-shadow">
+                        <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-xs transition-shadow">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-slate-800 dark:text-white">{sub.wargaNama}</span>
@@ -1339,17 +1434,17 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 1. DATA KK */}
           {activeTab === 'sek_warga_kk' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. Kartu Keluarga (KK)</th>
                       <th className="p-4">Kepala Keluarga</th>
                       <th className="p-4">Alamat Domisili</th>
                       <th className="p-4 text-center">Anggota KK</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {(() => {
                       const kkMap = {};
                       wargaList.forEach(w => {
@@ -1398,7 +1493,7 @@ export default function AdminDashboard({
                   setPendudukMasukForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
                   alert('Warga masuk berhasil dicatat!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Masuk Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -1448,17 +1543,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Masuk</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal Masuk</th>
                       <th className="p-4">Nama Penduduk</th>
                       <th className="p-4">Alamat RT 04</th>
                       <th className="p-4">Asal Pindahan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {pendudukMasukList.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
@@ -1492,7 +1587,7 @@ export default function AdminDashboard({
                   setPendudukKeluarForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
                   alert('Catatan keluar berhasil disimpan!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Keluar / Pindah</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -1541,17 +1636,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Keluar</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-405 tracking-wider">
+                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-405 tracking-wider">
                       <th className="p-4">Tanggal Keluar</th>
                       <th className="p-4">Nama Penduduk</th>
                       <th className="p-4">Alamat Lama</th>
                       <th className="p-4">Tujuan / Keterangan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {pendudukKeluarList.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
@@ -1584,7 +1679,7 @@ export default function AdminDashboard({
                   setSuratMasukForm({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
                   alert('Surat masuk berhasil diregistrasikan!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Masuk Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -1614,17 +1709,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Registrasi Surat Masuk</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. Agenda</th>
                       <th className="p-4">Tanggal Masuk</th>
                       <th className="p-4">Instansi Pengirim</th>
                       <th className="p-4">Perihal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {suratMasukList.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
@@ -1657,7 +1752,7 @@ export default function AdminDashboard({
                   setSuratKeluarForm({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
                   alert('Surat keluar berhasil dicatat!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-955/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Keluar Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -1687,17 +1782,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Catat Surat Keluar</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. Agenda</th>
                       <th className="p-4">Tanggal Keluar</th>
                       <th className="p-4">Penerima / Ditujukan</th>
                       <th className="p-4">Hal / Perihal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {suratKeluarList.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
@@ -1722,7 +1817,7 @@ export default function AdminDashboard({
                   { name: 'Template Surat Pengantar Nikah', desc: 'Format persetujuan menikah untuk warga domisili RT 04.' },
                   { name: 'Template Surat Izin Keramaian', desc: 'Format permohonan izin acara di lingkungan perumahan.' }
                 ].map((t, idx) => (
-                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-3">
+                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
                     <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
                     <button onClick={() => alert(`Mengunduh ${t.name}.docx... (Simulasi Unduh Template)`)} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer">Unduh Format</button>
@@ -1749,7 +1844,7 @@ export default function AdminDashboard({
               </button>
 
               <div className="space-y-4">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-2">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">KEBERSIHAN</span>
                     <span className="text-[10px] text-slate-400 font-bold">07 Juli 2026</span>
@@ -1779,7 +1874,7 @@ export default function AdminDashboard({
                   setNotulenForm({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
                   alert('Notulen rapat berhasil dicatat!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Hasil Rapat Baru</h4>
                 <div className="space-y-3 text-xs font-sans">
@@ -1809,17 +1904,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Notulen</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal Rapat</th>
                       <th className="p-4">Topik Musyawarah</th>
                       <th className="p-4">Notulis</th>
                       <th className="p-4">Hasil / Keputusan Rapat</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {notulenList.map((n) => (
                       <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{n.date}</td>
@@ -1837,10 +1932,10 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 9. PENGADUAN WARGA */}
           {activeTab === 'sek_pengaduan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal / ID</th>
                       <th className="p-4">Kategori Laporan</th>
                       <th className="p-4">Deskripsi Aduan</th>
@@ -1848,7 +1943,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {(() => {
                       const allWargaComplaints = [
                         { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' },
@@ -1899,7 +1994,7 @@ export default function AdminDashboard({
                   setArsipForm({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
                   alert('Berkas digital berhasil diarsipkan!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Arsipkan Berkas Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -1931,17 +2026,17 @@ export default function AdminDashboard({
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Arsipkan File</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. Arsip</th>
                       <th className="p-4">Nama Dokumen</th>
                       <th className="p-4">Tanggal Arsip</th>
                       <th className="p-4 text-right">Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {arsipFileList.map((a) => (
                       <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-955/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
@@ -1962,11 +2057,11 @@ export default function AdminDashboard({
           {activeTab === 'sek_laporan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 font-sans">
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-slate-800 rounded-3xl text-center space-y-1">
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-1">
                   <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.statusHidup !== 'Meninggal').length} Orang</span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Penduduk Hidup</span>
                 </div>
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-slate-800 rounded-3xl text-center space-y-1">
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-1">
                   <span className="block text-2xl font-black text-slate-800 dark:text-white">
                     {(() => {
                       const kks = new Set(wargaList.map(w => w.noKk).filter(Boolean));
@@ -1975,14 +2070,14 @@ export default function AdminDashboard({
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Kepala Keluarga</span>
                 </div>
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-150 dark:border-emerald-800/80 rounded-3xl text-center space-y-1">
+                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-emerald-800/80 rounded-3xl text-center space-y-1">
                   <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.status === 'Kontrak').length} Rumah</span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rumah Sewa / Kontrak</span>
                 </div>
               </div>
 
               {/* Gender and residency structure */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-150 dark:border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-200/60 dark:border-slate-800">
                 <div className="space-y-3">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
                   <div className="space-y-1.5">
@@ -2029,17 +2124,17 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 12. MANAJEMEN KREDENSIAL LOGIN */}
           {activeTab === 'sek_akun_manage' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Nama Penduduk</th>
                       <th className="p-4">Username Login</th>
                       <th className="p-4">Sandi Warga (Plain)</th>
                       <th className="p-4 text-right">Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {wargaList.filter(w => w.statusHidup !== 'Meninggal').map((w) => (
                       <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{w.name}</td>
@@ -2068,6 +2163,172 @@ export default function AdminDashboard({
               </div>
             </div>
           )}
+
+          {/* KETUA RT: STATISTIK & MONITORING */}
+          {activeTab === 'rt_statistik' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">Statistik & Monitoring Portal</h3>
+                <p className="text-xs text-slate-400">Analisis demografi kependudukan, arus keuangan, dan aktivitas pengguna.</p>
+              </div>
+
+              {/* Statistics Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans">
+                {/* Card 1: Demografi Kepala Keluarga */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
+                  <div className="space-y-3 text-xs leading-none">
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-bold">
+                        <span className="text-slate-600 dark:text-slate-350">Laki-laki</span>
+                        <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Orang</span>
+                      </div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between font-bold">
+                        <span className="text-slate-600 dark:text-slate-350">Perempuan</span>
+                        <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Orang</span>
+                      </div>
+                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div className="bg-pink-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Keuangan Kas Ringkasan */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Arus Kas RT</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                      <span className="font-semibold text-slate-500">Pemasukan</span>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400">+{formatRupiah(totalPemasukan)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                      <span className="font-semibold text-slate-500">Pengeluaran</span>
+                      <span className="font-black text-rose-505">-{formatRupiah(totalPengeluaran)}</span>
+                    </div>
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Total Saldo</span>
+                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(sisaKasRT)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Statistik Keaktifan Akun */}
+                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Aktivitas Sesi</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-slate-500">Total Log Akses</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{accessLogs.length} Kali</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-slate-500">Pengguna Unik</span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {new Set(accessLogs.map(l => l.username)).size} User
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-slate-500">Login Hari Ini</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-450">
+                        {accessLogs.filter(l => new Date(l.loginTime).toDateString() === new Date().toDateString()).length} Sesi
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Access Logs Panel inside Statistics */}
+              <div className="space-y-4 pt-6 border-t border-slate-200/60 dark:border-slate-800">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h4 className="text-sm font-extrabold text-slate-800 dark:text-white">Log Aktivitas Masuk Portal</h4>
+                    <p className="text-[10px] text-slate-400">Daftar login resmi pengurus dan warga.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
+                        localStorage.setItem('rt_access_logs', JSON.stringify([]));
+                        setAccessLogs([]);
+                      }
+                    }}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-955/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-[10px] transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>Bersihkan Log</span>
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full border-collapse text-left text-xs font-sans">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200/60 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                        <th className="p-4">Warga / Pengguna</th>
+                        <th className="p-4">Peran (Role)</th>
+                        <th className="p-4">Waktu Masuk</th>
+                        <th className="p-4">IP Address</th>
+                        <th className="p-4 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                      {accessLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="p-8 text-center text-slate-400 font-semibold italic">
+                            Belum ada aktivitas masuk di portal ini.
+                          </td>
+                        </tr>
+                      ) : (
+                        accessLogs.slice(0, 10).map((log) => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="p-4">
+                              <div>
+                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="text-[10px] text-slate-400">@{log.username}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
+                                log.role === 'rt' || log.role === 'admin'
+                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  : log.role === 'sekertaris'
+                                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  : log.role === 'bendahara'
+                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-450'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                              }`}>
+                                {log.role}
+                              </span>
+                            </td>
+                            <td className="p-4 text-slate-500 font-semibold">
+                              {new Date(log.loginTime).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                            </td>
+                            <td className="p-4 font-mono text-[11px] text-slate-500">{log.ipAddress}</td>
+                            <td className="p-4 text-right">
+                              {log.role === 'warga' ? (
+                                <button
+                                  onClick={() => handleShowAccessProfile(log.username)}
+                                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors"
+                                >
+                                  Lihat Profil
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 italic font-semibold">Bukan Warga</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* TAB 2: MANAJEMEN WARGA */}
           {activeTab === 'warga' && (
@@ -2116,10 +2377,10 @@ export default function AdminDashboard({
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. NIK / KK</th>
                       <th className="p-4">Nama Lengkap</th>
                       <th className="p-4">Kontak / Akun</th>
@@ -2128,7 +2389,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {wargaList
                       .filter(w => {
                         const q = searchQuery.toLowerCase();
@@ -2295,10 +2556,10 @@ export default function AdminDashboard({
                   </div>
 
                   {/* Table */}
-                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Tanggal / ID</th>
                           <th className="p-4">Deskripsi Transaksi</th>
                           <th className="p-4">Kategori</th>
@@ -2307,7 +2568,7 @@ export default function AdminDashboard({
                           <th className="p-4 text-right">Aksi</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {transaksiKasList
                           .filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((t) => (
@@ -2376,17 +2637,17 @@ export default function AdminDashboard({
                   </div>
 
                   {/* Tunggakan table */}
-                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Nama Warga</th>
                           <th className="p-4">Alamat Rumah</th>
                           <th className="p-4 text-center">Status Iuran</th>
                           <th className="p-4 text-right">Aksi Tindakan</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {wargaList
                           .filter(w => w.statusHidup === 'Hidup' && w.name.toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((w) => (
@@ -2625,16 +2886,16 @@ export default function AdminDashboard({
                   <p className="text-xs text-slate-400">Daftar lengkap bukti setoran iuran warga yang masuk ke kas RT.</p>
                 </div>
               </div>
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal / ID</th>
                       <th className="p-4">Deskripsi Pembayaran</th>
                       <th className="p-4 text-right">Jumlah Uang</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {transaksiKasList
                       .filter(t => t.category === 'Iuran Warga')
                       .map((t) => (
@@ -2670,17 +2931,17 @@ export default function AdminDashboard({
                 <p className="text-xs text-slate-400">Daftar warga yang menunggak kewajiban iuran bulanan.</p>
               </div>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl font-sans">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Nama Warga</th>
                       <th className="p-4">Alamat Rumah</th>
                       <th className="p-4 text-center">Status Iuran</th>
                       <th className="p-4 text-right">Aksi Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak'))
                       .map((w) => (
@@ -2946,10 +3207,10 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl mt-6">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl mt-6">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal / ID</th>
                       <th className="p-4">Deskripsi Transaksi</th>
                       <th className="p-4">Kategori</th>
@@ -2957,7 +3218,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Jumlah Uang</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {transaksiKasList.map((t) => (
                       <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono space-y-1">
@@ -3133,10 +3394,10 @@ export default function AdminDashboard({
                 <p className="text-xs text-slate-400">Daftar status lunas warga RT 04 Sawangan Green Park per bulan.</p>
               </div>
 
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4 min-w-[120px]">Nama Warga</th>
                       <th className="p-2 text-center">Mei</th>
                       <th className="p-2 text-center">Juni</th>
@@ -3144,7 +3405,7 @@ export default function AdminDashboard({
                       <th className="p-2 text-center">Agustus</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800 font-medium">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup')
                       .map((w) => (
@@ -3236,7 +3497,7 @@ export default function AdminDashboard({
                 {agendaList
                   .filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.category.toLowerCase().includes(searchQuery.toLowerCase()))
                   .map((a) => (
-                    <div key={a.id} className="relative bg-slate-50 dark:bg-slate-950/50 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
+                    <div key={a.id} className="relative bg-slate-50 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
                       {/* Top Accent line */}
                       <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
                       
@@ -3256,7 +3517,7 @@ export default function AdminDashboard({
                         </p>
 
                         {/* Meta info Grid */}
-                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-150 dark:border-slate-800 text-[10px]">
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 text-[10px]">
                           <div>
                             <span className="block text-slate-400 font-bold uppercase tracking-wider">Tanggal & Waktu</span>
                             <span className="font-semibold text-slate-800 dark:text-slate-200">{a.date} ({a.time})</span>
@@ -3269,7 +3530,7 @@ export default function AdminDashboard({
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-150 dark:border-slate-800">
+                      <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-200/60 dark:border-slate-800">
                         <button
                           onClick={() => openEditModal('agenda', a)}
                           className="px-3.5 py-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-900 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1.5 cursor-pointer transition-all"
@@ -3311,10 +3572,10 @@ export default function AdminDashboard({
               </div>
 
               {/* List table for Submissions */}
-              <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal / ID</th>
                       <th className="p-4">Data Warga Pemohon</th>
                       <th className="p-4">Jenis Surat Pengantar</th>
@@ -3323,7 +3584,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Aksi Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {submissionsList
                       .filter(s => s.wargaNama.toLowerCase().includes(searchQuery.toLowerCase()))
                       .map((sub) => (
@@ -3411,6 +3672,101 @@ export default function AdminDashboard({
 
             </div>
           )}
+
+          {/* TAB: PENGATURAN ADMIN */}
+          {activeTab === 'pengaturan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-black text-slate-900 dark:text-white">Pengaturan Portal & Sistem</h3>
+                <p className="text-xs text-slate-400">Konfigurasi akun pengurus, detail lingkungan RT, dan preferensi portal.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Left Side: Account Password Form */}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Keamanan Akun</h4>
+                    <p className="text-[10px] text-slate-400">Ubah kata sandi akun pengurus Anda secara berkala.</p>
+                  </div>
+
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    alert('Kata sandi berhasil diperbarui!');
+                  }} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kata Sandi Lama</label>
+                      <input 
+                        type="password" 
+                        placeholder="••••••••" 
+                        required
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kata Sandi Baru</label>
+                      <input 
+                        type="password" 
+                        placeholder="Minimal 8 karakter" 
+                        required
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Konfirmasi Kata Sandi Baru</label>
+                      <input 
+                        type="password" 
+                        placeholder="Ketik ulang kata sandi baru" 
+                        required
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                      />
+                    </div>
+                    <button type="submit" className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors">Perbarui Kata Sandi</button>
+                  </form>
+                </div>
+
+                {/* Right Side: RT Environment Profile */}
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Profil Lingkungan RT</h4>
+                    <p className="text-[10px] text-slate-400">Konfigurasi data wilayah hukum administrasi RT.</p>
+                  </div>
+
+                  <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-sans">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Tetangga</span>
+                        <p className="font-bold text-slate-900 dark:text-white">RT 04</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Warga</span>
+                        <p className="font-bold text-slate-900 dark:text-white">RW 09</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kelurahan</span>
+                        <p className="font-bold text-slate-900 dark:text-white">Pasir Putih</p>
+                      </div>
+                      <div>
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kecamatan</span>
+                        <p className="font-bold text-slate-900 dark:text-white">Sawangan</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Perumahan / Lokasi</span>
+                        <p className="font-bold text-slate-900 dark:text-white">Sawangan Green Park Blok C-D</p>
+                      </div>
+                    </div>
+
+                    <button 
+                      onClick={() => alert('Fitur edit wilayah memerlukan konfirmasi dari kelurahan.')} 
+                      className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer"
+                    >
+                      Ajukan Perubahan Data Wilayah
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
 
           {/* TAB 6: LOG AKSES WARGA */}
           {activeTab === 'logs' && (

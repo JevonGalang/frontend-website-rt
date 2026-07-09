@@ -270,26 +270,26 @@ export default function ProfilWarga({
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased">
       
       {/* 1. SIDEBAR */}
-      <aside className="w-full md:w-64 bg-slate-900 text-slate-300 border-r border-slate-800 flex flex-col flex-shrink-0">
+      <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
+        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
           <div className="p-2 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl text-white">
             <Landmark className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-sm text-white tracking-tight leading-tight">Warga Portal</h1>
+            <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
             <span className="text-[9px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 04 / RW 09</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-slate-800/60 rounded-2xl border border-slate-800/80 flex items-center gap-3">
+        <div className="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs uppercase">
             {currentUser.name.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-200 truncate">{currentUser.name}</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{currentUser.name}</p>
             <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
@@ -302,8 +302,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dashboard'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <LayoutDashboard className="w-4 h-4 text-emerald-400" />
@@ -315,8 +315,8 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('profil_saya'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'profil_saya'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <User className="w-4 h-4 text-sky-400" />
@@ -327,7 +327,7 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Volume2 className="w-4 h-4 text-emerald-400" />
@@ -337,7 +337,7 @@ export default function ProfilWarga({
             </button>
 
             {isInformasiOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('informasi_pengumuman')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
@@ -379,7 +379,7 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsIuranOpen(!isIuranOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Wallet className="w-4 h-4 text-amber-400" />
@@ -389,7 +389,7 @@ export default function ProfilWarga({
             </button>
 
             {isIuranOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('iuran_tagihan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
@@ -431,7 +431,7 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsSuratOpen(!isSuratOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-sky-400" />
@@ -441,7 +441,7 @@ export default function ProfilWarga({
             </button>
 
             {isSuratOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('layanan_ajukan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
@@ -473,8 +473,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaduan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaduan'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -486,8 +486,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('dokumen')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dokumen'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -499,8 +499,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('notifikasi')}
             className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'notifikasi'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -517,8 +517,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaturan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaturan'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'hover:bg-slate-800 hover:text-white'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Settings className="w-4 h-4 text-slate-400" />
@@ -683,7 +683,7 @@ export default function ProfilWarga({
                   
                   <button 
                     onClick={() => setActiveTab('layanan_ajukan')}
-                    className="w-full py-3 px-4 border border-slate-150 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
+                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
                   >
                     <FileText className="w-4 h-4 text-emerald-600" />
                     <span>Ajukan Surat Pengantar</span>
@@ -691,7 +691,7 @@ export default function ProfilWarga({
 
                   <button 
                     onClick={() => setActiveTab('iuran_upload')}
-                    className="w-full py-3 px-4 border border-slate-150 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
+                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
                   >
                     <Upload className="w-4 h-4 text-amber-500" />
                     <span>Upload Bukti Bayar Iuran</span>
@@ -699,7 +699,7 @@ export default function ProfilWarga({
 
                   <button 
                     onClick={() => setActiveTab('pengaduan')}
-                    className="w-full py-3 px-4 border border-slate-150 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
+                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
                   >
                     <AlertTriangle className="w-4 h-4 text-rose-500" />
                     <span>Kirim Pengaduan Warga</span>
@@ -707,7 +707,7 @@ export default function ProfilWarga({
 
                   <button 
                     onClick={() => setActiveTab('informasi_kontak')}
-                    className="w-full py-3 px-4 border border-slate-150 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
+                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
                   >
                     <Phone className="w-4 h-4 text-blue-500" />
                     <span>Hubungi Pengurus RT</span>
@@ -726,13 +726,13 @@ export default function ProfilWarga({
                       </div>
                     )}
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-2xl space-y-1">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-1">
                       <span className="text-[9px] bg-emerald-500/10 text-emerald-600 rounded font-bold px-1.5 py-0.5">KEGIATAN</span>
                       <h5 className="font-bold text-xs pt-1 text-slate-800 dark:text-white">Gotong Royong & Fogging Lingkungan</h5>
                       <p className="text-[10px] text-slate-550 dark:text-slate-400 leading-normal font-sans">Pelaksanaan penyemprotan nyamuk DBD (fogging) serta pembersihan pos RT akan diadakan hari Sabtu pagi ini pukul 08:00 WIB.</p>
                     </div>
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-800 rounded-2xl space-y-1">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-1">
                       <span className="text-[9px] bg-blue-500/10 text-blue-600 rounded font-bold px-1.5 py-0.5">KEAMANAN</span>
                       <h5 className="font-bold text-xs pt-1 text-slate-800 dark:text-white">Penutupan Pintu Gerbang RT Malam Hari</h5>
                       <p className="text-[10px] text-slate-550 dark:text-slate-400 leading-normal font-sans">Mulai jam 23:00 WIB portal selatan akan digembok demi keamanan bersama. Harap lewat gerbang utara dekat pos jaga satpam.</p>
@@ -925,7 +925,7 @@ export default function ProfilWarga({
               {/* Password Prompt Verification modal */}
               {showPasswordPrompt && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
                     <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Verifikasi Sandi Akun</h4>
                       <button onClick={() => setShowPasswordPrompt(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
@@ -964,13 +964,13 @@ export default function ProfilWarga({
           {/* TAB 3: Informasi -> Pengumuman */}
           {activeTab === 'informasi_pengumuman' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
                 <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 04 Sawangan Green Park.</p>
               </div>
 
               <div className="space-y-4">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-2">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">KEBERSIHAN</span>
                     <span className="text-[10px] text-slate-400 font-bold">07 Juli 2026</span>
@@ -979,7 +979,7 @@ export default function ProfilWarga({
                   <p className="text-[11px] text-slate-500 leading-relaxed">Pelaksanaan pembersihan gorong-gorong dan pemangkasan dahan pohon liar akan diadakan hari Minggu depan pukul 07:00 WIB. Diharapkan bapak-bapak warga RT 04 membawa cangkul/sabit masing-masing.</p>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-2">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[9px] rounded-md">KEAMANAN</span>
                     <span className="text-[10px] text-slate-400 font-bold">05 Juli 2026</span>
@@ -994,7 +994,7 @@ export default function ProfilWarga({
           {/* TAB 4: Informasi -> Jadwal Kegiatan */}
           {activeTab === 'informasi_jadwal' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Jadwal & Agenda RT Terjadwal</h3>
                 <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 04.</p>
               </div>
@@ -1002,7 +1002,7 @@ export default function ProfilWarga({
               <div className="space-y-4">
                 {agendaList.length > 0 ? (
                   agendaList.map((a) => (
-                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl flex gap-4 font-sans">
+                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex gap-4 font-sans">
                       <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
                         {a.date.split('-')[2] || a.date.split(' ')[0] || '12'}
                       </div>
@@ -1027,13 +1027,13 @@ export default function ProfilWarga({
           {/* TAB 5: Informasi -> Kontak Pengurus */}
           {activeTab === 'informasi_kontak' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kontak Layanan Pengurus RT 04</h3>
                 <p className="text-xs text-slate-400">Kontak resmi pengurus Rukun Tetangga yang dapat dihubungi warga.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">RT</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Ahmad Mulyono</h4>
@@ -1045,7 +1045,7 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-sky-500/10 text-sky-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">SEC</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Bu Riana Sukma</h4>
@@ -1057,7 +1057,7 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">TRE</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Hadi Suwarno</h4>
@@ -1075,7 +1075,7 @@ export default function ProfilWarga({
           {/* TAB 6: Iuran -> Tagihan Saya */}
           {activeTab === 'iuran_tagihan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tagihan Iuran Kas Bulanan Saya</h3>
                 <p className="text-xs text-slate-400">Rincian status pembayaran iuran wajib bulanan komplek RT 04.</p>
               </div>
@@ -1092,7 +1092,7 @@ export default function ProfilWarga({
                     </div>
                   </div>
                   
-                  <div className="p-4 bg-white dark:bg-slate-950/50 border border-slate-150 dark:border-slate-800 rounded-2xl text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-white dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">REKENING BANK MANDIRI RT</span>
                       <p className="font-mono font-black text-slate-800 dark:text-slate-200">157-00-98234-04-1</p>
@@ -1121,7 +1121,7 @@ export default function ProfilWarga({
           {/* TAB 7: Iuran -> Riwayat Pembayaran */}
           {activeTab === 'iuran_riwayat' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
                 <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran yang telah diverifikasi dan masuk kas RT.</p>
               </div>
@@ -1129,16 +1129,16 @@ export default function ProfilWarga({
               <div className="space-y-6">
                 <div>
                   <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">Telah Diverifikasi</h4>
-                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse font-sans">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Tanggal / ID</th>
                           <th className="p-4">Keterangan Setoran</th>
                           <th className="p-4 text-right">Jumlah Setor</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {myPayments.map((t) => (
                           <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                             <td className="p-4 font-mono space-y-1">
@@ -1162,16 +1162,16 @@ export default function ProfilWarga({
                 {/* Uploaded receipt drafts */}
                 <div>
                   <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 animate-fade-in">Bukti Bayar Diupload (Menunggu Konfirmasi)</h4>
-                  <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse font-sans">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Bulan / Uploaded Date</th>
                           <th className="p-4">Nominal Bayar</th>
                           <th className="p-4 text-center">Status</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {buktiBayarList.map((b) => (
                           <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                             <td className="p-4 space-y-0.5">
@@ -1203,7 +1203,7 @@ export default function ProfilWarga({
           {/* TAB 8: Iuran -> Upload Bukti Bayar */}
           {activeTab === 'iuran_upload' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Pembayaran Iuran</h3>
                 <p className="text-xs text-slate-400">Kirim laporan setoran transfer kas RT Anda agar dikonfirmasi Bendahara.</p>
               </div>
@@ -1271,7 +1271,7 @@ export default function ProfilWarga({
           {/* TAB 9: Layanan Surat -> Ajukan Surat */}
           {activeTab === 'layanan_ajukan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Layanan Mandiri Pengajuan Surat</h3>
                 <p className="text-xs text-slate-400">Ajukan permohonan surat pengantar RT secara instan.</p>
               </div>
@@ -1329,7 +1329,7 @@ export default function ProfilWarga({
           {/* TAB 10: Layanan Surat -> Status Pengajuan */}
           {activeTab === 'layanan_status' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Status Permohonan Surat Pengantar Saya</h3>
                 <p className="text-xs text-slate-400">Daftar riwayat surat pengantar mandiri beserta status verifikasi pengurus.</p>
               </div>
@@ -1344,7 +1344,7 @@ export default function ProfilWarga({
                     <div key={sub.id} className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200/60 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300">
                       
                       {/* Document Item visual card */}
-                      <div className="p-3 border-b border-slate-150 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900/50">
+                      <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900/50">
                         <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">{sub.wargaNama}</span>
                         <span className="text-[8px] font-mono text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{sub.id}</span>
                       </div>
@@ -1399,7 +1399,7 @@ export default function ProfilWarga({
           {/* TAB 11: Pengaduan */}
           {activeTab === 'pengaduan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Pengaduan & Masukan Warga</h3>
                 <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 04.</p>
               </div>
@@ -1443,17 +1443,17 @@ export default function ProfilWarga({
               {/* Complaints log */}
               <div className="pt-6">
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">Riwayat Pengaduan Saya</h4>
-                <div className="overflow-x-auto border border-slate-150 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse font-sans">
                     <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-150 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">Tanggal / ID</th>
                         <th className="p-4">Kategori Laporan</th>
                         <th className="p-4">Deskripsi Masalah</th>
                         <th className="p-4 text-center">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-150 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {pengaduanList.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                           <td className="p-4 font-mono space-y-0.5">
@@ -1483,19 +1483,19 @@ export default function ProfilWarga({
           {/* TAB 12: Dokumen */}
           {activeTab === 'dokumen' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Arsip Dokumen Resmi Warga</h3>
                 <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 04 Sawangan.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-3">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">AD / ART Rukun Tetangga 04</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Dokumen Anggaran Dasar dan Anggaran Rumah Tangga resmi yang berisi aturan kerukunan hidup bertetangga.</p>
                   <button onClick={() => alert('Mengunduh AD_ART_RT04.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-150 dark:border-slate-800 rounded-3xl space-y-3">
+                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">Formulir Pendaftaran Warga Baru</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Berkas formulir kosong yang wajib diisi bagi penghuni baru (kontrak maupun tetap) untuk diserahkan ke Sekretaris.</p>
                   <button onClick={() => alert('Mengunduh FORM_WARGA_BARU.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
@@ -1507,7 +1507,7 @@ export default function ProfilWarga({
           {/* TAB 13: Notifikasi */}
           {activeTab === 'notifikasi' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kotak Masuk Notifikasi Saya</h3>
                 <p className="text-xs text-slate-400">Daftar notifikasi terbaru terkait administrasi, iuran, dan agenda RT.</p>
               </div>
@@ -1523,7 +1523,7 @@ export default function ProfilWarga({
                   </div>
                 )}
 
-                <div className="p-4 bg-slate-50 dark:bg-slate-905/35 border border-slate-150 dark:border-slate-800 rounded-2xl flex items-start gap-3">
+                <div className="p-4 bg-slate-50 dark:bg-slate-905/35 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
                   <div>
                     <h4 className="font-bold text-xs text-slate-800 dark:text-white font-sans">Akses Portal Sukses</h4>
@@ -1537,7 +1537,7 @@ export default function ProfilWarga({
           {/* TAB 14: Pengaturan (Password Reset) */}
           {activeTab === 'pengaturan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-150 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengaturan Keamanan & Sandi</h3>
                 <p className="text-xs text-slate-400">Kelola kata sandi akun portal warga Anda agar tetap aman.</p>
               </div>
