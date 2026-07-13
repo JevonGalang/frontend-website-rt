@@ -312,6 +312,51 @@ export default function AdminDashboard({
     }
   };
 
+  // Bukti Bayar Warga Upload List State
+  const [buktiBayarWarga, setBuktiBayarWarga] = useState([]);
+
+  const fetchBuktiBayarWarga = () => {
+    const saved = localStorage.getItem('rt_warga_bukti_bayar');
+    setBuktiBayarWarga(saved ? JSON.parse(saved) : []);
+  };
+
+  useEffect(() => {
+    fetchBuktiBayarWarga();
+  }, [activeTab]);
+
+  const handleVerifyManualReceipt = (receiptId, isApproved) => {
+    const saved = localStorage.getItem('rt_warga_bukti_bayar');
+    if (!saved) return;
+
+    let list = JSON.parse(saved);
+    const receipt = list.find(r => r.id === receiptId);
+    if (!receipt) return;
+
+    if (isApproved) {
+      list = list.map(r => r.id === receiptId ? { ...r, status: 'Disetujui' } : r);
+      const updatedWarga = wargaList.map(w => w.id === receipt.wargaId ? { ...w, statusIuran: 'Lunas' } : w);
+      saveWarga(updatedWarga);
+
+      const newTx = {
+        id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
+        description: `Pembayaran Iuran Warga (${receipt.bulan}) - ${receipt.wargaNama || 'Warga'} [Manual]`,
+        amount: receipt.nominal || 50000,
+        date: new Date().toISOString().split('T')[0],
+        type: 'income',
+        category: 'Iuran Warga'
+      };
+      saveKas([newTx, ...transaksiKasList]);
+
+      alert('Bukti transfer pembayaran berhasil disetujui! Status iuran warga diubah menjadi Lunas.');
+    } else {
+      list = list.map(r => r.id === receiptId ? { ...r, status: 'Ditolak' } : r);
+      alert('Bukti transfer pembayaran ditolak.');
+    }
+
+    localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(list));
+    setBuktiBayarWarga(list);
+  };
+
   const [residentServerList, setResidentServerList] = useState([]);
   const [isLoadingResidents, setIsLoadingResidents] = useState(false);
   const [residentError, setResidentError] = useState('');
@@ -1224,6 +1269,17 @@ export default function AdminDashboard({
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-400 scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
                       <span>Tunggakan</span>
                     </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_verifikasi' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Verifikasi Transfer</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -1565,6 +1621,80 @@ export default function AdminDashboard({
                 <span>Laporan</span>
               </button>
 
+              {/* Iuran Header */}
+              <div>
+                <button
+                  onClick={() => setIsIuranOpen(!isIuranOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-4 h-4 text-amber-400" />
+                    <span>Iuran Lingkungan</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▲'}</span>
+                </button>
+
+                {isIuranOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_jenis' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Jenis Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_pembayaran' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Catat Pembayaran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_riwayat' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Riwayat Setoran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_tunggakan' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Tunggakan Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_verifikasi' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Verifikasi Transfer</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Manajemen Akun */}
               <button
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
@@ -1745,6 +1875,80 @@ export default function AdminDashboard({
                 <BarChart3 className="w-4 h-4 text-pink-400" />
                 <span>Laporan</span>
               </button>
+
+              {/* Iuran Header */}
+              <div>
+                <button
+                  onClick={() => setIsIuranOpen(!isIuranOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <Wallet className="w-4 h-4 text-amber-400" />
+                    <span>Iuran Lingkungan</span>
+                  </div>
+                  <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▲'}</span>
+                </button>
+
+                {isIuranOpen && (
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <button
+                      onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_jenis' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Jenis Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_pembayaran' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Catat Pembayaran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_riwayat' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Riwayat Setoran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_tunggakan' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Tunggakan Iuran</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'iuran_verifikasi' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Verifikasi Transfer</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Manajemen Akun */}
               <button
@@ -3921,7 +4125,85 @@ export default function AdminDashboard({
             </div>
           )}
 
-          {/* KEUANGAN: 1. Pemasukan */}
+          {/* IURAN: 5. Verifikasi Transfer Manual */}
+          {activeTab === 'iuran_verifikasi' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verifikasi Bukti Transfer Warga</h3>
+                <p className="text-xs text-slate-400">Verifikasi laporan transfer pembayaran iuran manual yang diupload oleh warga.</p>
+              </div>
+
+              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <th className="p-4">Tanggal / Warga</th>
+                      <th className="p-4">Bulan Iuran</th>
+                      <th className="p-4">Nominal</th>
+                      <th className="p-4">Catatan</th>
+                      <th className="p-4 text-center">Status</th>
+                      <th className="p-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {buktiBayarWarga.map((b) => (
+                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                        <td className="p-4 space-y-1">
+                          <span className="font-bold text-slate-900 dark:text-white block">{b.wargaNama || 'Warga'}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block">ID: {b.id} | {b.date}</span>
+                        </td>
+                        <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
+                          {b.bulan}
+                        </td>
+                        <td className="p-4 font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                          {formatRupiah(b.nominal)}
+                        </td>
+                        <td className="p-4 text-slate-500 max-w-xs truncate italic">
+                          "{b.catatan || '-'}"
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
+                            b.status === 'Disetujui' || b.status === 'Lunas'
+                              ? 'bg-emerald-500/10 text-emerald-500'
+                              : b.status === 'Ditolak'
+                              ? 'bg-rose-500/10 text-rose-500'
+                              : 'bg-amber-500/10 text-amber-500'
+                          }`}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          {b.status === 'Menunggu Verifikasi' ? (
+                            <div className="inline-flex gap-1.5 justify-end">
+                              <button
+                                onClick={() => handleVerifyManualReceipt(b.id, true)}
+                                className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Setujui
+                              </button>
+                              <button
+                                onClick={() => handleVerifyManualReceipt(b.id, false)}
+                                className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Tolak
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-semibold italic">Sudah Diproses</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    {buktiBayarWarga.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-450 font-bold italic">Tidak ada bukti transfer yang perlu diverifikasi.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
           {activeTab === 'keuangan_pemasukan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">

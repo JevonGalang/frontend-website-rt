@@ -215,10 +215,12 @@ export default function App() {
         setCurrentUser={setCurrentUser}
         onUpdateProfile={handleUpdateWargaProfile}
         wargaList={wargaList}
+        setWargaList={setWargaList}
         submissionsList={submissionsList}
         setSubmissionsList={setSubmissionsList}
         agendaList={agendaList}
         transaksiKasList={transaksiKasList}
+        setTransaksiKasList={setTransaksiKasList}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
       />
@@ -257,10 +259,12 @@ export default function App() {
             setCurrentUser={setCurrentUser}
             onUpdateProfile={handleUpdateWargaProfile}
             wargaList={wargaList}
+            setWargaList={setWargaList}
             submissionsList={submissionsList}
             setSubmissionsList={setSubmissionsList}
             agendaList={agendaList}
             transaksiKasList={transaksiKasList}
+            setTransaksiKasList={setTransaksiKasList}
             darkMode={darkMode}
             setDarkMode={setDarkMode}
           />

@@ -12,10 +12,12 @@ export default function ProfilWarga({
   setCurrentUser,
   onUpdateProfile, 
   wargaList = [],
+  setWargaList,
   submissionsList = [],
   setSubmissionsList,
   agendaList = [],
   transaksiKasList = [],
+  setTransaksiKasList,
   darkMode,
   setDarkMode
 }) {
@@ -97,6 +99,28 @@ export default function ProfilWarga({
   // Warga submissions (pengajuan) state
   const [serverSubmissions, setServerSubmissions] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+
+  // Add Member State
+  const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isAddingMember, setIsAddingMember] = useState(false);
+  const [addMemberError, setAddMemberError] = useState('');
+  const [memberForm, setMemberForm] = useState({
+    nik: '',
+    nama: '',
+    jenisKelamin: 'Laki-laki',
+    tglLahir: '',
+    statusHidup: 'Hidup',
+    noHp: '',
+    umur: ''
+  });
+
+  // Payment Gateway Simulator State
+  const [isPgModalOpen, setIsPgModalOpen] = useState(false);
+  const [pgStage, setPgStage] = useState('select_method'); // 'select_method' | 'processing' | 'success'
+  const [pgMethod, setPgMethod] = useState(''); // 'qris' | 'va'
+  const [pgSelectedBank, setPgSelectedBank] = useState('BCA');
+  const [pgVaNumber, setPgVaNumber] = useState('');
+  const [pgTimer, setPgTimer] = useState(300);
 
   const fetchFamilyMembers = async () => {
     const famId = currentUser.familyId || currentUser.family_id;
@@ -357,7 +381,9 @@ export default function ProfilWarga({
       nominal: parseInt(buktiBayarForm.nominal) || 0,
       bulan: buktiBayarForm.bulan,
       catatan: buktiBayarForm.catatan,
-      status: 'Menunggu Verifikasi'
+      status: 'Menunggu Verifikasi',
+      wargaId: currentUser.id,
+      wargaNama: currentUser.name || currentUser.username
     };
 
     setBuktiBayarList([newUpload, ...buktiBayarList]);
@@ -447,6 +473,143 @@ export default function ProfilWarga({
     } catch (err) {
       alert(`Gagal menghubungi server: ${err.message}`);
     }
+  };
+
+  const handleAddMemberSubmit = async (e) => {
+    e.preventDefault();
+    setAddMemberError('');
+    setIsAddingMember(true);
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setAddMemberError('Token tidak ditemukan. Harap login kembali.');
+      setIsAddingMember(false);
+      return;
+    }
+
+    const family_id = familyMembers[0]?.family_id || currentUser.familyId || currentUser.family_id;
+    const house_id = familyMembers[0]?.house_id || currentUser.houseId || currentUser.house_id;
+
+    if (!family_id || !house_id) {
+      setAddMemberError('Data keluarga atau rumah tidak ditemukan.');
+      setIsAddingMember(false);
+      return;
+    }
+
+    const umurNum = parseInt(memberForm.umur) || 0;
+    if (umurNum >= 17 && !memberForm.nik.trim()) {
+      setAddMemberError('Nomor KTP (NIK) wajib diisi untuk anggota keluarga berumur 17 tahun ke atas.');
+      setIsAddingMember(false);
+      return;
+    }
+
+    if (memberForm.nik.trim() && !/^\d{16}$/.test(memberForm.nik)) {
+      setAddMemberError('Nomor NIK/KTP harus tepat 16 digit angka.');
+      setIsAddingMember(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nik: memberForm.nik.trim() || null,
+          nama: memberForm.nama,
+          jenisKelamin: memberForm.jenisKelamin,
+          tglLahir: memberForm.tglLahir,
+          statusHidup: memberForm.statusHidup,
+          noHp: memberForm.noHp,
+          umur: umurNum,
+          fammilyId: parseInt(family_id),
+          houseId: parseInt(house_id)
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Anggota keluarga baru berhasil ditambahkan!');
+        setIsAddMemberOpen(false);
+        setMemberForm({
+          nik: '',
+          nama: '',
+          jenisKelamin: 'Laki-laki',
+          tglLahir: '',
+          statusHidup: 'Hidup',
+          noHp: '',
+          umur: ''
+        });
+        fetchFamilyMembers();
+      } else {
+        setAddMemberError(data.message || data.pesan || 'Gagal menambahkan anggota keluarga.');
+      }
+    } catch (err) {
+      setAddMemberError(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsAddingMember(false);
+    }
+  };
+
+  const handleInitiatePg = () => {
+    setPgStage('select_method');
+    setPgMethod('');
+    setPgTimer(300);
+    setIsPgModalOpen(true);
+  };
+
+  const handleSelectPgMethod = (method) => {
+    setPgMethod(method);
+    if (method === 'va') {
+      const randVa = '88301' + Math.floor(Math.random() * 90000000000 + 10000000000);
+      setPgVaNumber(randVa);
+    }
+    setPgStage('processing');
+  };
+
+  const handleSimulatePaymentSuccess = () => {
+    const updatedUser = {
+      ...currentUser,
+      statusIuran: 'Lunas'
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+
+    if (wargaList && setWargaList) {
+      const updatedW = wargaList.map(w => w.id === currentUser.id ? { ...w, statusIuran: 'Lunas' } : w);
+      setWargaList(updatedW);
+      localStorage.setItem('rt_wargalist', JSON.stringify(updatedW));
+    }
+
+    const monthName = new Date().toLocaleDateString('id-ID', { month: 'long' });
+    const newTx = {
+      id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
+      description: `Pembayaran Iuran Kas RT (${monthName}) - ${currentUser.name || currentUser.username} [PG: ${pgMethod.toUpperCase()}]`,
+      amount: 50000,
+      date: new Date().toISOString().split('T')[0],
+      type: 'income',
+      category: 'Iuran Warga'
+    };
+
+    if (transaksiKasList && setTransaksiKasList) {
+      const updatedKas = [newTx, ...transaksiKasList];
+      setTransaksiKasList(updatedKas);
+      localStorage.setItem('rt_kaslist', JSON.stringify(updatedKas));
+    }
+
+    const newHistory = {
+      id: 'UP-' + Math.floor(Math.random() * 9000 + 1000),
+      date: new Date().toISOString().split('T')[0],
+      nominal: 50000,
+      bulan: monthName,
+      catatan: `Pembayaran instan via PG ${pgMethod.toUpperCase()}`,
+      status: 'Disetujui'
+    };
+    setBuktiBayarList([newHistory, ...buktiBayarList]);
+
+    setPgStage('success');
   };
 
   // Derived properties
@@ -1035,12 +1198,20 @@ export default function ProfilWarga({
                         <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Anggota Keluarga Terdaftar</h4>
                         <p className="text-[10px] text-slate-400">Daftar anggota keluarga yang tercatat dalam Kartu Keluarga ini.</p>
                       </div>
-                      <button
-                        onClick={fetchFamilyMembers}
-                        className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
-                      >
-                        🔄 Segarkan
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setIsAddMemberOpen(true)}
+                          className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors hover:shadow-lg hover:shadow-emerald-500/10"
+                        >
+                          <span>+ Tambah Anggota</span>
+                        </button>
+                        <button
+                          onClick={fetchFamilyMembers}
+                          className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer flex items-center gap-1"
+                        >
+                          <span>🔄 Segarkan</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
@@ -1092,6 +1263,135 @@ export default function ProfilWarga({
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Add Family Member Modal */}
+              {isAddMemberOpen && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-4 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Tambah Anggota Keluarga</h4>
+                      <button onClick={() => setIsAddMemberOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                        <X className="w-4 h-4 text-slate-400" />
+                      </button>
+                    </div>
+
+                    {addMemberError && (
+                      <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>{addMemberError}</span>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleAddMemberSubmit} className="space-y-4 text-xs font-sans">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-500 dark:text-slate-400">
+                          {parseInt(memberForm.umur) >= 17
+                            ? 'NIK / No. KTP (Wajib, 16 digit)'
+                            : 'NIK / No. KTP (Opsional untuk umur < 17 tahun)'}
+                        </label>
+                        <input
+                          required={parseInt(memberForm.umur) >= 17}
+                          type="text"
+                          pattern="[0-9]{16}"
+                          title="NIK harus 16 digit angka"
+                          placeholder={parseInt(memberForm.umur) >= 17 ? "Masukkan NIK 16 digit..." : "Masukkan NIK 16 digit (jika ada)..."}
+                          value={memberForm.nik}
+                          onChange={(e) => setMemberForm({ ...memberForm, nik: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+                        <input
+                          required
+                          type="text"
+                          placeholder="Nama lengkap sesuai KTP/KK..."
+                          value={memberForm.nama}
+                          onChange={(e) => setMemberForm({ ...memberForm, nama: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-500 dark:text-slate-400">Jenis Kelamin</label>
+                          <select
+                            value={memberForm.jenisKelamin}
+                            onChange={(e) => setMemberForm({ ...memberForm, jenisKelamin: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 dark:text-white font-medium cursor-pointer"
+                          >
+                            <option value="Laki-laki">Laki-laki</option>
+                            <option value="Perempuan">Perempuan</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-500 dark:text-slate-400">Umur</label>
+                          <input
+                            required
+                            type="number"
+                            min="0"
+                            placeholder="Umur..."
+                            value={memberForm.umur}
+                            onChange={(e) => setMemberForm({ ...memberForm, umur: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-500 dark:text-slate-400">Tanggal Lahir</label>
+                          <input
+                            required
+                            type="date"
+                            value={memberForm.tglLahir}
+                            onChange={(e) => setMemberForm({ ...memberForm, tglLahir: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-500 dark:text-slate-400">Nomor HP</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Contoh: 0812..."
+                            value={memberForm.noHp}
+                            onChange={(e) => setMemberForm({ ...memberForm, noHp: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 dark:text-white font-medium"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => setIsAddMemberOpen(false)}
+                          className="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-450 font-bold rounded-xl cursor-pointer text-center"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isAddingMember}
+                          className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-colors cursor-pointer text-center block shadow-md shadow-emerald-500/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          {isAddingMember ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Menyimpan...</span>
+                            </>
+                          ) : (
+                            <span>Simpan Anggota</span>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -1442,7 +1742,7 @@ export default function ProfilWarga({
 
               {(currentUser.statusIuran?.includes('Menunggak') || currentUser.tagihNotification) ? (
                 <div className="p-6 bg-rose-500/10 border border-rose-500/25 rounded-3xl space-y-4">
-                  <div className="flex items-start gap-3">
+                   <div className="flex items-start gap-3">
                     <div className="p-2.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl flex-shrink-0">
                       <AlertCircle className="w-5 h-5" />
                     </div>
@@ -1459,9 +1759,25 @@ export default function ProfilWarga({
                       <p className="text-[9px] text-slate-500 font-semibold">a.n. KAS RT 04 SAWANGAN GREEN PARK</p>
                     </div>
                     <div className="space-y-1 leading-relaxed">
-                      <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">CARA KONFIRMASI</span>
-                      <p className="text-slate-500 text-[10px]">Silakan transfer nominal tunggakan iuran di atas ke rekening RT, lalu upload struk bukti bayar di tab **Upload Bukti Bayar** untuk diverifikasi Bendahara.</p>
+                      <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">PILIHAN PEMBAYARAN</span>
+                      <p className="text-slate-500 text-[10px]">Silakan pilih opsi pembayaran instan otomatis (Payment Gateway) di bawah ini, atau transfer secara manual ke rekening kas RT dan upload bukti transfer Anda.</p>
                     </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <button
+                      onClick={handleInitiatePg}
+                      className="py-2.5 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg transition-all"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Bayar via Payment Gateway (Instan & Otomatis)</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('iuran_upload')}
+                      className="py-2.5 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-slate-700 dark:text-slate-350 font-extrabold text-xs rounded-xl cursor-pointer transition-all"
+                    >
+                      Kirim Bukti Bayar Manual (Transfer Bank)
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -1958,6 +2274,196 @@ export default function ProfilWarga({
           )}
 
         </div>
+
+        {/* Payment Gateway Modal */}
+        {isPgModalOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl relative">
+              
+              {/* Header */}
+              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">💳</span>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">SGP Pay Gateway</h4>
+                </div>
+                <button 
+                  onClick={() => {
+                    if (pgStage !== 'processing' || window.confirm('Batalkan transaksi ini?')) {
+                      setIsPgModalOpen(false);
+                    }
+                  }} 
+                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                >
+                  <X className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Total Billing Banner */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl text-center">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Total Tagihan Iuran</span>
+                <span className="text-xl font-black text-emerald-600 dark:text-emerald-450">Rp 50.000</span>
+              </div>
+
+              {/* STAGE 1: SELECT METHOD */}
+              {pgStage === 'select_method' && (
+                <div className="space-y-4">
+                  <p className="text-[11px] text-slate-450 text-center">Silakan pilih metode pembayaran instan Anda:</p>
+                  
+                  <div className="space-y-2.5 text-xs">
+                    {/* QRIS Option */}
+                    <button
+                      onClick={() => handleSelectPgMethod('qris')}
+                      className="w-full p-4 bg-white dark:bg-slate-900 border-2 border-slate-200 hover:border-emerald-500 dark:border-slate-800 dark:hover:border-emerald-500 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:shadow-md"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">📱</span>
+                        <div className="text-left">
+                          <span className="font-black text-slate-855 dark:text-white block">QRIS (Otomatis & Instan)</span>
+                          <span className="text-[10px] text-slate-400 font-bold">GoPay, OVO, ShopeePay, Dana, M-Banking</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400" />
+                    </button>
+
+                    {/* VA Option */}
+                    <div className="space-y-1.5 border border-slate-250 dark:border-slate-800 p-3.5 rounded-2xl">
+                      <span className="font-black text-slate-800 dark:text-white block mb-2">Virtual Account (Bank Transfer)</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['BCA', 'Mandiri', 'BRI'].map((bank) => (
+                          <button
+                            key={bank}
+                            onClick={() => {
+                              setPgSelectedBank(bank);
+                              handleSelectPgMethod('va');
+                            }}
+                            className="py-2.5 border border-slate-200 hover:border-emerald-500 dark:border-slate-850 rounded-xl font-black text-[10px] text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-950/20 hover:bg-white cursor-pointer transition-all"
+                          >
+                            {bank}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* STAGE 2: PROCESSING (QRIS & VA SIMULATION) */}
+              {pgStage === 'processing' && (
+                <div className="space-y-4 text-center">
+                  {/* Timer */}
+                  <div className="flex items-center justify-center gap-1.5 text-amber-500 font-mono font-bold text-xs bg-amber-500/10 py-1.5 px-3 rounded-full w-fit mx-auto">
+                    <span className="animate-pulse">⏳</span>
+                    <span>
+                      Batas Waktu: {Math.floor(pgTimer / 60)}:{(pgTimer % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+
+                  {pgMethod === 'qris' ? (
+                    <div className="space-y-4 flex flex-col items-center">
+                      <p className="text-[11px] text-slate-450 leading-relaxed">Scan QRIS di bawah menggunakan e-wallet atau aplikasi mobile banking Anda.</p>
+                      
+                      {/* SVG QR Code design */}
+                      <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs">
+                        <svg width="140" height="140" viewBox="0 0 100 100" className="text-slate-850">
+                          {/* QR Code mock paths */}
+                          <path d="M5,5 h30 v30 h-30 z M15,15 h10 v10 h-10 z" fill="currentColor" />
+                          <path d="M65,5 h30 v30 h-30 z M75,15 h10 v10 h-10 z" fill="currentColor" />
+                          <path d="M5,65 h30 v30 h-30 z M15,75 h10 v10 h-10 z" fill="currentColor" />
+                          {/* Random blocks to look like QR */}
+                          <path d="M45,5 h10 v10 h-10 z M45,25 h10 v15 h-10 z M55,15 h5 v20 h-5 z" fill="currentColor" />
+                          <path d="M5,45 h20 v5 h-20 z M15,55 h15 v5 h-15 z" fill="currentColor" />
+                          <path d="M45,45 h45 v5 h-45 z M75,55 h10 v20 h-10 z" fill="currentColor" />
+                          <path d="M50,65 h10 v10 h-10 z M40,80 h25 v5 h-25 z" fill="currentColor" />
+                          <path d="M80,80 h15 v15 h-15 z" fill="currentColor" />
+                        </svg>
+                        <span className="font-extrabold text-[9px] text-slate-400 block tracking-wider uppercase mt-2">SGP QRIS - RT 04</span>
+                      </div>
+
+                      <button
+                        onClick={handleSimulatePaymentSuccess}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all font-sans font-bold"
+                      >
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        <span>Simulasikan Scan & Pembayaran QRIS</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 text-center">
+                      <p className="text-[11px] text-slate-450 leading-relaxed font-sans">
+                        Silakan bayar menggunakan nomor Virtual Account bank <span className="font-bold text-slate-800 dark:text-white">{pgSelectedBank}</span> berikut:
+                      </p>
+
+                      <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-250 dark:border-slate-850 rounded-2xl space-y-1">
+                        <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">No. Virtual Account ({pgSelectedBank})</span>
+                        <p className="font-mono font-black text-sm text-slate-800 dark:text-white tracking-widest">{pgVaNumber}</p>
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(pgVaNumber);
+                            alert('VA Number disalin!');
+                          }}
+                          className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                        >
+                          📋 Salin Nomor VA
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={handleSimulatePaymentSuccess}
+                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 transition-all font-sans font-bold"
+                      >
+                        <Sparkles className="w-4 h-4 animate-pulse" />
+                        <span>Simulasikan Transfer Bank (VA)</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* STAGE 3: SUCCESS RECEIPT */}
+              {pgStage === 'success' && (
+                <div className="space-y-4 text-center">
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                    <CheckCircle2 className="w-10 h-10 animate-bounce" />
+                  </div>
+
+                  <div className="space-y-1">
+                    <h4 className="font-black text-sm text-slate-900 dark:text-white">Pembayaran Sukses!</h4>
+                    <p className="text-[10px] text-slate-450">Iuran Anda terverifikasi lunas secara otomatis.</p>
+                  </div>
+
+                  {/* Receipt Details */}
+                  <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-[10px] text-left space-y-2 font-mono">
+                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                      <span className="text-slate-400 font-sans font-bold">Jenis Iuran:</span>
+                      <span className="font-extrabold text-slate-800 dark:text-slate-200">Kas Lingkungan RT</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                      <span className="text-slate-400 font-sans font-bold">Nominal:</span>
+                      <span className="font-extrabold text-slate-800 dark:text-slate-200">Rp 50.000</span>
+                    </div>
+                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                      <span className="text-slate-400 font-sans font-bold">Metode:</span>
+                      <span className="font-extrabold text-slate-800 dark:text-slate-200">PG - {pgMethod.toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400 font-sans font-bold">Status:</span>
+                      <span className="font-extrabold text-emerald-600 dark:text-emerald-450 uppercase">Lunas</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setIsPgModalOpen(false)}
+                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-850 dark:hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-colors"
+                  >
+                    Selesai
+                  </button>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
 
       </main>
     </div>
