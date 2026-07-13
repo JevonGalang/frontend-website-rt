@@ -72,7 +72,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             {currentUser && (
               <div className="flex items-center gap-3 ml-2 border-l border-slate-200 dark:border-slate-800 pl-3">
                 <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
-                  Hi, {currentUser.name.split(' ')[0]}
+                  Hi, {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
                 </span>
                 <button
                   onClick={() => {

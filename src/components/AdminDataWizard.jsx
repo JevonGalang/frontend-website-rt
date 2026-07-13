@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import {
   Home, Users, UserPlus, ChevronRight, Check, AlertCircle,
   Loader2, RotateCcw, ClipboardList, ChevronDown, ChevronUp,
-  Sparkles, Building2, CreditCard, ArrowRight, CheckCircle2, XCircle
+  Sparkles, Building2, CreditCard, ArrowRight, CheckCircle2, XCircle,
+  Key, Copy
 } from 'lucide-react';
 
 const API_BASE = 'http://172.20.32.62:3333';
@@ -48,6 +49,10 @@ export default function AdminDataWizard() {
   const [houseId, setHouseId] = useState(null);
   const [familyId, setFamilyId] = useState(null);
 
+  // Warga account credentials states
+  const [createdAccount, setCreatedAccount] = useState(null);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+
   // Residents list from GET /admin/resident
   const [residentsList, setResidentsList] = useState([]);
   const [isResidentsOpen, setIsResidentsOpen] = useState(false);
@@ -90,8 +95,13 @@ export default function AdminDataWizard() {
   // Fetch residents list
   const fetchResidents = async () => {
     setIsLoadingResidents(true);
+    const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`${API_BASE}/admin/resident`);
+      const res = await fetch(`${API_BASE}/admin/resident`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const data = await res.json();
       setResidentsList(Array.isArray(data) ? data : []);
     } catch (err) {
@@ -147,10 +157,14 @@ export default function AdminDataWizard() {
   const handleSubmitStep1 = async () => {
     if (!validateStep1()) return;
     setIsLoading(true);
+    const token = localStorage.getItem('rt_token');
     try {
       const res = await fetch(`${API_BASE}/admin/house`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           blok: houseForm.blok,
           nomor: parseInt(houseForm.nomor),
@@ -182,10 +196,14 @@ export default function AdminDataWizard() {
   const handleSubmitStep2 = async () => {
     if (!validateStep2()) return;
     setIsLoading(true);
+    const token = localStorage.getItem('rt_token');
     try {
       const res = await fetch(`${API_BASE}/admin/resident`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           noKK: residentForm.noKK,
           home: houseId,
@@ -217,10 +235,14 @@ export default function AdminDataWizard() {
   const handleSubmitStep3 = async () => {
     if (!validateStep3()) return;
     setIsLoading(true);
+    const token = localStorage.getItem('rt_token');
     try {
       const res = await fetch(`${API_BASE}/admin/datawarga`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           nik: wargaForm.nik,
           nama: wargaForm.nama,
@@ -251,6 +273,38 @@ export default function AdminDataWizard() {
     }
   };
 
+  // Submit Step 4 — POST /admin/create-account
+  const handleCreateWargaAccount = async () => {
+    if (!familyId) return;
+    setIsCreatingAccount(true);
+    const token = localStorage.getItem('rt_token');
+    try {
+      const res = await fetch(`${API_BASE}/admin/create-account`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ familyId })
+      });
+      const data = await res.json();
+      if (res.ok && data.output?.username) {
+        setCreatedAccount({
+          username: data.output.username,
+          temporaryPassword: data.output.temporaryPassword
+        });
+        setToast({ type: 'success', message: 'Akun warga berhasil dibuat! 🔑' });
+      } else {
+        const errMsg = data.message || 'Gagal membuat akun warga';
+        setToast({ type: 'error', message: errMsg });
+      }
+    } catch (err) {
+      setToast({ type: 'error', message: `Koneksi gagal: ${err.message}` });
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   // Reset wizard
   const handleReset = () => {
     setCurrentStep(1);
@@ -263,6 +317,8 @@ export default function AdminDataWizard() {
     setFieldErrors({});
     setWizardComplete(false);
     setSummaryData({});
+    setCreatedAccount(null);
+    setIsCreatingAccount(false);
   };
 
   // Helper: input classes
@@ -361,6 +417,79 @@ export default function AdminDataWizard() {
             </div>
           </div>
         </div>
+
+        {createdAccount ? (
+          <div className={`${cardClass} p-6 border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/[0.02] max-w-xl mx-auto space-y-4`}>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 rounded-xl">
+                <Key className="w-5 h-5 text-emerald-500" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kredensial Akun Login Warga</h3>
+                <p className="text-[10px] text-slate-400">Bagikan akun sementara ini kepada Kepala Keluarga untuk login pertama kali.</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-3 font-mono">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Username</span>
+                  <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.username}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdAccount.username);
+                    setToast({ type: 'success', message: 'Username disalin!' });
+                  }}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                  title="Salin Username"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div>
+                  <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Sandi Sementara</span>
+                  <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.temporaryPassword}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdAccount.temporaryPassword);
+                    setToast({ type: 'success', message: 'Sandi sementara disalin!' });
+                  }}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                  title="Salin Sandi"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className={`${cardClass} p-6 bg-slate-50/50 dark:bg-slate-950/20 max-w-xl mx-auto text-center space-y-4`}>
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">Langkah Akhir: Buat Akses Akun Warga</h4>
+              <p className="text-[11px] text-slate-400">Buat kredensial login portal warga secara otomatis untuk keluarga baru ini.</p>
+            </div>
+            <button
+              onClick={handleCreateWargaAccount}
+              disabled={isCreatingAccount}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-650 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+            >
+              {isCreatingAccount ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Membuat Akun...</span>
+                </>
+              ) : (
+                <>
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Buat Akun Login Warga</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* Reset button */}
         <div className="flex justify-center">

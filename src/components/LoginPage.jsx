@@ -87,6 +87,8 @@ export default function LoginPage({
         username: resData.user.username,
         email: resData.user.email,
         role: resData.user.role,
+        familyId: resData.user.family_id,
+        must_change_password: resData.user.must_change_password,
         name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
       };
 
@@ -328,40 +330,7 @@ export default function LoginPage({
                 </button>
               </form>
 
-              {/* DEMO SHORTS GRID */}
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-850">
-                <span className="block text-[10px] text-slate-400 dark:text-slate-550 font-bold uppercase tracking-wider mb-2.5 text-center">Akses Cepat Pengurus & Warga (Demo)</span>
-                <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  <button
-                    onClick={() => setLoginData({ username: 'rt', password: 'rt' })}
-                    className="p-2 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500/40 rounded-xl text-left bg-slate-50/50 hover:bg-emerald-50/10 dark:bg-slate-950/20 transition-all cursor-pointer"
-                  >
-                    <span className="block font-extrabold text-slate-800 dark:text-white">Ketua RT</span>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">rt / rt</span>
-                  </button>
-                  <button
-                    onClick={() => setLoginData({ username: 'sekertaris', password: 'sekertaris' })}
-                    className="p-2 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500/40 rounded-xl text-left bg-slate-50/50 hover:bg-emerald-50/10 dark:bg-slate-950/20 transition-all cursor-pointer"
-                  >
-                    <span className="block font-extrabold text-slate-800 dark:text-white">Sekretaris</span>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">sekertaris / sekertaris</span>
-                  </button>
-                  <button
-                    onClick={() => setLoginData({ username: 'bendahara', password: 'bendahara' })}
-                    className="p-2 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500/40 rounded-xl text-left bg-slate-50/50 hover:bg-emerald-50/10 dark:bg-slate-950/20 transition-all cursor-pointer"
-                  >
-                    <span className="block font-extrabold text-slate-800 dark:text-white">Bendahara</span>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">bendahara / bendahara</span>
-                  </button>
-                  <button
-                    onClick={() => setLoginData({ username: 'dwi', password: 'password123' })}
-                    className="p-2 border border-slate-100 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500/40 rounded-xl text-left bg-slate-50/50 hover:bg-emerald-50/10 dark:bg-slate-950/20 transition-all cursor-pointer"
-                  >
-                    <span className="block font-extrabold text-slate-800 dark:text-white">Akun Warga</span>
-                    <span className="text-[9px] text-slate-400 block mt-0.5">dwi / password123</span>
-                  </button>
-                </div>
-              </div>
+
 
             </div>
           </div>

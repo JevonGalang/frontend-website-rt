@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { 
-  LayoutDashboard, User, Volume2, Calendar, Phone, Wallet, History, Upload, 
+  LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
-  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save
+  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
+  Loader2
 } from 'lucide-react';
 
 export default function ProfilWarga({ 
@@ -84,6 +85,100 @@ export default function ProfilWarga({
     confirmPassword: ''
   });
 
+  // Family members state
+  const [familyMembers, setFamilyMembers] = useState([]);
+  const [isLoadingFamily, setIsLoadingFamily] = useState(false);
+  const [familyError, setFamilyError] = useState('');
+
+  // Warga announcements state
+  const [wargaAnnouncements, setWargaAnnouncements] = useState([]);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+
+  const fetchFamilyMembers = async () => {
+    const famId = currentUser.familyId || currentUser.family_id;
+    if (!famId) return;
+
+    setIsLoadingFamily(true);
+    setFamilyError('');
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setFamilyError('Token tidak ditemukan. Harap login kembali.');
+      setIsLoadingFamily(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/resident/getmyfamily/${famId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Akses ditolak, ini bukan data keluarga Anda.');
+        }
+        throw new Error('Gagal mengambil data keluarga.');
+      }
+
+      const data = await response.json();
+      setFamilyMembers(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setFamilyError(err.message);
+    } finally {
+      setIsLoadingFamily(false);
+    }
+  };
+
+  const fetchCitizenComplaints = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPengaduanList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching complaints:', err);
+    }
+  };
+
+  const fetchWargaAnnouncements = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingAnnouncements(true);
+    try {
+      const res = await fetch('http://172.20.32.62:3333/resident/announcement', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWargaAnnouncements(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching announcements:', err);
+    } finally {
+      setIsLoadingAnnouncements(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFamilyMembers();
+    fetchCitizenComplaints();
+    fetchWargaAnnouncements();
+  }, [activeTab]);
+
   // Save changes helper
   useEffect(() => {
     localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(buktiBayarList));
@@ -92,6 +187,21 @@ export default function ProfilWarga({
   useEffect(() => {
     localStorage.setItem('rt_warga_pengaduan_list', JSON.stringify(pengaduanList));
   }, [pengaduanList]);
+
+  useEffect(() => {
+    if (familyMembers.length > 0 && !currentUser.nik && !formData.nik) {
+      const familyHead = familyMembers[0];
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name && prev.name !== currentUser.username ? prev.name : familyHead.nama,
+        nik: prev.nik || familyHead.nik,
+        alamat: prev.alamat || familyHead.house_alamat,
+        gender: prev.gender || familyHead.jenis_kelamin,
+        usia: prev.usia || familyHead.umur,
+        noHp: prev.noHp || familyHead.no_hp,
+      }));
+    }
+  }, [familyMembers]);
 
   const formatRupiah = (num) => {
     return new Intl.NumberFormat('id-ID', {
@@ -102,18 +212,19 @@ export default function ProfilWarga({
   };
 
   const handleCancel = () => {
+    const familyHead = familyMembers[0] || null;
     setFormData({
-      name: currentUser.name || '',
+      name: currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || '')),
       username: currentUser.username || '',
       password: currentUser.password || '',
-      nik: currentUser.nik || '',
+      nik: currentUser.nik || (familyHead ? familyHead.nik : ''),
       noKk: currentUser.noKk || '',
-      alamat: currentUser.alamat || '',
-      gender: currentUser.gender || 'Laki-laki',
-      usia: currentUser.usia || '',
-      status: currentUser.status || 'Tetap',
+      alamat: currentUser.alamat || (familyHead ? familyHead.house_alamat : ''),
+      gender: currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki'),
+      usia: currentUser.usia || (familyHead ? familyHead.umur : ''),
+      status: currentUser.status || (familyHead && familyHead.house_status === 'kontrak' ? 'Kontrak' : 'Tetap'),
       email: currentUser.email || '',
-      noHp: currentUser.noHp || '',
+      noHp: currentUser.noHp || (familyHead ? familyHead.no_hp : ''),
     });
     setIsEditing(false);
   };
@@ -210,32 +321,47 @@ export default function ProfilWarga({
     setActiveTab('iuran_riwayat');
   };
 
-  const handleComplaintSubmit = (e) => {
+  const handleComplaintSubmit = async (e) => {
     e.preventDefault();
     if (!pengaduanForm.description.trim()) {
       alert('Silakan isi deskripsi pengaduan.');
       return;
     }
 
-    const newComplaint = {
-      id: 'COM-' + Math.floor(Math.random() * 900 + 100),
-      date: new Date().toISOString().split('T')[0],
-      category: pengaduanForm.category,
-      description: pengaduanForm.description,
-      status: 'Diterima'
-    };
-
-    setPengaduanList([newComplaint, ...pengaduanList]);
-    alert('Laporan pengaduan lingkungan berhasil dikirim!');
-    setPengaduanForm({ category: 'Fasilitas Umum', description: '' });
-  };
-
-  const handlePasswordSubmit = (e) => {
-    e.preventDefault();
-    if (passwordForm.oldPassword !== currentUser.password) {
-      alert('Kata sandi lama salah.');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
     }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          keperluan: pengaduanForm.description,
+          jenis: pengaduanForm.category
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Laporan pengaduan lingkungan berhasil dikirim!');
+        setPengaduanForm({ category: 'Fasilitas Umum', description: '' });
+        fetchCitizenComplaints();
+      } else {
+        alert(data.message || data.pesan || 'Gagal mengirim pengaduan.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
+  };
+
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
     if (passwordForm.newPassword.length < 5) {
       alert('Sandi baru minimal 5 karakter.');
       return;
@@ -245,26 +371,56 @@ export default function ProfilWarga({
       return;
     }
 
-    const updated = {
-      ...currentUser,
-      password: passwordForm.newPassword
-    };
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
 
-    onUpdateProfile(updated);
-    alert('Kata sandi berhasil diperbarui!');
-    setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
-    setActiveTab('dashboard');
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/password', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ newPassword: passwordForm.newPassword })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        const updated = {
+          ...currentUser,
+          password: passwordForm.newPassword
+        };
+        onUpdateProfile(updated);
+        alert(data.pesan || 'Kata sandi berhasil diperbarui!');
+        setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        setActiveTab('dashboard');
+      } else {
+        alert(data.message || data.pesan || 'Gagal mengubah kata sandi.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
   };
 
   // Derived properties
   const mySubmissions = submissionsList.filter(s => s.wargaId === currentUser.id);
   const myPayments = transaksiKasList.filter(t => t.description.includes(currentUser.name));
 
+  const familyHead = familyMembers[0] || null;
+
   // Resolved dynamic values for mock alignment
   const rtRw = currentUser.rtRw || '04 / 09';
-  const tanggalLahir = currentUser.tanggalLahir || (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004');
+  const displayNama = currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || 'Warga'));
+  const displayNik = currentUser.nik || (familyHead ? familyHead.nik : '');
+  const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
+  const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
+  const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
+  const displayEmail = currentUser.email || '';
+  const tanggalLahir = currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa');
-  const statusRumah = currentUser.statusRumah || (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri');
+  const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased">
@@ -286,10 +442,10 @@ export default function ProfilWarga({
         {/* Citizen Profile Card in Sidebar */}
         <div className="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs uppercase">
-            {currentUser.name.charAt(0)}
+            {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{currentUser.name}</p>
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{displayNama}</p>
             <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
@@ -321,6 +477,19 @@ export default function ProfilWarga({
           >
             <User className="w-4 h-4 text-sky-400" />
             <span>Profil Saya</span>
+          </button>
+
+          {/* Keluarga Saya Button */}
+          <button
+            onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'keluarga_saya'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Users className="w-4 h-4 text-purple-400" />
+            <span>Keluarga Saya</span>
           </button>
 
           {/* Informasi Dropdown */}
@@ -572,6 +741,7 @@ export default function ProfilWarga({
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}
               {activeTab === 'profil_saya' && 'PROFIL MANDIRI WARGA'}
+              {activeTab === 'keluarga_saya' && 'ANGGOTA KELUARGA SAYA'}
               {activeTab === 'informasi_pengumuman' && 'INFORMASI SEPUTAR RT'}
               {activeTab === 'informasi_jadwal' && 'JADWAL & AGENDA HARI INI'}
               {activeTab === 'informasi_kontak' && 'PAPAN HUBUNGI PENGURUS'}
@@ -588,6 +758,7 @@ export default function ProfilWarga({
             <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight pt-0.5">
               {activeTab === 'dashboard' && 'Dashboard Portal Warga'}
               {activeTab === 'profil_saya' && 'Profil Saya'}
+              {activeTab === 'keluarga_saya' && 'Anggota Keluarga Saya'}
               {activeTab === 'informasi_pengumuman' && 'Pengumuman Terbaru'}
               {activeTab === 'informasi_jadwal' && 'Kegiatan & Rapat RT'}
               {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus'}
@@ -745,15 +916,138 @@ export default function ProfilWarga({
             </div>
           )}
 
+          {/* TAB 1.5: Keluarga Saya */}
+          {activeTab === 'keluarga_saya' && (
+            <div className="space-y-6 animate-fade-in font-sans">
+              {isLoadingFamily ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Memuat data keluarga dari server...</p>
+                </div>
+              ) : familyError ? (
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4">
+                  <div className="mx-auto w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6" />
+                  </div>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Gagal Memuat Data</h4>
+                  <p className="text-xs text-slate-400 max-w-sm mx-auto">{familyError}</p>
+                  <button
+                    onClick={fetchFamilyMembers}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Coba Lagi
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* House Details Header */}
+                  {familyMembers.length > 0 && (
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] to-teal-500/[0.03] dark:from-emerald-500/[0.05] dark:to-teal-500/[0.05]" />
+                      <div className="relative z-10 space-y-2">
+                        <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                          🏠 Domisili Keluarga
+                        </span>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                          Blok {familyMembers[0].house_blok} No. {familyMembers[0].house_nomor}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {familyMembers[0].house_alamat}
+                        </p>
+                      </div>
+                      <div className="relative z-10 flex gap-4 text-xs">
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-bold block">Status Kepemilikan</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                            Rumah {familyMembers[0].house_status || 'Pribadi'}
+                          </span>
+                        </div>
+                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl">
+                          <span className="text-[10px] text-slate-400 font-bold block">Total Anggota</span>
+                          <span className="font-extrabold text-slate-855 dark:text-slate-200">
+                            {familyMembers.length} Orang
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Family Members Table */}
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                    <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+                      <div>
+                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Anggota Keluarga Terdaftar</h4>
+                        <p className="text-[10px] text-slate-400">Daftar anggota keluarga yang tercatat dalam Kartu Keluarga ini.</p>
+                      </div>
+                      <button
+                        onClick={fetchFamilyMembers}
+                        className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                      >
+                        🔄 Segarkan
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">Nama Lengkap</th>
+                            <th className="p-4">NIK (Tersensor)</th>
+                            <th className="p-4">Umur / Tgl Lahir</th>
+                            <th className="p-4">Gender</th>
+                            <th className="p-4">Nomor HP</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                          {familyMembers.map((m) => (
+                            <tr key={m.warga_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-4 font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black flex items-center justify-center uppercase">
+                                  {m.nama.charAt(0)}
+                                </div>
+                                <span>{m.nama}</span>
+                              </td>
+                              <td className="p-4 font-mono text-slate-655 dark:text-slate-350">{m.nik}</td>
+                              <td className="p-4">
+                                <div className="font-bold text-slate-705 dark:text-slate-300">{m.umur} Tahun</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{m.tgl_lahir}</div>
+                              </td>
+                              <td className="p-4">
+                                <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
+                                  m.jenis_kelamin === 'Laki-laki' 
+                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                                    : 'bg-pink-500/10 text-pink-600 dark:text-pink-400'
+                                }`}>
+                                  {m.jenis_kelamin}
+                                </span>
+                              </td>
+                              <td className="p-4 font-mono font-semibold text-slate-600 dark:text-slate-400">{m.no_hp || '-'}</td>
+                            </tr>
+                          ))}
+                          {familyMembers.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="p-12 text-center text-slate-450 italic font-bold">
+                                Tidak ada anggota keluarga terdaftar.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           {/* TAB 2: Profil Saya (MOCKUP ALIGNED) */}
           {activeTab === 'profil_saya' && (
             <div className="space-y-6 animate-fade-in font-sans">
               
-              {/* Header Visual Card - Foto Profil */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
+              {/* Header Visual               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
                 <div className="relative group">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800">
-                    {currentUser.name.charAt(0)}
+                    {displayNama.charAt(0) || 'W'}
                   </div>
                   <div className="absolute inset-0 rounded-full bg-black/40 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     👤 FOTO PROFIL
@@ -761,7 +1055,7 @@ export default function ProfilWarga({
                 </div>
                 
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{currentUser.name}</h3>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{displayNama}</h3>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">Warga RT {rtRw}</p>
                 </div>
 
@@ -798,17 +1092,17 @@ export default function ProfilWarga({
                 <div className="space-y-3 text-xs sm:text-sm">
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">Nama</span>
-                    <span className="text-slate-805 dark:text-slate-200 font-bold">{currentUser.name}</span>
+                    <span className="text-slate-805 dark:text-slate-200 font-bold">{displayNama}</span>
                   </div>
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">NIK</span>
                     <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
-                      {currentUser.nik ? `${currentUser.nik.slice(0, 4)}********${currentUser.nik.slice(-4)}` : '3276********1234'}
+                      {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
                     </span>
                   </div>
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">Jenis Kelamin</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{currentUser.gender || 'Laki-laki'}</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
                   </div>
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">Tanggal Lahir</span>
@@ -832,7 +1126,7 @@ export default function ProfilWarga({
                   </div>
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">Alamat</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{currentUser.alamat}</span>
+                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
                   </div>
                   <div className="flex justify-between sm:justify-start items-center">
                     <span className="w-32 text-slate-400 font-bold">Status Rumah</span>
@@ -857,7 +1151,7 @@ export default function ProfilWarga({
                         className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
                       />
                     ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{currentUser.noHp}</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
                     )}
                   </div>
                   
@@ -872,7 +1166,7 @@ export default function ProfilWarga({
                         className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
                       />
                     ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{currentUser.email}</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
                     )}
                   </div>
 
@@ -964,30 +1258,40 @@ export default function ProfilWarga({
           {/* TAB 3: Informasi -> Pengumuman */}
           {activeTab === 'informasi_pengumuman' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
-                <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 04 Sawangan Green Park.</p>
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
+                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 04 Sawangan Green Park.</p>
+                </div>
+                <button
+                  onClick={fetchWargaAnnouncements}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">KEBERSIHAN</span>
-                    <span className="text-[10px] text-slate-400 font-bold">07 Juli 2026</span>
-                  </div>
-                  <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">Kerja Bakti Saluran Air Warga</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">Pelaksanaan pembersihan gorong-gorong dan pemangkasan dahan pohon liar akan diadakan hari Minggu depan pukul 07:00 WIB. Diharapkan bapak-bapak warga RT 04 membawa cangkul/sabit masing-masing.</p>
+              {isLoadingAnnouncements ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat pengumuman...</p>
                 </div>
-
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[9px] rounded-md">KEAMANAN</span>
-                    <span className="text-[10px] text-slate-400 font-bold">05 Juli 2026</span>
-                  </div>
-                  <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">Ketertiban Parkir Mobil Depan Rumah</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">Mengingat sempitnya badan jalan komplek, warga dihimbau tidak memarkir kendaraannya di badan jalan utama dalam waktu lama agar tidak mengganggu arus darurat pemadam kebakaran / ambulans.</p>
+              ) : wargaAnnouncements.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Belum ada pengumuman dari RT.</div>
+              ) : (
+                <div className="space-y-4">
+                  {wargaAnnouncements.map((a) => (
+                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">PENGUMUMAN</span>
+                        <span className="text-[10px] text-slate-400 font-bold">ID #{a.id}</span>
+                      </div>
+                      <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">{a.judul}</h4>
+                      <p className="text-[11px] text-slate-500 leading-relaxed">{a.isi}</p>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -1004,7 +1308,7 @@ export default function ProfilWarga({
                   agendaList.map((a) => (
                     <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex gap-4 font-sans">
                       <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
-                        {a.date.split('-')[2] || a.date.split(' ')[0] || '12'}
+                        {(a.date ? (a.date.split('-')[2] || a.date.split(' ')[0]) : '') || '12'}
                       </div>
                       <div className="space-y-1">
                         <h4 className="font-bold text-sm text-slate-800 dark:text-white">{a.title}</h4>
@@ -1447,32 +1751,40 @@ export default function ProfilWarga({
                   <table className="w-full text-left text-xs border-collapse font-sans">
                     <thead>
                       <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="p-4">Tanggal / ID</th>
+                        <th className="p-4">ID Laporan</th>
                         <th className="p-4">Kategori Laporan</th>
-                        <th className="p-4">Deskripsi Masalah</th>
+                        <th className="p-4">Deskripsi Masalah / Keperluan</th>
                         <th className="p-4 text-center">Status</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {pengaduanList.map((p) => (
                         <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                          <td className="p-4 font-mono space-y-0.5">
-                            <span className="font-bold text-slate-800 dark:text-slate-200">{p.date}</span>
-                            <div className="text-[10px] text-slate-400">{p.id}</div>
+                          <td className="p-4 font-mono font-bold text-slate-800 dark:text-slate-200">
+                            #ADU-{p.id}
                           </td>
-                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{p.category}</td>
-                          <td className="p-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={p.description}>{p.description}</td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] inline-block ${
-                              p.status === 'Selesai' 
+                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{p.jenis}</td>
+                          <td className="p-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={p.keperluan}>{p.keperluan}</td>
+                          <td className="p-4 text-center font-sans">
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize inline-block ${
+                              p.status === 'disetujui' 
                                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                : p.status === 'ditolak'
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-450'
+                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
                             }`}>
                               {p.status}
                             </span>
                           </td>
                         </tr>
                       ))}
+                      {pengaduanList.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-450 italic font-bold">
+                            Belum ada riwayat pengaduan terdaftar.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

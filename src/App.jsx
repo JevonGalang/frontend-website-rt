@@ -11,6 +11,8 @@ import LoginPage from './components/LoginPage';
 import AdminDashboard from './components/AdminDashboard';
 import ProfilWarga from './components/ProfilWarga';
 
+import ChangePasswordFirstTime from './components/ChangePasswordFirstTime';
+
 // Predefined Demo Data (Outstanding UX/Developer Experience)
 const DEFAULT_WARGA = [
   { id: 'WRG-001', name: 'Budi Santoso', username: 'warga', password: 'warga', email: 'budi@gmail.com', role: 'warga', nik: '3275081102900001', noKk: '3275081212080001', noHp: '081234567890', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Laki-laki', usia: 36, statusHidup: 'Hidup', statusIuran: 'Lunas' },
@@ -165,6 +167,18 @@ export default function App() {
       <LoginPage
         wargaList={wargaList}
         setWargaList={setWargaList}
+        setCurrentUser={setCurrentUser}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+      />
+    );
+  }
+
+  // 1.5 GATEKEEPER: FORCE CHANGE PASSWORD ON FIRST LOGIN
+  if (currentUser && currentUser.must_change_password) {
+    return (
+      <ChangePasswordFirstTime
+        currentUser={currentUser}
         setCurrentUser={setCurrentUser}
         darkMode={darkMode}
         setDarkMode={setDarkMode}

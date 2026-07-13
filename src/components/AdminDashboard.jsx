@@ -110,6 +110,166 @@ export default function AdminDashboard({
     }
   }, [logsTrigger]);
 
+  const [serverComplaints, setServerComplaints] = useState([]);
+  const [isLoadingComplaints, setIsLoadingComplaints] = useState(false);
+  const [complaintsError, setComplaintsError] = useState('');
+
+  const fetchServerComplaints = async () => {
+    setIsLoadingComplaints(true);
+    setComplaintsError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setComplaintsError('Token tidak ditemukan. Harap login kembali.');
+      setIsLoadingComplaints(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/pengaduan', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal memuat data pengaduan dari server.');
+      }
+
+      const data = await response.json();
+      setServerComplaints(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setComplaintsError(err.message);
+    } finally {
+      setIsLoadingComplaints(false);
+    }
+  };
+
+  const handleUpdateComplaintStatus = async (id, status) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan.');
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/admin/pengaduan/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Status pengaduan berhasil diperbarui!');
+        fetchServerComplaints();
+      } else {
+        alert(data.message || data.pesan || 'Gagal memperbarui status pengaduan.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
+  };
+
+  // ── Announcement State ──
+  const [serverAnnouncements, setServerAnnouncements] = useState([]);
+  const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
+  const [announcementsError, setAnnouncementsError] = useState('');
+  const [announcementForm, setAnnouncementForm] = useState({ judul: '', isi: '' });
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState(null);
+
+  const fetchServerAnnouncements = async () => {
+    setIsLoadingAnnouncements(true);
+    setAnnouncementsError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
+    try {
+      const res = await fetch('http://172.20.32.62:3333/admin/announcement', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Gagal memuat pengumuman.');
+      const data = await res.json();
+      setServerAnnouncements(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setAnnouncementsError(err.message);
+    } finally {
+      setIsLoadingAnnouncements(false);
+    }
+  };
+
+  const handleCreateAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!announcementForm.judul.trim() || !announcementForm.isi.trim()) return;
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const res = await fetch('http://172.20.32.62:3333/admin/announcement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Pengumuman berhasil diterbitkan!');
+        setAnnouncementForm({ judul: '', isi: '' });
+        fetchServerAnnouncements();
+      } else {
+        alert(data.message || 'Gagal membuat pengumuman.');
+      }
+    } catch (err) { alert(`Gagal menghubungi server: ${err.message}`); }
+  };
+
+  const handleUpdateAnnouncement = async (e) => {
+    e.preventDefault();
+    if (!editingAnnouncementId) return;
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    const body = {};
+    if (announcementForm.judul.trim()) body.judul = announcementForm.judul;
+    if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
+    if (!Object.keys(body).length) return;
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/announcement/${editingAnnouncementId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Pengumuman berhasil diperbarui!');
+        setEditingAnnouncementId(null);
+        setAnnouncementForm({ judul: '', isi: '' });
+        fetchServerAnnouncements();
+      } else {
+        alert(data.message || 'Gagal memperbarui pengumuman.');
+      }
+    } catch (err) { alert(`Gagal menghubungi server: ${err.message}`); }
+  };
+
+  const handleDeleteAnnouncement = async (id) => {
+    if (!confirm('Yakin ingin menghapus pengumuman ini?')) return;
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/announcement/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(data.message || 'Pengumuman berhasil dihapus!');
+        fetchServerAnnouncements();
+      } else {
+        alert(data.message || 'Gagal menghapus pengumuman.');
+      }
+    } catch (err) { alert(`Gagal menghubungi server: ${err.message}`); }
+  };
+
   const [residentServerList, setResidentServerList] = useState([]);
   const [isLoadingResidents, setIsLoadingResidents] = useState(false);
   const [residentError, setResidentError] = useState('');
@@ -182,9 +342,78 @@ export default function AdminDashboard({
     }
   };
 
+  const [revealedNiks, setRevealedNiks] = useState({});
+  const [revealedKks, setRevealedKks] = useState({});
+
+  const handleRevealWarga = async (wargaId) => {
+    const password = window.prompt('Masukkan sandi Ketua RT / Admin untuk membuka sensor NIK:');
+    if (!password) return;
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/reveal-warga/${wargaId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (res.ok && data.nik) {
+        setRevealedNiks(prev => ({ ...prev, [wargaId]: data.nik }));
+      } else {
+        alert(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
+  };
+
+  const handleRevealResident = async (familyId) => {
+    const password = window.prompt('Masukkan sandi Ketua RT / Admin untuk membuka sensor nomor KK:');
+    if (!password) return;
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${familyId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (res.ok && data.no_kk) {
+        setRevealedKks(prev => ({ ...prev, [familyId]: data.no_kk }));
+      } else {
+        alert(data.message || data.pesan || 'Gagal membuka sensor KK. Periksa sandi Anda.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'sek_warga_kk' && residentSubTab === 'server') {
       fetchResidentServerList();
+    }
+    if (activeTab === 'sek_pengaduan') {
+      fetchServerComplaints();
+    }
+    if (activeTab === 'sek_info_pengumuman') {
+      fetchServerAnnouncements();
     }
   }, [activeTab, residentSubTab]);
 
@@ -1848,7 +2077,18 @@ export default function AdminDashboard({
                               const status = r.house_status || '-';
                               return (
                                 <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{noKK}</td>
+                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                    <span>{revealedKks[id] || noKK}</span>
+                                    {noKK?.includes('x') && !revealedKks[id] && (
+                                      <button
+                                        onClick={() => handleRevealResident(id)}
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                        title="Buka Sensor KK"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </td>
                                   <td className="p-4">
                                     <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
                                     <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
@@ -2244,29 +2484,110 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 7. KELOLA PENGUMUMAN */}
           {activeTab === 'sek_info_pengumuman' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <button 
-                onClick={() => {
-                  const title = prompt("Masukkan Judul Pengumuman:");
-                  const body = prompt("Masukkan Isi Detail Pengumuman:");
-                  if (title && body) {
-                    alert(`Pengumuman "${title}" berhasil diterbitkan ke portal warga!`);
-                  }
-                }}
-                className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Buat Pengumuman Baru
-              </button>
-
-              <div className="space-y-4">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">KEBERSIHAN</span>
-                    <span className="text-[10px] text-slate-400 font-bold">07 Juli 2026</span>
-                  </div>
-                  <h4 className="font-extrabold text-sm text-slate-805 dark:text-white">Kerja Bakti Saluran Air Warga</h4>
-                  <p className="text-[11px] text-slate-500 leading-relaxed">Pelaksanaan pembersihan gorong-gorong dan pemangkasan dahan pohon liar akan diadakan hari Minggu depan pukul 07:00 WIB.</p>
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Kelola Pengumuman RT</h4>
+                  <p className="text-[10px] text-slate-400">Buat, ubah, atau hapus pengumuman yang tampil di portal warga.</p>
                 </div>
+                <button
+                  onClick={fetchServerAnnouncements}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
+
+              {/* Create / Edit Form */}
+              <form
+                onSubmit={editingAnnouncementId ? handleUpdateAnnouncement : handleCreateAnnouncement}
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+              >
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">
+                  {editingAnnouncementId ? '✏️ Edit Pengumuman' : '📢 Buat Pengumuman Baru'}
+                </h4>
+                <div className="space-y-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Judul Pengumuman *</label>
+                    <input
+                      required
+                      type="text"
+                      value={announcementForm.judul}
+                      onChange={(e) => setAnnouncementForm({ ...announcementForm, judul: e.target.value })}
+                      placeholder="Contoh: Gotong Royong Minggu Depan"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Isi Detail Pengumuman *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      value={announcementForm.isi}
+                      onChange={(e) => setAnnouncementForm({ ...announcementForm, isi: e.target.value })}
+                      placeholder="Tulis isi pengumuman secara lengkap..."
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white leading-relaxed"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="submit" className="py-2 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all">
+                    {editingAnnouncementId ? 'Simpan Perubahan' : 'Terbitkan Pengumuman'}
+                  </button>
+                  {editingAnnouncementId && (
+                    <button
+                      type="button"
+                      onClick={() => { setEditingAnnouncementId(null); setAnnouncementForm({ judul: '', isi: '' }); }}
+                      className="py-2 px-4 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs rounded-xl cursor-pointer"
+                    >
+                      Batal
+                    </button>
+                  )}
+                </div>
+              </form>
+
+              {/* Announcement List */}
+              {isLoadingAnnouncements ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat pengumuman...</p>
+                </div>
+              ) : announcementsError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {announcementsError}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {serverAnnouncements.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Belum ada pengumuman yang diterbitkan.</div>
+                  ) : (
+                    serverAnnouncements.map((a) => (
+                      <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">ID #{a.id}</span>
+                            <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">{a.judul}</h4>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">{a.isi}</p>
+                          </div>
+                          <div className="flex gap-1.5 flex-shrink-0 ml-3">
+                            <button
+                              onClick={() => { setEditingAnnouncementId(a.id); setAnnouncementForm({ judul: a.judul, isi: a.isi }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                              className="py-1 px-2.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-amber-100 dark:border-amber-900/30"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteAnnouncement(a.id)}
+                              className="py-1 px-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100 dark:border-rose-900/30"
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -2346,47 +2667,100 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 9. PENGADUAN WARGA */}
           {activeTab === 'sek_pengaduan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal / ID</th>
-                      <th className="p-4">Kategori Laporan</th>
-                      <th className="p-4">Deskripsi Aduan</th>
-                      <th className="p-4 text-center">Status</th>
-                      <th className="p-4 text-right">Tindakan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {(() => {
-                      const allWargaComplaints = [
-                        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' },
-                        { id: 'COM-202', date: '2026-07-04', category: 'Kebersihan', description: 'Saluran air depan blok A3 mampet karena tumpukan sampah plastik.', status: 'Diterima' }
-                      ];
-                      return allWargaComplaints.map((c) => (
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Daftar Pengaduan Warga</h4>
+                  <p className="text-[10px] text-slate-400">Review aspirasi, laporan, atau pengajuan surat pengantar dari KK warga.</p>
+                </div>
+                <button
+                  onClick={fetchServerComplaints}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                >
+                  🔄 Segarkan
+                </button>
+              </div>
+
+              {isLoadingComplaints ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat data pengaduan...</p>
+                </div>
+              ) : complaintsError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {complaintsError}
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">ID / KK</th>
+                        <th className="p-4">Kategori Laporan</th>
+                        <th className="p-4">Deskripsi Aduan / Keperluan</th>
+                        <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-right">Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {serverComplaints.map((c) => (
                         <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                          <td className="p-4 font-mono font-bold text-slate-500">{c.date}</td>
-                          <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{c.category}</td>
-                          <td className="p-4 text-slate-550 dark:text-slate-400 max-w-xs truncate" title={c.description}>{c.description}</td>
+                          <td className="p-4 font-mono font-bold space-y-1">
+                            <div className="text-slate-800 dark:text-slate-200">#ADU-{c.id}</div>
+                            <div className="text-[10px] text-slate-450">KK: {c.no_kk || '-'}</div>
+                          </td>
+                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-500 text-[10px]">
+                              {c.jenis}
+                            </span>
+                          </td>
+                          <td className="p-4 text-slate-600 dark:text-slate-350 max-w-xs truncate" title={c.keperluan}>
+                            {c.keperluan}
+                          </td>
                           <td className="p-4 text-center">
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] ${
-                              c.status === 'Selesai' 
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                              c.status === 'disetujui'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                : c.status === 'ditolak'
+                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-450'
                                 : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
                             }`}>
                               {c.status}
                             </span>
                           </td>
                           <td className="p-4 text-right space-x-1.5 font-sans">
-                            <button onClick={() => alert(`Status aduan ${c.id} diubah menjadi 'Sedang Ditinjau'`)} className="py-1 px-2 bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-600 text-[9px] font-bold rounded-lg cursor-pointer">Tinjau</button>
-                            <button onClick={() => alert(`Status aduan ${c.id} diselesaikan!`)} className="py-1 px-2 bg-emerald-600 text-white text-[9px] font-bold rounded-lg cursor-pointer">Selesai</button>
+                            {c.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateComplaintStatus(c.id, 'disetujui')}
+                                  className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors"
+                                >
+                                  Setujui
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateComplaintStatus(c.id, 'ditolak')}
+                                  className="py-1 px-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100 dark:border-rose-900/30"
+                                >
+                                  Tolak
+                                </button>
+                              </>
+                            )}
+                            {c.status !== 'pending' && (
+                              <span className="text-[10px] text-slate-400 italic font-bold">Selesai Ditinjau</span>
+                            )}
                           </td>
                         </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                      {serverComplaints.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="p-12 text-center text-slate-450 font-bold italic">
+                            Belum ada pengaduan terdaftar di server.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -2819,8 +3193,30 @@ export default function AdminDashboard({
                       .map((w) => (
                         <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
-                            <div className="font-bold text-slate-800 dark:text-white">NIK: {w.nik}</div>
-                            <div className="text-[10px] text-slate-400">KK: {w.noKk}</div>
+                            <div className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                              <span>NIK: {revealedNiks[w.id] || w.nik}</span>
+                              {w.nik?.includes('x') && !revealedNiks[w.id] && (
+                                <button
+                                  onClick={() => handleRevealWarga(w.id)}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                  title="Buka Sensor NIK"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                              <span>KK: {revealedKks[w.family_id || w.fammilyId || w.id] || w.noKk}</span>
+                              {w.noKk?.includes('x') && !revealedKks[w.family_id || w.fammilyId || w.id] && (
+                                <button
+                                  onClick={() => handleRevealResident(w.family_id || w.fammilyId || w.id)}
+                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                  title="Buka Sensor KK"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="p-4 space-y-1 font-sans">
                             <span className="font-bold text-slate-905 dark:text-slate-100">{w.name}</span>
@@ -3230,7 +3626,7 @@ export default function AdminDashboard({
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup')
                       .map(w => (
-                        <option key={w.id} value={w.id}>{w.name} (Blok {w.alamat.split('Blok ').pop() || w.alamat})</option>
+                        <option key={w.id} value={w.id}>{w.name} (Blok {w.alamat ? (w.alamat.split('Blok ').pop() || w.alamat) : 'Belum diisi'})</option>
                       ))}
                   </select>
                 </div>
