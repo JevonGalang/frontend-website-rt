@@ -94,6 +94,10 @@ export default function ProfilWarga({
   const [wargaAnnouncements, setWargaAnnouncements] = useState([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
 
+  // Warga submissions (pengajuan) state
+  const [serverSubmissions, setServerSubmissions] = useState([]);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+
   const fetchFamilyMembers = async () => {
     const famId = currentUser.familyId || currentUser.family_id;
     if (!famId) return;
@@ -147,7 +151,12 @@ export default function ProfilWarga({
 
       if (response.ok) {
         const data = await response.json();
-        setPengaduanList(Array.isArray(data) ? data : []);
+        const mappedData = (Array.isArray(data) ? data : []).map(item => ({
+          ...item,
+          jenis: item.jenis_pengaduan || item.jenis,
+          keperluan: item.isi || item.keperluan
+        }));
+        setPengaduanList(mappedData);
       }
     } catch (err) {
       console.error('Error fetching complaints:', err);
@@ -173,10 +182,33 @@ export default function ProfilWarga({
     }
   };
 
+  const fetchCitizenSubmissions = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingSubmissions(true);
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setServerSubmissions(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Error fetching citizen submissions:', err);
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
+  };
+
   useEffect(() => {
     fetchFamilyMembers();
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
+    fetchCitizenSubmissions();
   }, [activeTab]);
 
   // Save changes helper
@@ -269,34 +301,47 @@ export default function ProfilWarga({
     setIsEditing(false);
   };
 
-  const handleLetterSubmit = (e) => {
+  const handleLetterSubmit = async (e) => {
     e.preventDefault();
     if (!letterForm.keperluan.trim()) {
       alert('Silakan tulis keperluan pengajuan surat.');
       return;
     }
 
-    const newSubmission = {
-      id: 'LTR-' + Math.floor(Math.random() * 90000 + 10000),
-      wargaId: currentUser.id,
-      wargaNama: currentUser.name,
-      wargaTipeSurat: letterForm.tipeSurat,
-      wargaKeperluan: letterForm.keperluan,
-      status: 'Pending',
-      submissionDate: new Date().toLocaleDateString('id-ID', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    };
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
 
-    setSubmissionsList([newSubmission, ...submissionsList]);
-    alert('Pengajuan surat pengantar berhasil dikirim ke Pengurus RT!');
-    setLetterForm({
-      tipeSurat: 'Surat Pengantar Pengurusan KTP',
-      keperluan: ''
-    });
-    setActiveTab('layanan_status');
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          keperluan: letterForm.keperluan,
+          jenis: letterForm.tipeSurat
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Pengajuan surat pengantar berhasil dikirim!');
+        setLetterForm({
+          tipeSurat: 'Surat Pengantar Pengurusan KTP',
+          keperluan: ''
+        });
+        fetchCitizenSubmissions();
+        setActiveTab('layanan_status');
+      } else {
+        alert(data.message || data.pesan || 'Gagal mengirim pengajuan.');
+      }
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
   };
 
   const handleUploadSubmit = (e) => {
@@ -342,8 +387,8 @@ export default function ProfilWarga({
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          keperluan: pengaduanForm.description,
-          jenis: pengaduanForm.category
+          isi: pengaduanForm.description,
+          jenis_pengaduan: pengaduanForm.category
         })
       });
 
@@ -405,7 +450,18 @@ export default function ProfilWarga({
   };
 
   // Derived properties
-  const mySubmissions = submissionsList.filter(s => s.wargaId === currentUser.id);
+  const mySubmissions = [
+    ...serverSubmissions.map(sub => ({
+      id: sub.id,
+      wargaNama: currentUser.name || `Keluarga #${sub.family_id}`,
+      wargaTipeSurat: sub.jenis,
+      wargaKeperluan: sub.keperluan,
+      status: sub.status === 'disetujui' ? 'Approved' : (sub.status === 'ditolak' ? 'Rejected' : 'Pending'),
+      submissionDate: 'Server API',
+      isFromServer: true
+    })),
+    ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-'))
+  ];
   const myPayments = transaksiKasList.filter(t => t.description.includes(currentUser.name));
 
   const familyHead = familyMembers[0] || null;

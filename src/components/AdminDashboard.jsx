@@ -137,7 +137,12 @@ export default function AdminDashboard({
       }
 
       const data = await response.json();
-      setServerComplaints(Array.isArray(data) ? data : []);
+      const mappedData = (Array.isArray(data) ? data : []).map(item => ({
+        ...item,
+        jenis: item.jenis_pengaduan || item.jenis,
+        keperluan: item.isi || item.keperluan
+      }));
+      setServerComplaints(mappedData);
     } catch (err) {
       console.error(err);
       setComplaintsError(err.message);
@@ -268,6 +273,43 @@ export default function AdminDashboard({
         alert(data.message || 'Gagal menghapus pengumuman.');
       }
     } catch (err) { alert(`Gagal menghubungi server: ${err.message}`); }
+  };
+
+  // ── Server Submissions State ──
+  const [serverSubmissions, setServerSubmissions] = useState([]);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [submissionsError, setSubmissionsError] = useState('');
+
+  const fetchServerSubmissions = async () => {
+    setIsLoadingSubmissions(true);
+    setSubmissionsError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setSubmissionsError('Token tidak ditemukan. Harap login kembali.');
+      setIsLoadingSubmissions(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/pengajuan', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Gagal memuat data pengajuan dari server.');
+      }
+
+      const data = await response.json();
+      setServerSubmissions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setSubmissionsError(err.message);
+    } finally {
+      setIsLoadingSubmissions(false);
+    }
   };
 
   const [residentServerList, setResidentServerList] = useState([]);
@@ -414,6 +456,9 @@ export default function AdminDashboard({
     }
     if (activeTab === 'sek_info_pengumuman') {
       fetchServerAnnouncements();
+    }
+    if (activeTab === 'overview' || activeTab === 'layanan') {
+      fetchServerSubmissions();
     }
   }, [activeTab, residentSubTab]);
 
@@ -645,6 +690,29 @@ export default function AdminDashboard({
     localStorage.setItem('rt_submissions', JSON.stringify(updatedList));
   };
 
+  const displaySubmissions = [
+    ...serverSubmissions.map(sub => {
+      const w = wargaList.find(c => 
+        (c.family_id && String(c.family_id) === String(sub.family_id)) ||
+        (c.fammilyId && String(c.fammilyId) === String(sub.family_id)) ||
+        (c.noKk && sub.no_kk && !sub.no_kk.includes('x') && c.noKk === sub.no_kk)
+      );
+      return {
+        id: sub.id,
+        wargaNama: w ? w.name : `Keluarga #${sub.family_id}`,
+        wargaNik: w ? w.nik : 'Sensor',
+        wargaNoKk: sub.no_kk,
+        wargaAlamat: w ? w.alamat : 'Sawangan Green Park',
+        wargaTipeSurat: sub.jenis,
+        wargaKeperluan: sub.keperluan,
+        status: sub.status === 'disetujui' ? 'Approved' : (sub.status === 'ditolak' ? 'Rejected' : 'Pending'),
+        submissionDate: 'Server API',
+        isFromServer: true
+      };
+    }),
+    ...submissionsList.filter(s => typeof s.id === 'string' && s.id.startsWith('LTR-'))
+  ];
+
   // Log out function
   const handleLogout = () => {
     setCurrentUser(null);
@@ -673,7 +741,7 @@ export default function AdminDashboard({
   const sisaKasRT = sisaKas;
 
   const totalAgendas = agendaList.length;
-  const pendingSubmissionsCount = submissionsList.filter(s => s.status === 'Pending' || !s.status).length;
+  const pendingSubmissionsCount = displaySubmissions.filter(s => s.status === 'Pending' || !s.status).length;
 
   // Format currency
   const formatRupiah = (num) => {
@@ -967,22 +1035,62 @@ export default function AdminDashboard({
   };
 
   // Letter Submissions Handlers (Approve/Reject/Complete)
-  const handleSubmissionStatus = (id, nextStatus) => {
-    const updated = submissionsList.map(sub => {
-      if (sub.id === id) {
-        return {
-          ...sub,
-          status: nextStatus,
-          processedDate: new Date().toLocaleDateString('id-ID', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          })
-        };
+  const handleSubmissionStatus = async (id, nextStatus) => {
+    // If the ID is a local/mock ID (like starting with LTR-), we can update it locally
+    if (typeof id === 'string' && id.startsWith('LTR-')) {
+      const updated = submissionsList.map(sub => {
+        if (sub.id === id) {
+          return {
+            ...sub,
+            status: nextStatus,
+            processedDate: new Date().toLocaleDateString('id-ID', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            })
+          };
+        }
+        return sub;
+      });
+      saveSubmissions(updated);
+      return;
+    }
+
+    // Otherwise, it is a server ID
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
+
+    // Map nextStatus to backend status
+    let apiStatus = 'pending';
+    if (nextStatus === 'Approved' || nextStatus === 'Completed') {
+      apiStatus = 'disetujui';
+    } else if (nextStatus === 'Rejected') {
+      apiStatus = 'ditolak';
+    }
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/admin/pengajuan/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: apiStatus })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Status pengajuan berhasil diperbarui!');
+        fetchServerSubmissions();
+      } else {
+        alert(data.message || data.pesan || 'Gagal memperbarui status pengajuan.');
       }
-      return sub;
-    });
-    saveSubmissions(updated);
+    } catch (err) {
+      alert(`Gagal menghubungi server: ${err.message}`);
+    }
   };
 
   return (
@@ -1875,13 +1983,13 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="flex-1 overflow-y-auto max-h-[280px] space-y-4 pr-1">
-                    {submissionsList.length === 0 ? (
+                    {displaySubmissions.length === 0 ? (
                       <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
                         <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
                         <p className="text-xs font-bold">Tidak ada pengajuan surat yang masuk.</p>
                       </div>
                     ) : (
-                      submissionsList.slice().reverse().map((sub, idx) => (
+                      displaySubmissions.slice().reverse().map((sub, idx) => (
                         <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-xs transition-shadow">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
@@ -4411,7 +4519,7 @@ export default function AdminDashboard({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {submissionsList
+                    {displaySubmissions
                       .filter(s => s.wargaNama.toLowerCase().includes(searchQuery.toLowerCase()))
                       .map((sub) => (
                         <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
