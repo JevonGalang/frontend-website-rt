@@ -180,6 +180,41 @@ export default function AdminDashboard({
     }
   };
 
+  const [staffForm, setStaffForm] = useState({ username: '', password: '', email: '', role: 'sekertaris' });
+  const handleCreateStaffAccount = async (e) => {
+    e.preventDefault();
+    if (!staffForm.username.trim() || !staffForm.password.trim() || !staffForm.email.trim()) {
+      alert('Harap isi semua input form staff.');
+      return;
+    }
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/create-staff-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: staffForm.username.trim(),
+          password: staffForm.password.trim(),
+          email: staffForm.email.trim(),
+          role: staffForm.role
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Akun staff berhasil dibuat!');
+        setStaffForm({ username: '', password: '', email: '', role: 'sekertaris' });
+      } else {
+        alert(data.message || data.pesan || 'Gagal membuat akun staff.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
   // ── Announcement State ──
   const [serverAnnouncements, setServerAnnouncements] = useState([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
@@ -318,6 +353,242 @@ export default function AdminDashboard({
   const fetchBuktiBayarWarga = () => {
     const saved = localStorage.getItem('rt_warga_bukti_bayar');
     setBuktiBayarWarga(saved ? JSON.parse(saved) : []);
+  };
+
+  const [pendingWargaList, setPendingWargaList] = useState([]);
+  const [isLoadingPendingWarga, setIsLoadingPendingWarga] = useState(false);
+  const [pendingWargaError, setPendingWargaError] = useState('');
+
+  const fetchPendingWargaList = async () => {
+    setIsLoadingPendingWarga(true);
+    setPendingWargaError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setPendingWargaError('Token tidak ditemukan.');
+      setIsLoadingPendingWarga(false);
+      return;
+    }
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/pending-warga', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Gagal mengambil daftar warga pending.');
+      const data = await response.json();
+      setPendingWargaList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setPendingWargaError(err.message);
+    } finally {
+      setIsLoadingPendingWarga(false);
+    }
+  };
+
+  const handleVerifyPendingWarga = async (wargaId, status) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/admin/pending-warga/${wargaId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status }) // 'diterima' atau 'ditolak'
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || `Verifikasi status warga berhasil diupdate menjadi ${status}!`);
+        fetchPendingWargaList();
+      } else {
+        alert(data.message || data.pesan || 'Gagal mengubah status verifikasi warga.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
+  const [pendingPayments, setPendingPayments] = useState({ ipl: [], kas: [] });
+  const [isLoadingPendingPayments, setIsLoadingPendingPayments] = useState(false);
+  const [pendingPaymentsError, setPendingPaymentsError] = useState('');
+
+  const fetchPendingPayments = async () => {
+    setIsLoadingPendingPayments(true);
+    setPendingPaymentsError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setPendingPaymentsError('Token tidak ditemukan.');
+      setIsLoadingPendingPayments(false);
+      return;
+    }
+    try {
+      console.log('--- BENDAHARA: fetchPendingPayments started ---');
+      console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
+      const response = await fetch('http://172.20.32.62:3333/admin/finance/pending', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      console.log('HTTP Status Response:', response.status);
+      if (!response.ok) throw new Error('Gagal mengambil daftar transfer pending.');
+      const data = await response.json();
+      console.log('Raw JSON data received from pending API:', data);
+      
+      let rawIpl = [];
+      let rawKas = [];
+      
+      const envelope = data.output || data.data || data;
+      console.log('Envelope parsed:', envelope);
+      
+      if (Array.isArray(envelope)) {
+        console.log('Envelope is an array. Filtering flat list of pending payments...');
+        rawIpl = envelope.filter(item => (item.month !== undefined && item.month !== null) || (item.bulan !== undefined && item.bulan !== null));
+        rawKas = envelope.filter(item => (item.month === undefined || item.month === null) && (item.bulan === undefined || item.bulan === null));
+      } else if (envelope && typeof envelope === 'object') {
+        console.log('Envelope is an object. Checking ipl and kas arrays...');
+        const target = (envelope.pesan && typeof envelope.pesan === 'object') ? envelope.pesan : envelope;
+        const iplPart = target.ipl || target.data_ipl || [];
+        const kasPart = target.kas || target.data_kas || [];
+        
+        console.log('Raw iplPart:', iplPart);
+        console.log('Raw kasPart:', kasPart);
+        
+        if (Array.isArray(iplPart)) {
+          rawIpl = iplPart;
+        } else if (iplPart && Array.isArray(iplPart.output)) {
+          rawIpl = iplPart.output;
+        }
+        
+        if (Array.isArray(kasPart)) {
+          rawKas = kasPart;
+        } else if (kasPart && Array.isArray(kasPart.output)) {
+          rawKas = kasPart.output;
+        }
+      } else {
+        console.log('Envelope format is unrecognized.');
+      }
+      
+      console.log('Total rawIpl items filtered/extracted:', rawIpl.length);
+      console.log('Total rawKas items filtered/extracted:', rawKas.length);
+      
+      // Map keys to expected frontend keys
+      const iplMapped = rawIpl.map(item => ({
+        ...item,
+        id: item.transaksi_id !== undefined ? item.transaksi_id : (item.id !== undefined ? item.id : item.transaksi_id),
+        warga_nama: item.nama || item.warga_nama || `Keluarga KK #${item.family_id || item.id_family || ''}`,
+        payment_date: item.created_at || item.payment_date,
+        year: item.tahun !== undefined ? item.tahun : item.year,
+        month: item.bulan || item.month,
+        payment_proof: item.bukti_pembayaran || item.payment_proof,
+        status: item.status
+      }));
+      
+      const kasMapped = rawKas.map(item => ({
+        ...item,
+        id: item.transaksi_id !== undefined ? item.transaksi_id : (item.id !== undefined ? item.id : item.transaksi_id),
+        warga_nama: item.nama || item.warga_nama || `Keluarga KK #${item.family_id || item.id_family || ''}`,
+        payment_date: item.created_at || item.payment_date,
+        category: item.kategori || item.category,
+        description: item.keterangan || item.description,
+        payment_proof: item.bukti_pembayaran || item.payment_proof,
+        amount: item.jumlah !== undefined ? item.jumlah : item.amount,
+        status: item.status
+      }));
+
+      console.log('Mapped IPL items list:', iplMapped);
+      console.log('Mapped Kas items list:', kasMapped);
+
+      setPendingPayments({ ipl: iplMapped, kas: kasMapped });
+    } catch (err) {
+      console.error('Error occurred in fetchPendingPayments:', err);
+      setPendingPaymentsError(err.message);
+    } finally {
+      setIsLoadingPendingPayments(false);
+    }
+  };
+
+  const handleVerifyPendingPayment = async (type, paymentId, status) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const endpoint = type === 'ipl' 
+        ? `http://172.20.32.62:3333/admin/finance/approve-ipl/${paymentId}`
+        : `http://172.20.32.62:3333/admin/finance/approve-kas/${paymentId}`;
+
+      const response = await fetch(endpoint, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || `Verifikasi iuran ${type.toUpperCase()} berhasil diupdate menjadi ${status}!`);
+        fetchPendingPayments();
+      } else {
+        alert(data.message || data.pesan || `Gagal mengubah status verifikasi iuran ${type}.`);
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
+  const [iplAmountInput, setIplAmountInput] = useState(200000);
+  const handleUpdateIplSetting = async (e) => {
+    e.preventDefault();
+    if (!iplAmountInput || isNaN(iplAmountInput) || parseInt(iplAmountInput) <= 0) {
+      alert('Masukkan nominal tarif IPL yang valid.');
+      return;
+    }
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/finance/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ ipl_amount: parseInt(iplAmountInput) })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Tarif setting IPL berhasil diperbarui!');
+        // Update local jenisIuranList for instant feedback
+        setJenisIuranList(prev => prev.map(j => j.id === 'IPL' || j.name?.includes('IPL') ? { ...j, amount: parseInt(iplAmountInput) } : j));
+      } else {
+        alert(data.message || data.pesan || 'Gagal memperbarui tarif setting IPL.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
+  const [financeTrackingList, setFinanceTrackingList] = useState([]);
+  const [isLoadingFinanceTracking, setIsLoadingFinanceTracking] = useState(false);
+  const [financeTrackingError, setFinanceTrackingError] = useState('');
+
+  const fetchFinanceTracking = async () => {
+    setIsLoadingFinanceTracking(true);
+    setFinanceTrackingError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setFinanceTrackingError('Token tidak ditemukan.');
+      setIsLoadingFinanceTracking(false);
+      return;
+    }
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/finance/tracking', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Gagal mengambil data tracking iuran.');
+      const data = await response.json();
+      setFinanceTrackingList(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      setFinanceTrackingError(err.message);
+    } finally {
+      setIsLoadingFinanceTracking(false);
+    }
   };
 
   useEffect(() => {
@@ -501,6 +772,16 @@ export default function AdminDashboard({
     }
     if (activeTab === 'sek_info_pengumuman') {
       fetchServerAnnouncements();
+    }
+    if (activeTab === 'sek_warga_masuk') {
+      fetchPendingWargaList();
+    }
+    if (activeTab === 'iuran_verifikasi') {
+      fetchPendingPayments();
+      fetchResidentServerList();
+    }
+    if (activeTab === 'iuran_tunggakan') {
+      fetchFinanceTracking();
     }
     if (activeTab === 'overview' || activeTab === 'layanan') {
       fetchServerSubmissions();
@@ -1022,7 +1303,36 @@ export default function AdminDashboard({
         setFormError('Username sudah digunakan.');
         return;
       }
-      const updated = wargaList.map(w => w.id === selectedItem.id ? { ...wargaForm, usia: parseInt(wargaForm.usia) || 30 } : w);
+
+      const token = localStorage.getItem('rt_token');
+      const isNumericId = /^\d+$/.test(selectedItem.id);
+      if (token && isNumericId) {
+        try {
+          const response = await fetch(`http://172.20.32.62:3333/resident/warga/${selectedItem.id}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              nama: wargaForm.name,
+              statusHidup: wargaForm.statusHidup,
+              noHp: wargaForm.noHp,
+              umur: parseInt(wargaForm.usia) || 30
+            })
+          });
+
+          if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.message || data.pesan || 'Gagal memperbarui data warga di server.');
+          }
+          alert('Data warga berhasil diperbarui di server database!');
+        } catch (err) {
+          alert(`Gagal memperbarui di server: ${err.message}. Perubahan disimpan secara lokal.`);
+        }
+      }
+
+      const updated = wargaList.map(w => w.id === selectedItem.id ? { ...wargaForm, name: wargaForm.name, usia: parseInt(wargaForm.usia) || 30 } : w);
       saveWarga(updated);
     }
     setModalType('');
@@ -1456,12 +1766,23 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data KK</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_masuk' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Verifikasi Warga</span>
                     </button>
                   </div>
                 )}
@@ -1767,12 +2088,23 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data KK</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'sek_warga_masuk' 
+                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Verifikasi Warga</span>
                     </button>
                   </div>
                 )}
@@ -2440,97 +2772,89 @@ export default function AdminDashboard({
             </div>
           )}
 
-          {/* SEKRETARIS: 2. PENDUDUK MASUK */}
+          {/* SEKRETARIS: 2. PENDUDUK MASUK -> VERIFIKASI WARGA MANDIRI */}
           {activeTab === 'sek_warga_masuk' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!pendudukMasukForm.name || !pendudukMasukForm.address) return;
-                  const newEntry = {
-                    id: 'IN-' + Math.floor(Math.random() * 900 + 100),
-                    name: pendudukMasukForm.name,
-                    date: pendudukMasukForm.date,
-                    address: pendudukMasukForm.address,
-                    origin: pendudukMasukForm.origin || '-',
-                    status: pendudukMasukForm.status
-                  };
-                  setPendudukMasukList([newEntry, ...pendudukMasukList]);
-                  setPendudukMasukForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
-                  alert('Warga masuk berhasil dicatat!');
-                }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
-              >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Masuk Baru</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Nama Penduduk *</label>
-                    <input
-                      required
-                      type="text"
-                      value={pendudukMasukForm.name}
-                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, name: e.target.value })}
-                      placeholder="Contoh: Rian Kurniawan"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Tanggal Masuk *</label>
-                    <input
-                      required
-                      type="date"
-                      value={pendudukMasukForm.date}
-                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Alamat Domisili RT 04 *</label>
-                    <input
-                      required
-                      type="text"
-                      value={pendudukMasukForm.address}
-                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, address: e.target.value })}
-                      placeholder="Contoh: Blok B3 No. 12"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Daerah Asal</label>
-                    <input
-                      type="text"
-                      value={pendudukMasukForm.origin}
-                      onChange={(e) => setPendudukMasukForm({ ...pendudukMasukForm, origin: e.target.value })}
-                      placeholder="Contoh: Bandung"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Verifikasi Pendaftaran Warga Mandiri</h4>
+                  <p className="text-[10px] text-slate-400">Tinjau dan setujui pendaftaran anggota keluarga baru yang diajukan secara mandiri oleh warga.</p>
                 </div>
-                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Masuk</button>
-              </form>
-
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal Masuk</th>
-                      <th className="p-4">Nama Penduduk</th>
-                      <th className="p-4">Alamat RT 04</th>
-                      <th className="p-4">Asal Pindahan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {pendudukMasukList.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{p.name}</td>
-                        <td className="p-4 text-slate-500">{p.address}</td>
-                        <td className="p-4 text-slate-500">{p.origin}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <button
+                  onClick={fetchPendingWargaList}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
+
+              {isLoadingPendingWarga ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat data warga pending...</p>
+                </div>
+              ) : pendingWargaError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {pendingWargaError}
+                </div>
+              ) : pendingWargaList.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada pendaftaran warga baru yang menunggu verifikasi.</div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">Warga Baru</th>
+                        <th className="p-4">NIK (Tersensor)</th>
+                        <th className="p-4">Keluarga (KK)</th>
+                        <th className="p-4">Alamat Domisili</th>
+                        <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-right">Tindakan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {pendingWargaList.map((w) => (
+                        <tr key={w.warga_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <td className="p-4 space-y-1">
+                            <span className="font-bold text-slate-900 dark:text-white block">{w.nama}</span>
+                            <span className="text-[10px] text-slate-400 block">{w.jenis_kelamin} • {w.umur} Tahun</span>
+                          </td>
+                          <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400">{w.nik}</td>
+                          <td className="p-4 font-sans space-y-0.5">
+                            <div className="font-bold text-slate-750 dark:text-slate-300">ID Keluarga: #{w.family_id}</div>
+                            <div className="text-[10px] text-slate-450 font-mono">KK: {w.family_nokk}</div>
+                          </td>
+                          <td className="p-4 font-sans space-y-0.5">
+                            <div className="font-semibold text-slate-750 dark:text-slate-350">Blok {w.house_blok} No. {w.house_nomor}</div>
+                            <div className="text-[10px] text-slate-450 max-w-xs truncate">{w.house_alamat}</div>
+                          </td>
+                          <td className="p-4 text-center">
+                            <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse uppercase">
+                              {w.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-right font-sans">
+                            <div className="inline-flex gap-1.5 justify-end">
+                              <button
+                                onClick={() => handleVerifyPendingWarga(w.warga_id, 'diterima')}
+                                className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Setujui
+                              </button>
+                              <button
+                                onClick={() => handleVerifyPendingWarga(w.warga_id, 'ditolak')}
+                                className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Tolak
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
@@ -3224,6 +3548,72 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 12. MANAJEMEN KREDENSIAL LOGIN */}
           {activeTab === 'sek_akun_manage' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3">
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Manajemen Akun Portal</h4>
+                <p className="text-[10px] text-slate-400">Atur kredensial login warga atau buat akun kepengurusan staff baru.</p>
+              </div>
+
+              {currentUser.role === 'rt' && (
+                <form
+                  onSubmit={handleCreateStaffAccount}
+                  className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl text-xs sm:text-sm mb-6"
+                >
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">📢 Buat Akun Pengurus Baru (Sekretaris / Bendahara)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">Username *</label>
+                      <input
+                        required
+                        type="text"
+                        value={staffForm.username}
+                        onChange={(e) => setStaffForm({ ...staffForm, username: e.target.value })}
+                        placeholder="Contoh: bendahara_rt04"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">Kata Sandi *</label>
+                      <input
+                        required
+                        type="password"
+                        value={staffForm.password}
+                        onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">Email *</label>
+                      <input
+                        required
+                        type="email"
+                        value={staffForm.email}
+                        onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
+                        placeholder="Contoh: staff@gmail.com"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">Peran / Jabatan *</label>
+                      <select
+                        value={staffForm.role}
+                        onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs animate-none"
+                      >
+                        <option value="sekertaris">Sekretaris (sekertaris)</option>
+                        <option value="bendahara">Bendahara (bendahara)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Tambah Staff Pengurus
+                  </button>
+                </form>
+              )}
+
               <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
@@ -3849,11 +4239,33 @@ export default function AdminDashboard({
           {/* IURAN: 1. Jenis Iuran */}
           {activeTab === 'iuran_jenis' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Jenis Iuran Warga</h3>
                   <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 04 Sawangan Green Park.</p>
                 </div>
+
+                {currentUser.role === 'bendahara' && (
+                  <form
+                    onSubmit={handleUpdateIplSetting}
+                    className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs"
+                  >
+                    <span className="font-bold text-slate-550 dark:text-slate-400">Set Tarif IPL (Rp):</span>
+                    <input
+                      required
+                      type="number"
+                      value={iplAmountInput}
+                      onChange={(e) => setIplAmountInput(e.target.value)}
+                      className="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
+                    />
+                    <button
+                      type="submit"
+                      className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer"
+                    >
+                      Update
+                    </button>
+                  </form>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {jenisIuranList.map((j) => (
@@ -4064,144 +4476,272 @@ export default function AdminDashboard({
           {/* IURAN: 4. Tunggakan */}
           {activeTab === 'iuran_tunggakan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Tunggakan Iuran Warga</h3>
-                <p className="text-xs text-slate-400">Daftar warga yang menunggak kewajiban iuran bulanan.</p>
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemetaan & Tracking Tunggakan IPL Rumah</h3>
+                  <p className="text-xs text-slate-400">Daftar rumah warga dan rincian tunggakan iuran bulanan (IPL) yang belum dibayarkan.</p>
+                </div>
+                <button
+                  onClick={fetchFinanceTracking}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Nama Warga</th>
-                      <th className="p-4">Alamat Rumah</th>
-                      <th className="p-4 text-center">Status Iuran</th>
-                      <th className="p-4 text-right">Aksi Tindakan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {wargaList
-                      .filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak'))
-                      .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                          <td className="p-4 font-bold text-slate-900 dark:text-white">
-                            {w.name}
-                            <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
-                          </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-350 italic">
-                            {w.alamat}
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className="px-2.5 py-1 text-[10px] font-extrabold rounded-lg bg-rose-500/10 text-rose-500">
-                              {w.statusIuran}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right font-sans">
-                            <div className="inline-flex gap-1.5">
-                              <button
-                                onClick={() => handleUpdateIuranStatus(w.id, 'Lunas')}
-                                className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
-                              >
-                                Konfirmasi Lunas
-                              </button>
-                              <button
-                                onClick={() => handleSendBillingAlert(w.id)}
-                                className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
-                              >
-                                Tagih Warga
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    {wargaList.filter(w => w.statusHidup === 'Hidup' && w.statusIuran?.includes('Menunggak')).length === 0 && (
-                      <tr>
-                        <td colSpan={4} className="p-8 text-center text-slate-400 font-bold italic">Tidak ada tunggakan iuran! Seluruh warga lunas.</td>
+              {isLoadingFinanceTracking ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat data tracking tunggakan...</p>
+                </div>
+              ) : financeTrackingError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {financeTrackingError}
+                </div>
+              ) : financeTrackingList.length === 0 ? (
+                <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada data tracking tunggakan iuran.</div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">Alamat Rumah</th>
+                        <th className="p-4">Status Kepemilikan</th>
+                        <th className="p-4">Bulan Menunggak</th>
+                        <th className="p-4 text-center">Status Iuran</th>
+                        <th className="p-4 text-right">Aksi</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {financeTrackingList.map((h) => {
+                        const unpaidCount = h.unpaid_months ? h.unpaid_months.length : 0;
+                        const isMenunggak = unpaidCount > 0;
+                        return (
+                          <tr key={h.house_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                            <td className="p-4 space-y-1">
+                              <span className="font-bold text-slate-900 dark:text-white block">Blok {h.blok} No. {h.nomor}</span>
+                              <span className="text-[10px] text-slate-400 block">{h.alamat}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                h.current_status === 'pribadi'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450'
+                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                              }`}>
+                                {h.current_status}
+                              </span>
+                            </td>
+                            <td className="p-4 max-w-xs">
+                              {isMenunggak ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {h.unpaid_months.map((m, idx) => (
+                                    <span key={idx} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-805 text-slate-600 dark:text-slate-400 rounded-md font-mono text-[9px] font-bold">
+                                      {m.month}/{m.year}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 italic text-[10px]">Tidak ada tunggakan</span>
+                              )}
+                            </td>
+                            <td className="p-4 text-center">
+                              <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
+                                isMenunggak
+                                  ? 'bg-rose-500/10 text-rose-505'
+                                  : 'bg-emerald-500/10 text-emerald-505'
+                              }`}>
+                                {isMenunggak ? `Menunggak ${unpaidCount} Bulan` : 'Lunas'}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right font-sans">
+                              {isMenunggak ? (
+                                <button
+                                  onClick={() => alert(`Notifikasi tagihan tunggakan IPL dikirim ke seluruh penghuni Blok ${h.blok} No. ${h.nomor}!`)}
+                                  className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                >
+                                  Tagih Rumah
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 font-semibold italic">Lunas</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
           {/* IURAN: 5. Verifikasi Transfer Manual */}
           {activeTab === 'iuran_verifikasi' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verifikasi Bukti Transfer Warga</h3>
-                <p className="text-xs text-slate-400">Verifikasi laporan transfer pembayaran iuran manual yang diupload oleh warga.</p>
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verifikasi Bukti Transfer Warga</h3>
+                  <p className="text-xs text-slate-400">Verifikasi setoran iuran bulanan (IPL) dan uang kas insidental yang dilaporkan warga.</p>
+                </div>
+                <button
+                  onClick={fetchPendingPayments}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal / Warga</th>
-                      <th className="p-4">Bulan Iuran</th>
-                      <th className="p-4">Nominal</th>
-                      <th className="p-4">Catatan</th>
-                      <th className="p-4 text-center">Status</th>
-                      <th className="p-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {buktiBayarWarga.map((b) => (
-                      <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                        <td className="p-4 space-y-1">
-                          <span className="font-bold text-slate-900 dark:text-white block">{b.wargaNama || 'Warga'}</span>
-                          <span className="text-[10px] text-slate-400 font-mono block">ID: {b.id} | {b.date}</span>
-                        </td>
-                        <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
-                          {b.bulan}
-                        </td>
-                        <td className="p-4 font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                          {formatRupiah(b.nominal)}
-                        </td>
-                        <td className="p-4 text-slate-500 max-w-xs truncate italic">
-                          "{b.catatan || '-'}"
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
-                            b.status === 'Disetujui' || b.status === 'Lunas'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : b.status === 'Ditolak'
-                              ? 'bg-rose-500/10 text-rose-500'
-                              : 'bg-amber-500/10 text-amber-500'
-                          }`}>
-                            {b.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-right">
-                          {b.status === 'Menunggu Verifikasi' ? (
-                            <div className="inline-flex gap-1.5 justify-end">
-                              <button
-                                onClick={() => handleVerifyManualReceipt(b.id, true)}
-                                className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
-                              >
-                                Setujui
-                              </button>
-                              <button
-                                onClick={() => handleVerifyManualReceipt(b.id, false)}
-                                className="py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
-                              >
-                                Tolak
-                              </button>
-                            </div>
-                          ) : (
-                            <span className="text-[10px] text-slate-400 font-semibold italic">Sudah Diproses</span>
+              {isLoadingPendingPayments ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat antrean verifikasi...</p>
+                </div>
+              ) : pendingPaymentsError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {pendingPaymentsError}
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* Table 1: IPL approvals */}
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">1. Verifikasi Iuran Bulanan (IPL)</h4>
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">Tanggal / Warga</th>
+                            <th className="p-4">Tahun & Bulan Iuran</th>
+                            <th className="p-4">File Struk</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4 text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {pendingPayments.ipl && pendingPayments.ipl.map((b) => (
+                            <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                              <td className="p-4 space-y-1">
+                                <span className="font-bold text-slate-900 dark:text-white block">
+                                  {(() => {
+                                    const matchingResident = residentServerList.find(r => 
+                                      (r.family_id !== undefined && (r.family_id === b.family_id || r.family_id === b.id_family)) ||
+                                      (r.id !== undefined && (r.id === b.family_id || r.id === b.id_family))
+                                    );
+                                    return b.warga_nama && !b.warga_nama.startsWith('Keluarga KK #')
+                                      ? b.warga_nama
+                                      : (matchingResident ? matchingResident.kepala_keluarga_nama : b.warga_nama);
+                                  })()}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {b.payment_date ? new Date(b.payment_date).toLocaleDateString('id-ID') : '-'}</span>
+                              </td>
+                              <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
+                                Tahun {b.year} - Bulan {b.month}
+                              </td>
+                              <td className="p-4 max-w-xs truncate text-slate-450 font-mono" title={b.payment_proof}>
+                                {b.payment_proof || '-'}
+                              </td>
+                              <td className="p-4">
+                                <span className="px-2 py-0.5 rounded-full font-bold text-[9px] uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">
+                                  {b.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right font-sans">
+                                <div className="inline-flex gap-1.5 justify-end">
+                                  <button
+                                    onClick={() => handleVerifyPendingPayment('ipl', b.id, 'diterima')}
+                                    className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Setujui
+                                  </button>
+                                  <button
+                                    onClick={() => handleVerifyPendingPayment('ipl', b.id, 'ditolak')}
+                                    className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Tolak
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {(!pendingPayments.ipl || pendingPayments.ipl.length === 0) && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-450 font-bold italic">Tidak ada pembayaran IPL yang perlu diverifikasi.</td>
+                            </tr>
                           )}
-                        </td>
-                      </tr>
-                    ))}
-                    {buktiBayarWarga.length === 0 && (
-                      <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-450 font-bold italic">Tidak ada bukti transfer yang perlu diverifikasi.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Table 2: Kas approvals */}
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">2. Verifikasi Uang Kas / Sumbangan</h4>
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">Tanggal / Warga</th>
+                            <th className="p-4">Kategori & Keterangan</th>
+                            <th className="p-4">File Struk</th>
+                            <th className="p-4">Nominal</th>
+                            <th className="p-4 text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {pendingPayments.kas && pendingPayments.kas.map((b) => (
+                            <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                              <td className="p-4 space-y-1">
+                                <span className="font-bold text-slate-900 dark:text-white block">
+                                  {(() => {
+                                    const matchingResident = residentServerList.find(r => 
+                                      (r.family_id !== undefined && (r.family_id === b.family_id || r.family_id === b.id_family)) ||
+                                      (r.id !== undefined && (r.id === b.family_id || r.id === b.id_family))
+                                    );
+                                    return b.warga_nama && !b.warga_nama.startsWith('Keluarga KK #')
+                                      ? b.warga_nama
+                                      : (matchingResident ? matchingResident.kepala_keluarga_nama : b.warga_nama);
+                                  })()}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {b.payment_date ? new Date(b.payment_date).toLocaleDateString('id-ID') : '-'}</span>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-bold text-slate-800 dark:text-slate-200 block capitalize">{b.category}</span>
+                                <span className="text-[10px] text-slate-400 block italic">"{b.description}"</span>
+                              </td>
+                              <td className="p-4 max-w-xs truncate text-slate-455 font-mono" title={b.payment_proof}>
+                                {b.payment_proof || '-'}
+                              </td>
+                              <td className="p-4 font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                                {formatRupiah(b.amount)}
+                              </td>
+                              <td className="p-4 text-right font-sans">
+                                <div className="inline-flex gap-1.5 justify-end">
+                                  <button
+                                    onClick={() => handleVerifyPendingPayment('kas', b.id, 'diterima')}
+                                    className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Setujui
+                                  </button>
+                                  <button
+                                    onClick={() => handleVerifyPendingPayment('kas', b.id, 'ditolak')}
+                                    className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Tolak
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {(!pendingPayments.kas || pendingPayments.kas.length === 0) && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-455 font-bold italic">Tidak ada pembayaran Uang Kas yang perlu diverifikasi.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
           {activeTab === 'keuangan_pemasukan' && (
@@ -4310,11 +4850,44 @@ export default function AdminDashboard({
               </div>
 
               <form 
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (!pengeluaranForm.description || !pengeluaranForm.amount) {
                     alert('Silakan isi seluruh formulir.');
                     return;
+                  }
+
+                  const token = localStorage.getItem('rt_token');
+                  if (token) {
+                    try {
+                      let backendCategory = 'lainnya';
+                      const catLower = pengeluaranForm.category.toLowerCase();
+                      if (catLower.includes('operasional') || catLower.includes('keamanan') || catLower.includes('kebersihan')) {
+                        backendCategory = 'operasional';
+                      } else if (catLower.includes('sosial') || catLower.includes('kematian') || catLower.includes('sumbangan')) {
+                        backendCategory = 'sosial';
+                      }
+
+                      const res = await fetch('http://172.20.32.62:3333/admin/finance/expense', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                          amount: parseInt(pengeluaranForm.amount),
+                          category: backendCategory,
+                          description: pengeluaranForm.description.trim()
+                        })
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        throw new Error(data.message || data.pesan || 'Gagal menyimpan pengeluaran di server.');
+                      }
+                      alert('Transaksi pengeluaran kas berhasil dicatat di server database!');
+                    } catch (err) {
+                      alert(`Gagal menyimpan ke server: ${err.message}. Transaksi dicatat secara lokal.`);
+                    }
                   }
 
                   const newTx = {
@@ -4327,7 +4900,6 @@ export default function AdminDashboard({
                   };
 
                   saveKas([newTx, ...transaksiKasList]);
-                  alert('Berhasil mencatat transaksi pengeluaran kas.');
                   setPengeluaranForm({
                     description: '',
                     amount: '',

@@ -62,11 +62,10 @@ export default function ProfilWarga({
     const saved = localStorage.getItem('rt_warga_bukti_bayar');
     return saved ? JSON.parse(saved) : [];
   });
-  const [buktiBayarForm, setBuktiBayarForm] = useState({
-    nominal: '',
-    bulan: 'Juli',
-    catatan: ''
-  });
+  const [paymentType, setPaymentType] = useState('ipl'); // 'ipl' | 'kas'
+  const [iplForm, setIplForm] = useState({ months: [], year: 2026, file: null });
+  const [kasForm, setKasForm] = useState({ amount: '', category: 'sosial', description: '', file: null });
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Complaint States
   const [pengaduanList, setPengaduanList] = useState(() => {
@@ -100,6 +99,29 @@ export default function ProfilWarga({
   const [serverSubmissions, setServerSubmissions] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
 
+  // Warga payments (finance) state
+  const [wargaPayments, setWargaPayments] = useState({ ipl: [], kas: [] });
+  const [isLoadingPayments, setIsLoadingPayments] = useState(false);
+  const [paymentsError, setPaymentsError] = useState('');
+
+  // Document Management States
+  const [wargaDocuments, setWargaDocuments] = useState(() => JSON.parse(localStorage.getItem('rt_warga_documents') || '[]'));
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [selectedResidentForDoc, setSelectedResidentForDoc] = useState(null);
+  const [docUploadType, setDocUploadType] = useState('ktp');
+  const [docUploadFile, setDocUploadFile] = useState(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
+  }, [wargaDocuments]);
+
+  // Voting Karyawan Terbaik States
+  const [karyawanList, setKaryawanList] = useState([]);
+  const [voteResults, setVoteResults] = useState([]);
+  const [isLoadingVoting, setIsLoadingVoting] = useState(false);
+  const [votingError, setVotingError] = useState('');
+
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isAddingMember, setIsAddingMember] = useState(false);
@@ -121,6 +143,13 @@ export default function ProfilWarga({
   const [pgSelectedBank, setPgSelectedBank] = useState('BCA');
   const [pgVaNumber, setPgVaNumber] = useState('');
   const [pgTimer, setPgTimer] = useState(300);
+
+  const parseArrayResponse = (data) => {
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.output)) return data.output;
+    if (data && Array.isArray(data.data)) return data.data;
+    return [];
+  };
 
   const fetchFamilyMembers = async () => {
     const famId = currentUser.familyId || currentUser.family_id;
@@ -152,7 +181,29 @@ export default function ProfilWarga({
       }
 
       const data = await response.json();
-      setFamilyMembers(Array.isArray(data) ? data : []);
+      const members = parseArrayResponse(data);
+      setFamilyMembers(members);
+
+      // Find the logged-in citizen in the family list to populate real database data
+      const selfMember = members.find(m => m.warga_id === currentUser.id || m.id === currentUser.id);
+      if (selfMember) {
+        const updatedUser = {
+          ...currentUser,
+          name: selfMember.nama || currentUser.name,
+          nik: selfMember.nik || currentUser.nik,
+          gender: selfMember.jenis_kelamin || currentUser.gender,
+          alamat: selfMember.house_alamat || currentUser.alamat,
+          usia: selfMember.umur || currentUser.usia,
+          noHp: selfMember.no_hp || currentUser.noHp,
+          email: selfMember.email || currentUser.email,
+          noKk: selfMember.no_kk || currentUser.noKk || '',
+          status: selfMember.house_status || currentUser.status,
+          tglLahir: selfMember.tgl_lahir || currentUser.tglLahir || '',
+          pekerjaan: selfMember.pekerjaan || currentUser.pekerjaan || ''
+        };
+        setCurrentUser(updatedUser);
+        localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+      }
     } catch (err) {
       console.error(err);
       setFamilyError(err.message);
@@ -175,7 +226,7 @@ export default function ProfilWarga({
 
       if (response.ok) {
         const data = await response.json();
-        const mappedData = (Array.isArray(data) ? data : []).map(item => ({
+        const mappedData = parseArrayResponse(data).map(item => ({
           ...item,
           jenis: item.jenis_pengaduan || item.jenis,
           keperluan: item.isi || item.keperluan
@@ -197,7 +248,7 @@ export default function ProfilWarga({
       });
       if (res.ok) {
         const data = await res.json();
-        setWargaAnnouncements(Array.isArray(data) ? data : []);
+        setWargaAnnouncements(parseArrayResponse(data));
       }
     } catch (err) {
       console.error('Error fetching announcements:', err);
@@ -219,7 +270,7 @@ export default function ProfilWarga({
       });
       if (response.ok) {
         const data = await response.json();
-        setServerSubmissions(Array.isArray(data) ? data : []);
+        setServerSubmissions(parseArrayResponse(data));
       }
     } catch (err) {
       console.error('Error fetching citizen submissions:', err);
@@ -228,11 +279,41 @@ export default function ProfilWarga({
     }
   };
 
+  const fetchWargaPayments = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingPayments(true);
+    setPaymentsError('');
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/my-payments', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.response === 200 && data.output) {
+          setWargaPayments(data.output);
+        }
+      } else {
+        throw new Error('Gagal mengambil histori pembayaran.');
+      }
+    } catch (err) {
+      console.error(err);
+      setPaymentsError(err.message);
+    } finally {
+      setIsLoadingPayments(false);
+    }
+  };
+
   useEffect(() => {
     fetchFamilyMembers();
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
     fetchCitizenSubmissions();
+    fetchWargaPayments();
+    if (activeTab === 'voting_karyawan') {
+      fetchKaryawanList();
+      fetchVoteResults();
+    }
   }, [activeTab]);
 
   // Save changes helper
@@ -245,19 +326,22 @@ export default function ProfilWarga({
   }, [pengaduanList]);
 
   useEffect(() => {
-    if (familyMembers.length > 0 && !currentUser.nik && !formData.nik) {
-      const familyHead = familyMembers[0];
+    if (currentUser) {
       setFormData(prev => ({
         ...prev,
-        name: prev.name && prev.name !== currentUser.username ? prev.name : familyHead.nama,
-        nik: prev.nik || familyHead.nik,
-        alamat: prev.alamat || familyHead.house_alamat,
-        gender: prev.gender || familyHead.jenis_kelamin,
-        usia: prev.usia || familyHead.umur,
-        noHp: prev.noHp || familyHead.no_hp,
+        name: currentUser.name || prev.name,
+        username: currentUser.username || prev.username,
+        nik: currentUser.nik || prev.nik,
+        noKk: currentUser.noKk || prev.noKk,
+        alamat: currentUser.alamat || prev.alamat,
+        gender: currentUser.gender || prev.gender,
+        usia: currentUser.usia || prev.usia,
+        email: currentUser.email || prev.email,
+        noHp: currentUser.noHp || prev.noHp,
+        status: currentUser.status || prev.status
       }));
     }
-  }, [familyMembers]);
+  }, [currentUser]);
 
   const formatRupiah = (num) => {
     return new Intl.NumberFormat('id-ID', {
@@ -368,28 +452,256 @@ export default function ProfilWarga({
     }
   };
 
-  const handleUploadSubmit = (e) => {
+  const handleUploadSubmit = async (e) => {
     e.preventDefault();
-    if (!buktiBayarForm.nominal) {
-      alert('Silakan masukkan nominal transfer.');
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token tidak ditemukan. Harap login kembali.');
       return;
     }
 
-    const newUpload = {
-      id: 'UP-' + Math.floor(Math.random() * 9000 + 1000),
-      date: new Date().toISOString().split('T')[0],
-      nominal: parseInt(buktiBayarForm.nominal) || 0,
-      bulan: buktiBayarForm.bulan,
-      catatan: buktiBayarForm.catatan,
-      status: 'Menunggu Verifikasi',
-      wargaId: currentUser.id,
-      wargaNama: currentUser.name || currentUser.username
-    };
+    setIsSubmittingPayment(true);
 
-    setBuktiBayarList([newUpload, ...buktiBayarList]);
-    alert(`Sukses mengupload bukti iuran bulan ${buktiBayarForm.bulan}. Tunggu verifikasi Bendahara.`);
-    setBuktiBayarForm({ nominal: '', bulan: 'Juli', catatan: '' });
-    setActiveTab('iuran_riwayat');
+    try {
+      if (paymentType === 'ipl') {
+        if (iplForm.months.length === 0) {
+          alert('Silakan pilih minimal satu bulan iuran IPL yang ingin dibayar.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+        if (!iplForm.file) {
+          alert('Silakan unggah berkas bukti transfer.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('months', JSON.stringify(iplForm.months));
+        formData.append('year', iplForm.year);
+        formData.append('amount', iplForm.months.length * 200000);
+        formData.append('file', iplForm.file);
+
+        console.log('--- WARGA: Sending pay-ipl ---');
+        console.log('Payload months:', JSON.stringify(iplForm.months));
+        console.log('Payload year:', iplForm.year);
+        console.log('Payload amount:', iplForm.months.length * 200000);
+        console.log('Payload file name:', iplForm.file ? iplForm.file.name : 'None');
+
+        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        console.log('Response pay-ipl status:', response.status);
+        const data = await response.json();
+        console.log('Response pay-ipl data:', data);
+
+        if (response.ok) {
+          alert(data.message || 'Bukti pembayaran IPL berhasil diunggah, menunggu persetujuan Bendahara!');
+          setIplForm({ months: [], year: 2026, file: null });
+          fetchWargaPayments();
+          setActiveTab('iuran_riwayat');
+        } else {
+          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran IPL.');
+        }
+      } else {
+        if (!kasForm.amount || isNaN(kasForm.amount) || parseInt(kasForm.amount) <= 0) {
+          alert('Silakan masukkan nominal sumbangan kas yang valid.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+        if (!kasForm.description.trim()) {
+          alert('Silakan masukkan keterangan atau nama kegiatan.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+        if (!kasForm.file) {
+          alert('Silakan unggah berkas bukti transfer.');
+          setIsSubmittingPayment(false);
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('amount', parseInt(kasForm.amount));
+        formData.append('category', kasForm.category);
+        formData.append('description', kasForm.description.trim());
+        formData.append('file', kasForm.file);
+
+        console.log('--- WARGA: Sending pay-kas ---');
+        console.log('Payload amount:', parseInt(kasForm.amount));
+        console.log('Payload category:', kasForm.category);
+        console.log('Payload description:', kasForm.description.trim());
+        console.log('Payload file name:', kasForm.file ? kasForm.file.name : 'None');
+
+        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        console.log('Response pay-kas status:', response.status);
+        const data = await response.json();
+        console.log('Response pay-kas data:', data);
+
+        if (response.ok) {
+          alert(data.message || 'Bukti pembayaran Kas berhasil diunggah, menunggu persetujuan Bendahara!');
+          setKasForm({ amount: '', category: 'sosial', description: '', file: null });
+          fetchWargaPayments();
+          setActiveTab('iuran_riwayat');
+        } else {
+          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran Kas.');
+        }
+      }
+    } catch (err) {
+      console.error('Error occurred in handleUploadSubmit:', err);
+      alert(`Gagal mengirim bukti pembayaran: ${err.message}`);
+    } finally {
+      setIsSubmittingPayment(false);
+    }
+  };
+
+  const handleUploadDocument = async (e) => {
+    e.preventDefault();
+    if (!docUploadFile) {
+      alert('Silakan pilih file dokumen terlebih dahulu.');
+      return;
+    }
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    
+    setIsUploadingDoc(true);
+    const idWarga = selectedResidentForDoc.warga_id || selectedResidentForDoc.id;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', docUploadFile);
+      formData.append('type', docUploadType);
+
+      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${idWarga}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Dokumen sensitif berhasil diunggah!');
+        
+        // Add to local documents list
+        const newDoc = {
+          document_id: data.output?.pesan?.document_id || Math.floor(Math.random() * 1000 + 100),
+          resident_id: idWarga,
+          resident_name: selectedResidentForDoc.nama,
+          type: docUploadType,
+          file_path: data.output?.pesan?.file_path || docUploadFile.name,
+          upload_date: new Date().toLocaleDateString('id-ID')
+        };
+        setWargaDocuments(prev => [newDoc, ...prev]);
+        setDocUploadFile(null);
+      } else {
+        alert(data.pesan || data.message || 'Gagal mengunggah dokumen.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const handleDownloadDocument = async (documentId, fileName) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.pesan || data.message || 'Gagal mengunduh berkas.');
+      }
+
+      const blob = await response.blob();
+      const localUrl = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = localUrl;
+      link.download = fileName || `dokumen_${documentId}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(localUrl);
+    } catch (err) {
+      alert(`Gagal mengunduh dokumen: ${err.message}`);
+    }
+  };
+
+  const fetchKaryawanList = async () => {
+    setIsLoadingVoting(true);
+    setVotingError('');
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/karyawan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setKaryawanList(parseArrayResponse(data));
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingVoting(false);
+    }
+  };
+
+  const fetchVoteResults = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/vote/results', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setVoteResults(parseArrayResponse(data));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleCastVote = async (karyawanId) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) { alert('Token tidak ditemukan.'); return; }
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/vote', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ karyawan_id: karyawanId })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Suara Anda berhasil dikirim!');
+        fetchVoteResults();
+      } else {
+        alert(data.message || data.pesan || 'Gagal memberikan suara. Kemungkinan Anda sudah memilih.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
   };
 
   const handleComplaintSubmit = async (e) => {
@@ -510,7 +822,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+      const response = await fetch('http://172.20.32.62:3333/resident/datawarga', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -523,9 +835,7 @@ export default function ProfilWarga({
           tglLahir: memberForm.tglLahir,
           statusHidup: memberForm.statusHidup,
           noHp: memberForm.noHp,
-          umur: umurNum,
-          fammilyId: parseInt(family_id),
-          houseId: parseInt(house_id)
+          umur: umurNum
         })
       });
 
@@ -578,7 +888,12 @@ export default function ProfilWarga({
     localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
 
     if (wargaList && setWargaList) {
-      const updatedW = wargaList.map(w => w.id === currentUser.id ? { ...w, statusIuran: 'Lunas' } : w);
+      const updatedW = wargaList.map(w => {
+        const isMatch = w.id === currentUser.id ||
+          (w.username && currentUser.username && w.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+          (w.nik && currentUser.nik && w.nik === currentUser.nik);
+        return isMatch ? { ...w, statusIuran: 'Lunas' } : w;
+      });
       setWargaList(updatedW);
       localStorage.setItem('rt_wargalist', JSON.stringify(updatedW));
     }
@@ -637,8 +952,8 @@ export default function ProfilWarga({
   const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
   const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
   const displayEmail = currentUser.email || '';
-  const tanggalLahir = currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
-  const pekerjaan = currentUser.pekerjaan || (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa');
+  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
+  const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
   const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
 
   return (
@@ -880,6 +1195,19 @@ export default function ProfilWarga({
           >
             <FolderOpen className="w-4 h-4 text-purple-400" />
             <span>Dokumen</span>
+          </button>
+
+          {/* Voting Karyawan */}
+          <button
+            onClick={() => setActiveTab('voting_karyawan')}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'voting_karyawan'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-amber-400" />
+            <span>Voting Karyawan</span>
           </button>
 
           {/* Notifikasi */}
@@ -1223,6 +1551,7 @@ export default function ProfilWarga({
                             <th className="p-4">Umur / Tgl Lahir</th>
                             <th className="p-4">Gender</th>
                             <th className="p-4">Nomor HP</th>
+                            <th className="p-4 text-right">Otorisasi Berkas</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -1249,11 +1578,22 @@ export default function ProfilWarga({
                                 </span>
                               </td>
                               <td className="p-4 font-mono font-semibold text-slate-600 dark:text-slate-400">{m.no_hp || '-'}</td>
+                              <td className="p-4 text-right">
+                                <button
+                                  onClick={() => {
+                                    setSelectedResidentForDoc(m);
+                                    setIsDocModalOpen(true);
+                                  }}
+                                  className="py-1.5 px-3 bg-sky-650 hover:bg-sky-700 text-white rounded-xl text-[10px] font-bold cursor-pointer transition-transform active:scale-[0.97]"
+                                >
+                                  📁 Berkas
+                                </button>
+                              </td>
                             </tr>
                           ))}
                           {familyMembers.length === 0 && (
                             <tr>
-                              <td colSpan={5} className="p-12 text-center text-slate-450 italic font-bold">
+                              <td colSpan={6} className="p-12 text-center text-slate-450 italic font-bold">
                                 Tidak ada anggota keluarga terdaftar.
                               </td>
                             </tr>
@@ -1263,6 +1603,99 @@ export default function ProfilWarga({
                     </div>
                   </div>
                 </>
+              )}
+
+              {/* Berkas Sensitif Warga Modal */}
+              {isDocModalOpen && selectedResidentForDoc && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div>
+                        <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Dokumen Sensitif Warga</h4>
+                        <p className="text-[10px] text-slate-400">Kelola dan unggah KTP, KK, Akta, atau KIA milik {selectedResidentForDoc.nama}.</p>
+                      </div>
+                      <button onClick={() => { setIsDocModalOpen(false); setSelectedResidentForDoc(null); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                        <X className="w-4 h-4 text-slate-400" />
+                      </button>
+                    </div>
+
+                    {/* Upload Section */}
+                    <form onSubmit={handleUploadDocument} className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-3">
+                      <h5 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">📤 Unggah Dokumen Baru</h5>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-500">Jenis Dokumen *</label>
+                          <select
+                            value={docUploadType}
+                            onChange={(e) => setDocUploadType(e.target.value)}
+                            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl font-bold"
+                          >
+                            <option value="ktp">KTP (Kartu Tanda Penduduk)</option>
+                            <option value="kk">KK (Kartu Keluarga)</option>
+                            <option value="akta">Akta Kelahiran</option>
+                            <option value="kia">KIA (Kartu Identitas Anak)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-500">Berkas (JPG, PNG, PDF) *</label>
+                          <input
+                            required
+                            type="file"
+                            accept="image/*,application/pdf"
+                            onChange={(e) => setDocUploadFile(e.target.files[0])}
+                            className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        disabled={isUploadingDoc}
+                        type="submit"
+                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        {isUploadingDoc ? 'Sedang Mengunggah...' : 'Unggah Dokumen'}
+                      </button>
+                    </form>
+
+                    {/* Document List */}
+                    <div className="space-y-3">
+                      <h5 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">📁 Daftar Berkas Terunggah</h5>
+                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider font-sans">
+                              <th className="p-3">Jenis</th>
+                              <th className="p-3">File Path / Nama</th>
+                              <th className="p-3 text-right">Unduh</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                            {wargaDocuments.filter(d => String(d.resident_id) === String(selectedResidentForDoc.warga_id || selectedResidentForDoc.id)).map((d) => (
+                              <tr key={d.document_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                <td className="p-3 font-bold uppercase text-slate-700 dark:text-slate-300">{d.type}</td>
+                                <td className="p-3 max-w-[150px] truncate text-slate-500 font-mono text-[10px]" title={d.file_path}>
+                                  {d.file_path}
+                                </td>
+                                <td className="p-3 text-right">
+                                  <button
+                                    onClick={() => handleDownloadDocument(d.document_id, d.file_path)}
+                                    className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-750 text-white font-bold text-[9px] rounded-lg cursor-pointer"
+                                  >
+                                    Unduh
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                            {wargaDocuments.filter(d => String(d.resident_id) === String(selectedResidentForDoc.warga_id || selectedResidentForDoc.id)).length === 0 && (
+                              <tr>
+                                <td colSpan={3} className="p-6 text-center text-slate-400 italic">Belum ada dokumen terunggah untuk warga ini.</td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
 
               {/* Add Family Member Modal */}
@@ -1793,86 +2226,119 @@ export default function ProfilWarga({
               )}
             </div>
           )}
-
           {/* TAB 7: Iuran -> Riwayat Pembayaran */}
           {activeTab === 'iuran_riwayat' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
-                <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran yang telah diverifikasi dan masuk kas RT.</p>
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
+                  <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran bulanan (IPL) dan kas sosial keluarga Anda.</p>
+                </div>
+                <button
+                  onClick={fetchWargaPayments}
+                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                >
+                  🔄 Segarkan
+                </button>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">Telah Diverifikasi</h4>
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                    <table className="w-full text-left text-xs border-collapse font-sans">
-                      <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                          <th className="p-4">Tanggal / ID</th>
-                          <th className="p-4">Keterangan Setoran</th>
-                          <th className="p-4 text-right">Jumlah Setor</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {myPayments.map((t) => (
-                          <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 font-mono space-y-1">
-                              <span className="font-bold text-slate-800 dark:text-slate-200">{t.date}</span>
-                              <div className="text-[10px] text-slate-400">{t.id}</div>
-                            </td>
-                            <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{t.description}</td>
-                            <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">+{formatRupiah(t.amount)}</td>
+              {isLoadingPayments ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat riwayat pembayaran...</p>
+                </div>
+              ) : paymentsError ? (
+                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                  {paymentsError}
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  {/* IPL History Table */}
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">1. Iuran Bulanan (IPL)</h4>
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse font-sans">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">Tahun / Bulan</th>
+                            <th className="p-4">Tanggal Pembayaran</th>
+                            <th className="p-4">Bukti Struk</th>
+                            <th className="p-4 text-center">Status</th>
+                            <th className="p-4 text-right">Jumlah Setor</th>
                           </tr>
-                        ))}
-                        {myPayments.length === 0 && (
-                          <tr>
-                            <td colSpan={3} className="p-8 text-center text-slate-400 font-bold italic">Belum ada riwayat setoran iuran yang tercatat di Buku Kas Umum RT.</td>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {wargaPayments.ipl && wargaPayments.ipl.map((t) => (
+                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                                Tahun {t.year} - Bulan {t.month}
+                              </td>
+                              <td className="p-4 text-slate-500 font-mono">{t.payment_date ? new Date(t.payment_date).toLocaleDateString('id-ID') : '-'}</td>
+                              <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
+                                {t.payment_proof || '-'}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-450">
+                                  {t.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">+{formatRupiah(t.amount)}</td>
+                            </tr>
+                          ))}
+                          {(!wargaPayments.ipl || wargaPayments.ipl.length === 0) && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">Belum ada riwayat pembayaran IPL.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* KAS History Table */}
+                  <div>
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">2. Sumbangan & Kas Insidental</h4>
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse font-sans">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <th className="p-4">Kategori / Keterangan</th>
+                            <th className="p-4">Tanggal Pembayaran</th>
+                            <th className="p-4">Bukti Struk</th>
+                            <th className="p-4 text-center">Status</th>
+                            <th className="p-4 text-right">Jumlah Setor</th>
                           </tr>
-                        )}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {wargaPayments.kas && wargaPayments.kas.map((t) => (
+                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-4 space-y-0.5">
+                                <span className="font-bold text-slate-850 dark:text-slate-200 block capitalize">{t.category}</span>
+                                <span className="text-[10px] text-slate-400 block italic">"{t.description}"</span>
+                              </td>
+                              <td className="p-4 text-slate-500 font-mono">{t.payment_date ? new Date(t.payment_date).toLocaleDateString('id-ID') : '-'}</td>
+                              <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
+                                {t.payment_proof || '-'}
+                              </td>
+                              <td className="p-4 text-center">
+                                <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-450">
+                                  {t.status}
+                                </span>
+                              </td>
+                              <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">+{formatRupiah(t.amount)}</td>
+                            </tr>
+                          ))}
+                          {(!wargaPayments.kas || wargaPayments.kas.length === 0) && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">Belum ada riwayat pembayaran Kas.</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
-
-                {/* Uploaded receipt drafts */}
-                <div>
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 animate-fade-in">Bukti Bayar Diupload (Menunggu Konfirmasi)</h4>
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                    <table className="w-full text-left text-xs border-collapse font-sans">
-                      <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                          <th className="p-4">Bulan / Uploaded Date</th>
-                          <th className="p-4">Nominal Bayar</th>
-                          <th className="p-4 text-center">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {buktiBayarList.map((b) => (
-                          <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 space-y-0.5">
-                              <span className="font-bold text-slate-800 dark:text-white">Iuran Bulan {b.bulan}</span>
-                              <div className="text-[9px] text-slate-400">Diupload: {b.date} • ID: {b.id}</div>
-                            </td>
-                            <td className="p-4 font-bold text-slate-900 dark:text-slate-100 font-mono">{formatRupiah(b.nominal)}</td>
-                            <td className="p-4 text-center">
-                              <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse">
-                                {b.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                        {buktiBayarList.length === 0 && (
-                          <tr>
-                            <td colSpan={3} className="p-8 text-center text-slate-400 font-bold italic">Tidak ada antrean verifikasi bukti transfer.</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
+              )}
             </div>
           )}
 
@@ -1881,63 +2347,181 @@ export default function ProfilWarga({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Pembayaran Iuran</h3>
-                <p className="text-xs text-slate-400">Kirim laporan setoran transfer kas RT Anda agar dikonfirmasi Bendahara.</p>
+                <p className="text-xs text-slate-400">Kirim laporan setoran transfer kas RT Anda agar dikonfirmasi.</p>
+              </div>
+              {/* Type Switcher */}
+              <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-950/60 rounded-xl max-w-sm text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setPaymentType('ipl')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
+                    paymentType === 'ipl'
+                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  Bayar Iuran Bulanan (IPL)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentType('kas')}
+                  className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
+                    paymentType === 'kas'
+                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                  }`}
+                >
+                  Sumbangan Kas / Sosial
+                </button>
               </div>
 
-              <form onSubmit={handleUploadSubmit} className="max-w-xl space-y-4 text-xs sm:text-sm font-sans">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Transfer (Rp) *</label>
-                    <input
-                      required
-                      type="number"
-                      placeholder="Contoh: 50000"
-                      value={buktiBayarForm.nominal}
-                      onChange={(e) => setBuktiBayarForm({ ...buktiBayarForm, nominal: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                    />
-                  </div>
+              <form onSubmit={handleUploadSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
+                {paymentType === 'ipl' ? (
+                  <div className="space-y-4">
+                    {/* IPL Form */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-650 dark:text-slate-400">Tahun Iuran *</label>
+                        <select
+                          value={iplForm.year}
+                          onChange={(e) => setIplForm({ ...iplForm, year: parseInt(e.target.value) })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                        >
+                          <option value={2025}>2025</option>
+                          <option value={2026}>2026</option>
+                          <option value={2027}>2027</option>
+                        </select>
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Untuk Bulan Iuran *</label>
-                    <select
-                      value={buktiBayarForm.bulan}
-                      onChange={(e) => setBuktiBayarForm({ ...buktiBayarForm, bulan: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
-                    >
-                      {['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-650 dark:text-slate-400">Tarif IPL per Bulan</label>
+                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-550 dark:text-slate-400 font-mono font-bold">
+                          Rp 200.000 / Bulan
+                        </div>
+                      </div>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Upload Foto Struk / Screenshot Bukti Transfer *</label>
-                  <div className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer">
-                    <Upload className="w-8 h-8 text-slate-400 animate-pulse-slow" />
-                    <span className="font-bold text-xs text-slate-700 dark:text-slate-350">Pilih berkas struk pembayaran...</span>
-                    <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau screenshot HP. (Maks 3MB)</span>
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <label className="font-bold text-slate-655 dark:text-slate-400">Pilih Bulan Pembayaran (Bisa Multi-bulan / Rapel) *</label>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                        {[
+                          { name: 'Januari', val: 1 },
+                          { name: 'Februari', val: 2 },
+                          { name: 'Maret', val: 3 },
+                          { name: 'April', val: 4 },
+                          { name: 'Mei', val: 5 },
+                          { name: 'Juni', val: 6 },
+                          { name: 'Juli', val: 7 },
+                          { name: 'Agustus', val: 8 },
+                          { name: 'September', val: 9 },
+                          { name: 'Oktober', val: 10 },
+                          { name: 'November', val: 11 },
+                          { name: 'Desember', val: 12 }
+                        ].map((m) => {
+                          const isChecked = iplForm.months.includes(m.val);
+                          return (
+                            <button
+                              key={m.val}
+                              type="button"
+                              onClick={() => {
+                                const next = isChecked
+                                  ? iplForm.months.filter((x) => x !== m.val)
+                                  : [...iplForm.months, m.val];
+                                setIplForm({ ...iplForm, months: next.sort((a, b) => a - b) });
+                              }}
+                              className={`py-2 px-3 border rounded-xl font-bold text-[10px] text-center transition-all cursor-pointer ${
+                                isChecked
+                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400'
+                                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                              }`}
+                            >
+                              {m.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                <div className="space-y-1.5">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Catatan Tambahan (Opsional)</label>
-                  <textarea
-                    rows={3}
-                    placeholder="Contoh: Transfer via M-Banking Mandiri a.n Budi"
-                    value={buktiBayarForm.catatan}
-                    onChange={(e) => setBuktiBayarForm({ ...buktiBayarForm, catatan: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
+                    <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
+                      <span className="font-bold text-slate-700 dark:text-slate-300">Total Nominal IPL:</span>
+                      <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm">
+                        {formatRupiah(iplForm.months.length * 200000)}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-400">Bukti Transfer (File Foto/Struk) *</label>
+                      <input
+                        required
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setIplForm({ ...iplForm, file: e.target.files[0] })}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Kas Form */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-655 dark:text-slate-400">Nominal Sumbangan (Rp) *</label>
+                        <input
+                          required
+                          type="number"
+                          value={kasForm.amount}
+                          onChange={(e) => setKasForm({ ...kasForm, amount: e.target.value })}
+                          placeholder="Masukkan nominal"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-655 dark:text-slate-400">Kategori Kas *</label>
+                        <select
+                          value={kasForm.category}
+                          onChange={(e) => setKasForm({ ...kasForm, category: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                        >
+                          <option value="sosial">Kas Sosial</option>
+                          <option value="kematian">Uang Kematian</option>
+                          <option value="kegiatan">Kegiatan Warga</option>
+                          <option value="lainnya">Lainnya</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-400">Keterangan / Nama Kegiatan *</label>
+                      <textarea
+                        required
+                        rows={2}
+                        value={kasForm.description}
+                        onChange={(e) => setKasForm({ ...kasForm, description: e.target.value })}
+                        placeholder="Contoh: Sumbangan untuk santunan duka cita keluarga Blok C2"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-400">Bukti Transfer (File Foto/Struk) *</label>
+                      <input
+                        required
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setKasForm({ ...kasForm, file: e.target.files[0] })}
+                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                )}
 
                 <div className="pt-2">
                   <button
+                    disabled={isSubmittingPayment}
                     type="submit"
-                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
                   >
-                    Kirim Bukti Pembayaran
+                    {isSubmittingPayment ? 'Sedang Mengirim...' : 'Kirim Bukti Pembayaran'}
                   </button>
                 </div>
               </form>
@@ -2185,6 +2769,95 @@ export default function ProfilWarga({
                   <button onClick={() => alert('Mengunduh FORM_WARGA_BARU.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB 12.5: Voting Karyawan Terbaik */}
+          {activeTab === 'voting_karyawan' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemilihan Karyawan Terbaik Bulanan</h3>
+                  <p className="text-xs text-slate-400">Salurkan hak suara Anda untuk memilih petugas satpam, kebersihan, atau staf pengurus terfavorit.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { fetchKaryawanList(); fetchVoteResults(); }}
+                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer flex items-center gap-1"
+                  >
+                    <span>🔄 Segarkan</span>
+                  </button>
+                </div>
+              </div>
+
+              {isLoadingVoting ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat data kandidat...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Candidates List */}
+                  <div className="space-y-4">
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block font-sans">Kandidat Karyawan</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {karyawanList.map((k) => (
+                        <div key={k.id} className="p-5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+                          <div className="space-y-1">
+                            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.position}</span>
+                            <h5 className="font-black text-sm text-slate-900 dark:text-white pt-1">{k.name}</h5>
+                            <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 04.</p>
+                          </div>
+                          <button
+                            onClick={() => handleCastVote(k.id)}
+                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-transform active:scale-[0.98]"
+                          >
+                            🗳️ Berikan Suara
+                          </button>
+                        </div>
+                      ))}
+                      {karyawanList.length === 0 && (
+                        <div className="col-span-2 p-8 text-center text-slate-400 italic text-xs font-bold bg-slate-50 dark:bg-slate-950/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+                          Tidak ada kandidat karyawan terdaftar saat ini.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Results Counting List */}
+                  <div className="space-y-4">
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block font-sans">Hasil Voting Sementara</h4>
+                    <div className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
+                      {voteResults.map((r) => {
+                        const totalVotes = voteResults.reduce((sum, item) => sum + parseInt(item.vote_count || 0), 0) || 1;
+                        const percentage = Math.round((parseInt(r.vote_count || 0) / totalVotes) * 100);
+                        return (
+                          <div key={r.karyawan_id} className="space-y-1.5 font-sans">
+                            <div className="flex justify-between items-center text-xs">
+                              <div>
+                                <span className="font-bold text-slate-800 dark:text-white block">{r.nama}</span>
+                                <span className="text-[9px] text-slate-400 uppercase font-extrabold">{r.position}</span>
+                              </div>
+                              <span className="font-black text-slate-900 dark:text-white font-mono">{r.vote_count || 0} Suara ({percentage}%)</span>
+                            </div>
+                            <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                style={{ width: `${percentage}%` }}
+                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {voteResults.length === 0 && (
+                        <div className="p-8 text-center text-slate-400 italic text-xs font-bold">
+                          Belum ada suara masuk. Jadilah yang pertama memberikan suara!
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

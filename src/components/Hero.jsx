@@ -1,6 +1,6 @@
 import { Users, Calendar, Wallet, CheckCircle2 } from 'lucide-react';
 
-export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT, setCurrentPage }) {
+export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT, setCurrentPage, isWargaLabel }) {
   const navigateToProfil = () => {
     if (setCurrentPage) setCurrentPage('profil');
   };
@@ -91,14 +91,18 @@ export default function Hero({ totalKK, totalAgendaBulanIni, sisaKasRT, setCurre
                 
                 {/* Stats Items */}
                 <div className="space-y-4">
-                  {/* Item 1: Total KK */}
+                  {/* Item 1: Total KK / Warga */}
                   <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/50 hover:bg-emerald-500/5 dark:hover:bg-emerald-500/5 border border-slate-100 dark:border-slate-800/50 transition-colors">
                     <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
                       <Users className="w-6 h-6" />
                     </div>
                     <div>
-                      <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Keluarga</span>
-                      <span className="text-2xl font-bold text-slate-900 dark:text-white">{totalKK} KK</span>
+                      <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        {isWargaLabel ? 'Total Penduduk' : 'Total Keluarga'}
+                      </span>
+                      <span className="text-2xl font-bold text-slate-900 dark:text-white">
+                        {totalKK} {isWargaLabel ? 'Jiwa' : 'KK'}
+                      </span>
                     </div>
                   </div>
 

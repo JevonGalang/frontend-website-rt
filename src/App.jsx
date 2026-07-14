@@ -108,12 +108,38 @@ export default function App() {
     return data ? JSON.parse(data) : null;
   });
 
+  const [dashboardStats, setDashboardStats] = useState(null);
+
+  useEffect(() => {
+    const fetchDashboardStats = async () => {
+      try {
+        const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.response === 200) {
+            setDashboardStats(data.output.stats);
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal memuat statistik dashboard:', err);
+      }
+    };
+    fetchDashboardStats();
+  }, []);
+
+
   const handleUpdateWargaProfile = (updatedCitizen) => {
-    const newList = wargaList.map(w => w.id === updatedCitizen.id ? updatedCitizen : w);
+    const newList = wargaList.map(w => {
+      const isMatch = w.id === updatedCitizen.id || 
+        (w.username && updatedCitizen.username && w.username.toLowerCase() === updatedCitizen.username.toLowerCase()) ||
+        (w.nik && updatedCitizen.nik && w.nik === updatedCitizen.nik);
+      return isMatch ? { ...w, ...updatedCitizen, id: w.id } : w;
+    });
     setWargaList(newList);
     localStorage.setItem('rt_wargalist', JSON.stringify(newList));
     
     const updatedUser = {
+      ...currentUser,
       ...updatedCitizen,
       role: 'warga'
     };
@@ -208,10 +234,16 @@ export default function App() {
 
   // 3. WARGA ROLE: RENDER RESIDENT PORTAL IF LOGGED IN AS CITIZEN
   if (currentUser && currentUser.role === 'warga') {
+    const foundWarga = wargaList.find(w => 
+      w.id === currentUser.id || 
+      (w.username && currentUser.username && w.username.toLowerCase() === currentUser.username.toLowerCase()) ||
+      (w.nik && currentUser.nik && w.nik === currentUser.nik)
+    );
+    const mergedUser = foundWarga ? { ...foundWarga, ...currentUser } : currentUser;
     return (
       <ProfilWarga
         key={currentUser.id}
-        currentUser={wargaList.find(w => w.id === currentUser.id) || currentUser}
+        currentUser={mergedUser}
         setCurrentUser={setCurrentUser}
         onUpdateProfile={handleUpdateWargaProfile}
         wargaList={wargaList}
@@ -244,10 +276,11 @@ export default function App() {
         {/* Beranda Section */}
         {currentPage === 'beranda' && (
           <Hero
-            totalKK={totalKeluarga}
+            totalKK={dashboardStats ? dashboardStats.total_warga : totalKeluarga}
             totalAgendaBulanIni={activeAgendasCount}
-            sisaKasRT={sisaKasRT}
+            sisaKasRT={dashboardStats ? dashboardStats.current_balance : sisaKasRT}
             setCurrentPage={setCurrentPage}
+            isWargaLabel={!!dashboardStats}
           />
         )}
 
