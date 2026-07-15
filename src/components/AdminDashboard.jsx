@@ -535,10 +535,15 @@ export default function AdminDashboard({
   };
 
   const [iplAmountInput, setIplAmountInput] = useState(200000);
+  const [previousBalanceInput, setPreviousBalanceInput] = useState(5000000);
   const handleUpdateIplSetting = async (e) => {
     e.preventDefault();
     if (!iplAmountInput || isNaN(iplAmountInput) || parseInt(iplAmountInput) <= 0) {
       alert('Masukkan nominal tarif IPL yang valid.');
+      return;
+    }
+    if (previousBalanceInput === '' || isNaN(previousBalanceInput) || parseInt(previousBalanceInput) < 0) {
+      alert('Masukkan saldo kas awal yang valid.');
       return;
     }
     const token = localStorage.getItem('rt_token');
@@ -550,24 +555,81 @@ export default function AdminDashboard({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ ipl_amount: parseInt(iplAmountInput) })
+        body: JSON.stringify({ 
+          iplNominal: parseInt(iplAmountInput),
+          previousBalance: parseInt(previousBalanceInput)
+        })
       });
       const data = await response.json();
       if (response.ok) {
-        alert(data.message || 'Tarif setting IPL berhasil diperbarui!');
+        alert(data.message || 'Pengaturan keuangan RT berhasil diperbarui!');
         // Update local jenisIuranList for instant feedback
         setJenisIuranList(prev => prev.map(j => j.id === 'IPL' || j.name?.includes('IPL') ? { ...j, amount: parseInt(iplAmountInput) } : j));
       } else {
-        alert(data.message || data.pesan || 'Gagal memperbarui tarif setting IPL.');
+        alert(data.message || data.pesan || 'Gagal memperbarui pengaturan keuangan RT.');
       }
     } catch (err) {
       alert(`Koneksi gagal: ${err.message}`);
     }
   };
 
+  const [adminOldPassword, setAdminOldPassword] = useState('');
+  const [adminNewPassword, setAdminNewPassword] = useState('');
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState('');
+  const [isAdminChangingPassword, setIsAdminChangingPassword] = useState(false);
+
+  const handleAdminChangePassword = async (e) => {
+    e.preventDefault();
+    if (adminNewPassword !== adminConfirmPassword) {
+      alert('Kata sandi baru dan konfirmasi kata sandi tidak cocok.');
+      return;
+    }
+    if (adminNewPassword.length < 8) {
+      alert('Kata sandi baru minimal harus 8 karakter.');
+      return;
+    }
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan.');
+      return;
+    }
+
+    setIsAdminChangingPassword(true);
+    try {
+      const response = await fetch('http://172.20.32.62:3333/resident/password', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          oldPassword: adminOldPassword,
+          newPassword: adminNewPassword,
+          confirmNewPassword: adminConfirmPassword
+        })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Kata sandi berhasil diperbarui!');
+        setAdminOldPassword('');
+        setAdminNewPassword('');
+        setAdminConfirmPassword('');
+      } else {
+        alert(data.message || data.pesan || 'Gagal memperbarui kata sandi. Periksa kata sandi lama Anda.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsAdminChangingPassword(false);
+    }
+  };
+
   const [financeTrackingList, setFinanceTrackingList] = useState([]);
   const [isLoadingFinanceTracking, setIsLoadingFinanceTracking] = useState(false);
   const [financeTrackingError, setFinanceTrackingError] = useState('');
+  const [trackingMonth, setTrackingMonth] = useState(new Date().getMonth() + 1);
+  const [trackingYear, setTrackingYear] = useState(2026);
 
   const fetchFinanceTracking = async () => {
     setIsLoadingFinanceTracking(true);
@@ -579,12 +641,13 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/finance/tracking', {
+      const response = await fetch(`http://172.20.32.62:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Gagal mengambil data tracking iuran.');
       const data = await response.json();
-      setFinanceTrackingList(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : (data.output && Array.isArray(data.output) ? data.output : []);
+      setFinanceTrackingList(list);
     } catch (err) {
       console.error(err);
       setFinanceTrackingError(err.message);
@@ -592,6 +655,12 @@ export default function AdminDashboard({
       setIsLoadingFinanceTracking(false);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'iuran_tunggakan') {
+      fetchFinanceTracking();
+    }
+  }, [trackingMonth, trackingYear]);
 
   useEffect(() => {
     fetchBuktiBayarWarga();
@@ -667,101 +736,131 @@ export default function AdminDashboard({
     }
   };
 
-  const handlePatchResidentKK = async (residentId, newNoKK) => {
-    if (!newNoKK || newNoKK.length < 5) {
-      alert('Nomor KK minimal harus 5 karakter.');
-      return;
-    }
-
-    const token = localStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
-      return;
-    }
-
-    try {
-      const response = await fetch(`http://172.20.32.62:3333/admin/resident/${residentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ noKK: newNoKK })
-      });
-
-      const resData = await response.json();
-      if (!response.ok) {
-        throw new Error(resData.message || resData.pesan || 'Gagal mengubah nomor KK.');
-      }
-
-      alert('Nomor KK berhasil diperbarui di server!');
-      fetchResidentServerList(); // refresh list
-    } catch (err) {
-      console.error('Error patching KK:', err);
-      alert(`Gagal memperbarui KK: ${err.message}`);
-    }
-  };
-
   const [revealedNiks, setRevealedNiks] = useState({});
   const [revealedKks, setRevealedKks] = useState({});
 
-  const handleRevealWarga = async (wargaId) => {
-    const password = window.prompt('Masukkan sandi Ketua RT / Admin untuk membuka sensor NIK:');
-    if (!password) return;
+  // Sudo Reveal Modal states
+  const [showSudoPrompt, setShowSudoPrompt] = useState(false);
+  const [sudoActionType, setSudoActionType] = useState(''); // 'reveal_warga' | 'reveal_resident' | 'patch_kk'
+  const [sudoTargetId, setSudoTargetId] = useState(null);
+  const [sudoPasswordInput, setSudoPasswordInput] = useState('');
+  const [sudoPromptError, setSudoPromptError] = useState('');
+  const [sudoNewKkInput, setSudoNewKkInput] = useState('');
 
-    const token = localStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
-      return;
-    }
-
-    try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/reveal-warga/${wargaId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (res.ok && data.nik) {
-        setRevealedNiks(prev => ({ ...prev, [wargaId]: data.nik }));
-      } else {
-        alert(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
-      }
-    } catch (err) {
-      alert(`Gagal menghubungi server: ${err.message}`);
-    }
+  const triggerRevealWarga = (wargaId) => {
+    setSudoActionType('reveal_warga');
+    setSudoTargetId(wargaId);
+    setSudoPasswordInput('');
+    setSudoPromptError('');
+    setShowSudoPrompt(true);
   };
 
-  const handleRevealResident = async (familyId) => {
-    const password = window.prompt('Masukkan sandi Ketua RT / Admin untuk membuka sensor nomor KK:');
-    if (!password) return;
+  const triggerRevealResident = (familyId) => {
+    setSudoActionType('reveal_resident');
+    setSudoTargetId(familyId);
+    setSudoPasswordInput('');
+    setSudoPromptError('');
+    setShowSudoPrompt(true);
+  };
 
+  const triggerPatchResidentKK = (familyId, currentKk) => {
+    setSudoActionType('patch_kk');
+    setSudoTargetId(familyId);
+    setSudoNewKkInput(currentKk || '');
+    setSudoPasswordInput('');
+    setSudoPromptError('');
+    setShowSudoPrompt(true);
+  };
+
+  const handleRevealWarga = (wargaId) => triggerRevealWarga(wargaId);
+  const handleRevealResident = (familyId) => triggerRevealResident(familyId);
+  const handlePatchResidentKK = (familyId, newKk) => triggerPatchResidentKK(familyId, newKk);
+
+  const handleSudoSubmit = async (e) => {
+    e.preventDefault();
+    setSudoPromptError('');
     const token = localStorage.getItem('rt_token');
     if (!token) {
-      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+      setSudoPromptError('Token otentikasi tidak ditemukan. Harap login kembali.');
+      return;
+    }
+
+    if (!sudoPasswordInput) {
+      setSudoPromptError('Sandi wajib diisi.');
+      return;
+    }
+
+    if (sudoActionType === 'patch_kk' && (!sudoNewKkInput || sudoNewKkInput.length < 5)) {
+      setSudoPromptError('Nomor KK minimal harus 5 karakter.');
       return;
     }
 
     try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${familyId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ password })
-      });
-      const data = await res.json();
-      if (res.ok && data.no_kk) {
-        setRevealedKks(prev => ({ ...prev, [familyId]: data.no_kk }));
-      } else {
-        alert(data.message || data.pesan || 'Gagal membuka sensor KK. Periksa sandi Anda.');
+      if (sudoActionType === 'reveal_warga') {
+        const res = await fetch(`http://172.20.32.62:3333/admin/reveal-warga/${sudoTargetId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password: sudoPasswordInput })
+        });
+        const data = await res.json();
+        if (res.ok && data.nik) {
+          setRevealedNiks(prev => ({ ...prev, [sudoTargetId]: data.nik }));
+          setShowSudoPrompt(false);
+        } else {
+          setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
+        }
+      } else if (sudoActionType === 'reveal_resident') {
+        const res = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${sudoTargetId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password: sudoPasswordInput })
+        });
+        const data = await res.json();
+        if (res.ok && data.no_kk) {
+          setRevealedKks(prev => ({ ...prev, [sudoTargetId]: data.no_kk }));
+          setShowSudoPrompt(false);
+        } else {
+          setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor KK. Periksa sandi Anda.');
+        }
+      } else if (sudoActionType === 'patch_kk') {
+        // verify password first by making a dry run reveal-resident call
+        const verifyRes = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${sudoTargetId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password: sudoPasswordInput })
+        });
+        if (!verifyRes.ok) {
+          const verifyData = await verifyRes.json();
+          throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
+        }
+
+        const response = await fetch(`http://172.20.32.62:3333/admin/resident/${sudoTargetId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ noKK: sudoNewKkInput })
+        });
+        const resData = await response.json();
+        if (!response.ok) {
+          throw new Error(resData.message || resData.pesan || 'Gagal mengubah nomor KK.');
+        }
+        alert('Nomor KK berhasil diperbarui di server!');
+        fetchResidentServerList(); // refresh list
+        setShowSudoPrompt(false);
       }
     } catch (err) {
-      alert(`Gagal menghubungi server: ${err.message}`);
+      setSudoPromptError(err.message || 'Gagal menghubungi server.');
     }
   };
 
@@ -1881,6 +1980,17 @@ export default function AdminDashboard({
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Verifikasi Warga</span>
                     </button>
+                    <button
+                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'data_wizard' 
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'data_wizard' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data Wizard</span>
+                    </button>
                   </div>
                 )}
               </div>
@@ -2128,6 +2238,17 @@ export default function AdminDashboard({
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Verifikasi Warga</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                        activeTab === 'data_wizard' 
+                          ? 'text-emerald-600 dark:text-emerald-450 font-bold bg-emerald-50/50 dark:bg-slate-850/50'
+                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'data_wizard' ? 'bg-emerald-450 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Data Wizard</span>
                     </button>
                   </div>
                 )}
@@ -2794,12 +2915,7 @@ export default function AdminDashboard({
                                   </td>
                                   <td className="p-4 text-right">
                                     <button
-                                      onClick={() => {
-                                        const val = window.prompt('Masukkan nomor KK baru (Minimal 5 karakter):', noKK);
-                                        if (val !== null) {
-                                          handlePatchResidentKK(id, val);
-                                        }
-                                      }}
+                                      onClick={() => triggerPatchResidentKK(id, noKK)}
                                       className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
                                     >
                                       Edit KK
@@ -4293,19 +4409,31 @@ export default function AdminDashboard({
                 {currentUser.role === 'bendahara' && (
                   <form
                     onSubmit={handleUpdateIplSetting}
-                    className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs"
+                    className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs"
                   >
-                    <span className="font-bold text-slate-550 dark:text-slate-400">Set Tarif IPL (Rp):</span>
-                    <input
-                      required
-                      type="number"
-                      value={iplAmountInput}
-                      onChange={(e) => setIplAmountInput(e.target.value)}
-                      className="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-550 dark:text-slate-400">Set Tarif IPL (Rp):</span>
+                      <input
+                        required
+                        type="number"
+                        value={iplAmountInput}
+                        onChange={(e) => setIplAmountInput(e.target.value)}
+                        className="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-slate-550 dark:text-slate-400">Saldo Awal (Rp):</span>
+                      <input
+                        required
+                        type="number"
+                        value={previousBalanceInput}
+                        onChange={(e) => setPreviousBalanceInput(e.target.value)}
+                        className="w-28 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
+                      />
+                    </div>
                     <button
                       type="submit"
-                      className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer"
+                      className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer transition-colors"
                     >
                       Update
                     </button>
@@ -4521,17 +4649,43 @@ export default function AdminDashboard({
           {/* IURAN: 4. Tunggakan */}
           {activeTab === 'iuran_tunggakan' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex justify-between items-center">
+              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemetaan & Tracking Tunggakan IPL Rumah</h3>
-                  <p className="text-xs text-slate-400">Daftar rumah warga dan rincian tunggakan iuran bulanan (IPL) yang belum dibayarkan.</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemetaan & Tracking Tunggakan IPL Warga</h3>
+                  <p className="text-xs text-slate-400">Daftar kartu keluarga dan status pembayaran iuran bulanan (IPL) sesuai bulan target.</p>
                 </div>
-                <button
-                  onClick={fetchFinanceTracking}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
-                >
-                  🔄 Segarkan
-                </button>
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-450 uppercase">Bulan:</span>
+                    <select
+                      value={trackingMonth}
+                      onChange={(e) => setTrackingMonth(parseInt(e.target.value))}
+                      className="px-2 py-1 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>{i + 1}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-450 uppercase">Tahun:</span>
+                    <select
+                      value={trackingYear}
+                      onChange={(e) => setTrackingYear(parseInt(e.target.value))}
+                      className="px-2 py-1 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                    >
+                      {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
+                        <option key={y} value={y}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={fetchFinanceTracking}
+                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
+                  >
+                    🔄 Segarkan
+                  </button>
+                </div>
               </div>
 
               {isLoadingFinanceTracking ? (
@@ -4544,67 +4698,68 @@ export default function AdminDashboard({
                   {financeTrackingError}
                 </div>
               ) : financeTrackingList.length === 0 ? (
-                <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada data tracking tunggakan iuran.</div>
+                <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada data tracking tunggakan iuran untuk periode ini.</div>
               ) : (
                 <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="p-4">Alamat Rumah</th>
-                        <th className="p-4">Status Kepemilikan</th>
-                        <th className="p-4">Bulan Menunggak</th>
-                        <th className="p-4 text-center">Status Iuran</th>
+                        <th className="p-4">No. KK</th>
+                        <th className="p-4">Nama Kepala Keluarga</th>
+                        <th className="p-4">Target Bulan</th>
+                        <th className="p-4">Tagihan</th>
+                        <th className="p-4 text-center">Status</th>
+                        <th className="p-4 text-center">Ketepatan Waktu</th>
                         <th className="p-4 text-right">Aksi</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {financeTrackingList.map((h) => {
-                        const unpaidCount = h.unpaid_months ? h.unpaid_months.length : 0;
-                        const isMenunggak = unpaidCount > 0;
+                        const isMenunggak = h.status === 'Nunggak';
                         return (
-                          <tr key={h.house_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                            <td className="p-4 space-y-1">
-                              <span className="font-bold text-slate-900 dark:text-white block">Blok {h.blok} No. {h.nomor}</span>
-                              <span className="text-[10px] text-slate-400 block">{h.alamat}</span>
+                          <tr key={h.family_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-800 dark:text-slate-200">
+                              <div className="flex items-center gap-1.5">
+                                <span>{revealedKks[h.family_id] || h.no_kk || 'Tidak Diketahui'}</span>
+                                {h.no_kk?.includes('x') && !revealedKks[h.family_id] && (
+                                  <button
+                                    onClick={() => handleRevealResident(h.family_id)}
+                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer inline-flex items-center"
+                                    title="Buka Sensor KK"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
-                            <td className="p-4">
-                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                                h.current_status === 'pribadi'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}>
-                                {h.current_status}
-                              </span>
+                            <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
+                              {h.kepala_keluarga_nama}
                             </td>
-                            <td className="p-4 max-w-xs">
-                              {isMenunggak ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {h.unpaid_months.map((m, idx) => (
-                                    <span key={idx} className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-805 text-slate-600 dark:text-slate-400 rounded-md font-mono text-[9px] font-bold">
-                                      {m.month}/{m.year}
-                                    </span>
-                                  ))}
-                                </div>
-                              ) : (
-                                <span className="text-slate-400 italic text-[10px]">Tidak ada tunggakan</span>
-                              )}
+                            <td className="p-4 font-mono text-slate-500">
+                              {h.target_bulan}
+                            </td>
+                            <td className="p-4 font-black font-mono text-slate-850 dark:text-white">
+                              {formatRupiah(h.nominal_tagihan || 200000)}
                             </td>
                             <td className="p-4 text-center">
                               <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
                                 isMenunggak
-                                  ? 'bg-rose-500/10 text-rose-505'
-                                  : 'bg-emerald-500/10 text-emerald-505'
+                                  ? 'bg-rose-500/10 text-rose-500'
+                                  : 'bg-emerald-500/10 text-emerald-500'
                               }`}>
-                                {isMenunggak ? `Menunggak ${unpaidCount} Bulan` : 'Lunas'}
+                                {h.status}
                               </span>
+                            </td>
+                            <td className="p-4 text-center text-slate-550 dark:text-slate-400 font-semibold">
+                              {h.ketepatan_waktu || '-'}
                             </td>
                             <td className="p-4 text-right font-sans">
                               {isMenunggak ? (
                                 <button
-                                  onClick={() => alert(`Notifikasi tagihan tunggakan IPL dikirim ke seluruh penghuni Blok ${h.blok} No. ${h.nomor}!`)}
+                                  onClick={() => alert(`Notifikasi tagihan tunggakan IPL dikirim ke Keluarga ${h.kepala_keluarga_nama}!`)}
                                   className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
                                 >
-                                  Tagih Rumah
+                                  Tagih Warga
                                 </button>
                               ) : (
                                 <span className="text-[10px] text-slate-400 font-semibold italic">Lunas</span>
@@ -4907,10 +5062,16 @@ export default function AdminDashboard({
                     try {
                       let backendCategory = 'lainnya';
                       const catLower = pengeluaranForm.category.toLowerCase();
-                      if (catLower.includes('operasional') || catLower.includes('keamanan') || catLower.includes('kebersihan')) {
-                        backendCategory = 'operasional';
-                      } else if (catLower.includes('sosial') || catLower.includes('kematian') || catLower.includes('sumbangan')) {
+                      if (catLower === 'kebersihan') {
+                        backendCategory = 'kebersihan';
+                      } else if (catLower === 'keamanan') {
+                        backendCategory = 'keamanan';
+                      } else if (catLower === 'sosial') {
                         backendCategory = 'sosial';
+                      } else if (catLower.includes('kantor') || catLower.includes('atk')) {
+                        backendCategory = 'operasional_rt';
+                      } else {
+                        backendCategory = 'lainnya';
                       }
 
                       const res = await fetch('http://172.20.32.62:3333/admin/finance/expense', {
@@ -4921,7 +5082,7 @@ export default function AdminDashboard({
                         },
                         body: JSON.stringify({
                           amount: parseInt(pengeluaranForm.amount),
-                          category: backendCategory,
+                          sourceType: backendCategory,
                           description: pengeluaranForm.description.trim()
                         })
                       });
@@ -5525,17 +5686,16 @@ export default function AdminDashboard({
                     <p className="text-[10px] text-slate-400">Ubah kata sandi akun pengurus Anda secara berkala.</p>
                   </div>
 
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    alert('Kata sandi berhasil diperbarui!');
-                  }} className="space-y-4">
+                  <form onSubmit={handleAdminChangePassword} className="space-y-4">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Kata Sandi Lama</label>
                       <input 
                         type="password" 
                         placeholder="••••••••" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        value={adminOldPassword}
+                        onChange={(e) => setAdminOldPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -5544,7 +5704,9 @@ export default function AdminDashboard({
                         type="password" 
                         placeholder="Minimal 8 karakter" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        value={adminNewPassword}
+                        onChange={(e) => setAdminNewPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -5553,10 +5715,18 @@ export default function AdminDashboard({
                         type="password" 
                         placeholder="Ketik ulang kata sandi baru" 
                         required
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white" 
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
                       />
                     </div>
-                    <button type="submit" className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors">Perbarui Kata Sandi</button>
+                    <button 
+                      type="submit" 
+                      disabled={isAdminChangingPassword}
+                      className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-450 text-white font-bold text-xs rounded-xl cursor-pointer transition-colors"
+                    >
+                      {isAdminChangingPassword ? 'Memperbarui...' : 'Perbarui Kata Sandi'}
+                    </button>
                   </form>
                 </div>
 
@@ -6462,6 +6632,86 @@ export default function AdminDashboard({
                 Tutup Profil
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUDO PASSWORD VERIFICATION MODAL */}
+      {showSudoPrompt && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                {sudoActionType === 'patch_kk' ? 'Edit Nomor Kartu Keluarga' : 'Verifikasi Sudo Mode'}
+              </h4>
+              <button 
+                onClick={() => setShowSudoPrompt(false)} 
+                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+              >
+                <XIcon className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
+              {sudoActionType === 'patch_kk' 
+                ? 'Masukkan nomor KK baru dan sandi Ketua RT/Admin Anda untuk menyimpan perubahan.' 
+                : 'Masukkan sandi Ketua RT/Admin Anda untuk membuka sensor data sensitif.'
+              }
+            </p>
+
+            {sudoPromptError && (
+              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/50 rounded-xl text-rose-600 dark:text-rose-400 font-semibold text-[10px] flex items-center gap-2">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{sudoPromptError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSudoSubmit} className="space-y-4 text-xs font-sans">
+              {sudoActionType === 'patch_kk' && (
+                <div className="space-y-1.5 font-sans">
+                  <label className="font-bold text-slate-655 dark:text-slate-350">Nomor KK Baru *</label>
+                  <input
+                    required
+                    type="text"
+                    maxLength={16}
+                    placeholder="Masukkan 16 digit nomor KK"
+                    value={sudoNewKkInput}
+                    onChange={(e) => setSudoNewKkInput(e.target.value.replace(/\D/g, ''))}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-805 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5 font-sans">
+                <label className="font-bold text-slate-655 dark:text-slate-350">Sandi RT / Admin *</label>
+                <input
+                  required
+                  autoFocus
+                  type="password"
+                  placeholder="Masukkan kata sandi Anda..."
+                  value={sudoPasswordInput}
+                  onChange={(e) => setSudoPasswordInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-805 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-colors cursor-pointer text-center"
+                >
+                  Konfirmasi
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSudoPrompt(false)}
+                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

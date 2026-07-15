@@ -758,7 +758,7 @@ export default function ProfilWarga({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ karyawan_id: karyawanId })
+        body: JSON.stringify({ karyawanId })
       });
       const data = await response.json();
       if (response.ok) {
@@ -813,8 +813,8 @@ export default function ProfilWarga({
 
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    if (passwordForm.newPassword.length < 5) {
-      alert('Sandi baru minimal 5 karakter.');
+    if (passwordForm.newPassword.length < 8) {
+      alert('Kata sandi baru minimal harus 8 karakter.');
       return;
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
@@ -835,7 +835,11 @@ export default function ProfilWarga({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ newPassword: passwordForm.newPassword })
+        body: JSON.stringify({ 
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword,
+          confirmNewPassword: passwordForm.confirmPassword
+        })
       });
       const data = await response.json();
       if (response.ok) {
@@ -3469,8 +3473,8 @@ export default function ProfilWarga({
                       {karyawanList.map((k) => (
                         <div key={k.id} className="p-5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
                           <div className="space-y-1">
-                            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.position}</span>
-                            <h5 className="font-black text-sm text-slate-900 dark:text-white pt-1">{k.name}</h5>
+                            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.jabatan || k.position}</span>
+                            <h5 className="font-black text-sm text-slate-900 dark:text-white pt-1">{k.nama || k.name}</h5>
                             <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 04.</p>
                           </div>
                           <button
@@ -3494,16 +3498,16 @@ export default function ProfilWarga({
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block font-sans">Hasil Voting Sementara</h4>
                     <div className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
                       {voteResults.map((r) => {
-                        const totalVotes = voteResults.reduce((sum, item) => sum + parseInt(item.vote_count || 0), 0) || 1;
-                        const percentage = Math.round((parseInt(r.vote_count || 0) / totalVotes) * 100);
+                        const totalVotes = voteResults.reduce((sum, item) => sum + parseInt(item.jumlah_vote || item.vote_count || 0), 0) || 1;
+                        const percentage = Math.round((parseInt(r.jumlah_vote || r.vote_count || 0) / totalVotes) * 100);
                         return (
-                          <div key={r.karyawan_id} className="space-y-1.5 font-sans">
+                          <div key={r.id || r.karyawan_id} className="space-y-1.5 font-sans">
                             <div className="flex justify-between items-center text-xs">
                               <div>
-                                <span className="font-bold text-slate-800 dark:text-white block">{r.nama}</span>
-                                <span className="text-[9px] text-slate-400 uppercase font-extrabold">{r.position}</span>
+                                <span className="font-bold text-slate-800 dark:text-white block">{r.nama || r.name}</span>
+                                <span className="text-[9px] text-slate-400 uppercase font-extrabold">{r.jabatan || r.position}</span>
                               </div>
-                              <span className="font-black text-slate-900 dark:text-white font-mono">{r.vote_count || 0} Suara ({percentage}%)</span>
+                              <span className="font-black text-slate-900 dark:text-white font-mono">{r.jumlah_vote || r.vote_count || 0} Suara ({percentage}%)</span>
                             </div>
                             <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
