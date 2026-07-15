@@ -265,7 +265,7 @@ export default function App() {
   }
 
   // 2. ADMIN ROLE: RENDER ADMIN DASHBOARD IF LOGGED IN AS ADMIN
-  if (currentUser.role === 'admin' || currentUser.role === 'rt' || currentUser.role === 'sekertaris' || currentUser.role === 'bendahara') {
+  if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'rt' || currentUser.role === 'sekertaris' || currentUser.role === 'bendahara')) {
     return (
       <AdminDashboard
         currentUser={currentUser}
@@ -341,7 +341,7 @@ export default function App() {
         )}
 
         {/* Profil Saya Warga Section */}
-        {currentPage === 'profil-saya' && (
+        {currentPage === 'profil-saya' && currentUser && (
           <ProfilWarga
             key={currentUser.id}
             currentUser={wargaList.find(w => w.id === currentUser.id) || currentUser}
@@ -367,7 +367,7 @@ export default function App() {
         {currentPage === 'agenda' && <Agenda agendas={agendaList} />}
 
         {/* Layanan Section */}
-        {currentPage === 'layanan' && (
+        {currentPage === 'layanan' && currentUser && (
           <Layanan 
             key={currentUser.id}
             currentUser={currentUser}
