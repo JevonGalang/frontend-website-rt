@@ -92,7 +92,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
               </div>
             ) : (
               <button
-                onClick={() => handleNavClick('login')}
+                onClick={() => handleNavClick('beranda')}
                 className="ml-3 px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all hover:scale-[1.02]"
               >
                 Login Portal
@@ -172,7 +172,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  handleNavClick('login');
+                  handleNavClick('beranda');
                 }}
                 className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-extrabold text-xs rounded-xl cursor-pointer text-center block transition-all"
               >

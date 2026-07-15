@@ -194,7 +194,7 @@ export default function App() {
   useEffect(() => {
     const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
     if (!currentUser && restrictedTabs.includes(currentPage)) {
-      setCurrentPage('login');
+      setCurrentPage('beranda');
     }
   }, [currentPage, currentUser]);
 
@@ -238,19 +238,8 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // 1. GATEKEEPER: RENDER LOGIN PAGE IF NOT LOGGED IN AND ON LOGIN TAB
-  if (!currentUser && currentPage === 'login') {
-    return (
-      <LoginPage
-        wargaList={wargaList}
-        setWargaList={setWargaList}
-        setCurrentUser={setCurrentUser}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
-        onBackToHome={() => setCurrentPage('beranda')}
-      />
-    );
-  }
+  // Login form is now embedded directly in the Hero section of beranda
+
 
   // 1.5 GATEKEEPER: FORCE CHANGE PASSWORD ON FIRST LOGIN
   if (currentUser && currentUser.must_change_password) {
