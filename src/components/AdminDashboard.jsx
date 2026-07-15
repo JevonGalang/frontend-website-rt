@@ -872,7 +872,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/post/regist', {
+      const response = await fetch('http://172.20.32.62:3333/post/debug-regist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
