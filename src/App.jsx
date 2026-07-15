@@ -14,36 +14,10 @@ import ProfilWarga from './components/ProfilWarga';
 import ChangePasswordFirstTime from './components/ChangePasswordFirstTime';
 
 // Predefined Demo Data (Outstanding UX/Developer Experience)
-const DEFAULT_WARGA = [
-  { id: 'WRG-001', name: 'Budi Santoso', username: 'warga', password: 'warga', email: 'budi@gmail.com', role: 'warga', nik: '3275081102900001', noKk: '3275081212080001', noHp: '081234567890', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Laki-laki', usia: 36, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-002', name: 'Siti Aminah', username: 'siti', password: 'warga', email: 'siti@gmail.com', role: 'warga', nik: '3275084506920002', noKk: '3275081212080001', noHp: '081234567891', alamat: 'Sawangan Green Park Blok A1 No. 5', status: 'Tetap', gender: 'Perempuan', usia: 34, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-003', name: 'Andi Wijaya', username: 'andi', password: 'warga', email: 'andi@gmail.com', role: 'warga', nik: '3275080203850003', noKk: '3275081212080002', noHp: '081234567892', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Laki-laki', usia: 41, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
-  { id: 'WRG-004', name: 'Rina Herawati', username: 'rina', password: 'warga', email: 'rina@gmail.com', role: 'warga', nik: '3275085208880004', noKk: '3275081212080002', noHp: '081234567893', alamat: 'Sawangan Green Park Blok B3 No. 12', status: 'Tetap', gender: 'Perempuan', usia: 38, statusHidup: 'Hidup', statusIuran: 'Menunggak (Rp 50.000)' },
-  { id: 'WRG-005', name: 'Joko Susilo', username: 'joko', password: 'warga', email: 'joko@gmail.com', role: 'warga', nik: '3275081510950005', noKk: '3275081212080003', noHp: '081234567894', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Laki-laki', usia: 31, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-006', name: 'Dewi Lestari', username: 'dewi', password: 'warga', email: 'dewi@gmail.com', role: 'warga', nik: '3275086111970006', noKk: '3275081212080003', noHp: '081234567895', alamat: 'Sawangan Green Park Blok C2 No. 8', status: 'Kontrak', gender: 'Perempuan', usia: 29, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-007', name: 'Mbah Slamet', username: 'slamet', password: 'warga', email: 'slamet@gmail.com', role: 'warga', nik: '3275081512450007', noKk: '3275081212080004', noHp: '081234567896', alamat: 'Sawangan Green Park Blok D4 No. 2', status: 'Tetap', gender: 'Laki-laki', usia: 72, statusHidup: 'Hidup', statusIuran: 'Lunas' },
-  { id: 'WRG-008', name: 'Alm. Pak Subarkah', username: 'subarkah', password: 'warga', email: 'subarkah@gmail.com', role: 'warga', nik: '3275081203500008', noKk: '3275081212080005', noHp: '081234567897', alamat: 'Sawangan Green Park Blok E5 No. 15', status: 'Tetap', gender: 'Laki-laki', usia: 68, statusHidup: 'Meninggal', statusIuran: 'Lunas' }
-];
-
-const DEFAULT_KAS = [
-  { id: 'TX-001', description: 'Iuran Kebersihan & Keamanan Bulanan Warga (Juni)', amount: 10000000, date: '2026-06-30', type: 'income', category: 'Iuran Warga' },
-  { id: 'TX-002', description: 'Honor Satpam Klaster Sawangan Green Park (2 Petugas)', amount: 3500000, date: '2026-07-01', type: 'expense', category: 'Keamanan' },
-  { id: 'TX-003', description: 'Sumbangan Warga untuk Pembelian Alat Fogging Mandiri', amount: 5000000, date: '2026-07-02', type: 'income', category: 'Donasi' },
-  { id: 'TX-004', description: 'Biaya Pengangkutan Sampah Mandiri Ke TPA', amount: 1500000, date: '2026-07-03', type: 'expense', category: 'Kebersihan' },
-  { id: 'TX-005', description: 'Konsumsi & Pembelian Obat Abate Kerja Bakti', amount: 1000000, date: '2026-07-05', type: 'expense', category: 'Kebersihan' },
-  { id: 'TX-050', description: 'Pembayaran Iuran Budi Santoso', amount: 50000, date: '2026-07-06', type: 'income', category: 'Iuran Warga' }
-];
-
-const DEFAULT_AGENDA = [
-  { id: 'AGD-001', title: 'Kerja Bakti & Fogging Nyamuk DBD', date: '2026-07-12', time: '07:00 - 11:00 WIB', location: 'Area Fasos, Fasum, & Selokan Klaster', category: 'Kerja Bakti', participants: 'Seluruh Warga Blok A - E', description: 'Kegiatan gotong royong membersihkan saluran air tersumbat serta pelaksanaan pengasapan (fogging nyamuk) untuk mencegah penyebaran demam berdarah.' },
-  { id: 'AGD-002', title: 'Rapat Rutin Bulanan Warga SGP', date: '2026-07-25', time: '19:30 WIB - Selesai', location: 'Balai Warga / Lapangan Serbaguna', category: 'Rapat Warga', participants: 'Perwakilan 1 Orang per KK', description: 'Musyawarah bulanan guna membahas evaluasi kinerja satpam, perbaikan CCTV komplek, serta perencanaan perayaan Hari Kemerdekaan 17 Agustus.' },
-  { id: 'AGD-003', title: 'Layanan Posyandu Balita & Senam Lansia', date: '2026-08-05', time: '08:00 - 11:30 WIB', location: 'Pos Satpam Utama Sawangan Green Park', category: 'Kesehatan', participants: 'Ibu Hamil, Balita, & Warga Lansia', description: 'Pemberian imunisasi dasar anak, penimbangan berat badan balita, penyuluhan gizi, dilanjutkan dengan olahraga senam sehat bersama warga lanjut usia.' }
-];
-
-const DEFAULT_SUBMISSIONS = [
-  { id: 'SRT-739102', wargaNama: 'Budi Santoso', wargaNik: '3275081102900001', wargaNoKk: '3275081212080001', wargaAlamat: 'Sawangan Green Park Blok A1 No. 5', wargaKeperluan: 'Persyaratan perpanjangan KTP Elektronik', wargaTipeSurat: 'Surat Pengantar Pembuatan KTP', status: 'Pending', submissionDate: '12 Juni 2026' },
-  { id: 'SRT-945201', wargaNama: 'Andi Wijaya', wargaNik: '3275080203850003', wargaNoKk: '3275081212080002', wargaAlamat: 'Sawangan Green Park Blok B3 No. 12', wargaKeperluan: 'Pengurusan surat nikah di KUA Kecamatan Sawangan', wargaTipeSurat: 'Surat Pengantar Nikah', status: 'Completed', submissionDate: '20 Juni 2026', processedDate: '21 Juni 2026' }
-];
+const DEFAULT_WARGA = [];
+const DEFAULT_KAS = [];
+const DEFAULT_AGENDA = [];
+const DEFAULT_SUBMISSIONS = [];
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('beranda');
@@ -89,6 +63,9 @@ export default function App() {
     return DEFAULT_SUBMISSIONS;
   });
 
+  const [publicStats, setPublicStats] = useState(null);
+  const [publicLedger, setPublicLedger] = useState([]);
+
   // Sesi User login
   const [currentUser, setCurrentUser] = useState(() => {
     const data = localStorage.getItem('rt_current_user');
@@ -120,6 +97,80 @@ export default function App() {
     setCurrentUser(updatedUser);
     localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
   };
+
+  const fetchAgendas = async (query = '') => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+
+    try {
+      const user = currentUser || JSON.parse(localStorage.getItem('rt_current_user') || 'null');
+      if (!user) return;
+      const isAdmin = ['admin', 'rt', 'sekertaris', 'bendahara'].includes(user.role);
+      const endpoint = isAdmin ? '/admin/agenda' : '/resident/agenda';
+      
+      const url = query 
+        ? `http://172.20.32.62:3333${endpoint}?search=${encodeURIComponent(query)}`
+        : `http://172.20.32.62:3333${endpoint}`;
+        
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          const mapped = data.map(a => ({
+            id: a.id,
+            category: a.kategori,
+            title: a.judul,
+            description: a.deskripsi,
+            date: a.tanggal ? a.tanggal.substring(0, 10) : '',
+            time: a.waktu,
+            location: a.tempat,
+            isFromServer: true
+          }));
+          setAgendaList(mapped);
+          localStorage.setItem('rt_agendalist', JSON.stringify(mapped));
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memuat agenda dari server, menggunakan data lokal:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchAgendas();
+      const interval = setInterval(() => {
+        fetchAgendas();
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  const fetchPublicStats = async () => {
+    try {
+      const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
+      const data = await response.json();
+      if (response.ok) {
+        setPublicStats(data.output?.stats || null);
+        setPublicLedger(data.output?.ledger || []);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat statistik publik dari server:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublicStats();
+  }, []);
+
+  // Redirect guest users if they try to access restricted pages
+  useEffect(() => {
+    const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
+    if (!currentUser && restrictedTabs.includes(currentPage)) {
+      setCurrentPage('login');
+    }
+  }, [currentPage, currentUser]);
 
 
 
@@ -161,8 +212,8 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // 1. GATEKEEPER: RENDER LOGIN PAGE IF NOT LOGGED IN
-  if (!currentUser) {
+  // 1. GATEKEEPER: RENDER LOGIN PAGE IF NOT LOGGED IN AND ON LOGIN TAB
+  if (!currentUser && currentPage === 'login') {
     return (
       <LoginPage
         wargaList={wargaList}
@@ -170,6 +221,7 @@ export default function App() {
         setCurrentUser={setCurrentUser}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        onBackToHome={() => setCurrentPage('beranda')}
       />
     );
   }
@@ -202,6 +254,7 @@ export default function App() {
         setSubmissionsList={setSubmissionsList}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        fetchAgendas={fetchAgendas}
       />
     );
   }
@@ -223,6 +276,7 @@ export default function App() {
         setTransaksiKasList={setTransaksiKasList}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        fetchAgendas={fetchAgendas}
       />
     );
   }
@@ -248,6 +302,8 @@ export default function App() {
             totalAgendaBulanIni={activeAgendasCount}
             sisaKasRT={sisaKasRT}
             setCurrentPage={setCurrentPage}
+            publicStats={publicStats}
+            publicLedger={publicLedger}
           />
         )}
 
@@ -267,6 +323,7 @@ export default function App() {
             setTransaksiKasList={setTransaksiKasList}
             darkMode={darkMode}
             setDarkMode={setDarkMode}
+            fetchAgendas={fetchAgendas}
           />
         )}
 
