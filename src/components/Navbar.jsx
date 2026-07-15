@@ -44,7 +44,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           {/* Desktop Menu */}
           <div className="hidden lg:flex items-center gap-1">
             {menuItems
-              .filter(item => item.id !== 'profil-saya' || (currentUser && currentUser.role === 'warga'))
+              .filter(item => {
+                const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
+                if (!currentUser && restrictedTabs.includes(item.id)) return false;
+                return true;
+              })
               .map((item) => (
                 <button
                   key={item.id}
@@ -69,7 +73,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             </button>
 
             {/* Auth Controls */}
-            {currentUser && (
+            {currentUser ? (
               <div className="flex items-center gap-3 ml-2 border-l border-slate-200 dark:border-slate-800 pl-3">
                 <span className="text-xs font-extrabold text-slate-700 dark:text-slate-300">
                   Hi, {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
@@ -78,12 +82,21 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                   onClick={() => {
                     setCurrentUser(null);
                     localStorage.removeItem('rt_current_user');
+                    localStorage.removeItem('rt_token');
+                    setCurrentPage('beranda');
                   }}
-                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-950/20 dark:text-rose-400 dark:hover:bg-rose-500 dark:hover:text-white font-extrabold text-xs rounded-xl cursor-pointer transition-all"
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-500 text-rose-600 hover:text-white dark:bg-rose-950/20 dark:text-rose-455 dark:hover:bg-rose-500 dark:hover:text-white font-extrabold text-xs rounded-xl cursor-pointer transition-all"
                 >
                   Keluar
                 </button>
               </div>
+            ) : (
+              <button
+                onClick={() => handleNavClick('login')}
+                className="ml-3 px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all hover:scale-[1.02]"
+              >
+                Login Portal
+              </button>
             )}
           </div>
 
@@ -116,7 +129,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
       >
         <div className="px-4 py-4 space-y-1 sm:px-5">
           {menuItems
-            .filter(item => item.id !== 'profil-saya' || (currentUser && currentUser.role === 'warga'))
+            .filter(item => {
+              const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
+              if (!currentUser && restrictedTabs.includes(item.id)) return false;
+              return true;
+            })
             .map((item) => (
               <button
                 key={item.id}
@@ -124,7 +141,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                 className={`block w-full text-left px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   currentPage === item.id
                     ? 'bg-emerald-600 text-white'
-                    : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    : 'text-slate-600 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {item.label}
@@ -132,7 +149,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             ))}
 
           {/* Auth Controls for Mobile */}
-          {currentUser && (
+          {currentUser ? (
             <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-800 px-4 space-y-3">
               <div className="text-xs font-black text-slate-800 dark:text-white">
                 Nama Sesi: {currentUser.name}
@@ -142,10 +159,24 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                   setIsOpen(false);
                   setCurrentUser(null);
                   localStorage.removeItem('rt_current_user');
+                  localStorage.removeItem('rt_token');
+                  setCurrentPage('beranda');
                 }}
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl cursor-pointer text-center block transition-all"
               >
                 Keluar Portal
+              </button>
+            </div>
+          ) : (
+            <div className="pt-3 mt-3 border-t border-slate-200 dark:border-slate-800 px-4">
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleNavClick('login');
+                }}
+                className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-extrabold text-xs rounded-xl cursor-pointer text-center block transition-all"
+              >
+                Login Portal
               </button>
             </div>
           )}

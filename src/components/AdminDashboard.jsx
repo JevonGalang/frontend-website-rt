@@ -5,9 +5,29 @@ import {
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
   AlertCircle, Sparkles, Filter, Activity,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
-  Database
+  Database, Lock
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
+
+const isTabAllowedForRole = (tab, role) => {
+  if (role === 'rt' || role === 'admin') return true;
+  
+  const financeTabs = [
+    'kas', 'iuran_jenis', 'iuran_pembayaran', 'iuran_riwayat', 'iuran_tunggakan', 'iuran_verifikasi',
+    'laporan_bulanan', 'laporan_tahunan', 'laporan_rekap', 'laporan_export',
+    'keuangan_pemasukan', 'keuangan_pengeluaran', 'keuangan_kas', 'keuangan_qris'
+  ];
+  
+  if (role === 'bendahara') {
+    return tab === 'overview' || tab === 'pengaturan' || financeTabs.includes(tab);
+  }
+  
+  if (role === 'sekertaris' || role === 'sekretaris') {
+    return !financeTabs.includes(tab);
+  }
+  
+  return false;
+};
 
 export default function AdminDashboard({ 
   currentUser, 
@@ -21,7 +41,8 @@ export default function AdminDashboard({
   submissionsList, 
   setSubmissionsList,
   darkMode,
-  setDarkMode
+  setDarkMode,
+  fetchAgendas
 }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
@@ -67,31 +88,12 @@ export default function AdminDashboard({
   const [isInformasiOpen, setIsInformasiOpen] = useState(true);
 
   // Secretary Log States
-  const [pendudukMasukList, setPendudukMasukList] = useState([
-    { id: 'IN-011', name: 'Rian Kurniawan', date: '2026-06-15', address: 'Blok B3 No. 12', origin: 'Bandung', status: 'Kontrak' },
-    { id: 'IN-012', name: 'Mega Lestari', date: '2026-06-28', address: 'Blok C2 No. 8', origin: 'Jakarta', status: 'Tetap' }
-  ]);
-  const [pendudukKeluarList, setPendudukKeluarList] = useState([
-    { id: 'OUT-005', name: 'Joni Iskandar', date: '2026-05-10', address: 'Blok A1 No. 3', destination: 'Surabaya', reason: 'Pindah Tugas Kerja' },
-    { id: 'OUT-006', name: 'Suhartono (Alm)', date: '2026-06-02', address: 'Blok D4 No. 1', destination: '-', reason: 'Meninggal Dunia' }
-  ]);
-  const [suratMasukList, setSuratMasukList] = useState([
-    { id: 'SM-001', date: '2026-07-02', sender: 'Kelurahan Sawangan Baru', subject: 'Undangan Rapat Koordinasi Posyandu Kelurahan', status: 'Arsip' },
-    { id: 'SM-002', date: '2026-07-05', sender: 'Kecamatan Sawangan', subject: 'Pemberitahuan Penertiban Administrasi Kependudukan', status: 'Penting' }
-  ]);
-  const [suratKeluarList, setSuratKeluarList] = useState([
-    { id: 'SK-001', date: '2026-07-03', recipient: 'Budi Santoso', subject: 'Surat Pengantar Pembuatan KTP', status: 'Dikirim' },
-    { id: 'SK-002', date: '2026-07-06', recipient: 'Andi Wijaya', subject: 'Surat Pengantar Nikah', status: 'Dikirim' }
-  ]);
-  const [notulenList, setNotulenList] = useState([
-    { id: 'NOT-001', date: '2026-06-25', title: 'Evaluasi Kinerja Satpam Komplek', recorder: 'Bu Riana Sukma', decisions: 'Menambah jam patroli malam dan mengganti portal pintu gerbang selatan yang rusak.' },
-    { id: 'NOT-002', date: '2026-07-05', title: 'Pembahasan Anggaran HUT RI Ke-81', recorder: 'Bu Riana Sukma', decisions: 'Pembentukan panitia perlombaan anak-anak dan penetapan iuran sukarela per rumah sebesar Rp 50.000.' }
-  ]);
-  const [arsipFileList, setArsipFileList] = useState([
-    { id: 'ARC-001', name: 'Laporan_Keuangan_KAS_RT04_2025.xlsx', date: '2025-12-31', size: '2.4 MB', category: 'Keuangan' },
-    { id: 'ARC-002', name: 'Notulen_Rapat_Warga_Desember_2025.docx', date: '2025-12-25', size: '1.2 MB', category: 'Notulen' },
-    { id: 'ARC-003', name: 'SK_Pembentukan_Pengurus_RT04_RW09.pdf', date: '2024-05-12', size: '4.8 MB', category: 'SK Pengurus' }
-  ]);
+  const [pendudukMasukList, setPendudukMasukList] = useState([]);
+  const [pendudukKeluarList, setPendudukKeluarList] = useState([]);
+  const [suratMasukList, setSuratMasukList] = useState([]);
+  const [suratKeluarList, setSuratKeluarList] = useState([]);
+  const [notulenList, setNotulenList] = useState([]);
+  const [arsipFileList, setArsipFileList] = useState([]);
 
   // Secretary Form States
   const [notulenForm, setNotulenForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
@@ -786,6 +788,19 @@ export default function AdminDashboard({
     if (activeTab === 'overview' || activeTab === 'layanan') {
       fetchServerSubmissions();
     }
+    if (activeTab === 'agenda') {
+      if (fetchAgendas) fetchAgendas();
+    }
+
+    const interval = setInterval(() => {
+      if (activeTab === 'sek_warga_kk' && residentSubTab === 'server') fetchResidentServerList();
+      if (activeTab === 'sek_pengaduan') fetchServerComplaints();
+      if (activeTab === 'sek_info_pengumuman') fetchServerAnnouncements();
+      if (activeTab === 'overview' || activeTab === 'layanan') fetchServerSubmissions();
+      if (activeTab === 'agenda') { if (fetchAgendas) fetchAgendas(); }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [activeTab, residentSubTab]);
 
   const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
@@ -936,7 +951,7 @@ export default function AdminDashboard({
 
     const updated = wargaList.map(w => w.id === id ? { ...w, tagihNotification: true } : w);
     saveWarga(updated);
-    alert(`Pemberitahuan tagihan resmi (WhatsApp & Portal Warga) berhasil dikirimkan ke warga: ${targetWarga.name}!`);
+    alert(`Pemberitahuan tagihan resmi (Email & Telegram Bot) berhasil dikirimkan ke warga: ${targetWarga.name}!`);
   };
 
   const handlePrintKasReport = () => {
@@ -1135,7 +1150,7 @@ export default function AdminDashboard({
   };
 
   // Delete Handlers
-  const handleDelete = (type, id) => {
+  const handleDelete = async (type, id) => {
     if (confirm(`Apakah Anda yakin ingin menghapus data ini?`)) {
       if (type === 'warga') {
         const updated = wargaList.filter(w => w.id !== id);
@@ -1144,8 +1159,37 @@ export default function AdminDashboard({
         const updated = transaksiKasList.filter(t => t.id !== id);
         saveKas(updated);
       } else if (type === 'agenda') {
-        const updated = agendaList.filter(a => a.id !== id);
-        saveAgenda(updated);
+        const token = localStorage.getItem('rt_token');
+        if (!token || isNaN(id)) {
+          const updated = agendaList.filter(a => a.id !== id);
+          saveAgenda(updated);
+          return;
+        }
+
+        try {
+          const response = await fetch(`http://172.20.32.62:3333/admin/agenda/${id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (!response.ok) {
+            const resData = await response.json();
+            throw new Error(resData.message || 'Gagal menghapus agenda dari server.');
+          }
+
+          const resData = await response.json();
+          const updated = agendaList.filter(a => a.id !== id);
+          saveAgenda(updated);
+          alert(resData.message || 'agenda kegiatan berhasil dihapus masbro');
+          if (fetchAgendas) fetchAgendas();
+        } catch (err) {
+          console.warn('Gagal menghapus agenda di server, menghapus secara lokal:', err.message);
+          alert(`Error: ${err.message}. Data dihapus secara lokal.`);
+          const updated = agendaList.filter(a => a.id !== id);
+          saveAgenda(updated);
+        }
       }
     }
   };
@@ -1367,7 +1411,7 @@ export default function AdminDashboard({
     setModalType('');
   };
 
-  const handleAgendaSubmit = (e) => {
+  const handleAgendaSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
 
@@ -1376,17 +1420,93 @@ export default function AdminDashboard({
       return;
     }
 
-    if (modalType === 'add_agenda') {
-      const newAgenda = {
-        ...agendaForm,
-        id: 'AGD-' + Math.floor(Math.random() * 9000 + 1000)
-      };
-      saveAgenda([newAgenda, ...agendaList]);
-    } else {
-      const updated = agendaList.map(a => a.id === selectedItem.id ? { ...agendaForm } : a);
-      saveAgenda(updated);
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      if (modalType === 'add_agenda') {
+        const newAgenda = {
+          ...agendaForm,
+          id: 'AGD-' + Math.floor(Math.random() * 9000 + 1000)
+        };
+        saveAgenda([newAgenda, ...agendaList]);
+      } else {
+        const updated = agendaList.map(a => a.id === selectedItem.id ? { ...agendaForm } : a);
+        saveAgenda(updated);
+      }
+      setModalType('');
+      return;
     }
-    setModalType('');
+
+    try {
+      const payload = {
+        kategori: (agendaForm.category || 'KEGIATAN RT').toUpperCase(),
+        judul: agendaForm.title,
+        deskripsi: agendaForm.description,
+        tanggal: agendaForm.date,
+        waktu: agendaForm.time,
+        tempat: agendaForm.location
+      };
+
+      if (modalType === 'add_agenda') {
+        const response = await fetch('http://172.20.32.62:3333/admin/agenda', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const resData = await response.json();
+          throw new Error(resData.message || 'Gagal menambahkan agenda ke server.');
+        }
+
+        const resData = await response.json();
+        const serverId = resData.output?.pesan?.insertId || resData.output?.insertId || ('AGD-' + Math.floor(Math.random() * 9000 + 1000));
+        const newAgenda = {
+          ...agendaForm,
+          id: serverId,
+          isFromServer: true
+        };
+        saveAgenda([newAgenda, ...agendaList]);
+        alert(resData.message || 'agenda kegiatan berhasil dibuat masbro');
+      } else {
+        const response = await fetch(`http://172.20.32.62:3333/admin/agenda/${selectedItem.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const resData = await response.json();
+          throw new Error(resData.message || 'Gagal memperbarui agenda di server.');
+        }
+
+        const resData = await response.json();
+        const updated = agendaList.map(a => a.id === selectedItem.id ? { ...agendaForm } : a);
+        saveAgenda(updated);
+        alert(resData.message || 'agenda kegiatan berhasil diperbarui masbro');
+      }
+      setModalType('');
+      if (fetchAgendas) fetchAgendas();
+    } catch (err) {
+      console.warn('Gagal memproses agenda di server, menggunakan fallback lokal:', err.message);
+      alert(`Error: ${err.message}. Data disimpan secara lokal.`);
+      if (modalType === 'add_agenda') {
+        const newAgenda = {
+          ...agendaForm,
+          id: 'AGD-' + Math.floor(Math.random() * 9000 + 1000)
+        };
+        saveAgenda([newAgenda, ...agendaList]);
+      } else {
+        const updated = agendaList.map(a => a.id === selectedItem.id ? { ...agendaForm } : a);
+        saveAgenda(updated);
+      }
+      setModalType('');
+    }
   };
 
   // Letter Submissions Handlers (Approve/Reject/Complete)
@@ -1449,7 +1569,10 @@ export default function AdminDashboard({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
+      {/* Premium ambient glows */}
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* 1. SIDEBAR */}
       <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-350 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
@@ -1492,32 +1615,6 @@ export default function AdminDashboard({
               >
                 <LayoutDashboard className="w-4 h-4 text-emerald-450" />
                 <span>Dashboard</span>
-              </button>
-
-              {/* Data Warga */}
-              <button
-                onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'warga'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Users className="w-4 h-4 text-sky-400" />
-                <span>Data Warga</span>
-              </button>
-
-              {/* Input Data Wizard */}
-              <button
-                onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === 'data_wizard'
-                    ? 'bg-emerald-600 text-white shadow-md'
-                    : 'hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                <Database className="w-4 h-4 text-teal-400" />
-                <span>Input Data Baru</span>
               </button>
 
               {/* Iuran Header */}
@@ -1942,80 +2039,6 @@ export default function AdminDashboard({
                 <span>Laporan</span>
               </button>
 
-              {/* Iuran Header */}
-              <div>
-                <button
-                  onClick={() => setIsIuranOpen(!isIuranOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Wallet className="w-4 h-4 text-amber-400" />
-                    <span>Iuran Lingkungan</span>
-                  </div>
-                  <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▲'}</span>
-                </button>
-
-                {isIuranOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
-                    <button
-                      onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_jenis' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Jenis Iuran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_pembayaran' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Catat Pembayaran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_riwayat' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Riwayat Setoran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_tunggakan' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Tunggakan Iuran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_verifikasi' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-850/50' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Verifikasi Transfer</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
               {/* Manajemen Akun */}
               <button
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
@@ -2396,7 +2419,11 @@ export default function AdminDashboard({
             </h2>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-450 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
+              Live Sync
+            </span>
             <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Sesi Aktif
@@ -2406,6 +2433,24 @@ export default function AdminDashboard({
 
         {/* Content body */}
         <div className="p-6 md:p-8 flex-1 space-y-6">
+          {!isTabAllowedForRole(activeTab, currentUser.role) ? (
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-xl mt-12 animate-fade-in font-sans">
+              <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+                <Lock className="w-8 h-8 animate-bounce-slow" />
+              </div>
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">Akses Ditolak / Dibatasi</h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Peran Anda sebagai <span className="font-extrabold text-rose-500 capitalize">{currentUser.role === 'sekertaris' ? 'Sekretaris' : currentUser.role}</span> tidak diizinkan mengakses panel data ini. Fitur ini dibatasi ketat untuk mematuhi kedaulatan peran kepengurusan RT.
+              </p>
+              <button
+                onClick={() => setActiveTab('overview')}
+                className="py-2.5 px-6 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Kembali ke Dashboard
+              </button>
+            </div>
+          ) : (
+            <>
 
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
@@ -2414,7 +2459,7 @@ export default function AdminDashboard({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 
                 {/* Warga Count */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
                     <Users className="w-6 h-6" />
                   </div>
@@ -2426,7 +2471,7 @@ export default function AdminDashboard({
                 </div>
 
                 {/* KK Count */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-2xl">
                     <Landmark className="w-6 h-6" />
                   </div>
@@ -2437,7 +2482,7 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Sisa Kas */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-teal-500/10 dark:bg-teal-500/20 text-teal-600 dark:text-teal-400 rounded-2xl">
                     <Wallet className="w-6 h-6" />
                   </div>
@@ -2450,7 +2495,7 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Pending Submissions */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className={`p-4 rounded-2xl ${
                     pendingSubmissionsCount > 0 
                       ? 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-500 dark:text-rose-450 animate-pulse' 
@@ -5266,7 +5311,10 @@ export default function AdminDashboard({
                     type="text"
                     placeholder="Cari agenda kegiatan..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      if (fetchAgendas) fetchAgendas(e.target.value);
+                    }}
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
@@ -5771,6 +5819,8 @@ export default function AdminDashboard({
             <AdminDataWizard />
           )}
 
+            </>
+          )}
         </div>
       </main>
 

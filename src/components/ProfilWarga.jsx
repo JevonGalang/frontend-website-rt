@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
   Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
-  Loader2
+  Loader2, Search
 } from 'lucide-react';
 
 export default function ProfilWarga({ 
@@ -19,7 +19,8 @@ export default function ProfilWarga({
   transaksiKasList = [],
   setTransaksiKasList,
   darkMode,
-  setDarkMode
+  setDarkMode,
+  fetchAgendas
 }) {
   // Navigation & Collapsible Menu States
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -98,6 +99,56 @@ export default function ProfilWarga({
   // Warga submissions (pengajuan) state
   const [serverSubmissions, setServerSubmissions] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [agendaSearch, setAgendaSearch] = useState('');
+
+  const isPermanentResident = currentUser && (currentUser.status === 'Tetap' || currentUser.status_tempat_tinggal === 'Milik Sendiri');
+
+  // File Input References
+  const fileInputRef = useRef(null);
+  const docFileInputRef = useRef(null);
+
+  // Document Upload State
+  const [uploadDocForm, setUploadDocForm] = useState({
+    wargaId: '',
+    type: 'ktp',
+    file: null
+  });
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadDocError, setUploadDocError] = useState('');
+  const [uploadDocSuccess, setUploadDocSuccess] = useState('');
+  const [uploadedDocsList, setUploadedDocsList] = useState(() => {
+    const saved = localStorage.getItem('rt_uploaded_docs');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Edit Family Member States
+  const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
+  const [isEditingMember, setIsEditingMember] = useState(false);
+  const [editMemberError, setEditMemberError] = useState('');
+  const [editingMember, setEditingMember] = useState(null);
+  const [editMemberForm, setEditMemberForm] = useState({
+    nama: '',
+    noHp: '',
+    umur: ''
+  });
+
+  // Advanced Dues Payment Form State
+  const [paymentType, setPaymentType] = useState('ipl'); // 'ipl' | 'kas'
+  const [iplPaymentForm, setIplPaymentForm] = useState({
+    year: new Date().getFullYear(),
+    months: [], // e.g. [7] for Juli
+    file: null
+  });
+  const [kasPaymentForm, setKasPaymentForm] = useState({
+    amount: '',
+    category: 'sosial',
+    activitySelect: 'Santunan Warga Sakit / Wafat',
+    customDescription: '',
+    file: null
+  });
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentSuccess, setPaymentSuccess] = useState('');
 
   // Warga payments (finance) state
   const [wargaPayments, setWargaPayments] = useState({ ipl: [], kas: [] });
@@ -314,6 +365,26 @@ export default function ProfilWarga({
       fetchKaryawanList();
       fetchVoteResults();
     }
+    if (activeTab === 'informasi_jadwal' && fetchAgendas) {
+      fetchAgendas();
+    }
+
+    const interval = setInterval(() => {
+      fetchFamilyMembers();
+      fetchCitizenComplaints();
+      fetchWargaAnnouncements();
+      fetchCitizenSubmissions();
+      fetchWargaPayments();
+      if (activeTab === 'voting_karyawan') {
+        fetchKaryawanList();
+        fetchVoteResults();
+      }
+      if (activeTab === 'informasi_jadwal' && fetchAgendas) {
+        fetchAgendas();
+      }
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, [activeTab]);
 
   // Save changes helper
@@ -863,6 +934,297 @@ export default function ProfilWarga({
     }
   };
 
+  const openEditMemberModal = (member) => {
+    setEditingMember(member);
+    setEditMemberForm({
+      nama: member.nama || '',
+      noHp: member.no_hp || member.noHp || '',
+      umur: member.umur || ''
+    });
+    setEditMemberError('');
+    setIsEditMemberOpen(true);
+  };
+
+  const handleEditMemberSubmit = async (e) => {
+    e.preventDefault();
+    setIsEditingMember(true);
+    setEditMemberError('');
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setEditMemberError('Token tidak ditemukan.');
+      setIsEditingMember(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/resident/warga/${editingMember.warga_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nama: editMemberForm.nama,
+          noHp: editMemberForm.noHp,
+          umur: parseInt(editMemberForm.umur) || 0
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert('Data anggota keluarga berhasil diperbarui!');
+        setIsEditMemberOpen(false);
+        fetchFamilyMembers();
+      } else {
+        setEditMemberError(data.pesan || data.message || 'Gagal memperbarui data.');
+      }
+    } catch (err) {
+      setEditMemberError(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsEditingMember(false);
+    }
+  };
+
+  const handleSensitifDataSubmit = async (e) => {
+    e.preventDefault();
+    setUploadDocError('');
+    setUploadDocSuccess('');
+    setIsUploadingDoc(true);
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setUploadDocError('Token tidak ditemukan. Harap login kembali.');
+      setIsUploadingDoc(false);
+      return;
+    }
+
+    if (!uploadDocForm.wargaId) {
+      setUploadDocError('Silakan pilih anggota keluarga.');
+      setIsUploadingDoc(false);
+      return;
+    }
+
+    if (!uploadDocForm.file) {
+      setUploadDocError('Silakan pilih file untuk diunggah.');
+      setIsUploadingDoc(false);
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', uploadDocForm.file);
+    formData.append('type', uploadDocForm.type);
+
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        const documentId = data.output?.pesan?.document_id || Math.floor(Math.random() * 9000 + 1000);
+        const fileName = uploadDocForm.file.name;
+        
+        const newDoc = {
+          id: 'DOC-' + Math.floor(Math.random() * 90000 + 10000),
+          wargaId: uploadDocForm.wargaId,
+          type: uploadDocForm.type,
+          fileName: fileName,
+          documentId: documentId,
+          date: new Date().toLocaleDateString('id-ID')
+        };
+        
+        const updatedDocs = [newDoc, ...uploadedDocsList];
+        setUploadedDocsList(updatedDocs);
+        localStorage.setItem('rt_uploaded_docs', JSON.stringify(updatedDocs));
+        
+        setUploadDocSuccess('Dokumen berhasil diunggah secara mandiri!');
+        setUploadDocForm(prev => ({ ...prev, file: null }));
+        if (docFileInputRef.current) docFileInputRef.current.value = '';
+      } else {
+        setUploadDocError(data.pesan || data.message || 'Gagal mengunggah dokumen.');
+      }
+    } catch (err) {
+      setUploadDocError(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsUploadingDoc(false);
+    }
+  };
+
+  const handleDownloadSensitifDoc = async (documentId) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan.');
+      return;
+    }
+    try {
+      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const blob = await response.blob();
+        const localUrl = URL.createObjectURL(blob);
+        window.open(localUrl, '_blank');
+      } else {
+        const errData = await response.json();
+        alert(errData.pesan || 'Gagal mengunduh berkas sensitif.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
+  const handleAdvancedPaymentSubmit = async (e) => {
+    e.preventDefault();
+    setPaymentError('');
+    setPaymentSuccess('');
+    setIsSubmittingPayment(true);
+
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      setPaymentError('Token tidak ditemukan. Harap login kembali.');
+      setIsSubmittingPayment(false);
+      return;
+    }
+
+    const formData = new FormData();
+
+    if (paymentType === 'ipl') {
+      if (iplPaymentForm.months.length === 0) {
+        setPaymentError('Silakan pilih minimal satu bulan iuran.');
+        setIsSubmittingPayment(false);
+        return;
+      }
+      if (!iplPaymentForm.file) {
+        setPaymentError('Silakan unggah bukti transfer pembayaran IPL.');
+        setIsSubmittingPayment(false);
+        return;
+      }
+      
+      const totalAmount = iplPaymentForm.months.length * 200000;
+      formData.append('file', iplPaymentForm.file);
+      formData.append('year', iplPaymentForm.year);
+      formData.append('amount', totalAmount);
+      formData.append('months', JSON.stringify(iplPaymentForm.months));
+
+      try {
+        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setPaymentSuccess('Pembayaran IPL berhasil dikirim! Tunggu verifikasi oleh Bendahara.');
+          setIplPaymentForm({
+            year: new Date().getFullYear(),
+            months: [],
+            file: null
+          });
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          
+          const newUpload = {
+            id: 'PAY-IPL-' + Math.floor(Math.random() * 9000 + 1000),
+            date: new Date().toISOString().split('T')[0],
+            nominal: totalAmount,
+            bulan: 'Multi-Bulan',
+            catatan: `Pembayaran IPL Tahun ${iplPaymentForm.year}`,
+            status: 'Menunggu Verifikasi',
+            wargaId: currentUser.id,
+            wargaNama: currentUser.name || currentUser.username
+          };
+          const newList = [newUpload, ...buktiBayarList];
+          setBuktiBayarList(newList);
+          localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(newList));
+        } else {
+          setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran IPL.');
+        }
+      } catch (err) {
+        setPaymentError(`Koneksi gagal: ${err.message}`);
+      } finally {
+        setIsSubmittingPayment(false);
+      }
+    } else {
+      if (!kasPaymentForm.amount || parseInt(kasPaymentForm.amount) <= 0) {
+        setPaymentError('Silakan masukkan nominal iuran yang valid.');
+        setIsSubmittingPayment(false);
+        return;
+      }
+      if (!kasPaymentForm.file) {
+        setPaymentError('Silakan unggah bukti transfer pembayaran Uang Kas.');
+        setIsSubmittingPayment(false);
+        return;
+      }
+
+      const description = kasPaymentForm.activitySelect === 'Lainnya (Input Manual)' 
+        ? kasPaymentForm.customDescription 
+        : kasPaymentForm.activitySelect;
+
+      if (!description.trim()) {
+        setPaymentError('Silakan isi keterangan atau pilih jenis kegiatan.');
+        setIsSubmittingPayment(false);
+        return;
+      }
+
+      formData.append('file', kasPaymentForm.file);
+      formData.append('amount', parseInt(kasPaymentForm.amount));
+      formData.append('category', kasPaymentForm.category);
+      formData.append('description', description);
+
+      try {
+        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+
+        const data = await response.json();
+        if (response.ok) {
+          setPaymentSuccess('Pembayaran Uang Kas berhasil dikirim! Tunggu verifikasi oleh Bendahara.');
+          setKasPaymentForm({
+            amount: '',
+            category: 'sosial',
+            activitySelect: 'Santunan Warga Sakit / Wafat',
+            customDescription: '',
+            file: null
+          });
+          if (fileInputRef.current) fileInputRef.current.value = '';
+
+          const newUpload = {
+            id: 'PAY-KAS-' + Math.floor(Math.random() * 9000 + 1000),
+            date: new Date().toISOString().split('T')[0],
+            nominal: parseInt(kasPaymentForm.amount),
+            bulan: 'Insidental',
+            catatan: `Kas ${kasPaymentForm.category.toUpperCase()}: ${description}`,
+            status: 'Menunggu Verifikasi',
+            wargaId: currentUser.id,
+            wargaNama: currentUser.name || currentUser.username
+          };
+          const newList = [newUpload, ...buktiBayarList];
+          setBuktiBayarList(newList);
+          localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(newList));
+        } else {
+          setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran Uang Kas.');
+        }
+      } catch (err) {
+        setPaymentError(`Koneksi gagal: ${err.message}`);
+      } finally {
+        setIsSubmittingPayment(false);
+      }
+    }
+  };
+
   const handleInitiatePg = () => {
     setPgStage('select_method');
     setPgMethod('');
@@ -957,7 +1319,10 @@ export default function ProfilWarga({
   const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
+      {/* Premium ambient glows */}
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* 1. SIDEBAR */}
       <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
@@ -1025,6 +1390,21 @@ export default function ProfilWarga({
             <Users className="w-4 h-4 text-purple-400" />
             <span>Keluarga Saya</span>
           </button>
+
+          {/* Upload Berkas Mandiri Button (Only for Tetap/Milik Warga) */}
+          {isPermanentResident && (
+            <button
+              onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'warga_upload_berkas'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Upload className="w-4 h-4 text-emerald-500" />
+              <span>Upload Berkas Mandiri</span>
+            </button>
+          )}
 
           {/* Informasi Dropdown */}
           <div>
@@ -1321,7 +1701,11 @@ export default function ProfilWarga({
             </h2>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-450 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
+              Live Sync
+            </span>
             <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold items-center gap-1.5 font-sans">
               <Sparkles className="w-3 h-3" />
               Portal Warga
@@ -1351,7 +1735,7 @@ export default function ProfilWarga({
 
               {/* Quick statistics widgets grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className={`p-4 rounded-2xl ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
                     <Wallet className="w-5 h-5" />
                   </div>
@@ -1361,7 +1745,7 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-2xl">
                     <FileText className="w-5 h-5" />
                   </div>
@@ -1371,7 +1755,7 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl">
                     <Calendar className="w-5 h-5" />
                   </div>
@@ -1381,7 +1765,7 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:shadow-md transition-shadow">
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl">
                     <AlertTriangle className="w-5 h-5" />
                   </div>
@@ -1550,8 +1934,7 @@ export default function ProfilWarga({
                             <th className="p-4">NIK (Tersensor)</th>
                             <th className="p-4">Umur / Tgl Lahir</th>
                             <th className="p-4">Gender</th>
-                            <th className="p-4">Nomor HP</th>
-                            <th className="p-4 text-right">Otorisasi Berkas</th>
+                            <th className="p-4 text-center">Aksi</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -1578,16 +1961,24 @@ export default function ProfilWarga({
                                 </span>
                               </td>
                               <td className="p-4 font-mono font-semibold text-slate-600 dark:text-slate-400">{m.no_hp || '-'}</td>
-                              <td className="p-4 text-right">
-                                <button
-                                  onClick={() => {
-                                    setSelectedResidentForDoc(m);
-                                    setIsDocModalOpen(true);
-                                  }}
-                                  className="py-1.5 px-3 bg-sky-650 hover:bg-sky-700 text-white rounded-xl text-[10px] font-bold cursor-pointer transition-transform active:scale-[0.97]"
-                                >
-                                  📁 Berkas
-                                </button>
+                              <td className="p-4 text-center">
+                                <div className="flex items-center justify-center gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedResidentForDoc(m);
+                                      setIsDocModalOpen(true);
+                                    }}
+                                    className="py-1 px-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-[10px] font-bold cursor-pointer transition-transform active:scale-[0.97]"
+                                  >
+                                    📁 Berkas
+                                  </button>
+                                  <button
+                                    onClick={() => openEditMemberModal(m)}
+                                    className="py-1 px-3 border border-emerald-500/20 hover:border-emerald-500 text-emerald-555 hover:text-white dark:hover:bg-emerald-500/20 text-emerald-500 rounded-lg font-bold text-[10px] cursor-pointer transition-all"
+                                  >
+                                    Edit Data
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -1826,6 +2217,211 @@ export default function ProfilWarga({
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Edit Family Member Modal */}
+          {isEditMemberOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-fade-in font-sans">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                    <Edit2 className="w-4 h-4 text-emerald-500" />
+                    <span>Edit Anggota Keluarga</span>
+                  </h4>
+                  <button onClick={() => setIsEditMemberOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                    <X className="w-4 h-4 text-slate-400" />
+                  </button>
+                </div>
+
+                {editMemberError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{editMemberError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleEditMemberSubmit} className="space-y-4 text-xs font-sans">
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Nama Lengkap *</label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Masukkan nama lengkap..."
+                      value={editMemberForm.nama}
+                      onChange={(e) => setEditMemberForm({ ...editMemberForm, nama: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Umur *</label>
+                    <input
+                      required
+                      type="number"
+                      placeholder="Masukkan umur..."
+                      value={editMemberForm.umur}
+                      onChange={(e) => setEditMemberForm({ ...editMemberForm, umur: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Nomor HP (Opsional)</label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: 0812XXXXXXXX..."
+                      value={editMemberForm.noHp}
+                      onChange={(e) => setEditMemberForm({ ...editMemberForm, noHp: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditMemberOpen(false)}
+                      className="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-455 font-bold rounded-xl cursor-pointer text-center"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isEditingMember}
+                      className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-colors cursor-pointer text-center block shadow-md shadow-emerald-500/10 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      {isEditingMember ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Menyimpan...</span>
+                        </>
+                      ) : (
+                        <span>Simpan Perubahan</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Upload Berkas Mandiri */}
+          {activeTab === 'warga_upload_berkas' && isPermanentResident && (
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Dokumen Mandiri Warga</h3>
+                <p className="text-xs text-slate-450">Unggah berkas kependudukan resmi Anda (KTP, KK, KIA, Akta Kelahiran) langsung ke server tanpa perlu persetujuan RT.</p>
+              </div>
+
+              {/* Form Upload */}
+              <form onSubmit={handleSensitifDataSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-705 dark:text-slate-300">Pilih Anggota Keluarga *</label>
+                  <select
+                    required
+                    value={uploadDocForm.wargaId}
+                    onChange={(e) => setUploadDocForm({ ...uploadDocForm, wargaId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                  >
+                    <option value="">-- Pilih Anggota Keluarga --</option>
+                    {familyMembers.map(m => (
+                      <option key={m.warga_id} value={m.warga_id}>{m.nama} (NIK: {m.nik})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-705 dark:text-slate-300">Jenis Dokumen *</label>
+                  <select
+                    required
+                    value={uploadDocForm.type}
+                    onChange={(e) => setUploadDocForm({ ...uploadDocForm, type: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                  >
+                    <option value="ktp">KTP (Kartu Tanda Penduduk)</option>
+                    <option value="kk">Kartu Keluarga (KK)</option>
+                    <option value="kia">KIA (Kartu Identitas Anak)</option>
+                    <option value="akta">Akta Kelahiran</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-705 dark:text-slate-300">Pilih Berkas Dokumen (Maks 5MB) *</label>
+                  <input
+                    type="file"
+                    required
+                    ref={docFileInputRef}
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={(e) => setUploadDocForm({ ...uploadDocForm, file: e.target.files[0] })}
+                    className="w-full text-xs text-slate-500 dark:text-slate-450 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-505 hover:file:bg-emerald-500/20"
+                  />
+                  <p className="text-[10px] text-slate-400 font-sans mt-1">Mendukung format .jpg, .jpeg, .png, .pdf (Maksimal 5MB)</p>
+                </div>
+
+                {uploadDocError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold">
+                    {uploadDocError}
+                  </div>
+                )}
+
+                {uploadDocSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
+                    {uploadDocSuccess}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isUploadingDoc}
+                  className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                >
+                  {isUploadingDoc ? 'Sedang Mengunggah...' : 'Unggah Dokumen'}
+                </button>
+              </form>
+
+              {/* History List of Uploaded Documents */}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4 font-sans">
+                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Riwayat Berkas Diupload</h4>
+                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">Anggota Keluarga</th>
+                        <th className="p-4">Jenis Dokumen</th>
+                        <th className="p-4">Nama Berkas</th>
+                        <th className="p-4 text-center">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                      {uploadedDocsList.map((doc) => {
+                        const citizen = familyMembers.find(m => m.warga_id === parseInt(doc.wargaId)) || { nama: 'Warga' };
+                        return (
+                          <tr key={doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4 font-bold text-slate-800 dark:text-white">{citizen.nama}</td>
+                            <td className="p-4 uppercase font-bold text-emerald-650 dark:text-emerald-450">{doc.type}</td>
+                            <td className="p-4 font-mono text-slate-500">{doc.fileName}</td>
+                            <td className="p-4 text-center">
+                              <button
+                                onClick={() => handleDownloadSensitifDoc(doc.documentId)}
+                                className="py-1 px-3 border border-emerald-500/20 hover:border-emerald-500 text-emerald-500 rounded-lg font-bold text-[10px] cursor-pointer"
+                              >
+                                Unduh / Lihat
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {uploadedDocsList.length === 0 && (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-400 italic">
+                            Belum ada dokumen yang diunggah secara mandiri.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
 
@@ -2087,16 +2683,33 @@ export default function ProfilWarga({
           {/* TAB 4: Informasi -> Jadwal Kegiatan */}
           {activeTab === 'informasi_jadwal' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Jadwal & Agenda RT Terjadwal</h3>
-                <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 04.</p>
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Jadwal & Agenda RT Terjadwal</h3>
+                  <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 04.</p>
+                </div>
+                {/* Search Bar */}
+                <div className="relative w-full sm:w-64 font-sans text-xs">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Cari agenda kegiatan..."
+                    value={agendaSearch}
+                    onChange={(e) => {
+                      setAgendaSearch(e.target.value);
+                      if (fetchAgendas) fetchAgendas(e.target.value);
+                    }}
+                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-250 dark:border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white transition-all text-xs"
+                  />
+                </div>
               </div>
 
               <div className="space-y-4">
                 {agendaList.length > 0 ? (
                   agendaList.map((a) => (
-                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex gap-4 font-sans">
-                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
+                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex gap-4 font-sans relative overflow-hidden">
+                      <div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div>
+                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
                         {(a.date ? (a.date.split('-')[2] || a.date.split(' ')[0]) : '') || '12'}
                       </div>
                       <div className="space-y-1">
@@ -2346,182 +2959,237 @@ export default function ProfilWarga({
           {activeTab === 'iuran_upload' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Pembayaran Iuran</h3>
-                <p className="text-xs text-slate-400">Kirim laporan setoran transfer kas RT Anda agar dikonfirmasi.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Transaksi Iuran / Kas</h3>
+                <p className="text-xs text-slate-400">Setor laporan pembayaran IPL bulanan atau iuran sosial/insidental warga Anda.</p>
               </div>
+
               {/* Type Switcher */}
-              <div className="flex gap-2 p-1 bg-slate-100 dark:bg-slate-950/60 rounded-xl max-w-sm text-xs font-bold">
+              <div className="flex gap-4 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl max-w-sm text-xs font-bold font-sans">
                 <button
                   type="button"
                   onClick={() => setPaymentType('ipl')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
-                    paymentType === 'ipl'
-                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                  className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                    paymentType === 'ipl' 
+                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Bayar Iuran Bulanan (IPL)
+                  IPL (Iuran Bulanan)
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentType('kas')}
-                  className={`flex-1 py-2 px-3 rounded-lg text-center transition-all cursor-pointer ${
-                    paymentType === 'kas'
-                      ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                  className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                    paymentType === 'kas' 
+                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                      : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  Sumbangan Kas / Sosial
+                  Uang Kas (Insidental)
                 </button>
               </div>
 
-              <form onSubmit={handleUploadSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
+              <form onSubmit={handleAdvancedPaymentSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
+                
                 {paymentType === 'ipl' ? (
+                  /* IPL FORM FIELDS */
                   <div className="space-y-4">
-                    {/* IPL Form */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-650 dark:text-slate-400">Tahun Iuran *</label>
-                        <select
-                          value={iplForm.year}
-                          onChange={(e) => setIplForm({ ...iplForm, year: parseInt(e.target.value) })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                        >
-                          <option value={2025}>2025</option>
-                          <option value={2026}>2026</option>
-                          <option value={2027}>2027</option>
-                        </select>
+                        <label className="font-bold text-slate-600 dark:text-slate-400">Tahun Dues *</label>
+                        <input
+                          required
+                          type="number"
+                          value={iplPaymentForm.year}
+                          onChange={(e) => setIplPaymentForm({ ...iplPaymentForm, year: parseInt(e.target.value) || new Date().getFullYear() })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
+                        />
                       </div>
-
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-650 dark:text-slate-400">Tarif IPL per Bulan</label>
-                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-550 dark:text-slate-400 font-mono font-bold">
-                          Rp 200.000 / Bulan
+                        <label className="font-bold text-slate-600 dark:text-slate-400">Total Nominal Dues</label>
+                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 font-mono text-sm font-black flex items-center">
+                          Rp {new Intl.NumberFormat('id-ID').format(iplPaymentForm.months.length * 200000)}
                         </div>
+                        <p className="text-[10px] text-slate-400">Akumulasi otomatis Rp 200.000 / bulan</p>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="font-bold text-slate-655 dark:text-slate-400">Pilih Bulan Pembayaran (Bisa Multi-bulan / Rapel) *</label>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Bulan Yang Dibayar (Multi-select) *</label>
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1.5">
                         {[
-                          { name: 'Januari', val: 1 },
-                          { name: 'Februari', val: 2 },
-                          { name: 'Maret', val: 3 },
-                          { name: 'April', val: 4 },
-                          { name: 'Mei', val: 5 },
-                          { name: 'Juni', val: 6 },
-                          { name: 'Juli', val: 7 },
-                          { name: 'Agustus', val: 8 },
-                          { name: 'September', val: 9 },
-                          { name: 'Oktober', val: 10 },
-                          { name: 'November', val: 11 },
-                          { name: 'Desember', val: 12 }
+                          { val: 1, label: 'Januari' }, { val: 2, label: 'Februari' }, { val: 3, label: 'Maret' },
+                          { val: 4, label: 'April' }, { val: 5, label: 'Mei' }, { val: 6, label: 'Juni' },
+                          { val: 7, label: 'Juli' }, { val: 8, label: 'Agustus' }, { val: 9, label: 'September' },
+                          { val: 10, label: 'Oktober' }, { val: 11, label: 'November' }, { val: 12, label: 'Desember' }
                         ].map((m) => {
-                          const isChecked = iplForm.months.includes(m.val);
+                          const isChecked = iplPaymentForm.months.includes(m.val);
                           return (
                             <button
                               key={m.val}
                               type="button"
                               onClick={() => {
-                                const next = isChecked
-                                  ? iplForm.months.filter((x) => x !== m.val)
-                                  : [...iplForm.months, m.val];
-                                setIplForm({ ...iplForm, months: next.sort((a, b) => a - b) });
+                                const newMonths = isChecked
+                                  ? iplPaymentForm.months.filter(v => v !== m.val)
+                                  : [...iplPaymentForm.months, m.val].sort((a, b) => a - b);
+                                setIplPaymentForm({ ...iplPaymentForm, months: newMonths });
                               }}
-                              className={`py-2 px-3 border rounded-xl font-bold text-[10px] text-center transition-all cursor-pointer ${
+                              className={`py-2 px-3 border rounded-xl font-bold text-[10px] sm:text-xs text-center transition-all cursor-pointer ${
                                 isChecked
                                   ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                  : 'border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/40'
+                                  : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
                               }`}
                             >
-                              {m.name}
+                              {m.label}
                             </button>
                           );
                         })}
                       </div>
-                    </div>
-
-                    <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
-                      <span className="font-bold text-slate-700 dark:text-slate-300">Total Nominal IPL:</span>
-                      <span className="font-black text-emerald-600 dark:text-emerald-400 font-mono text-sm">
-                        {formatRupiah(iplForm.months.length * 200000)}
-                      </span>
+                      <div className="pt-2 flex justify-between">
+                        <button
+                          type="button"
+                          onClick={() => setIplPaymentForm({ ...iplPaymentForm, months: [1,2,3,4,5,6,7,8,9,10,11,12] })}
+                          className="text-[10px] text-emerald-500 hover:underline font-bold"
+                        >
+                          Pilih Semua Bulan (Rapel 1 Tahun)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIplPaymentForm({ ...iplPaymentForm, months: [] })}
+                          className="text-[10px] text-slate-400 hover:underline font-bold"
+                        >
+                          Bersihkan Pilihan
+                        </button>
+                      </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-400">Bukti Transfer (File Foto/Struk) *</label>
+                      <label className="font-bold text-slate-600 dark:text-slate-400">Bukti Transfer Bank (.jpg, .png, .pdf) *</label>
                       <input
-                        required
                         type="file"
-                        accept="image/*"
-                        onChange={(e) => setIplForm({ ...iplForm, file: e.target.files[0] })}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                        required
+                        ref={fileInputRef}
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => setIplPaymentForm({ ...iplPaymentForm, file: e.target.files[0] })}
+                        className="hidden"
                       />
+                      <div
+                        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                        className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                      >
+                        <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
+                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                          {iplPaymentForm.file ? `Terpilih: ${iplPaymentForm.file.name}` : 'Pilih berkas struk pembayaran...'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 3MB)</span>
+                      </div>
                     </div>
                   </div>
                 ) : (
+                  /* KAS FORM FIELDS */
                   <div className="space-y-4">
-                    {/* Kas Form */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-655 dark:text-slate-400">Nominal Sumbangan (Rp) *</label>
+                        <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
+                        <select
+                          value={kasPaymentForm.category}
+                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, category: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                        >
+                          <option value="sosial">Kas Sosial / Santunan</option>
+                          <option value="kematian">Kas Kematian / Takziah</option>
+                          <option value="kegiatan">Iuran Kegiatan RT</option>
+                          <option value="lainnya">Kas Lainnya</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Transfer (Rp) *</label>
                         <input
                           required
                           type="number"
-                          value={kasForm.amount}
-                          onChange={(e) => setKasForm({ ...kasForm, amount: e.target.value })}
-                          placeholder="Masukkan nominal"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                          placeholder="Contoh: 50000"
+                          value={kasPaymentForm.amount}
+                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, amount: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono text-sm font-semibold"
                         />
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-655 dark:text-slate-400">Kategori Kas *</label>
+                        <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Agenda / Kegiatan *</label>
                         <select
-                          value={kasForm.category}
-                          onChange={(e) => setKasForm({ ...kasForm, category: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                          value={kasPaymentForm.activitySelect}
+                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, activitySelect: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                         >
-                          <option value="sosial">Kas Sosial</option>
-                          <option value="kematian">Uang Kematian</option>
-                          <option value="kegiatan">Kegiatan Warga</option>
-                          <option value="lainnya">Lainnya</option>
+                          <option value="Santunan Warga Sakit / Wafat">Santunan Warga Sakit / Wafat</option>
+                          <option value="Iuran HUT RI 17 Agustus">Iuran HUT RI 17 Agustus</option>
+                          <option value="Kerja Bakti Musala / Masjid">Kerja Bakti Musala / Masjid</option>
+                          <option value="Donasi Pembangunan Lingkungan">Donasi Pembangunan Lingkungan</option>
+                          <option value="Lainnya (Input Manual)">Lainnya (Input Manual)</option>
                         </select>
                       </div>
+
+                      {kasPaymentForm.activitySelect === 'Lainnya (Input Manual)' && (
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-655 dark:text-slate-350">Tulis Nama Kegiatan Baru *</label>
+                          <input
+                            required
+                            type="text"
+                            placeholder="Contoh: Iuran Buka Bersama..."
+                            value={kasPaymentForm.customDescription}
+                            onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, customDescription: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-400">Keterangan / Nama Kegiatan *</label>
-                      <textarea
-                        required
-                        rows={2}
-                        value={kasForm.description}
-                        onChange={(e) => setKasForm({ ...kasForm, description: e.target.value })}
-                        placeholder="Contoh: Sumbangan untuk santunan duka cita keluarga Blok C2"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-400">Bukti Transfer (File Foto/Struk) *</label>
+                      <label className="font-bold text-slate-605 dark:text-slate-400">Bukti Transfer Struk *</label>
                       <input
-                        required
                         type="file"
-                        accept="image/*"
-                        onChange={(e) => setKasForm({ ...kasForm, file: e.target.files[0] })}
-                        className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-955 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                        required
+                        ref={fileInputRef}
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, file: e.target.files[0] })}
+                        className="hidden"
                       />
+                      <div
+                        onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                        className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                      >
+                        <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
+                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                          {kasPaymentForm.file ? `Terpilih: ${kasPaymentForm.file.name}` : 'Pilih berkas struk pembayaran...'}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 3MB)</span>
+                      </div>
                     </div>
+                  </div>
+                )}
+
+                {paymentError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold">
+                    {paymentError}
+                  </div>
+                )}
+
+                {paymentSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
+                    {paymentSuccess}
                   </div>
                 )}
 
                 <div className="pt-2">
                   <button
-                    disabled={isSubmittingPayment}
                     type="submit"
+                    disabled={isSubmittingPayment}
                     className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
                   >
-                    {isSubmittingPayment ? 'Sedang Mengirim...' : 'Kirim Bukti Pembayaran'}
+                    {isSubmittingPayment ? 'Mengirim Data...' : 'Kirim Bukti Pembayaran'}
                   </button>
                 </div>
               </form>
