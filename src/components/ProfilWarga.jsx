@@ -133,7 +133,6 @@ export default function ProfilWarga({
   });
 
   // Advanced Dues Payment Form State
-  const [paymentType, setPaymentType] = useState('ipl'); // 'ipl' | 'kas'
   const [iplPaymentForm, setIplPaymentForm] = useState({
     year: new Date().getFullYear(),
     months: [], // e.g. [7] for Juli
@@ -146,7 +145,6 @@ export default function ProfilWarga({
     customDescription: '',
     file: null
   });
-  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [paymentError, setPaymentError] = useState('');
   const [paymentSuccess, setPaymentSuccess] = useState('');
 
@@ -161,7 +159,6 @@ export default function ProfilWarga({
   const [selectedResidentForDoc, setSelectedResidentForDoc] = useState(null);
   const [docUploadType, setDocUploadType] = useState('ktp');
   const [docUploadFile, setDocUploadFile] = useState(null);
-  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
