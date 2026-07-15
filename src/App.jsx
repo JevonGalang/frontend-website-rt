@@ -340,6 +340,9 @@ export default function App() {
             wargaList={wargaList}
             setCurrentUser={setCurrentUser}
             currentUser={currentUser}
+            transaksiKasList={transaksiKasList}
+            totalPemasukan={totalPemasukan}
+            totalPengeluaran={totalPengeluaran}
           />
         )}
 

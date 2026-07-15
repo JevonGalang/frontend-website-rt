@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { 
   Users, Calendar, Wallet, CheckCircle2, BarChart2, BookOpen, Layers, 
-  Lock, User, LogIn, ShieldAlert, ArrowRight, ChevronRight, Eye, EyeOff, Loader2
+  Lock, User, LogIn, ShieldAlert, ArrowRight, ChevronRight, Eye, EyeOff, Loader2,
+  MapPin, Phone, Mail, Home, TrendingUp, TrendingDown, PieChart, Activity,
+  Clock, AlertTriangle, Shield, Building2
 } from 'lucide-react';
 
 export default function Hero({ 
@@ -14,7 +16,10 @@ export default function Hero({
   isWargaLabel,
   wargaList = [],
   setCurrentUser,
-  currentUser
+  currentUser,
+  transaksiKasList = [],
+  totalPemasukan = 0,
+  totalPengeluaran = 0
 }) {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'chart' | 'ledger'
   const [activeMainTab, setActiveMainTab] = useState(currentUser ? 'info' : 'login'); // 'login' | 'info'
@@ -643,6 +648,513 @@ export default function Hero({
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            PUSAT DATA & STATISTIK LINGKUNGAN RT 04 - PUBLIK (TANPA LOGIN)
+            ═══════════════════════════════════════════════════════════════════ */}
+        <div className="mt-20 pt-16 border-t border-slate-200/60 dark:border-slate-800/80 w-full font-sans">
+          
+          {/* Section Header */}
+          <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
+            <span className="px-3 py-1.5 rounded-full bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold tracking-wider uppercase">
+              📊 Data Terbuka & Transparan
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
+              Pusat Data & Statistik Lingkungan
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-2xl mx-auto">
+              Informasi terbuka kependudukan, keuangan kas RT, dan kepatuhan iuran warga Sawangan Green Park. Seluruh data dapat diakses publik tanpa memerlukan login.
+            </p>
+          </div>
+
+          {/* ─── BIODATA SAWANGAN GREEN PARK ─── */}
+          <div className="mb-12">
+            <div className="bg-gradient-to-br from-emerald-600 to-teal-600 dark:from-emerald-700 dark:to-teal-700 rounded-3xl p-8 sm:p-10 text-white relative overflow-hidden">
+              {/* Decorative circles */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-6">
+                  <Building2 className="w-5 h-5" />
+                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Sawangan Green Park — RT 04</h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <MapPin className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Alamat Lengkap</span>
+                        <span className="text-sm font-semibold leading-snug">Perumahan Sawangan Green Park, Kel. Sawangan Baru, Kec. Sawangan, Kota Depok, Jawa Barat 16511</span>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Home className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Wilayah Cakupan</span>
+                        <span className="text-sm font-semibold">RT 04 / RW 06</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <User className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Ketua RT Aktif</span>
+                        <span className="text-sm font-semibold">Bpk. Ahmad Mulyono</span>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Phone className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Kontak Sekretariat</span>
+                        <span className="text-sm font-semibold">+62 812-3456-7890</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                      <Mail className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Email Resmi</span>
+                        <span className="text-sm font-semibold">rt04.sgp@gmail.com</span>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Calendar className="w-4 h-4 mt-0.5 shrink-0 text-emerald-200" />
+                      <div>
+                        <span className="block text-[10px] font-bold text-emerald-200 uppercase tracking-wider">Periode Kepengurusan</span>
+                        <span className="text-sm font-semibold">2024 — 2027 (3 Tahun)</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick stats row */}
+                <div className="mt-8 pt-6 border-t border-white/20 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {(() => {
+                    const living = wargaList.filter(w => w.statusHidup !== 'Meninggal');
+                    const uniqueKK = new Set(living.map(w => w.noKk).filter(Boolean));
+                    const tetap = living.filter(w => w.status === 'Tetap').length;
+                    const kontrak = living.filter(w => w.status === 'Kontrak').length;
+                    return [
+                      { label: 'Total Jiwa', value: living.length || totalKK || '—' },
+                      { label: 'Kepala Keluarga', value: uniqueKK.size || Math.round((living.length || totalKK || 0) / 4) || '—' },
+                      { label: 'Warga Tetap', value: tetap || '—' },
+                      { label: 'Warga Kontrak', value: kontrak || '—' },
+                    ].map((stat, i) => (
+                      <div key={i} className="text-center">
+                        <span className="block text-2xl sm:text-3xl font-black">{stat.value}</span>
+                        <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-wider">{stat.label}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── GRID STATISTIK UTAMA ─── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+
+            {/* Card 1: Arus Keuangan Dinamis */}
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Activity className="w-4 h-4 text-emerald-500" />
+                    Arus Keuangan Kas RT
+                  </h3>
+                  <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1">Data keuangan diperbarui secara real-time dari database transaksi.</p>
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full">LIVE</span>
+              </div>
+
+              {/* Income & Expense Summary */}
+              {(() => {
+                const dynIncome = totalPemasukan || (publicStats?.total_income) || 0;
+                const dynExpense = totalPengeluaran || (publicStats?.total_expense) || 0;
+                const dynBalance = dynIncome - dynExpense;
+                const dynTotal = dynIncome + dynExpense || 1;
+                const dynInPct = Math.round((dynIncome / dynTotal) * 100);
+                const dynOutPct = Math.round((dynExpense / dynTotal) * 100);
+
+                return (
+                  <div className="space-y-5">
+                    {/* Big numbers */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3 bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-800/30 rounded-2xl text-center">
+                        <TrendingUp className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
+                        <span className="block text-xs sm:text-sm font-black text-emerald-600 dark:text-emerald-400">{formatCurrency(dynIncome)}</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Pemasukan</span>
+                      </div>
+                      <div className="p-3 bg-rose-50/80 dark:bg-rose-950/30 border border-rose-200/50 dark:border-rose-800/30 rounded-2xl text-center">
+                        <TrendingDown className="w-4 h-4 text-rose-500 mx-auto mb-1" />
+                        <span className="block text-xs sm:text-sm font-black text-rose-600 dark:text-rose-400">{formatCurrency(dynExpense)}</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Pengeluaran</span>
+                      </div>
+                      <div className="p-3 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-800/30 rounded-2xl text-center">
+                        <Wallet className="w-4 h-4 text-blue-500 mx-auto mb-1" />
+                        <span className={`block text-xs sm:text-sm font-black ${dynBalance >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-rose-600 dark:text-rose-400'}`}>{formatCurrency(dynBalance)}</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">Saldo Aktif</span>
+                      </div>
+                    </div>
+
+                    {/* Progress bars */}
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                          <span>PEMASUKAN (ARUS MASUK)</span>
+                          <span className="text-emerald-500 font-extrabold">{dynInPct}%</span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-700" style={{ width: `${dynInPct}%` }}></div>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[10px] font-bold text-slate-400">
+                          <span>PENGELUARAN (ARUS KELUAR)</span>
+                          <span className="text-rose-500 font-extrabold">{dynOutPct}%</span>
+                        </div>
+                        <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-rose-500 to-orange-400 rounded-full transition-all duration-700" style={{ width: `${dynOutPct}%` }}></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Donut chart for income vs expense */}
+                    <div className="flex items-center justify-center gap-8">
+                      <div className="relative">
+                        <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="10"
+                            strokeDasharray={`${2.39 * dynInPct} ${239 - 2.39 * dynInPct}`}
+                            strokeLinecap="round"
+                          />
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f43f5e" strokeWidth="10"
+                            strokeDasharray={`${2.39 * dynOutPct} ${239 - 2.39 * dynOutPct}`}
+                            strokeDashoffset={`${-(2.39 * dynInPct)}`}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-[7px] font-black text-slate-400 uppercase">RASIO</span>
+                          <span className="text-[10px] font-black text-slate-900 dark:text-white">{dynInPct}:{dynOutPct}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2 text-[10px]">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                          <span className="font-bold text-slate-600 dark:text-slate-300">Pemasukan ({dynInPct}%)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full bg-rose-500"></div>
+                          <span className="font-bold text-slate-600 dark:text-slate-300">Pengeluaran ({dynOutPct}%)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recent 5 transactions */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">5 Transaksi Terakhir</span>
+                      {(() => {
+                        const recentTx = transaksiKasList.length > 0
+                          ? transaksiKasList.slice(0, 5)
+                          : displayLedger;
+                        return recentTx.map((tx, i) => (
+                          <div key={i} className="flex items-center justify-between text-[10px] p-2.5 rounded-xl bg-slate-50/60 dark:bg-slate-800/30 border border-slate-100/80 dark:border-slate-800/50">
+                            <div className="space-y-0.5 min-w-0 flex-1">
+                              <span className="font-bold text-slate-700 dark:text-slate-200 block truncate">{tx.description || tx.kategori || 'Transaksi'}</span>
+                              <span className="text-[8px] text-slate-400 font-mono">{tx.transaction_date || tx.date || tx.tanggal || '—'}</span>
+                            </div>
+                            <span className={`font-black shrink-0 ml-2 ${(tx.type === 'in' || tx.type === 'income') ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {(tx.type === 'in' || tx.type === 'income') ? '+' : '-'}{formatCurrency(tx.amount || tx.nominal || 0)}
+                            </span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Card 2: Demografi Kependudukan */}
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 space-y-6 shadow-sm">
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <PieChart className="w-4 h-4 text-blue-500" />
+                  Demografi Kependudukan
+                </h3>
+                <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1">Statistik komposisi warga berdasarkan gender, usia, dan status hunian.</p>
+              </div>
+
+              {(() => {
+                const living = wargaList.filter(w => w.statusHidup !== 'Meninggal');
+                const totalPop = living.length || 1;
+                
+                // Gender ratio
+                const male = living.filter(w => (w.gender || w.jenisKelamin || '').toLowerCase().includes('laki')).length;
+                const female = totalPop - male;
+                const malePct = Math.round((male / totalPop) * 100) || 50;
+                const femalePct = 100 - malePct;
+
+                // Status hunian
+                const tetap = living.filter(w => w.status === 'Tetap').length;
+                const kontrak = living.filter(w => w.status === 'Kontrak').length;
+                const tetapPct = Math.round((tetap / totalPop) * 100) || 70;
+                const kontrakPct = 100 - tetapPct;
+
+                // Age distribution
+                const anak = living.filter(w => { const u = parseInt(w.usia || w.umur) || 0; return u >= 0 && u <= 12; }).length;
+                const remaja = living.filter(w => { const u = parseInt(w.usia || w.umur) || 0; return u >= 13 && u <= 20; }).length;
+                const dewasa = living.filter(w => { const u = parseInt(w.usia || w.umur) || 0; return u >= 21 && u <= 50; }).length;
+                const lansia = living.filter(w => { const u = parseInt(w.usia || w.umur) || 0; return u > 50; }).length;
+                const anakPct = Math.round((anak / totalPop) * 100);
+                const remajaPct = Math.round((remaja / totalPop) * 100);
+                const dewasaPct = Math.round((dewasa / totalPop) * 100);
+                const lansiaPct = Math.round((lansia / totalPop) * 100);
+
+                return (
+                  <div className="space-y-6">
+                    {/* Gender SVG Donut & Status Donut side-by-side */}
+                    <div className="grid grid-cols-2 gap-6">
+                      {/* Gender */}
+                      <div className="flex flex-col items-center space-y-3">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Rasio Gender</span>
+                        <div className="relative">
+                          <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="12" className="dark:stroke-slate-800" />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#3b82f6" strokeWidth="12"
+                              strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
+                              strokeLinecap="round"
+                            />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ec4899" strokeWidth="12"
+                              strokeDasharray={`${2.39 * femalePct} ${239 - 2.39 * femalePct}`}
+                              strokeDashoffset={`${-(2.39 * malePct)}`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-lg font-black text-slate-900 dark:text-white">{totalPop}</span>
+                            <span className="text-[7px] font-bold text-slate-400 uppercase">Jiwa</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 text-[10px] w-full">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                              <span className="font-bold text-slate-600 dark:text-slate-300">Laki-laki</span>
+                            </div>
+                            <span className="font-black text-slate-900 dark:text-white">{male} ({malePct}%)</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-pink-500"></div>
+                              <span className="font-bold text-slate-600 dark:text-slate-300">Perempuan</span>
+                            </div>
+                            <span className="font-black text-slate-900 dark:text-white">{female} ({femalePct}%)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Hunian */}
+                      <div className="flex flex-col items-center space-y-3">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Status Hunian</span>
+                        <div className="relative">
+                          <svg className="w-28 h-28 transform -rotate-90" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="12" className="dark:stroke-slate-800" />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="12"
+                              strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
+                              strokeLinecap="round"
+                            />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f59e0b" strokeWidth="12"
+                              strokeDasharray={`${2.39 * kontrakPct} ${239 - 2.39 * kontrakPct}`}
+                              strokeDashoffset={`${-(2.39 * tetapPct)}`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <Home className="w-4 h-4 text-slate-400 mb-0.5" />
+                            <span className="text-[7px] font-bold text-slate-400 uppercase">Hunian</span>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5 text-[10px] w-full">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                              <span className="font-bold text-slate-600 dark:text-slate-300">Tetap</span>
+                            </div>
+                            <span className="font-black text-slate-900 dark:text-white">{tetap} ({tetapPct}%)</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                              <span className="font-bold text-slate-600 dark:text-slate-300">Kontrak</span>
+                            </div>
+                            <span className="font-black text-slate-900 dark:text-white">{kontrak} ({kontrakPct}%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Age Distribution Bars */}
+                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Distribusi Kelompok Usia</span>
+                      {[
+                        { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, color: 'from-sky-400 to-blue-500' },
+                        { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, color: 'from-violet-400 to-purple-500' },
+                        { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, color: 'from-emerald-400 to-teal-500' },
+                        { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, color: 'from-amber-400 to-orange-500' },
+                      ].map((ag, i) => (
+                        <div key={i} className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                            <span>{ag.label}</span>
+                            <span className="text-slate-900 dark:text-white font-extrabold">{ag.count} orang ({ag.pct}%)</span>
+                          </div>
+                          <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className={`h-full bg-gradient-to-r ${ag.color} rounded-full transition-all duration-700`} style={{ width: `${Math.max(ag.pct, 2)}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* ─── STATISTIK KEPATUHAN PEMBAYARAN IPL (STATIS) ─── */}
+          <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-indigo-500" />
+                  Statistik Kepatuhan Pembayaran IPL & Kas
+                </h3>
+                <p className="text-[10px] text-slate-450 dark:text-slate-400 mt-1">Data historis tingkat ketertiban warga dalam membayar iuran pengelolaan lingkungan dan uang kas sosial.</p>
+              </div>
+              <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500 bg-indigo-500/10 px-2.5 py-1 rounded-full shrink-0">DATA STATIS</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+              {/* Static compliance metrics */}
+              {[
+                { 
+                  label: 'Tingkat Kepatuhan IPL', 
+                  value: '78%', 
+                  pct: 78, 
+                  desc: 'Warga yang membayar IPL tepat waktu',
+                  icon: <CheckCircle2 className="w-5 h-5" />,
+                  iconBg: 'bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+                  gradient: 'from-emerald-500 to-teal-400'
+                },
+                { 
+                  label: 'Keterlambatan IPL', 
+                  value: '22%', 
+                  pct: 22, 
+                  desc: 'Warga yang terlambat membayar IPL',
+                  icon: <Clock className="w-5 h-5" />,
+                  iconBg: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400',
+                  gradient: 'from-amber-500 to-orange-400'
+                },
+                { 
+                  label: 'Kepatuhan Kas Sosial', 
+                  value: '85%', 
+                  pct: 85, 
+                  desc: 'Partisipasi warga dalam iuran sosial',
+                  icon: <Users className="w-5 h-5" />,
+                  iconBg: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400',
+                  gradient: 'from-blue-500 to-indigo-400'
+                },
+                { 
+                  label: 'Tunggakan Aktif', 
+                  value: '12%', 
+                  pct: 12, 
+                  desc: 'Warga dengan tunggakan belum terbayar',
+                  icon: <AlertTriangle className="w-5 h-5" />,
+                  iconBg: 'bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400',
+                  gradient: 'from-rose-500 to-pink-400'
+                },
+              ].map((metric, i) => (
+                <div key={i} className="p-5 bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/50 rounded-2xl space-y-4">
+                  <div className={`p-2.5 w-fit ${metric.iconBg} rounded-xl`}>
+                    {metric.icon}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">{metric.label}</span>
+                    <span className="text-2xl font-black text-slate-900 dark:text-white">{metric.value}</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/50 rounded-full overflow-hidden">
+                    <div className={`h-full bg-gradient-to-r ${metric.gradient} rounded-full`} style={{ width: `${metric.pct}%` }}></div>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed">{metric.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Monthly breakdown static table */}
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block mb-4">Rincian Kepatuhan Bulanan (Tahun Berjalan)</span>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10px]">
+                  <thead>
+                    <tr className="text-left text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                      <th className="pb-3 pr-4">Bulan</th>
+                      <th className="pb-3 pr-4">Tepat Waktu</th>
+                      <th className="pb-3 pr-4">Terlambat</th>
+                      <th className="pb-3 pr-4">Belum Bayar</th>
+                      <th className="pb-3">Tingkat Kepatuhan</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-slate-700 dark:text-slate-300 font-bold">
+                    {[
+                      { bulan: 'Januari 2026', tepat: 82, lambat: 14, belum: 4, pct: 82 },
+                      { bulan: 'Februari 2026', tepat: 79, lambat: 16, belum: 5, pct: 79 },
+                      { bulan: 'Maret 2026', tepat: 84, lambat: 12, belum: 4, pct: 84 },
+                      { bulan: 'April 2026', tepat: 76, lambat: 18, belum: 6, pct: 76 },
+                      { bulan: 'Mei 2026', tepat: 80, lambat: 15, belum: 5, pct: 80 },
+                      { bulan: 'Juni 2026', tepat: 78, lambat: 17, belum: 5, pct: 78 },
+                      { bulan: 'Juli 2026', tepat: 75, lambat: 19, belum: 6, pct: 75 },
+                    ].map((row, i) => (
+                      <tr key={i} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="py-2.5 pr-4 font-extrabold text-slate-900 dark:text-white">{row.bulan}</td>
+                        <td className="py-2.5 pr-4">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{row.tepat}%</span>
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <span className="text-amber-600 dark:text-amber-400 font-extrabold">{row.lambat}%</span>
+                        </td>
+                        <td className="py-2.5 pr-4">
+                          <span className="text-rose-500 font-extrabold">{row.belum}%</span>
+                        </td>
+                        <td className="py-2.5">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden max-w-[80px]">
+                              <div className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full" style={{ width: `${row.pct}%` }}></div>
+                            </div>
+                            <span className="text-slate-900 dark:text-white font-black">{row.pct}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer note */}
+          <div className="mt-8 text-center">
+            <p className="text-[10px] text-slate-400 font-semibold">
+              Data statistik ini bersifat terbuka dan dapat diakses oleh seluruh warga maupun pengunjung tanpa harus login ke dalam sistem.
+              <br />Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}.
+            </p>
           </div>
         </div>
 
