@@ -337,6 +337,9 @@ export default function App() {
             isWargaLabel={!!dashboardStats}
             publicStats={publicStats}
             publicLedger={publicLedger}
+            wargaList={wargaList}
+            setCurrentUser={setCurrentUser}
+            currentUser={currentUser}
           />
         )}
 
