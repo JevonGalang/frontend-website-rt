@@ -25,6 +25,54 @@
   --color-accent-yellow: #ffae13;
   --color-accent-red: #ee1d36;
 
+  /* Override standard Tailwind Emerald classes to brand primary */
+  --color-emerald-50: #f8fafc;
+  --color-emerald-100: #f1f5f9;
+  --color-emerald-200: #cbd5e1;
+  --color-emerald-300: #94a3b8;
+  --color-emerald-400: #475569;
+  --color-emerald-500: #080808;
+  --color-emerald-600: #080808;
+  --color-emerald-700: #222222;
+  --color-emerald-800: #333333;
+  --color-emerald-900: #111111;
+  --color-emerald-950: #080808;
+
+  /* Override standard Tailwind Teal classes to brand primary */
+  --color-teal-50: #f8fafc;
+  --color-teal-100: #f1f5f9;
+  --color-teal-200: #cbd5e1;
+  --color-teal-300: #94a3b8;
+  --color-teal-400: #080808;
+  --color-teal-500: #080808;
+  --color-teal-600: #080808;
+  --color-teal-700: #222222;
+  --color-teal-800: #333333;
+  --color-teal-900: #111111;
+  --color-teal-950: #080808;
+
+  /* Override standard Tailwind Slate classes to match contrast and readability */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #d8d8d8;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #898989;
+  --color-slate-500: #5a5a5a;
+  --color-slate-600: #363636;
+  --color-slate-700: #222222;
+  --color-slate-800: #080808;
+  --color-slate-900: #080808;
+  --color-slate-950: #080808;
+
+  /* Override standard border radiuses to match Webflow geometry */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+
   --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   
   @keyframes fade-in {
@@ -50,6 +98,40 @@
   --color-mute-soft: #475569;
   --color-hairline: #222222;
   --color-canvas: #080808;
+
+  --color-emerald-50: #080808;
+  --color-emerald-100: #1e293b;
+  --color-emerald-200: #334155;
+  --color-emerald-300: #475569;
+  --color-emerald-400: #64748b;
+  --color-emerald-500: #ffffff;
+  --color-emerald-600: #ffffff;
+  --color-emerald-700: #cbd5e1;
+  --color-emerald-800: #cbd5e1;
+  --color-emerald-950: #080808;
+
+  --color-teal-50: #080808;
+  --color-teal-100: #1e293b;
+  --color-teal-200: #334155;
+  --color-teal-300: #475569;
+  --color-teal-400: #ffffff;
+  --color-teal-500: #ffffff;
+  --color-teal-600: #ffffff;
+  --color-teal-700: #cbd5e1;
+  --color-teal-800: #cbd5e1;
+  --color-teal-955: #080808;
+
+  --color-slate-50: #080808;
+  --color-slate-100: #111111;
+  --color-slate-200: #222222;
+  --color-slate-300: #333333;
+  --color-slate-400: #64748b;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #f1f5f9;
+  --color-slate-800: #cbd5e1;
+  --color-slate-900: #ffffff;
+  --color-slate-950: #ffffff;
 }
 
 html {
