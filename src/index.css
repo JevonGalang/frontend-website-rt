@@ -51,19 +51,6 @@
   --color-teal-900: #111111;
   --color-teal-950: #080808;
 
-  /* Override standard Tailwind Slate classes to match contrast and readability */
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #d8d8d8;
-  --color-slate-300: #cbd5e1;
-  --color-slate-400: #898989;
-  --color-slate-500: #5a5a5a;
-  --color-slate-600: #363636;
-  --color-slate-700: #222222;
-  --color-slate-800: #080808;
-  --color-slate-900: #080808;
-  --color-slate-950: #080808;
-
   /* Override standard border radiuses to match Webflow geometry */
   --radius-xs: 2px;
   --radius-sm: 4px;
@@ -120,18 +107,6 @@
   --color-teal-700: #cbd5e1;
   --color-teal-800: #cbd5e1;
   --color-teal-955: #080808;
-
-  --color-slate-50: #080808;
-  --color-slate-100: #111111;
-  --color-slate-200: #222222;
-  --color-slate-300: #333333;
-  --color-slate-400: #64748b;
-  --color-slate-500: #94a3b8;
-  --color-slate-600: #cbd5e1;
-  --color-slate-700: #f1f5f9;
-  --color-slate-800: #cbd5e1;
-  --color-slate-900: #ffffff;
-  --color-slate-950: #ffffff;
 }
 
 html {
