@@ -8,7 +8,7 @@ export default function Kontak() {
   // Dummy RT Chairman Contact Details
   const kontakRt = {
     nama: 'Pak Bambang Mulyono',
-    jabatan: 'Ketua RT 04 / RW 09',
+    jabatan: 'Ketua RT 05 / RW 06',
     telepon: '+62 812-3456-7890',
     whatsapp: '6281234567890', // Internasional format without '+'
     alamat: 'Perumahan Sawangan Green Park, Blok B3 No. 12, Sawangan, Depok',
@@ -188,7 +188,7 @@ export default function Kontak() {
                   </div>
                   <h4 className="font-extrabold text-slate-800 dark:text-white text-base">Sawangan Green Park</h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
-                    Kawasan RT 04 / RW 09 Kelurahan Sawangan, Kecamatan Sawangan, Kota Depok, Jawa Barat
+                    Kawasan RT 05 / RW 06 Kelurahan Sawangan, Kecamatan Sawangan, Kota Depok, Jawa Barat
                   </p>
                 </div>
               </div>

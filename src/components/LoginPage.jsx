@@ -218,14 +218,14 @@ export default function LoginPage({
                   Sawangan Green Park
                 </span>
                 <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">
-                  RUKUN TETANGGA 04 / RW 09
+                  RUKUN TETANGGA 04 / RW 06
                 </span>
               </div>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tight">
               Sistem Informasi & <br />
-              <span className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Layanan Warga RT 04</span>
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Layanan Warga RT 05</span>
             </h1>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">

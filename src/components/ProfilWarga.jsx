@@ -6,6 +6,28 @@ import {
   Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
   Loader2, Search
 } from 'lucide-react';
+import Swal from 'sweetalert2';
+import { io } from 'socket.io-client';
+
+const formatDateIndo = (dateStr) => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
 
 export default function ProfilWarga({ 
   currentUser, 
@@ -120,6 +142,38 @@ export default function ProfilWarga({
     const saved = localStorage.getItem('rt_uploaded_docs');
     return saved ? JSON.parse(saved) : [];
   });
+
+  // Socket.IO for real-time updates
+  useEffect(() => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+
+    const socketConnection = io('http://172.20.32.62:3333', {
+      auth: { token }
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('Connected to WebSocket server');
+      if (currentUser?.familyId || currentUser?.family_id) {
+        socketConnection.emit('join_family_room', currentUser.familyId || currentUser.family_id);
+      }
+    });
+
+    socketConnection.on('payment_status_updated', (data) => {
+      console.log('Payment status updated via Socket.IO:', data);
+      fetchWargaPayments();
+      Swal.fire({
+        title: 'Pembaruan Pembayaran!',
+        text: `Bukti transfer iuran ${data.type === 'ipl' ? 'IPL' : 'Uang Kas'} Anda telah di-update menjadi: ${data.status === 'diterima' ? 'DISETUJUI' : 'DITOLAK'}.`,
+        icon: data.status === 'diterima' ? 'success' : 'error',
+        confirmButtonColor: '#10b981'
+      });
+    });
+
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, [currentUser?.familyId, currentUser?.family_id]);
 
   // Edit Family Member States
   const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
@@ -371,7 +425,6 @@ export default function ProfilWarga({
       fetchCitizenComplaints();
       fetchWargaAnnouncements();
       fetchCitizenSubmissions();
-      fetchWargaPayments();
       if (activeTab === 'voting_karyawan') {
         fetchKaryawanList();
         fetchVoteResults();
@@ -1335,7 +1388,7 @@ export default function ProfilWarga({
           </div>
           <div>
             <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
-            <span className="text-[9px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 04 / RW 09</span>
+            <span className="text-[9px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
           </div>
         </div>
 
@@ -1644,9 +1697,18 @@ export default function ProfilWarga({
           </button>
 
           <button
-            onClick={() => {
-              const check = window.confirm('Apakah Anda ingin keluar dari portal warga?');
-              if (check) {
+            onClick={async () => {
+              const result = await Swal.fire({
+                title: 'Keluar Portal',
+                text: 'Apakah Anda ingin keluar dari portal warga?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Ya, keluar',
+                cancelButtonText: 'Batal'
+              });
+              if (result.isConfirmed) {
                 setCurrentUser(null);
                 localStorage.removeItem('rt_current_user');
               }
@@ -1726,7 +1788,7 @@ export default function ProfilWarga({
                 <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
                 <div className="space-y-2 z-10">
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">Selamat datang kembali, {currentUser.name}! 👋</h3>
-                  <p className="text-xs text-slate-400 max-w-lg leading-relaxed">Pantau iuran bulanan Anda secara transparan, ajukan surat pengantar mandiri, dan dapatkan pengumuman RT 04 terupdate dalam satu dasbor.</p>
+                  <p className="text-xs text-slate-400 max-w-lg leading-relaxed">Pantau iuran bulanan Anda secara transparan, ajukan surat pengantar mandiri, dan dapatkan pengumuman RT 05 terupdate dalam satu dasbor.</p>
                 </div>
                 <div className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/10 flex items-center gap-2">
                   <Landmark className="w-4 h-4" />
@@ -1950,7 +2012,7 @@ export default function ProfilWarga({
                               <td className="p-4 font-mono text-slate-655 dark:text-slate-350">{m.nik}</td>
                               <td className="p-4">
                                 <div className="font-bold text-slate-705 dark:text-slate-300">{m.umur} Tahun</div>
-                                <div className="text-[10px] text-slate-400 font-mono">{m.tgl_lahir}</div>
+                                <div className="text-[10px] text-slate-400 font-mono">{formatDateIndo(m.tgl_lahir)}</div>
                               </td>
                               <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
@@ -2588,9 +2650,18 @@ export default function ProfilWarga({
                     Ganti Password
                   </button>
                   <button
-                    onClick={() => {
-                      const check = window.confirm('Apakah Anda ingin keluar dari semua perangkat?');
-                      if (check) {
+                    onClick={async () => {
+                      const result = await Swal.fire({
+                        title: 'Logout Semua Perangkat',
+                        text: 'Apakah Anda ingin keluar dari semua perangkat?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#10b981',
+                        cancelButtonColor: '#ef4444',
+                        confirmButtonText: 'Ya, logout',
+                        cancelButtonText: 'Batal'
+                      });
+                      if (result.isConfirmed) {
                         setCurrentUser(null);
                         localStorage.removeItem('rt_current_user');
                       }
@@ -2647,7 +2718,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
-                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 04 Sawangan Green Park.</p>
+                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 05 Sawangan Green Park.</p>
                 </div>
                 <button
                   onClick={fetchWargaAnnouncements}
@@ -2687,7 +2758,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Jadwal & Agenda RT Terjadwal</h3>
-                  <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 04.</p>
+                  <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 05.</p>
                 </div>
                 {/* Search Bar */}
                 <div className="relative w-full sm:w-64 font-sans text-xs">
@@ -2735,7 +2806,7 @@ export default function ProfilWarga({
           {activeTab === 'informasi_kontak' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kontak Layanan Pengurus RT 04</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kontak Layanan Pengurus RT 05</h3>
                 <p className="text-xs text-slate-400">Kontak resmi pengurus Rukun Tetangga yang dapat dihubungi warga.</p>
               </div>
 
@@ -2744,7 +2815,7 @@ export default function ProfilWarga({
                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">RT</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Ahmad Mulyono</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Ketua RT 04</span>
+                    <span className="text-[10px] text-slate-400 font-bold">Ketua RT 05</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0812-9834-0401</p>
@@ -2756,7 +2827,7 @@ export default function ProfilWarga({
                   <div className="w-10 h-10 bg-sky-500/10 text-sky-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">SEC</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Bu Riana Sukma</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Sekretaris RT 04</span>
+                    <span className="text-[10px] text-slate-400 font-bold">Sekretaris RT 05</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0815-7722-0402</p>
@@ -2768,7 +2839,7 @@ export default function ProfilWarga({
                   <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">TRE</div>
                   <div>
                     <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Hadi Suwarno</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Bendahara RT 04</span>
+                    <span className="text-[10px] text-slate-400 font-bold">Bendahara RT 05</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0878-8311-0403</p>
@@ -2784,7 +2855,7 @@ export default function ProfilWarga({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tagihan Iuran Kas Bulanan Saya</h3>
-                <p className="text-xs text-slate-400">Rincian status pembayaran iuran wajib bulanan komplek RT 04.</p>
+                <p className="text-xs text-slate-400">Rincian status pembayaran iuran wajib bulanan komplek RT 05.</p>
               </div>
 
               {(currentUser.statusIuran?.includes('Menunggak') || currentUser.tagihNotification) ? (
@@ -2795,7 +2866,7 @@ export default function ProfilWarga({
                     </div>
                     <div>
                       <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Status Iuran: Menunggak</h4>
-                      <p className="text-[11px] text-slate-400 mt-1">Anda terdeteksi memiliki tunggakan iuran bulanan kas RT 04 sebesar <span className="font-black text-rose-500">{currentUser.statusIuran || 'Rp 50.000'}</span>.</p>
+                      <p className="text-[11px] text-slate-400 mt-1">Anda terdeteksi memiliki tunggakan iuran bulanan kas RT 05 sebesar <span className="font-black text-rose-500">{currentUser.statusIuran || 'Rp 50.000'}</span>.</p>
                     </div>
                   </div>
                   
@@ -2803,7 +2874,7 @@ export default function ProfilWarga({
                     <div className="space-y-1">
                       <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">REKENING BANK MANDIRI RT</span>
                       <p className="font-mono font-black text-slate-800 dark:text-slate-200">157-00-98234-04-1</p>
-                      <p className="text-[9px] text-slate-500 font-semibold">a.n. KAS RT 04 SAWANGAN GREEN PARK</p>
+                      <p className="text-[9px] text-slate-500 font-semibold">a.n. KAS RT 05 SAWANGAN GREEN PARK</p>
                     </div>
                     <div className="space-y-1 leading-relaxed">
                       <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">PILIHAN PEMBAYARAN</span>
@@ -2887,7 +2958,7 @@ export default function ProfilWarga({
                               <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
                                 Tahun {t.year} - Bulan {t.month}
                               </td>
-                              <td className="p-4 text-slate-500 font-mono">{t.payment_date ? new Date(t.payment_date).toLocaleDateString('id-ID') : '-'}</td>
+                              <td className="p-4 text-slate-500 font-mono">{formatDateIndo(t.payment_date)}</td>
                               <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
                                 {t.payment_proof || '-'}
                               </td>
@@ -2930,7 +3001,7 @@ export default function ProfilWarga({
                                 <span className="font-bold text-slate-850 dark:text-slate-200 block capitalize">{t.category}</span>
                                 <span className="text-[10px] text-slate-400 block italic">"{t.description}"</span>
                               </td>
-                              <td className="p-4 text-slate-500 font-mono">{t.payment_date ? new Date(t.payment_date).toLocaleDateString('id-ID') : '-'}</td>
+                              <td className="p-4 text-slate-500 font-mono">{formatDateIndo(t.payment_date)}</td>
                               <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
                                 {t.payment_proof || '-'}
                               </td>
@@ -3330,7 +3401,7 @@ export default function ProfilWarga({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Pengaduan & Masukan Warga</h3>
-                <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 04.</p>
+                <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 05.</p>
               </div>
 
               <form onSubmit={handleComplaintSubmit} className="max-w-xl space-y-4 text-xs sm:text-sm font-sans">
@@ -3422,7 +3493,7 @@ export default function ProfilWarga({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Arsip Dokumen Resmi Warga</h3>
-                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 04 Sawangan.</p>
+                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 05 Sawangan.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -3475,7 +3546,7 @@ export default function ProfilWarga({
                           <div className="space-y-1">
                             <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.jabatan || k.position}</span>
                             <h5 className="font-black text-sm text-slate-900 dark:text-white pt-1">{k.nama || k.name}</h5>
-                            <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 04.</p>
+                            <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 05.</p>
                           </div>
                           <button
                             onClick={() => handleCastVote(k.id)}
@@ -3544,7 +3615,7 @@ export default function ProfilWarga({
                     <AlertCircle className="w-5 h-5 text-rose-500 mt-0.5 flex-shrink-0" />
                     <div>
                       <h4 className="font-bold text-xs text-rose-600 dark:text-rose-400 font-sans">Peringatan Tagihan Pembayaran Iuran</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Bendahara RT 04 mengirimkan tagihan resmi pembayaran iuran kas Anda. Harap segera lakukan pembayaran.</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Bendahara RT 05 mengirimkan tagihan resmi pembayaran iuran kas Anda. Harap segera lakukan pembayaran.</p>
                     </div>
                   </div>
                 )}
@@ -3629,9 +3700,23 @@ export default function ProfilWarga({
                   <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">SGP Pay Gateway</h4>
                 </div>
                 <button 
-                  onClick={() => {
-                    if (pgStage !== 'processing' || window.confirm('Batalkan transaksi ini?')) {
+                  onClick={async () => {
+                    if (pgStage !== 'processing') {
                       setIsPgModalOpen(false);
+                    } else {
+                      const result = await Swal.fire({
+                        title: 'Batalkan Transaksi',
+                        text: 'Apakah Anda yakin ingin membatalkan transaksi ini?',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#ef4444',
+                        cancelButtonColor: '#3b89ff',
+                        confirmButtonText: 'Ya, batalkan!',
+                        cancelButtonText: 'Kembali'
+                      });
+                      if (result.isConfirmed) {
+                        setIsPgModalOpen(false);
+                      }
                     }
                   }} 
                   className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
@@ -3718,7 +3803,7 @@ export default function ProfilWarga({
                           <path d="M50,65 h10 v10 h-10 z M40,80 h25 v5 h-25 z" fill="currentColor" />
                           <path d="M80,80 h15 v15 h-15 z" fill="currentColor" />
                         </svg>
-                        <span className="font-extrabold text-[9px] text-slate-400 block tracking-wider uppercase mt-2">SGP QRIS - RT 04</span>
+                        <span className="font-extrabold text-[9px] text-slate-400 block tracking-wider uppercase mt-2">SGP QRIS - RT 05</span>
                       </div>
 
                       <button

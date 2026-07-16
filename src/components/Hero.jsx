@@ -214,12 +214,12 @@ export default function Hero({
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
               Portal Resmi <br className="hidden sm:inline" />
               <span className="text-[var(--color-accent-purple)]">
-                Rukun Tetangga 04
+                Rukun Tetangga RT 05 <br/> RW 06
               </span>
             </h1>
             
             <p className="text-sm sm:text-base text-[var(--color-body-text)] max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 04 secara instan dan terbuka.
+              Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 05 secara instan dan terbuka.
             </p>
             
             <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
@@ -298,7 +298,7 @@ export default function Hero({
                         {currentUser.role === 'rt' ? 'Ketua RT' : currentUser.role.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-[10px] font-medium text-[var(--color-body-mid)] mt-1">Anda saat ini sedang masuk ke dalam portal administrasi RT 04.</p>
+                    <p className="text-[10px] font-medium text-[var(--color-body-mid)] mt-1">Anda saat ini sedang masuk ke dalam portal administrasi RT 05.</p>
                   </div>
                 )}
 
@@ -425,7 +425,7 @@ export default function Hero({
                       <div className="space-y-5 animate-fade-in text-xs font-semibold">
                         <div>
                           <h3 className="text-sm font-extrabold text-[var(--color-ink)]">
-                            Informasi Umum RT 04
+                            Informasi Umum RT 05
                           </h3>
                           <p className="text-[9px] text-[var(--color-body-mid)]">
                             Statistik terkini kependudukan dan keuangan wilayah komplek.
@@ -532,7 +532,7 @@ export default function Hero({
                             Laporan Transaksi Umum
                           </h3>
                           <p className="text-[9px] text-[var(--color-body-mid)]">
-                            Catatan mutasi kas RT 04 yang dipublikasikan secara transparan.
+                            Catatan mutasi kas RT 05 yang dipublikasikan secara transparan.
                           </p>
                         </div>
 
@@ -566,14 +566,14 @@ export default function Hero({
           
         </div>
 
-        {/* Peta Panduan Alur Layanan Digital RT 04 */}
+        {/* Peta Panduan Alur Layanan Digital RT 05 */}
         <div className="mt-20 pt-16 border-t border-[var(--color-hairline)] w-full font-sans">
           <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
             <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase">
               📖 Petunjuk Navigasi Portal
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
-              Peta Alur Layanan Digital RT 04
+              Peta Alur Layanan Digital RT 05
             </h2>
             <p className="text-xs sm:text-sm text-[var(--color-body-mid)] leading-relaxed max-w-2xl mx-auto">
               Silakan pilih kategori portal Anda untuk memahami rute penggunaan layanan digital baik di HP maupun komputer tanpa bingung mencari menu.
@@ -644,7 +644,7 @@ export default function Hero({
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            PUSAT DATA & STATISTIK LINGKUNGAN RT 04 - PUBLIK (TANPA LOGIN)
+            PUSAT DATA & STATISTIK LINGKUNGAN RT 05 - PUBLIK (TANPA LOGIN)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="mt-20 pt-16 border-t border-[var(--color-hairline)] w-full font-sans">
           
@@ -667,7 +667,7 @@ export default function Hero({
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
                   <Building2 className="w-5 h-5" />
-                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Sawangan Green Park — RT 04</h3>
+                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Sawangan Green Park — RT 05</h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -683,7 +683,7 @@ export default function Hero({
                       <Home className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Wilayah Cakupan</span>
-                        <span className="text-xs sm:text-sm font-semibold">RT 04 / RW 06</span>
+                        <span className="text-xs sm:text-sm font-semibold">RT 05 / RW 06</span>
                       </div>
                     </div>
                   </div>

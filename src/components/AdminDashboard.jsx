@@ -8,6 +8,28 @@ import {
   Database, Lock
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
+import Swal from 'sweetalert2';
+import { io } from 'socket.io-client';
+
+const formatDateIndo = (dateStr) => {
+  if (!dateStr) return '-';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    }
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
 
 const isTabAllowedForRole = (tab, role) => {
   if (role === 'rt' || role === 'admin') return true;
@@ -56,7 +78,7 @@ export default function AdminDashboard({
   const [jenisIuranList, setJenisIuranList] = useState([
     { id: 'IUR-001', name: 'Iuran Wajib Kebersihan', amount: 20000, frequency: 'Bulanan', desc: 'Biaya pengangkutan sampah warga ke TPA bulanan.' },
     { id: 'IUR-002', name: 'Iuran Wajib Keamanan', amount: 30000, frequency: 'Bulanan', desc: 'Gaji petugas satpam komplek perumahan.' },
-    { id: 'IUR-003', name: 'Iuran Sosial Kematian', amount: 10000, frequency: 'Sukarela', desc: 'Dana santunan musibah kematian warga RT 04.' },
+    { id: 'IUR-003', name: 'Iuran Sosial Kematian', amount: 10000, frequency: 'Sukarela', desc: 'Dana santunan musibah kematian warga RT 05.' },
   ]);
 
   // Payment Form States
@@ -1068,7 +1090,7 @@ export default function AdminDashboard({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Laporan Keuangan Kas RT 04 Sawangan Green Park</title>
+          <title>Laporan Keuangan Kas RT 05 Sawangan Green Park</title>
           <style>
             body { font-family: sans-serif; padding: 30px; color: #333; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -1080,7 +1102,7 @@ export default function AdminDashboard({
         </head>
         <body>
           <div class="header">
-            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 04 / RW 09</h2>
+            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 05 / RW 06</h2>
             <h3>Perumahan Sawangan Green Park</h3>
             <p>Dicetak pada: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
@@ -1250,18 +1272,32 @@ export default function AdminDashboard({
 
   // Delete Handlers
   const handleDelete = async (type, id) => {
-    if (confirm(`Apakah Anda yakin ingin menghapus data ini?`)) {
+    const result = await Swal.fire({
+      title: 'Hapus Data',
+      text: 'Apakah Anda yakin ingin menghapus data ini?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#3b89ff',
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (result.isConfirmed) {
       if (type === 'warga') {
         const updated = wargaList.filter(w => w.id !== id);
         saveWarga(updated);
+        Swal.fire({ title: 'Terhapus!', text: 'Data warga berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
       } else if (type === 'kas') {
         const updated = transaksiKasList.filter(t => t.id !== id);
         saveKas(updated);
+        Swal.fire({ title: 'Terhapus!', text: 'Data kas berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
       } else if (type === 'agenda') {
         const token = localStorage.getItem('rt_token');
         if (!token || isNaN(id)) {
           const updated = agendaList.filter(a => a.id !== id);
           saveAgenda(updated);
+          Swal.fire({ title: 'Terhapus!', text: 'Data agenda berhasil dihapus secara lokal.', icon: 'success', confirmButtonColor: '#10b981' });
           return;
         }
 
@@ -1281,11 +1317,16 @@ export default function AdminDashboard({
           const resData = await response.json();
           const updated = agendaList.filter(a => a.id !== id);
           saveAgenda(updated);
-          alert(resData.message || 'agenda kegiatan berhasil dihapus masbro');
+          Swal.fire({ title: 'Terhapus!', text: resData.message || 'Agenda kegiatan berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
           if (fetchAgendas) fetchAgendas();
         } catch (err) {
           console.warn('Gagal menghapus agenda di server, menghapus secara lokal:', err.message);
-          alert(`Error: ${err.message}. Data dihapus secara lokal.`);
+          Swal.fire({
+            title: 'Terhapus Lokal',
+            text: `Error server: ${err.message}. Data tetap dihapus secara lokal.`,
+            icon: 'warning',
+            confirmButtonColor: '#10b981'
+          });
           const updated = agendaList.filter(a => a.id !== id);
           saveAgenda(updated);
         }
@@ -1682,7 +1723,7 @@ export default function AdminDashboard({
           </div>
           <div>
             <h1 className="font-extrabold text-base text-slate-900 dark:text-white tracking-tight leading-tight">Admin Portal</h1>
-            <span className="text-[10px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 04 / RW 09</span>
+            <span className="text-[10px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
           </div>
         </div>
 
@@ -3064,7 +3105,7 @@ export default function AdminDashboard({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Alamat Lama RT 04</label>
+                    <label className="font-bold text-slate-500">Alamat Lama RT 05</label>
                     <input
                       type="text"
                       value={pendudukKeluarForm.address}
@@ -3263,9 +3304,9 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { name: 'Template Surat Pengantar KTP / KK', desc: 'Format standar RT 04 untuk pengurusan KTP/KK di Kelurahan.' },
+                  { name: 'Template Surat Pengantar KTP / KK', desc: 'Format standar RT 05 untuk pengurusan KTP/KK di Kelurahan.' },
                   { name: 'Template Surat Keterangan Domisili Warga', desc: 'Format resmi keterangan tempat tinggal sementara/kontrak.' },
-                  { name: 'Template Surat Pengantar Nikah', desc: 'Format persetujuan menikah untuk warga domisili RT 04.' },
+                  { name: 'Template Surat Pengantar Nikah', desc: 'Format persetujuan menikah untuk warga domisili RT 05.' },
                   { name: 'Template Surat Izin Keramaian', desc: 'Format permohonan izin acara di lingkungan perumahan.' }
                 ].map((t, idx) => (
                   <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
@@ -4403,7 +4444,7 @@ export default function AdminDashboard({
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Jenis Iuran Warga</h3>
-                  <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 04 Sawangan Green Park.</p>
+                  <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 05 Sawangan Green Park.</p>
                 </div>
 
                 {currentUser.role === 'bendahara' && (
@@ -4831,7 +4872,7 @@ export default function AdminDashboard({
                                       : (matchingResident ? matchingResident.kepala_keluarga_nama : b.warga_nama);
                                   })()}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {b.payment_date ? new Date(b.payment_date).toLocaleDateString('id-ID') : '-'}</span>
+                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {formatDateIndo(b.payment_date)}</span>
                               </td>
                               <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
                                 Tahun {b.year} - Bulan {b.month}
@@ -4901,7 +4942,7 @@ export default function AdminDashboard({
                                       : (matchingResident ? matchingResident.kepala_keluarga_nama : b.warga_nama);
                                   })()}
                                 </span>
-                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {b.payment_date ? new Date(b.payment_date).toLocaleDateString('id-ID') : '-'}</span>
+                                <span className="text-[10px] text-slate-400 font-mono block">ID: #{b.id} | {formatDateIndo(b.payment_date)}</span>
                               </td>
                               <td className="p-4">
                                 <span className="font-bold text-slate-800 dark:text-slate-200 block capitalize">{b.category}</span>
@@ -5183,7 +5224,7 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Buku Kas & Saldo RT</h3>
-                <p className="text-xs text-slate-400">Status keuangan kas RT 04 Sawangan Green Park secara keseluruhan.</p>
+                <p className="text-xs text-slate-400">Status keuangan kas RT 05 Sawangan Green Park secara keseluruhan.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -5251,7 +5292,7 @@ export default function AdminDashboard({
           {activeTab === 'keuangan_qris' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rekening Transfer & QRIS RT 04</h3>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rekening Transfer & QRIS RT 05</h3>
                 <p className="text-xs text-slate-400">Informasi pembayaran resmi untuk warga mentransfer iuran bulanan.</p>
               </div>
 
@@ -5260,7 +5301,7 @@ export default function AdminDashboard({
                 <div className="p-6 bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
                   <div className="flex justify-between items-center">
-                    <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 04</span>
+                    <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 05</span>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">BANK MANDIRI</span>
                   </div>
                   <div className="space-y-1.5 pt-4 font-sans">
@@ -5270,7 +5311,7 @@ export default function AdminDashboard({
                   <div className="flex justify-between items-end pt-4 border-t border-slate-800">
                     <div className="space-y-0.5">
                       <span className="text-slate-500 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
-                      <p className="text-xs font-black text-slate-200">KAS RT 04 SAWANGAN GREEN PARK</p>
+                      <p className="text-xs font-black text-slate-200">KAS RT 05 SAWANGAN GREEN PARK</p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
                   </div>
@@ -5290,7 +5331,7 @@ export default function AdminDashboard({
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 04 / RW 09</h5>
+                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 06</h5>
                     <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                   </div>
                 </div>
@@ -5353,11 +5394,11 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Keuangan Tahunan Kas RT (2026)</h3>
-                <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 04.</p>
+                <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 05.</p>
               </div>
               
               <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 04</h4>
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 05</h4>
                 <div className="space-y-4 text-xs font-sans">
                   <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
                     <span className="text-slate-500 font-bold">Januari - Juni 2026 (Saldo Awal Terakumulasi)</span>
@@ -5385,7 +5426,7 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
-                <p className="text-xs text-slate-400">Daftar status lunas warga RT 04 Sawangan Green Park per bulan.</p>
+                <p className="text-xs text-slate-400">Daftar status lunas warga RT 05 Sawangan Green Park per bulan.</p>
               </div>
 
               <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
@@ -5431,7 +5472,7 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ekspor & Cetak Laporan Keuangan</h3>
-                <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 04.</p>
+                <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 05.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -5450,7 +5491,7 @@ export default function AdminDashboard({
                   <p className="text-xs text-slate-400">Ekspor matriks iuran warga (CSV/Excel format) untuk audit pembukuan.</p>
                   <button
                     onClick={() => {
-                      alert('Simulasi ekspor spreadsheet iuran warga RT 04 berhasil diunduh (rt04_iuran_juli.csv).');
+                      alert('Simulasi ekspor spreadsheet iuran warga RT 05 berhasil diunduh (rt04_iuran_juli.csv).');
                     }}
                     className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer"
                   >
@@ -5741,11 +5782,11 @@ export default function AdminDashboard({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Tetangga</span>
-                        <p className="font-bold text-slate-900 dark:text-white">RT 04</p>
+                        <p className="font-bold text-slate-900 dark:text-white">RT 05</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Warga</span>
-                        <p className="font-bold text-slate-900 dark:text-white">RW 09</p>
+                        <p className="font-bold text-slate-900 dark:text-white">RW 06</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kelurahan</span>
@@ -6418,7 +6459,7 @@ export default function AdminDashboard({
                     <input
                       required
                       type="text"
-                      placeholder="Contoh: Balai Warga RT 04"
+                      placeholder="Contoh: Balai Warga RT 05"
                       value={agendaForm.location}
                       onChange={(e) => setAgendaForm({ ...agendaForm, location: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"

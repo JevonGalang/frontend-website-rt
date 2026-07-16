@@ -554,7 +554,27 @@ export default function AdminDataWizard() {
               <div className="flex justify-between"><span className="text-slate-400 font-semibold">Nama</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.nama}</span></div>
               <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">NIK</span><span className="font-bold text-slate-700 dark:text-slate-200 font-mono text-[10px]">{summaryData.warga?.nik}</span></div>
               <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Gender</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.jenisKelamin}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Tgl Lahir</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.tglLahir}</span></div>
+              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2">
+                <span className="text-slate-400 font-semibold">Tgl Lahir</span>
+                <span className="font-bold text-slate-700 dark:text-slate-200">
+                  {(() => {
+                    const val = summaryData.warga?.tglLahir;
+                    if (!val) return '-';
+                    const parts = val.split('-');
+                    if (parts.length === 3) {
+                      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    }
+                    const d = new Date(val);
+                    if (!isNaN(d.getTime())) {
+                      const day = String(d.getDate()).padStart(2, '0');
+                      const month = String(d.getMonth() + 1).padStart(2, '0');
+                      const year = d.getFullYear();
+                      return `${day}/${month}/${year}`;
+                    }
+                    return val;
+                  })()}
+                </span>
+              </div>
               <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">No HP</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.noHp}</span></div>
             </div>
           </div>

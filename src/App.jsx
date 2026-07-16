@@ -399,7 +399,7 @@ export default function App() {
       <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 text-center text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
           <p className="font-semibold text-slate-300">
-            © {new Date().getFullYear()} RT 04 / RW 09 - Perumahan Sawangan Green Park. All Rights Reserved.
+            © {new Date().getFullYear()} RT 05 / RW 06 - Perumahan Sawangan Green Park. All Rights Reserved.
           </p>
           <p className="max-w-md mx-auto text-[10px] text-slate-500">
             Website portal informasi ini dirancang khusus untuk mempermudah pelayanan administrasi warga klaster Sawangan Green Park secara mandiri, cepat, dan transparan.

@@ -314,7 +314,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 <div className="text-center pb-4 mb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
                   <h4 className="font-extrabold text-slate-800 dark:text-white text-base">BUKTI PENGAJUAN SURAT PENGANTAR</h4>
                   <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">
-                    RT 04 / RW 09 - Sawangan Green Park
+                    RT 05 / RW 06 - Sawangan Green Park
                   </span>
                   <span className="block text-xs text-slate-500 dark:text-slate-400 mt-2">
                     Tanggal Pengajuan: {submittedData.submissionDate}
