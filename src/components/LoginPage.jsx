@@ -75,8 +75,12 @@ export default function LoginPage({
       setSuccess('Login Berhasil! Mengalihkan...');
       
       // Save token (JWT) to localStorage valid for 1 day
-      localStorage.setItem('rt_token', resData.token);
-      localStorage.setItem('rt_token_time', new Date().getTime().toString());
+      try {
+        localStorage.setItem('rt_token', resData.token);
+        localStorage.setItem('rt_token_time', new Date().getTime().toString());
+      } catch (e) {
+        console.warn('localStorage is blocked or unavailable:', e);
+      }
 
       // Merge local rich citizen data if exists
       const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
@@ -95,94 +99,17 @@ export default function LoginPage({
       recordAccessLog(userSession);
       setTimeout(() => {
         setCurrentUser(userSession);
-        localStorage.setItem('rt_current_user', JSON.stringify(userSession));
+        try {
+          localStorage.setItem('rt_current_user', JSON.stringify(userSession));
+        } catch (e) {
+          console.warn('localStorage is blocked or unavailable:', e);
+        }
       }, 1000);
       return;
 
     } catch (err) {
-      console.warn('API Login offline/error, menggunakan fallback lokal:', err);
-      const proceedOffline = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin masuk menggunakan akun lokal (Offline Mode)?');
-      if (!proceedOffline) {
-        setError('Gagal menghubungkan ke server API.');
-        return;
-      }
-    }
-
-    // LOCAL OFFLINE FALLBACK
-    const usernameLower = loginData.username.toLowerCase();
-    
-    // Check for RT (Ketua RT)
-    if ((usernameLower === 'admin' && loginData.password === 'admin') || (usernameLower === 'rt' && loginData.password === 'rt')) {
-      const adminUser = {
-        id: 'ADM-001',
-        name: 'Pak RT (Ahmad Mulyono)',
-        username: usernameLower,
-        role: 'rt',
-      };
-      setSuccess('Login Ketua RT Lokal Berhasil! Mengalihkan...');
-      recordAccessLog(adminUser);
-      setTimeout(() => {
-        setCurrentUser(adminUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
-      }, 1000);
-      return;
-    }
-
-    // Check for Sekretaris
-    if (usernameLower === 'sekertaris' && loginData.password === 'sekertaris') {
-      const secretaryUser = {
-        id: 'SEC-001',
-        name: 'Bu Sekretaris (Riana Sukma)',
-        username: 'sekertaris',
-        role: 'sekertaris',
-      };
-      setSuccess('Login Sekretaris Lokal Berhasil! Mengalihkan...');
-      recordAccessLog(secretaryUser);
-      setTimeout(() => {
-        setCurrentUser(secretaryUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(secretaryUser));
-      }, 1000);
-      return;
-    }
-
-    // Check for Bendahara
-    if (usernameLower === 'bendahara' && loginData.password === 'bendahara') {
-      const treasurerUser = {
-        id: 'TRE-001',
-        name: 'Pak Bendahara (Hadi Suwarno)',
-        username: 'bendahara',
-        role: 'bendahara',
-      };
-      setSuccess('Login Bendahara Lokal Berhasil! Mengalihkan...');
-      recordAccessLog(treasurerUser);
-      setTimeout(() => {
-        setCurrentUser(treasurerUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(treasurerUser));
-      }, 1000);
-      return;
-    }
-
-    // Check for warga
-    const citizen = wargaList.find(
-      (w) =>
-        (w.username.toLowerCase() === loginData.username.toLowerCase() || w.nik === loginData.username) &&
-        w.password === loginData.password &&
-        w.statusHidup !== 'Meninggal'
-    );
-
-    if (citizen) {
-      const citizenUser = {
-        ...citizen,
-        role: 'warga',
-      };
-      setSuccess(`Login Warga Lokal Berhasil! Selamat datang, ${citizen.name}.`);
-      recordAccessLog(citizenUser);
-      setTimeout(() => {
-        setCurrentUser(citizenUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
-      }, 1000);
-    } else {
-      setError('Username/NIK atau Password salah. Silakan coba lagi.');
+      console.warn('API Login offline/error:', err);
+      setError('Gagal menghubungkan ke server API.');
     }
   };
 
@@ -218,7 +145,7 @@ export default function LoginPage({
                   Sawangan Green Park
                 </span>
                 <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">
-                  RUKUN TETANGGA 04 / RW 06
+                  RUKUN TETANGGA 05 / RW 06
                 </span>
               </div>
             </div>

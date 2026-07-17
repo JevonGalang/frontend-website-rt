@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
-  AlertCircle, Sparkles, Filter, Activity,
+  AlertCircle, Sparkles, Filter, Activity, Eye,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock
 } from 'lucide-react';
@@ -64,7 +64,8 @@ export default function AdminDashboard({
   setSubmissionsList,
   darkMode,
   setDarkMode,
-  fetchAgendas
+  fetchAgendas,
+  dashboardStats
 }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
@@ -724,7 +725,7 @@ export default function AdminDashboard({
   const [residentServerList, setResidentServerList] = useState([]);
   const [isLoadingResidents, setIsLoadingResidents] = useState(false);
   const [residentError, setResidentError] = useState('');
-  const [residentSubTab, setResidentSubTab] = useState('local'); // 'local' | 'server'
+  const [residentSubTab, setResidentSubTab] = useState('server'); // 'local' | 'server'
 
   const fetchResidentServerList = async () => {
     setIsLoadingResidents(true);
@@ -749,12 +750,106 @@ export default function AdminDashboard({
       }
 
       const data = await response.json();
-      setResidentServerList(data);
+      console.log('%c[fetchResidentServerList] Raw response:', 'color: #3b82f6; font-weight: bold;', data);
+      
+      let items = [];
+      if (Array.isArray(data)) {
+        items = data;
+      } else if (data && Array.isArray(data.output)) {
+        items = data.output;
+      } else if (data && Array.isArray(data.data)) {
+        items = data.data;
+      } else if (data && typeof data === 'object') {
+        const firstArray = Object.values(data).find(v => Array.isArray(v));
+        if (firstArray) {
+          items = firstArray;
+        } else {
+          console.warn('[fetchResidentServerList] Could not find array in response:', data);
+          items = [];
+        }
+      }
+      
+      console.log(`%c[fetchResidentServerList] Found ${items.length} resident items`, 'color: #3b82f6; font-weight: bold;');
+      setResidentServerList(items);
     } catch (err) {
       console.error('Failed to fetch residents:', err);
       setResidentError(err.message);
     } finally {
       setIsLoadingResidents(false);
+    }
+  };
+
+  const fetchWargaListFromServer = async () => {
+    let token = null;
+    try {
+      token = localStorage.getItem('rt_token');
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const raw = await response.json();
+        console.log('%c[fetchWargaListFromServer] Raw response:', 'color: #f59e0b; font-weight: bold;', raw);
+
+        // Handle both direct array and envelope-wrapped formats
+        let items = [];
+        if (Array.isArray(raw)) {
+          items = raw;
+        } else if (raw && Array.isArray(raw.output)) {
+          items = raw.output;
+        } else if (raw && Array.isArray(raw.data)) {
+          items = raw.data;
+        } else if (raw && typeof raw === 'object') {
+          // Try to find the first array value in the response
+          const firstArray = Object.values(raw).find(v => Array.isArray(v));
+          if (firstArray) {
+            items = firstArray;
+          } else {
+            console.warn('[fetchWargaListFromServer] Could not find array in response:', raw);
+            return;
+          }
+        }
+
+        console.log(`%c[fetchWargaListFromServer] Found ${items.length} warga items`, 'color: #10b981; font-weight: bold;');
+
+        const normalized = items.map(item => ({
+          id: item.warga_id || item.id || 0,
+          name: item.nama || item.name || '',
+          nik: item.nik || '',
+          noKk: item.family_nokk || item.no_kk || item.noKk || '',
+          gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
+          status: item.house_status || item.status || 'Tetap',
+          statusHidup: item.status_hidup || item.statusHidup || 'Hidup',
+          username: item.username || '',
+          alamat: item.house_alamat || item.alamat || '',
+          noHp: item.no_hp || item.noHp || '',
+          family_id: item.family_id || item.fammilyId || 0,
+          house_id: item.house_id || item.houseId || 0,
+          house_blok: item.house_blok || '',
+          house_nomor: item.house_nomor || '',
+          tgl_lahir: item.tgl_lahir || item.tglLahir || '',
+          umur: item.umur || 0
+        }));
+
+        console.log('%c[fetchWargaListFromServer] Normalized warga list:', 'color: #10b981; font-weight: bold;', normalized);
+        setWargaList(normalized);
+        try {
+          localStorage.setItem('rt_wargalist', JSON.stringify(normalized));
+        } catch (e) {}
+      } else {
+        console.error(`[fetchWargaListFromServer] HTTP Error: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      console.error('[fetchWargaListFromServer] Network error:', err);
     }
   };
 
@@ -886,9 +981,70 @@ export default function AdminDashboard({
     }
   };
 
+  const mapCategoryToBackend = (category, type) => {
+    const catLower = (category || '').toLowerCase();
+    if (type === 'income') {
+      if (catLower.includes('donasi') || catLower.includes('sukarela')) {
+        return 'donasi';
+      } else if (catLower.includes('subsidi')) {
+        return 'subsidi';
+      } else if (catLower.includes('sponsorship')) {
+        return 'sponsorship';
+      } else if (catLower.includes('hibah')) {
+        return 'hibah';
+      } else {
+        return 'lainnya';
+      }
+    } else {
+      if (catLower.includes('kebersihan')) {
+        return 'kebersihan';
+      } else if (catLower.includes('keamanan')) {
+        return 'keamanan';
+      } else if (catLower.includes('taman')) {
+        return 'taman';
+      } else if (catLower.includes('operasional') || catLower.includes('kantor') || catLower.includes('atk')) {
+        return 'operasional_rt';
+      } else if (catLower.includes('kematian')) {
+        return 'kematian';
+      } else if (catLower.includes('sosial')) {
+        return 'sosial';
+      } else if (catLower.includes('kegiatan')) {
+        return 'kegiatan';
+      } else {
+        return 'lainnya';
+      }
+    }
+  };
+
+  const fetchLedgerFromServer = async () => {
+    try {
+      const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.response === 200 && data.output?.ledger) {
+          const mapped = data.output.ledger.map(t => ({
+            id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
+            type: t.type === 'in' ? 'income' : 'expense',
+            amount: t.amount,
+            category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
+            description: t.description,
+            date: t.transaction_date ? t.transaction_date.substring(0, 10) : new Date().toISOString().split('T')[0]
+          }));
+          setTransaksiKasList(mapped);
+          localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+        }
+      }
+    } catch (err) {
+      console.warn('Gagal memuat ledger dari server:', err.message);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'sek_warga_kk' && residentSubTab === 'server') {
       fetchResidentServerList();
+    }
+    if (activeTab === 'warga' || activeTab === 'sek_akun_manage' || activeTab === 'sek_laporan' || activeTab === 'rt_statistik' || activeTab === 'iuran_pembayaran' || activeTab === 'laporan_rekap') {
+      fetchWargaListFromServer();
     }
     if (activeTab === 'sek_pengaduan') {
       fetchServerComplaints();
@@ -912,17 +1068,65 @@ export default function AdminDashboard({
     if (activeTab === 'agenda') {
       if (fetchAgendas) fetchAgendas();
     }
+    if (activeTab === 'keuangan_kas' || activeTab === 'keuangan_pemasukan' || activeTab === 'keuangan_pengeluaran') {
+      fetchLedgerFromServer();
+    }
 
-    const interval = setInterval(() => {
-      if (activeTab === 'sek_warga_kk' && residentSubTab === 'server') fetchResidentServerList();
-      if (activeTab === 'sek_pengaduan') fetchServerComplaints();
-      if (activeTab === 'sek_info_pengumuman') fetchServerAnnouncements();
-      if (activeTab === 'overview' || activeTab === 'layanan') fetchServerSubmissions();
-      if (activeTab === 'agenda') { if (fetchAgendas) fetchAgendas(); }
-    }, 10000);
-
-    return () => clearInterval(interval);
   }, [activeTab, residentSubTab]);
+
+  useEffect(() => {
+    let token = null;
+    try {
+      token = localStorage.getItem('rt_token');
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
+    if (!token) return;
+
+    // Fetch initial core data from server on mount
+    fetchResidentServerList();
+    fetchWargaListFromServer();
+    fetchLedgerFromServer();
+    fetchFinanceTracking();
+    fetchServerSubmissions();
+    fetchPendingWargaList();
+    fetchPendingPayments();
+    if (fetchAgendas) fetchAgendas();
+
+    const socketConnection = io('http://172.20.32.62:3333', {
+      transports: ['websocket'],
+      auth: { token }
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('Connected to socket server in AdminDashboard');
+    });
+
+    socketConnection.on('sync', (data) => {
+      console.log(`⚡ Menerima request sinkronisasi untuk: ${data.type}`);
+      if (data.type === 'finance') {
+        fetchLedgerFromServer();
+        fetchPendingPayments();
+        fetchFinanceTracking();
+      } else if (data.type === 'warga') {
+        fetchResidentServerList();
+        fetchPendingWargaList();
+        fetchWargaListFromServer();
+      } else if (data.type === 'pengaduan') {
+        fetchServerComplaints();
+      } else if (data.type === 'pengajuan') {
+        fetchServerSubmissions();
+      } else if (data.type === 'announcement') {
+        fetchServerAnnouncements();
+      } else if (data.type === 'agenda') {
+        if (fetchAgendas) fetchAgendas();
+      }
+    });
+
+    return () => {
+      socketConnection.disconnect();
+    };
+  }, []);
 
   const [viewingCitizenProfile, setViewingCitizenProfile] = useState(null);
 
@@ -1058,7 +1262,9 @@ export default function AdminDashboard({
   // Auto-sync functions for CRUD
   const saveWarga = (updatedList) => {
     setWargaList(updatedList);
-    localStorage.setItem('rt_wargalist', JSON.stringify(updatedList));
+    try {
+      localStorage.setItem('rt_wargalist', JSON.stringify(updatedList));
+    } catch (e) {}
   };
 
   const handleUpdateIuranStatus = (id, newStatus) => {
@@ -1079,7 +1285,7 @@ export default function AdminDashboard({
     const printWindow = window.open('', '_blank');
     const tableRows = transaksiKasList.map(t => `
       <tr style="border-bottom: 1px solid #ddd;">
-        <td style="padding: 10px; font-family: monospace;">${t.date}</td>
+        <td style="padding: 10px; font-family: monospace;">${formatDateIndo(t.date)}</td>
         <td style="padding: 10px;">${t.description}</td>
         <td style="padding: 10px;">${t.category}</td>
         <td style="padding: 10px; text-align: center;">${t.type === 'income' ? 'PEMASUKAN' : 'PENGELUARAN'}</td>
@@ -1178,28 +1384,34 @@ export default function AdminDashboard({
   // Log out function
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('rt_current_user');
+    try {
+      localStorage.removeItem('rt_current_user');
+      localStorage.removeItem('rt_token');
+      localStorage.removeItem('rt_token_time');
+    } catch (e) {}
   };
 
   // Calc Dynamic stats for Overview
-  const totalWarga = wargaList.filter(w => w.statusHidup === 'Hidup').length;
+  const totalWarga = dashboardStats?.total_warga || wargaList.filter(w => w.statusHidup === 'Hidup').length;
   
-  // Unique KK count (using living residents)
-  const uniqueKKs = new Set(
-    wargaList.filter(w => w.statusHidup === 'Hidup').map(w => w.noKk)
-  ).size;
+  // Unique KK count (using server KK list or living residents)
+  const uniqueKKs = residentServerList.length > 0
+    ? residentServerList.length
+    : new Set(wargaList.filter(w => w.statusHidup === 'Hidup').map(w => w.noKk)).size;
 
-  const totalMenunggak = wargaList.filter(w => w.statusIuran?.includes('Menunggak') && w.statusHidup === 'Hidup').length;
+  const totalMenunggak = financeTrackingList.length > 0
+    ? financeTrackingList.filter(f => f.status === 'Nunggak').length
+    : wargaList.filter(w => w.statusIuran?.includes('Menunggak') && w.statusHidup === 'Hidup').length;
 
-  const totalPemasukan = transaksiKasList
+  const totalPemasukan = dashboardStats?.total_income || transaksiKasList
     .filter(t => t.type === 'income')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalPengeluaran = transaksiKasList
+  const totalPengeluaran = dashboardStats?.total_expense || transaksiKasList
     .filter(t => t.type === 'expense')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const sisaKas = totalPemasukan - totalPengeluaran;
+  const sisaKas = dashboardStats?.current_balance || (totalPemasukan - totalPengeluaran);
   const sisaKasRT = sisaKas;
 
   const totalAgendas = agendaList.length;
@@ -1483,7 +1695,7 @@ export default function AdminDashboard({
       saveWarga([...wargaList, newWarga]);
     } else {
       // edit warga
-      if (wargaForm.username && wargaList.some(w => w.id !== selectedItem.id && w.username.toLowerCase() === wargaForm.username.toLowerCase())) {
+      if (wargaForm.username && wargaList.some(w => w.id !== selectedItem.id && w.username && w.username.toLowerCase() === wargaForm.username.toLowerCase())) {
         setFormError('Username sudah digunakan.');
         return;
       }
@@ -1522,7 +1734,7 @@ export default function AdminDashboard({
     setModalType('');
   };
 
-  const handleKasSubmit = (e) => {
+  const handleKasSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
 
@@ -1538,17 +1750,53 @@ export default function AdminDashboard({
     }
 
     if (modalType === 'add_kas') {
-      const newKas = {
-        ...kasForm,
-        id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
-        amount: amountNum
-      };
-      saveKas([newKas, ...transaksiKasList]);
+      const token = localStorage.getItem('rt_token');
+      if (!token) {
+        setFormError('Sesi Anda telah berakhir atau Anda belum login.');
+        return;
+      }
+
+      try {
+        const isIncome = kasForm.type === 'income';
+        const url = isIncome 
+          ? 'http://172.20.32.62:3333/admin/finance/income' 
+          : 'http://172.20.32.62:3333/admin/finance/expense';
+        const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            amount: amountNum,
+            sourceType: backendCategory,
+            description: kasForm.description.trim()
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || data.pesan || 'Gagal menyimpan transaksi di server.');
+        }
+
+        await fetchLedgerFromServer(); // Sync from server
+        setModalType('');
+        Swal.fire({
+          title: 'Berhasil!',
+          text: `Transaksi ${isIncome ? 'pemasukan' : 'pengeluaran'} berhasil dicatat di server database.`,
+          icon: 'success',
+          confirmButtonColor: '#10b981'
+        });
+      } catch (err) {
+        setFormError(`Gagal menyimpan ke server: ${err.message}`);
+      }
     } else {
       const updated = transaksiKasList.map(t => t.id === selectedItem.id ? { ...kasForm, amount: amountNum } : t);
       saveKas(updated);
+      setModalType('');
     }
-    setModalType('');
   };
 
   const handleAgendaSubmit = async (e) => {
@@ -2782,7 +3030,6 @@ export default function AdminDashboard({
                     )}
                   </div>
                 </div>
-
               </div>
             </div>
           )}
@@ -2791,186 +3038,122 @@ export default function AdminDashboard({
           {activeTab === 'sek_warga_kk' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
-              {/* Toggle Sub Tab */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800 pb-2">
-                <button
-                  onClick={() => setResidentSubTab('local')}
-                  className={`pb-2 px-4 text-xs font-bold transition-all cursor-pointer border-b-2 ${
-                    residentSubTab === 'local'
-                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-extrabold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Simulasi Lokal
-                </button>
-                <button
-                  onClick={() => setResidentSubTab('server')}
-                  className={`pb-2 px-4 text-xs font-bold transition-all cursor-pointer border-b-2 ${
-                    residentSubTab === 'server'
-                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-400 font-extrabold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                  }`}
-                >
-                  Database Server (Real-Time)
-                </button>
-              </div>
-
-              {residentSubTab === 'local' ? (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="p-4">No. Kartu Keluarga (KK)</th>
-                        <th className="p-4">Kepala Keluarga</th>
-                        <th className="p-4">Alamat Domisili</th>
-                        <th className="p-4 text-center">Anggota KK</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {(() => {
-                        const kkMap = {};
-                        wargaList.forEach(w => {
-                          if (!w.noKk) return;
-                          if (!kkMap[w.noKk]) {
-                            kkMap[w.noKk] = { noKk: w.noKk, kepala: w.name, alamat: w.alamat, anggota: [] };
-                          }
-                          kkMap[w.noKk].anggota.push(w);
-                        });
-                        const kkList = Object.values(kkMap);
-                        return kkList.map((kk) => (
-                          <tr key={kk.noKk} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200">{kk.noKk}</td>
-                            <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{kk.kepala}</td>
-                            <td className="p-4 text-slate-550 dark:text-slate-400">{kk.alamat}</td>
-                            <td className="p-4 text-center">
-                              <span className="px-2.5 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 font-extrabold rounded-md text-[10px]">
-                                {kk.anggota.length} Orang
-                              </span>
-                            </td>
-                          </tr>
-                        ));
-                      })()}
-                    </tbody>
-                  </table>
+              <div className="space-y-4">
+                {/* Search Bar & Actions */}
+                <div className="flex justify-between items-center gap-4 flex-wrap">
+                  <input
+                    type="text"
+                    placeholder="Cari KK Server (No. KK, Nama Kepala, Alamat)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-sm w-full"
+                  />
+                  <button
+                    onClick={fetchResidentServerList}
+                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Refresh Data
+                  </button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Search Bar & Actions */}
-                  <div className="flex justify-between items-center gap-4 flex-wrap">
-                    <input
-                      type="text"
-                      placeholder="Cari KK Server (No. KK, Nama Kepala, Alamat)..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-sm w-full"
-                    />
+
+                {isLoadingResidents ? (
+                  <div className="py-12 flex flex-col items-center justify-center gap-3">
+                    <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data dari server database...</span>
+                  </div>
+                ) : residentError ? (
+                  <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center gap-3 text-center">
+                    <AlertCircle className="w-8 h-8 text-red-500" />
+                    <div className="space-y-1">
+                      <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Menghubungkan ke Server</h5>
+                      <p className="text-[10px] text-slate-400">{residentError}</p>
+                    </div>
                     <button
                       onClick={fetchResidentServerList}
-                      className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
                     >
-                      Refresh Data
+                      Coba Lagi
                     </button>
                   </div>
-
-                  {isLoadingResidents ? (
-                    <div className="py-12 flex flex-col items-center justify-center gap-3">
-                      <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                      <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data dari server database...</span>
-                    </div>
-                  ) : residentError ? (
-                    <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center gap-3 text-center">
-                      <AlertCircle className="w-8 h-8 text-red-500" />
-                      <div className="space-y-1">
-                        <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Menghubungkan ke Server</h5>
-                        <p className="text-[10px] text-slate-400">{residentError}</p>
-                      </div>
-                      <button
-                        onClick={fetchResidentServerList}
-                        className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                      >
-                        Coba Lagi
-                      </button>
-                    </div>
-                  ) : residentServerList.length === 0 ? (
-                    <div className="py-12 text-center text-slate-400 text-xs italic">
-                      Tidak ada data kartu keluarga di server database.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                      <table className="w-full text-left text-xs border-collapse">
-                        <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                            <th className="p-4">No. Kartu Keluarga (KK)</th>
-                            <th className="p-4">Kepala Keluarga</th>
-                            <th className="p-4">Alamat Domisili Rumah</th>
-                            <th className="p-4">Status Rumah</th>
-                            <th className="p-4 text-right">Aksi</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {residentServerList
-                            .filter(r => {
-                              const q = searchQuery.toLowerCase();
-                              const noKK = (r.no_kk || r.noKK || '').toLowerCase();
-                              const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
-                              const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
-                              return noKK.includes(q) || kepala.includes(q) || alamat.includes(q);
-                            })
-                            .map((r) => {
-                              const id = r.family_id || r.id;
-                              const noKK = r.no_kk || r.noKK;
-                              const kepala = r.kepala_keluarga_nama || 'Tidak Diketahui';
-                              const nik = r.kepala_keluarga_nik ? `NIK: ${r.kepala_keluarga_nik}` : '';
-                              const noHp = r.kepala_keluarga_nohp ? ` | HP: ${r.kepala_keluarga_nohp}` : '';
-                              const alamat = r.house_alamat || 'Tidak Diketahui';
-                              const blok = r.house_blok ? ` (Blok ${r.house_blok}` : '';
-                              const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
-                              const status = r.house_status || '-';
-                              return (
-                                <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                    <span>{revealedKks[id] || noKK}</span>
-                                    {noKK?.includes('x') && !revealedKks[id] && (
-                                      <button
-                                        onClick={() => handleRevealResident(id)}
-                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                                        title="Buka Sensor KK"
-                                      >
-                                        <Eye className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </td>
-                                  <td className="p-4">
-                                    <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
-                                    <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
-                                  </td>
-                                  <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
-                                  <td className="p-4">
-                                    <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                                      status === 'pribadi' || status === 'Tetap'
-                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                    }`}>
-                                      {status}
-                                    </span>
-                                  </td>
-                                  <td className="p-4 text-right">
+                ) : residentServerList.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
+                    Tidak ada data kartu keluarga di server database.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-4">No. Kartu Keluarga (KK)</th>
+                          <th className="p-4">Kepala Keluarga</th>
+                          <th className="p-4">Alamat Domisili Rumah</th>
+                          <th className="p-4">Status Rumah</th>
+                          <th className="p-4 text-right">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {residentServerList
+                          .filter(r => {
+                            const q = searchQuery.toLowerCase();
+                            const noKK = (r.no_kk || r.noKK || '').toLowerCase();
+                            const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
+                            const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
+                            return noKK.includes(q) || kepala.includes(q) || alamat.includes(q);
+                          })
+                          .map((r) => {
+                            const id = r.family_id || r.id;
+                            const noKK = r.no_kk || r.noKK;
+                            const kepala = r.kepala_keluarga_nama || 'Tidak Diketahui';
+                            const nik = r.kepala_keluarga_nik ? `NIK: ${r.kepala_keluarga_nik}` : '';
+                            const noHp = r.kepala_keluarga_nohp ? ` | HP: ${r.kepala_keluarga_nohp}` : '';
+                            const alamat = r.house_alamat || 'Tidak Diketahui';
+                            const blok = r.house_blok ? ` (Blok ${r.house_blok}` : '';
+                            const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
+                            const status = r.house_status || '-';
+                            return (
+                              <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                  <span>{revealedKks[id] || noKK}</span>
+                                  {noKK?.includes('x') && !revealedKks[id] && (
                                     <button
-                                      onClick={() => triggerPatchResidentKK(id, noKK)}
-                                      className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                                      onClick={() => handleRevealResident(id)}
+                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                      title="Buka Sensor KK"
                                     >
-                                      Edit KK
+                                      <Eye className="w-3.5 h-3.5" />
                                     </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
+                                  <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
+                                </td>
+                                <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
+                                <td className="p-4">
+                                  <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                    status === 'pribadi' || status === 'Tetap'
+                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                  }`}>
+                                    {status}
+                                  </span>
+                                </td>
+                                <td className="p-4 text-right">
+                                  <button
+                                    onClick={() => triggerPatchResidentKK(id, noKK)}
+                                    className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                                  >
+                                    Edit KK
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -3141,7 +3324,7 @@ export default function AdminDashboard({
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {pendudukKeluarList.map((p) => (
                       <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{p.date}</td>
+                        <td className="p-4 font-mono font-bold text-slate-500">{formatDateIndo(p.date)}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-205">{p.name}</td>
                         <td className="p-4 text-slate-500">{p.address}</td>
                         <td className="p-4 text-slate-500">{p.destination} ({p.reason})</td>
@@ -3215,7 +3398,7 @@ export default function AdminDashboard({
                     {suratMasukList.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
-                        <td className="p-4 font-bold text-slate-600 dark:text-slate-405">{s.date}</td>
+                        <td className="p-4 font-bold text-slate-600 dark:text-slate-405">{formatDateIndo(s.date)}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.sender}</td>
                         <td className="p-4 text-slate-500 italic">"{s.subject}"</td>
                       </tr>
@@ -3288,7 +3471,7 @@ export default function AdminDashboard({
                     {suratKeluarList.map((s) => (
                       <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
-                        <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{s.date}</td>
+                        <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{formatDateIndo(s.date)}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.recipient}</td>
                         <td className="p-4 text-slate-550 dark:text-slate-400 italic font-medium">"{s.subject}"</td>
                       </tr>
@@ -3490,7 +3673,7 @@ export default function AdminDashboard({
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {notulenList.map((n) => (
                       <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{n.date}</td>
+                        <td className="p-4 font-mono font-bold text-slate-500">{formatDateIndo(n.date)}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{n.title}</td>
                         <td className="p-4 text-slate-500">{n.recorder}</td>
                         <td className="p-4 text-slate-500 max-w-sm truncate" title={n.decisions}>{n.decisions}</td>
@@ -3667,7 +3850,7 @@ export default function AdminDashboard({
                       <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{a.name} ({a.size})</td>
-                        <td className="p-4 text-slate-500">{a.date}</td>
+                        <td className="p-4 text-slate-500">{formatDateIndo(a.date)}</td>
                         <td className="p-4 text-right font-sans">
                           <button onClick={() => alert(`Mengunduh berkas ${a.name}...`)} className="py-1 px-2.5 bg-emerald-600 text-white font-bold text-[9px] rounded-lg cursor-pointer">Unduh</button>
                         </td>
@@ -4085,7 +4268,7 @@ export default function AdminDashboard({
                     {wargaList
                       .filter(w => {
                         const q = searchQuery.toLowerCase();
-                        const matchesSearch = w.name.toLowerCase().includes(q) || w.nik.includes(q) || w.noKk.includes(q);
+                        const matchesSearch = (w.name || '').toLowerCase().includes(q) || (w.nik || '').includes(q) || (w.noKk || '').includes(q);
                         
                         if (statusFilter === 'All') return matchesSearch;
                         if (statusFilter === 'Tetap') return matchesSearch && w.status === 'Tetap';
@@ -4155,8 +4338,13 @@ export default function AdminDashboard({
                               )
                             )}
                           </td>
-                          <td className="p-4 max-w-[200px] truncate" title={w.alamat}>
-                            {w.alamat}
+                          <td className="p-4 max-w-[220px]" title={w.alamat}>
+                            <div className="text-slate-700 dark:text-slate-300 font-medium">{w.alamat || '-'}</div>
+                            {(w.house_blok || w.house_nomor) && (
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {w.house_blok ? `Blok ${w.house_blok}` : ''}{w.house_nomor ? ` No. ${w.house_nomor}` : ''}
+                              </div>
+                            )}
                           </td>
                           <td className="p-4 text-center space-y-1">
                             <div className="flex items-center justify-center gap-1.5">
@@ -4304,7 +4492,7 @@ export default function AdminDashboard({
                           .map((t) => (
                             <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 space-y-1 font-mono">
-                                <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                                <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
                                 <div className="text-[10px] text-slate-400">{t.id}</div>
                               </td>
                               <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words">
@@ -4379,7 +4567,7 @@ export default function AdminDashboard({
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {wargaList
-                          .filter(w => w.statusHidup === 'Hidup' && w.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                          .filter(w => w.statusHidup === 'Hidup' && (w.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
                           .map((w) => (
                             <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 font-bold text-slate-900 dark:text-white">
@@ -4665,7 +4853,7 @@ export default function AdminDashboard({
                       .map((t) => (
                         <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                           <td className="p-4 font-mono space-y-1">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
                             <div className="text-[10px] text-slate-400">{t.id}</div>
                           </td>
                           <td className="p-4 font-semibold text-slate-900 dark:text-white font-sans">
@@ -4993,30 +5181,48 @@ export default function AdminDashboard({
               </div>
 
               <form 
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (!pemasukanForm.description || !pemasukanForm.amount) {
                     alert('Silakan isi seluruh formulir.');
                     return;
                   }
 
-                  const newTx = {
-                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
-                    description: pemasukanForm.description,
-                    amount: parseInt(pemasukanForm.amount) || 0,
-                    date: pemasukanForm.date,
-                    type: 'income',
-                    category: pemasukanForm.category
-                  };
+                  const token = localStorage.getItem('rt_token');
+                  if (!token) {
+                    alert('Sesi Anda telah berakhir atau Anda belum login.');
+                    return;
+                  }
 
-                  saveKas([newTx, ...transaksiKasList]);
-                  alert('Berhasil mencatat transaksi pemasukan kas.');
-                  setPemasukanForm({
-                    description: '',
-                    amount: '',
-                    date: new Date().toISOString().split('T')[0],
-                    category: 'Donasi'
-                  });
+                  try {
+                    const backendCategory = mapCategoryToBackend(pemasukanForm.category, 'income');
+                    const res = await fetch('http://172.20.32.62:3333/admin/finance/income', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        amount: parseInt(pemasukanForm.amount),
+                        sourceType: backendCategory,
+                        description: pemasukanForm.description.trim()
+                      })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      throw new Error(data.message || data.pesan || 'Gagal menyimpan pemasukan di server.');
+                    }
+                    alert('Transaksi pemasukan kas berhasil dicatat di server database!');
+                    await fetchLedgerFromServer(); // Sync from server
+                    setPemasukanForm({
+                      description: '',
+                      amount: '',
+                      date: new Date().toISOString().split('T')[0],
+                      category: 'Donasi'
+                    });
+                  } catch (err) {
+                    alert(`Gagal menyimpan ke server: ${err.message}`);
+                  }
                 }}
                 className="max-w-xl space-y-4 text-xs sm:text-sm"
               >
@@ -5099,60 +5305,40 @@ export default function AdminDashboard({
                   }
 
                   const token = localStorage.getItem('rt_token');
-                  if (token) {
-                    try {
-                      let backendCategory = 'lainnya';
-                      const catLower = pengeluaranForm.category.toLowerCase();
-                      if (catLower === 'kebersihan') {
-                        backendCategory = 'kebersihan';
-                      } else if (catLower === 'keamanan') {
-                        backendCategory = 'keamanan';
-                      } else if (catLower === 'sosial') {
-                        backendCategory = 'sosial';
-                      } else if (catLower.includes('kantor') || catLower.includes('atk')) {
-                        backendCategory = 'operasional_rt';
-                      } else {
-                        backendCategory = 'lainnya';
-                      }
-
-                      const res = await fetch('http://172.20.32.62:3333/admin/finance/expense', {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({
-                          amount: parseInt(pengeluaranForm.amount),
-                          sourceType: backendCategory,
-                          description: pengeluaranForm.description.trim()
-                        })
-                      });
-                      const data = await res.json();
-                      if (!res.ok) {
-                        throw new Error(data.message || data.pesan || 'Gagal menyimpan pengeluaran di server.');
-                      }
-                      alert('Transaksi pengeluaran kas berhasil dicatat di server database!');
-                    } catch (err) {
-                      alert(`Gagal menyimpan ke server: ${err.message}. Transaksi dicatat secara lokal.`);
-                    }
+                  if (!token) {
+                    alert('Sesi Anda telah berakhir atau Anda belum login.');
+                    return;
                   }
 
-                  const newTx = {
-                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
-                    description: pengeluaranForm.description,
-                    amount: parseInt(pengeluaranForm.amount) || 0,
-                    date: pengeluaranForm.date,
-                    type: 'expense',
-                    category: pengeluaranForm.category
-                  };
-
-                  saveKas([newTx, ...transaksiKasList]);
-                  setPengeluaranForm({
-                    description: '',
-                    amount: '',
-                    date: new Date().toISOString().split('T')[0],
-                    category: 'Kebersihan'
-                  });
+                  try {
+                    const backendCategory = mapCategoryToBackend(pengeluaranForm.category, 'expense');
+                    const res = await fetch('http://172.20.32.62:3333/admin/finance/expense', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        amount: parseInt(pengeluaranForm.amount),
+                        sourceType: backendCategory,
+                        description: pengeluaranForm.description.trim()
+                      })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                      throw new Error(data.message || data.pesan || 'Gagal menyimpan pengeluaran di server.');
+                    }
+                    alert('Transaksi pengeluaran kas berhasil dicatat di server database!');
+                    await fetchLedgerFromServer(); // Sync from server
+                    setPengeluaranForm({
+                      description: '',
+                      amount: '',
+                      date: new Date().toISOString().split('T')[0],
+                      category: 'Kebersihan'
+                    });
+                  } catch (err) {
+                    alert(`Gagal menyimpan ke server: ${err.message}`);
+                  }
                 }}
                 className="max-w-xl space-y-4 text-xs sm:text-sm"
               >
@@ -5257,7 +5443,7 @@ export default function AdminDashboard({
                     {transaksiKasList.map((t) => (
                       <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 font-mono space-y-1">
-                          <span className="font-bold text-slate-700 dark:text-slate-350">{t.date}</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
                           <div className="text-[10px] text-slate-400">{t.id}</div>
                         </td>
                         <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words font-sans">
@@ -5558,7 +5744,7 @@ export default function AdminDashboard({
                         <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 text-[10px]">
                           <div>
                             <span className="block text-slate-400 font-bold uppercase tracking-wider">Tanggal & Waktu</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">{a.date} ({a.time})</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDateIndo(a.date)} ({a.time})</span>
                           </div>
                           <div>
                             <span className="block text-slate-400 font-bold uppercase tracking-wider">Tempat</span>

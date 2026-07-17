@@ -82,8 +82,13 @@ export default function ProfilWarga({
 
   // Arrears Payment Form States
   const [buktiBayarList, setBuktiBayarList] = useState(() => {
-    const saved = localStorage.getItem('rt_warga_bukti_bayar');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('rt_warga_bukti_bayar');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return [];
+    }
   });
   const [paymentType, setPaymentType] = useState('ipl'); // 'ipl' | 'kas'
   const [iplForm, setIplForm] = useState({ months: [], year: 2026, file: null });
@@ -92,10 +97,17 @@ export default function ProfilWarga({
 
   // Complaint States
   const [pengaduanList, setPengaduanList] = useState(() => {
-    const saved = localStorage.getItem('rt_warga_pengaduan_list');
-    return saved ? JSON.parse(saved) : [
-      { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
-    ];
+    try {
+      const saved = localStorage.getItem('rt_warga_pengaduan_list');
+      return saved ? JSON.parse(saved) : [
+        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
+      ];
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return [
+        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
+      ];
+    }
   });
   const [pengaduanForm, setPengaduanForm] = useState({
     category: 'Fasilitas Umum',
@@ -139,13 +151,23 @@ export default function ProfilWarga({
   const [uploadDocError, setUploadDocError] = useState('');
   const [uploadDocSuccess, setUploadDocSuccess] = useState('');
   const [uploadedDocsList, setUploadedDocsList] = useState(() => {
-    const saved = localStorage.getItem('rt_uploaded_docs');
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem('rt_uploaded_docs');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return [];
+    }
   });
 
   // Socket.IO for real-time updates
   useEffect(() => {
-    const token = localStorage.getItem('rt_token');
+    let token = null;
+    try {
+      token = localStorage.getItem('rt_token');
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
     if (!token) return;
 
     const socketConnection = io('http://172.20.32.62:3333', {
@@ -168,6 +190,26 @@ export default function ProfilWarga({
         icon: data.status === 'diterima' ? 'success' : 'error',
         confirmButtonColor: '#10b981'
       });
+    });
+
+    socketConnection.on('sync', (data) => {
+      console.log(`⚡ Menerima request sinkronisasi di ProfilWarga untuk: ${data.type}`);
+      if (data.type === 'finance') {
+        fetchWargaPayments();
+      } else if (data.type === 'warga') {
+        fetchFamilyMembers();
+      } else if (data.type === 'pengaduan') {
+        fetchCitizenComplaints();
+      } else if (data.type === 'pengajuan') {
+        fetchCitizenSubmissions();
+      } else if (data.type === 'announcement') {
+        fetchWargaAnnouncements();
+      } else if (data.type === 'agenda') {
+        if (fetchAgendas) fetchAgendas();
+      } else if (data.type === 'vote') {
+        fetchKaryawanList();
+        fetchVoteResults();
+      }
     });
 
     return () => {
@@ -208,14 +250,24 @@ export default function ProfilWarga({
   const [paymentsError, setPaymentsError] = useState('');
 
   // Document Management States
-  const [wargaDocuments, setWargaDocuments] = useState(() => JSON.parse(localStorage.getItem('rt_warga_documents') || '[]'));
+  const [wargaDocuments, setWargaDocuments] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rt_warga_documents');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return [];
+    }
+  });
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [selectedResidentForDoc, setSelectedResidentForDoc] = useState(null);
   const [docUploadType, setDocUploadType] = useState('ktp');
   const [docUploadFile, setDocUploadFile] = useState(null);
 
   useEffect(() => {
-    localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
+    try {
+      localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
+    } catch (e) {}
   }, [wargaDocuments]);
 
   // Voting Karyawan Terbaik States
@@ -419,22 +471,6 @@ export default function ProfilWarga({
     if (activeTab === 'informasi_jadwal' && fetchAgendas) {
       fetchAgendas();
     }
-
-    const interval = setInterval(() => {
-      fetchFamilyMembers();
-      fetchCitizenComplaints();
-      fetchWargaAnnouncements();
-      fetchCitizenSubmissions();
-      if (activeTab === 'voting_karyawan') {
-        fetchKaryawanList();
-        fetchVoteResults();
-      }
-      if (activeTab === 'informasi_jadwal' && fetchAgendas) {
-        fetchAgendas();
-      }
-    }, 10000);
-
-    return () => clearInterval(interval);
   }, [activeTab]);
 
   // Save changes helper
@@ -2787,7 +2823,7 @@ export default function ProfilWarga({
                       <div className="space-y-1">
                         <h4 className="font-bold text-sm text-slate-800 dark:text-white">{a.title}</h4>
                         <div className="flex flex-wrap gap-x-4 text-[10px] text-slate-400 font-bold">
-                          <span>📅 {a.date}</span>
+                          <span>📅 {formatDateIndo(a.date)}</span>
                           <span>⏰ {a.time} WIB</span>
                           <span>📍 {a.location}</span>
                         </div>
@@ -3498,7 +3534,7 @@ export default function ProfilWarga({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">AD / ART Rukun Tetangga 04</h4>
+                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">AD / ART Rukun Tetangga 05</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Dokumen Anggaran Dasar dan Anggaran Rumah Tangga resmi yang berisi aturan kerukunan hidup bertetangga.</p>
                   <button onClick={() => alert('Mengunduh AD_ART_RT04.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
                 </div>

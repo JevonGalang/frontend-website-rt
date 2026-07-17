@@ -109,6 +109,13 @@
   --color-teal-955: #080808;
 }
 
+.dark .text-white[class*="bg-emerald-"],
+.dark .text-white[class*="bg-teal-"],
+.dark .text-white[class*="from-emerald-"],
+.dark .text-white[class*="from-teal-"] {
+  color: var(--color-on-primary-wf) !important;
+}
+
 html {
   scroll-behavior: smooth;
 }

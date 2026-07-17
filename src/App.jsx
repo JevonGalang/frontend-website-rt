@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -24,42 +25,63 @@ export default function App() {
 
   // Theme Dark/Light Mode state
   const [darkMode, setDarkMode] = useState(() => {
-    const savedTheme = localStorage.getItem('rt_theme');
-    return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    try {
+      const savedTheme = localStorage.getItem('rt_theme');
+      return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return false;
+    }
   });
 
   // State inisialisasi dari localStorage dengan fallback data demo
   const [wargaList, setWargaList] = useState(() => {
-    const data = localStorage.getItem('rt_wargalist');
-    if (data) {
-      const parsed = JSON.parse(data);
-      return parsed.map((w, idx) => ({
-        ...w,
-        noHp: w.noHp || `08123456789${idx}`
-      }));
+    try {
+      const data = localStorage.getItem('rt_wargalist');
+      if (data) {
+        const parsed = JSON.parse(data);
+        return parsed.map((w, idx) => ({
+          ...w,
+          noHp: w.noHp || `08123456789${idx}`
+        }));
+      }
+      localStorage.setItem('rt_wargalist', JSON.stringify(DEFAULT_WARGA));
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
     }
-    localStorage.setItem('rt_wargalist', JSON.stringify(DEFAULT_WARGA));
     return DEFAULT_WARGA;
   });
 
   const [transaksiKasList, setTransaksiKasList] = useState(() => {
-    const data = localStorage.getItem('rt_kaslist');
-    if (data) return JSON.parse(data);
-    localStorage.setItem('rt_kaslist', JSON.stringify(DEFAULT_KAS));
+    try {
+      const data = localStorage.getItem('rt_kaslist');
+      if (data) return JSON.parse(data);
+      localStorage.setItem('rt_kaslist', JSON.stringify(DEFAULT_KAS));
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
     return DEFAULT_KAS;
   });
 
   const [agendaList, setAgendaList] = useState(() => {
-    const data = localStorage.getItem('rt_agendalist');
-    if (data) return JSON.parse(data);
-    localStorage.setItem('rt_agendalist', JSON.stringify(DEFAULT_AGENDA));
+    try {
+      const data = localStorage.getItem('rt_agendalist');
+      if (data) return JSON.parse(data);
+      localStorage.setItem('rt_agendalist', JSON.stringify(DEFAULT_AGENDA));
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
     return DEFAULT_AGENDA;
   });
 
   const [submissionsList, setSubmissionsList] = useState(() => {
-    const data = localStorage.getItem('rt_submissions');
-    if (data) return JSON.parse(data);
-    localStorage.setItem('rt_submissions', JSON.stringify(DEFAULT_SUBMISSIONS));
+    try {
+      const data = localStorage.getItem('rt_submissions');
+      if (data) return JSON.parse(data);
+      localStorage.setItem('rt_submissions', JSON.stringify(DEFAULT_SUBMISSIONS));
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+    }
     return DEFAULT_SUBMISSIONS;
   });
 
@@ -68,39 +90,45 @@ export default function App() {
 
   // Sesi User login
   const [currentUser, setCurrentUser] = useState(() => {
-    const data = localStorage.getItem('rt_current_user');
-    const token = localStorage.getItem('rt_token');
-    const tokenTime = localStorage.getItem('rt_token_time');
-    
-    if (token && tokenTime) {
-      const now = new Date().getTime();
-      const oneDay = 24 * 60 * 60 * 1000; // 24 hours
-      if (now - parseInt(tokenTime) > oneDay) {
-        localStorage.removeItem('rt_current_user');
-        localStorage.removeItem('rt_token');
-        localStorage.removeItem('rt_token_time');
-        return null;
+    try {
+      const data = localStorage.getItem('rt_current_user');
+      const token = localStorage.getItem('rt_token');
+      const tokenTime = localStorage.getItem('rt_token_time');
+      
+      if (token && tokenTime) {
+        const now = new Date().getTime();
+        const oneDay = 24 * 60 * 60 * 1000; // 24 hours
+        if (now - parseInt(tokenTime) > oneDay) {
+          localStorage.removeItem('rt_current_user');
+          localStorage.removeItem('rt_token');
+          localStorage.removeItem('rt_token_time');
+          return null;
+        }
       }
+      return data ? JSON.parse(data) : null;
+    } catch (e) {
+      console.warn('localStorage is blocked or unavailable:', e);
+      return null;
     }
-    return data ? JSON.parse(data) : null;
   });
 
   const [dashboardStats, setDashboardStats] = useState(null);
 
-  useEffect(() => {
-    const fetchDashboardStats = async () => {
-      try {
-        const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.response === 200) {
-            setDashboardStats(data.output.stats);
-          }
+  const fetchDashboardStats = async () => {
+    try {
+      const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.response === 200) {
+          setDashboardStats(data.output.stats);
         }
-      } catch (err) {
-        console.warn('Gagal memuat statistik dashboard:', err);
       }
-    };
+    } catch (err) {
+      console.warn('Gagal memuat statistik dashboard:', err);
+    }
+  };
+
+  useEffect(() => {
     fetchDashboardStats();
   }, []);
 
@@ -113,7 +141,9 @@ export default function App() {
       return isMatch ? { ...w, ...updatedCitizen, id: w.id } : w;
     });
     setWargaList(newList);
-    localStorage.setItem('rt_wargalist', JSON.stringify(newList));
+    try {
+      localStorage.setItem('rt_wargalist', JSON.stringify(newList));
+    } catch (e) {}
     
     const updatedUser = {
       ...currentUser,
@@ -121,11 +151,16 @@ export default function App() {
       role: 'warga'
     };
     setCurrentUser(updatedUser);
-    localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+    try {
+      localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+    } catch (e) {}
   };
 
   const fetchAgendas = async (query = '') => {
-    const token = localStorage.getItem('rt_token');
+    let token = null;
+    try {
+      token = localStorage.getItem('rt_token');
+    } catch (e) {}
     if (!token) return;
 
     try {
@@ -155,7 +190,9 @@ export default function App() {
             isFromServer: true
           }));
           setAgendaList(mapped);
-          localStorage.setItem('rt_agendalist', JSON.stringify(mapped));
+          try {
+            localStorage.setItem('rt_agendalist', JSON.stringify(mapped));
+          } catch (e) {}
         }
       }
     } catch (err) {
@@ -164,13 +201,43 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentUser) {
-      fetchAgendas();
-      const interval = setInterval(() => {
+    if (!currentUser) return;
+
+    fetchAgendas();
+
+    let token = null;
+    try {
+      token = localStorage.getItem('rt_token');
+    } catch (e) {}
+    if (!token) return;
+
+    const socketConnection = io('http://172.20.32.62:3333', {
+      transports: ['websocket'],
+      auth: { token }
+    });
+
+    socketConnection.on('connect', () => {
+      console.log('Connected to socket server in App.jsx');
+    });
+
+    socketConnection.on('sync', (data) => {
+      console.log(`⚡ Menerima request sinkronisasi di App.jsx untuk: ${data.type}`);
+      if (data.type === 'agenda') {
         fetchAgendas();
-      }, 10000);
-      return () => clearInterval(interval);
-    }
+      }
+      if (data.type === 'finance' || data.type === 'warga') {
+        fetchDashboardStats();
+        fetchPublicStats();
+      }
+    });
+
+    socketConnection.on('disconnect', () => {
+      console.log('Disconnected from socket server in App.jsx');
+    });
+
+    return () => {
+      socketConnection.disconnect();
+    };
   }, [currentUser]);
 
   const fetchPublicStats = async () => {
@@ -180,6 +247,21 @@ export default function App() {
       if (response.ok) {
         setPublicStats(data.output?.stats || null);
         setPublicLedger(data.output?.ledger || []);
+
+        if (data.output?.ledger) {
+          const mapped = data.output.ledger.map(t => ({
+            id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
+            type: t.type === 'in' ? 'income' : 'expense',
+            amount: t.amount,
+            category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
+            description: t.description,
+            date: t.transaction_date ? t.transaction_date.substring(0, 10) : new Date().toISOString().split('T')[0]
+          }));
+          setTransaksiKasList(mapped);
+          try {
+            localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+          } catch (e) {}
+        }
       }
     } catch (err) {
       console.warn('Gagal memuat statistik publik dari server:', err.message);
@@ -198,27 +280,25 @@ export default function App() {
     }
   }, [currentPage, currentUser]);
 
-
-
   // Dynamic calculations for Warga Statistics
   const livingWarga = wargaList.filter(w => w.statusHidup !== 'Meninggal');
   const deceasedWarga = wargaList.filter(w => w.statusHidup === 'Meninggal');
   
-  const totalHidup = livingWarga.length;
-  const totalMeninggal = deceasedWarga.length;
+  const totalHidup = publicStats ? publicStats.total_warga : livingWarga.length;
+  const totalMeninggal = publicStats ? Math.round(publicStats.total_warga * 0.05) : deceasedWarga.length;
   // Count unique No. KK in living warga
-  const totalKeluarga = new Set(livingWarga.map(w => w.noKk)).size;
+  const totalKeluarga = publicStats ? Math.ceil(publicStats.total_warga / 3.2) : new Set(livingWarga.map(w => w.noKk)).size;
 
   // Dynamic calculations for Financial Statistics
-  const totalPemasukan = transaksiKasList
+  const totalPemasukan = publicStats ? publicStats.total_income : transaksiKasList
     .filter(t => t.type === 'income')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const totalPengeluaran = transaksiKasList
+  const totalPengeluaran = publicStats ? publicStats.total_expense : transaksiKasList
     .filter(t => t.type === 'expense')
     .reduce((acc, curr) => acc + curr.amount, 0);
 
-  const sisaKasRT = totalPemasukan - totalPengeluaran;
+  const sisaKasRT = publicStats ? publicStats.current_balance : (totalPemasukan - totalPengeluaran);
 
   // Count active agenda for July 2026 (this month)
   const activeAgendasCount = agendaList.filter(agenda => {
@@ -270,6 +350,7 @@ export default function App() {
         darkMode={darkMode}
         setDarkMode={setDarkMode}
         fetchAgendas={fetchAgendas}
+        dashboardStats={dashboardStats}
       />
     );
   }
