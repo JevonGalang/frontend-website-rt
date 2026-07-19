@@ -693,7 +693,7 @@ export default function Hero({
                       <User className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Ketua RT Aktif</span>
-                        <span className="text-xs sm:text-sm font-semibold">Bpk. Ahmad Mulyono</span>
+                        <span className="text-xs sm:text-sm font-semibold">Bpk. Achmad </span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -710,7 +710,7 @@ export default function Hero({
                       <Mail className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Email Resmi</span>
-                        <span className="text-xs sm:text-sm font-semibold">rt04.sgp@gmail.com</span>
+                        <span className="text-xs sm:text-sm font-semibold">CONTOH EMAIL-@gmail.com</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -721,20 +721,16 @@ export default function Hero({
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Quick stats row */}
-                <div className="mt-8 pt-6 border-t border-white/10 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {(() => {
+{(() => {
                     const living = wargaList.filter(w => w.statusHidup !== 'Meninggal');
                     const uniqueKK = new Set(living.map(w => w.noKk).filter(Boolean));
                     const tetap = living.filter(w => w.status === 'Tetap').length;
                     const kontrak = living.filter(w => w.status === 'Kontrak').length;
                     return [
-                      { label: 'Total Jiwa', value: living.length || totalKK || '—' },
-                      { label: 'Kepala Keluarga', value: uniqueKK.size || Math.round((living.length || totalKK || 0) / 4) || '—' },
-                      { label: 'Warga Tetap', value: tetap || '—' },
-                      { label: 'Warga Kontrak', value: kontrak || '—' },
+                      { label: 'Total Jiwa', value: living.length || totalKK || '100' },
+                      { label: 'Kepala Keluarga', value: uniqueKK.size || Math.round((living.length || totalKK || 0) / 4) || '25' },
+                      { label: 'Warga Tetap', value: tetap || '78' },
+                      { label: 'Warga Kontrak', value: kontrak || '22' },
                     ].map((stat, i) => (
                       <div key={i} className="text-center">
                         <span className="block text-2xl sm:text-3xl font-black">{stat.value}</span>
@@ -754,13 +750,12 @@ export default function Hero({
             <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-md p-6 sm:p-8 space-y-6 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-[var(--color-ink)] flex items-center gap-2">
-                    <Activity className="w-4 h-4 text-[var(--color-accent-green)]" />
+                  <h3 className="text-base sm:text-lg font-extrabold text-[var(--color-ink)] flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-[var(--color-accent-green)]" />
                     Arus Keuangan Kas RT
                   </h3>
-                  <p className="text-[10px] text-[var(--color-body-mid)] mt-1">Data keuangan diperbarui secara real-time dari database transaksi.</p>
+                  <p className="text-[11px] sm:text-xs text-[var(--color-body-mid)] mt-1">Data keuangan diperbarui secara real-time dari database transaksi.</p>
                 </div>
-                <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--color-accent-green)] bg-[var(--color-accent-green)]/15 px-2.5 py-1 rounded-sm border border-[var(--color-accent-green)]/20">LIVE</span>
               </div>
 
               {/* Income & Expense Summary */}
@@ -776,91 +771,91 @@ export default function Hero({
                   <div className="space-y-5">
                     {/* Big numbers */}
                     <div className="grid grid-cols-3 gap-3 font-sans">
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
-                        <TrendingUp className="w-4 h-4 text-[var(--color-accent-green)] mx-auto mb-1" />
-                        <span className="block text-xs sm:text-sm font-extrabold text-[var(--color-accent-green)]">{formatCurrency(dynIncome)}</span>
-                        <span className="text-[8px] font-bold text-[var(--color-mute)] uppercase tracking-wider">Pemasukan</span>
+                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                        <TrendingUp className="w-5 h-5 text-[var(--color-accent-green)] mx-auto mb-1" />
+                        <span className="block text-xs sm:text-sm md:text-base font-black text-[var(--color-accent-green)]">{formatCurrency(dynIncome)}</span>
+                        <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Pemasukan</span>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
-                        <TrendingDown className="w-4 h-4 text-[var(--color-accent-red)] mx-auto mb-1" />
-                        <span className="block text-xs sm:text-sm font-extrabold text-[var(--color-accent-red)]">{formatCurrency(dynExpense)}</span>
-                        <span className="text-[8px] font-bold text-[var(--color-mute)] uppercase tracking-wider">Pengeluaran</span>
+                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                        <TrendingDown className="w-5 h-5 text-[var(--color-accent-red)] mx-auto mb-1" />
+                        <span className="block text-xs sm:text-sm md:text-base font-black text-[var(--color-accent-red)]">{formatCurrency(dynExpense)}</span>
+                        <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Pengeluaran</span>
                       </div>
-                      <div className="p-3 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
-                        <Wallet className="w-4 h-4 text-[var(--color-accent-blue)] mx-auto mb-1" />
-                        <span className={`block text-xs sm:text-sm font-extrabold ${dynBalance >= 0 ? 'text-[var(--color-accent-blue-deep)]' : 'text-[var(--color-accent-red)]'}`}>{formatCurrency(dynBalance)}</span>
-                        <span className="text-[8px] font-bold text-[var(--color-mute)] uppercase tracking-wider">Saldo Aktif</span>
+                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                        <Wallet className="w-5 h-5 text-[var(--color-accent-blue)] mx-auto mb-1" />
+                        <span className={`block text-xs sm:text-sm md:text-base font-black ${dynBalance >= 0 ? 'text-[var(--color-accent-blue-deep)]' : 'text-[var(--color-accent-red)]'}`}>{formatCurrency(dynBalance)}</span>
+                        <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Saldo Aktif</span>
                       </div>
                     </div>
 
                     {/* Progress bars */}
                     <div className="space-y-3 font-sans">
                       <div className="space-y-1.5">
-                        <div className="flex justify-between text-[9px] font-bold text-[var(--color-body-mid)]">
+                        <div className="flex justify-between text-[10px] sm:text-xs font-bold text-[var(--color-body-mid)]">
                           <span>PEMASUKAN (ARUS MASUK)</span>
                           <span className="text-[var(--color-accent-green)] font-extrabold">{dynInPct}%</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
                           <div className="h-full bg-[var(--color-accent-green)] rounded-sm transition-all duration-700" style={{ width: `${dynInPct}%` }}></div>
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <div className="flex justify-between text-[9px] font-bold text-[var(--color-body-mid)]">
+                        <div className="flex justify-between text-[10px] sm:text-xs font-bold text-[var(--color-body-mid)]">
                           <span>PENGELUARAN (ARUS KELUAR)</span>
                           <span className="text-[var(--color-accent-red)] font-extrabold">{dynOutPct}%</span>
                         </div>
-                        <div className="w-full h-2 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
                           <div className="h-full bg-[var(--color-accent-red)] rounded-sm transition-all duration-700" style={{ width: `${dynOutPct}%` }}></div>
                         </div>
                       </div>
                     </div>
 
                     {/* Donut chart for income vs expense */}
-                    <div className="flex items-center justify-center gap-8">
+                    <div className="flex items-center justify-center gap-8 py-1">
                       <div className="relative">
-                        <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="8" className="dark:stroke-slate-800" />
-                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="8"
+                        <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="dark:stroke-slate-800" />
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="9"
                             strokeDasharray={`${2.39 * dynInPct} ${239 - 2.39 * dynInPct}`}
                             strokeLinecap="round"
                           />
-                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-red)" strokeWidth="8"
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-red)" strokeWidth="9"
                             strokeDasharray={`${2.39 * dynOutPct} ${239 - 2.39 * dynOutPct}`}
                             strokeDashoffset={`${-(2.39 * dynInPct)}`}
                             strokeLinecap="round"
                           />
                         </svg>
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-[6px] font-bold text-[var(--color-mute)] uppercase">RASIO</span>
-                          <span className="text-[9px] font-black text-[var(--color-ink)]">{dynInPct}:{dynOutPct}</span>
+                          <span className="text-[7px] font-bold text-[var(--color-mute)] uppercase tracking-wider">RASIO</span>
+                          <span className="text-xs sm:text-sm font-black text-[var(--color-ink)]">{dynInPct}:{dynOutPct}</span>
                         </div>
                       </div>
-                      <div className="space-y-2 text-[9px] font-semibold">
+                      <div className="space-y-2 text-[10px] sm:text-xs font-semibold">
                         <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-accent-green)]"></div>
+                          <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-green)]"></div>
                           <span className="text-[var(--color-body-text)]">Pemasukan ({dynInPct}%)</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <div className="w-2.5 h-2.5 rounded-sm bg-[var(--color-accent-red)]"></div>
+                          <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-red)]"></div>
                           <span className="text-[var(--color-body-text)]">Pengeluaran ({dynOutPct}%)</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Recent 5 transactions */}
-                    <div className="pt-4 border-t border-[var(--color-hairline)] space-y-2 font-sans">
-                      <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase tracking-wider block">5 Transaksi Terakhir</span>
+                    <div className="pt-4 border-t border-[var(--color-hairline)] space-y-2.5 font-sans">
+                      <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider block mb-0.5">5 Transaksi Terakhir</span>
                       {(() => {
                         const recentTx = transaksiKasList.length > 0
                           ? transaksiKasList.slice(0, 5)
                           : displayLedger;
                         return recentTx.map((tx, i) => (
-                          <div key={i} className="flex items-center justify-between text-[10px] p-2.5 rounded-sm bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--color-hairline)]">
+                          <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs p-3 rounded-sm bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--color-hairline)]">
                             <div className="space-y-0.5 min-w-0 flex-1">
-                              <span className="font-bold text-[var(--color-ink-strong)] block truncate">{tx.description || tx.kategori || 'Transaksi'}</span>
-                              <span className="text-[8px] text-[var(--color-mute)] font-mono">{tx.transaction_date || tx.date || tx.tanggal || '—'}</span>
+                              <span className="font-bold text-[11px] sm:text-xs text-[var(--color-ink-strong)] block truncate">{tx.description || tx.kategori || 'Transaksi'}</span>
+                              <span className="text-[10px] sm:text-xs text-[var(--color-mute)] font-mono">{tx.transaction_date || tx.date || tx.tanggal || '—'}</span>
                             </div>
-                            <span className={`font-bold shrink-0 ml-2 ${(tx.type === 'in' || tx.type === 'income') ? 'text-[var(--color-accent-green)]' : 'text-[var(--color-accent-red)]'}`}>
+                            <span className={`font-extrabold shrink-0 ml-3 text-[11px] sm:text-xs ${(tx.type === 'in' || tx.type === 'income') ? 'text-[var(--color-accent-green)]' : 'text-[var(--color-accent-red)]'}`}>
                               {(tx.type === 'in' || tx.type === 'income') ? '+' : '-'}{formatCurrency(tx.amount || tx.nominal || 0)}
                             </span>
                           </div>
@@ -875,11 +870,11 @@ export default function Hero({
             {/* Card 2: Demografi Kependudukan */}
             <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-md p-6 sm:p-8 space-y-6 shadow-sm">
               <div>
-                <h3 className="text-sm sm:text-base font-extrabold text-[var(--color-ink)] flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-[var(--color-accent-purple)]" />
+                <h3 className="text-base sm:text-lg font-extrabold text-[var(--color-ink)] flex items-center gap-2">
+                  <PieChart className="w-5 h-5 text-[var(--color-accent-purple)]" />
                   Demografi Kependudukan
                 </h3>
-                <p className="text-[10px] text-[var(--color-body-mid)] mt-1">Statistik komposisi warga berdasarkan gender, usia, dan status hunian.</p>
+                <p className="text-[11px] sm:text-xs text-[var(--color-body-mid)] mt-1">Statistik komposisi warga berdasarkan gender, usia, dan status hunian.</p>
               </div>
 
               {(() => {
@@ -914,9 +909,9 @@ export default function Hero({
                     <div className="grid grid-cols-2 gap-6">
                       {/* Gender */}
                       <div className="flex flex-col items-center space-y-3">
-                        <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase tracking-wider">Rasio Gender</span>
+                        <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider">Rasio Gender</span>
                         <div className="relative">
-                          <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-blue)" strokeWidth="10"
                               strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
@@ -929,21 +924,21 @@ export default function Hero({
                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-base font-black text-[var(--color-ink)]">{totalPop}</span>
-                            <span className="text-[7px] font-bold text-[var(--color-mute)] uppercase">Jiwa</span>
+                            <span className="text-xl font-black text-[var(--color-ink)]">{totalPop}</span>
+                            <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase">Jiwa</span>
                           </div>
                         </div>
-                        <div className="space-y-1 text-[9px] w-full font-semibold">
+                        <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-sm bg-[var(--color-accent-blue)]"></div>
+                              <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-blue)]"></div>
                               <span className="text-[var(--color-body-text)]">Laki-laki</span>
                             </div>
                             <span className="text-[var(--color-ink)]">{male} ({malePct}%)</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-sm bg-[var(--color-accent-pink)]"></div>
+                              <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-pink)]"></div>
                               <span className="text-[var(--color-body-text)]">Perempuan</span>
                             </div>
                             <span className="text-[var(--color-ink)]">{female} ({femalePct}%)</span>
@@ -953,9 +948,9 @@ export default function Hero({
 
                       {/* Status Hunian */}
                       <div className="flex flex-col items-center space-y-3">
-                        <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase tracking-wider">Status Hunian</span>
+                        <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider">Status Hunian</span>
                         <div className="relative">
-                          <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                          <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="10"
                               strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
@@ -968,21 +963,21 @@ export default function Hero({
                             />
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <Home className="w-3.5 h-3.5 text-slate-400 mb-0.5" />
-                            <span className="text-[7px] font-bold text-[var(--color-mute)] uppercase">Hunian</span>
+                            <Home className="w-5 h-5 text-slate-400 mb-0.5" />
+                            <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase">Hunian</span>
                           </div>
                         </div>
-                        <div className="space-y-1 text-[9px] w-full font-semibold">
+                        <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-sm bg-[var(--color-accent-green)]"></div>
+                              <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-green)]"></div>
                               <span className="text-[var(--color-body-text)]">Tetap</span>
                             </div>
                             <span className="text-[var(--color-ink)]">{tetap} ({tetapPct}%)</span>
                           </div>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-sm bg-[var(--color-accent-orange)]"></div>
+                              <div className="w-3 h-3 rounded-sm bg-[var(--color-accent-orange)]"></div>
                               <span className="text-[var(--color-body-text)]">Kontrak</span>
                             </div>
                             <span className="text-[var(--color-ink)]">{kontrak} ({kontrakPct}%)</span>
@@ -993,7 +988,7 @@ export default function Hero({
 
                     {/* Age Distribution Bars */}
                     <div className="pt-4 border-t border-[var(--color-hairline)] space-y-3 font-sans">
-                      <span className="text-[9px] font-bold text-[var(--color-mute)] uppercase tracking-wider block">Distribusi Kelompok Usia</span>
+                      <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider block">Distribusi Kelompok Usia</span>
                       {[
                         { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, color: 'from-[var(--color-accent-blue)] to-[var(--color-accent-blue-deep)]' },
                         { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, color: 'from-[var(--color-accent-purple)] to-[var(--color-accent-pink)]' },
@@ -1001,11 +996,11 @@ export default function Hero({
                         { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, color: 'from-[var(--color-accent-orange)] to-yellow-500' },
                       ].map((ag, i) => (
                         <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                          <div className="flex justify-between text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
                             <span>{ag.label}</span>
                             <span className="text-[var(--color-ink)] font-extrabold">{ag.count} orang ({ag.pct}%)</span>
                           </div>
-                          <div className="w-full h-2 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                          <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
                             <div className={`h-full bg-gradient-to-r ${ag.color} rounded-sm`} style={{ width: `${Math.max(ag.pct, 2)}%` }}></div>
                           </div>
                         </div>
