@@ -213,7 +213,7 @@ export default function Hero({
             
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
               Portal Resmi <br className="hidden sm:inline" />
-              <span className="text-[var(--color-accent-purple)]">
+              <span className="text-[var(--color-accent-green)]">
                 Rukun Tetangga RT 05 <br/> RW 06
               </span>
             </h1>

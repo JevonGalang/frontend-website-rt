@@ -5,7 +5,7 @@ import {
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
   AlertCircle, Sparkles, Filter, Activity, Eye,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
-  Database, Lock
+  Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -30,6 +30,18 @@ const formatDateIndo = (dateStr) => {
   } catch (e) {
     return dateStr;
   }
+};
+
+const calculateAge = (birthDateString) => {
+  if (!birthDateString) return '';
+  const today = new Date();
+  const birthDate = new Date(birthDateString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : 0;
 };
 
 const isTabAllowedForRole = (tab, role) => {
@@ -119,10 +131,47 @@ export default function AdminDashboard({
   const [notulenList, setNotulenList] = useState([]);
   const [arsipFileList, setArsipFileList] = useState([]);
 
+  // Surat Masuk UI States
+  const [suratMasukSearch, setSuratMasukSearch] = useState('');
+  const [suratMasukDateStart, setSuratMasukDateStart] = useState('');
+  const [suratMasukDateEnd, setSuratMasukDateEnd] = useState('');
+  const [suratMasukStatusFilter, setSuratMasukStatusFilter] = useState('All');
+  const [suratMasukPage, setSuratMasukPage] = useState(1);
+  const [suratMasukDetail, setSuratMasukDetail] = useState(null);
+  const [suratMasukLoading, setSuratMasukLoading] = useState(false);
+  const [suratMasukSubmitLoading, setSuratMasukSubmitLoading] = useState(false);
+
+  // Surat Keluar UI States
+  const [suratKeluarSearch, setSuratKeluarSearch] = useState('');
+  const [suratKeluarStatusFilter, setSuratKeluarStatusFilter] = useState('All');
+  const [suratKeluarPage, setSuratKeluarPage] = useState(1);
+  const [suratKeluarDetail, setSuratKeluarDetail] = useState(null);
+  const [suratKeluarLoading, setSuratKeluarLoading] = useState(false);
+  const [suratKeluarSubmitLoading, setSuratKeluarSubmitLoading] = useState(false);
+
   // Secretary Form States
   const [notulenForm, setNotulenForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
-  const [suratMasukForm, setSuratMasukForm] = useState({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
-  const [suratKeluarForm, setSuratKeluarForm] = useState({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
+  const [suratMasukForm, setSuratMasukForm] = useState({
+    id: '',
+    nomorSurat: '',
+    asalSurat: '',
+    perihal: '',
+    tanggalSurat: new Date().toISOString().split('T')[0],
+    tanggalDiterima: new Date().toISOString().split('T')[0],
+    status: 'Baru',
+    fileLampiran: null,
+    fileUrl: ''
+  });
+  const [suratKeluarForm, setSuratKeluarForm] = useState({
+    id: '',
+    nomorSurat: '',
+    jenisSurat: 'Surat Pengantar',
+    namaPemohon: '',
+    nik: '',
+    tujuan: '',
+    tanggalSurat: new Date().toISOString().split('T')[0],
+    status: 'Draft'
+  });
   const [arsipForm, setArsipForm] = useState({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
   const [pendudukMasukForm, setPendudukMasukForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
   const [pendudukKeluarForm, setPendudukKeluarForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
@@ -688,6 +737,11 @@ export default function AdminDashboard({
 
   useEffect(() => {
     fetchBuktiBayarWarga();
+    if (activeTab === 'sek_surat_masuk') {
+      fetchSuratMasuk();
+    } else if (activeTab === 'sek_surat_keluar') {
+      fetchSuratKeluar();
+    }
   }, [activeTab]);
 
   const handleVerifyManualReceipt = (receiptId, isApproved) => {
@@ -777,6 +831,98 @@ export default function AdminDashboard({
       setResidentError(err.message);
     } finally {
       setIsLoadingResidents(false);
+    }
+  };
+
+  const fetchSuratMasuk = async () => {
+    setSuratMasukLoading(true);
+    const token = localStorage.getItem('rt_token');
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/surat-masuk', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.output || data.data || (Array.isArray(data) ? data : []);
+        const formatted = items.map(s => ({
+          id: s.id || '',
+          nomorSurat: s.nomor_surat || '',
+          asalSurat: s.pengirim || s.asalSurat || '',
+          perihal: s.perihal || s.perihalSurat || '',
+          tanggalSurat: s.tanggal_surat ? s.tanggal_surat.split('T')[0] : (s.tanggalSurat || ''),
+          tanggalDiterima: s.tanggal_terima ? s.tanggal_terima.split('T')[0] : (s.tanggalDiterima || ''),
+          status: s.status || 'Baru',
+          fileLampiran: s.file_lampiran || s.fileLampiran || '',
+          isiRingkas: s.isi_ringkas || s.isiRingkas || ''
+        }));
+        setSuratMasukList(formatted);
+      } else {
+        throw new Error('Endpoint backend belum aktif atau mengembalikan error.');
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil surat masuk dari server, menggunakan local storage/state:', err.message);
+      const saved = localStorage.getItem('rt_surat_masuk_mock');
+      if (saved) {
+        setSuratMasukList(JSON.parse(saved));
+      } else {
+        const mock = [
+          { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Sawangan Baru', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
+          { id: '2', nomorSurat: '120/KEC-SWG/2026', asalSurat: 'Kecamatan Sawangan', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
+          { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Sawangan', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
+        ];
+        setSuratMasukList(mock);
+        localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(mock));
+      }
+    } finally {
+      setSuratMasukLoading(false);
+    }
+  };
+
+  const fetchSuratKeluar = async () => {
+    setSuratKeluarLoading(true);
+    const token = localStorage.getItem('rt_token');
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/surat-keluar', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const items = data.output || data.data || (Array.isArray(data) ? data : []);
+        const formatted = items.map(s => ({
+          id: s.id || '',
+          nomorSurat: s.nomor_surat || '',
+          jenisSurat: s.jenis_surat || 'Surat Pengantar',
+          namaPemohon: s.nama_pemohon || '',
+          nik: s.nik || '',
+          tujuan: s.tujuan || '',
+          tanggalSurat: s.tanggal_surat ? s.tanggal_surat.split('T')[0] : (s.tanggalSurat || ''),
+          status: s.status || 'Draft',
+          isiRingkas: s.isi_ringkas || ''
+        }));
+        setSuratKeluarList(formatted);
+      } else {
+        throw new Error('Endpoint backend belum aktif atau mengembalikan error.');
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil surat keluar dari server, menggunakan local storage/state:', err.message);
+      const saved = localStorage.getItem('rt_surat_keluar_mock');
+      if (saved) {
+        setSuratKeluarList(JSON.parse(saved));
+      } else {
+        const mock = [
+          { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Sawangan Baru (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
+          { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Sawangan (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
+          { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Sawangan', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
+        ];
+        setSuratKeluarList(mock);
+        localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(mock));
+      }
+    } finally {
+      setSuratKeluarLoading(false);
     }
   };
 
@@ -1147,6 +1293,7 @@ export default function AdminDashboard({
   // CRUD Modal States
   const [modalType, setModalType] = useState(''); // '' | 'add_warga' | 'edit_warga' | 'add_kas' | 'edit_kas' | 'add_agenda' | 'edit_agenda'
   const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedFamilyForDetail, setSelectedFamilyForDetail] = useState(null);
   
   // Form States
   const [wargaForm, setWargaForm] = useState({
@@ -1605,13 +1752,11 @@ export default function AdminDashboard({
             throw new Error(houseData.message || houseData.pesan || 'Gagal membuat data rumah di server.');
           }
 
-          if (houseData.output?.pesan) {
-            if (Array.isArray(houseData.output.pesan)) {
-              house_id = houseData.output.pesan[0]?.insertId;
-            } else {
-              house_id = houseData.output.pesan.insertId;
-            }
-          }
+          house_id = houseData.output?.pesan?.insertId || 
+                     houseData.output?.insertId || 
+                     houseData.insertId || 
+                     (Array.isArray(houseData.output?.pesan) ? houseData.output.pesan[0]?.insertId : null);
+
           if (!house_id) {
             throw new Error('Gagal mendapatkan ID rumah dari server.');
           }
@@ -1636,13 +1781,11 @@ export default function AdminDashboard({
             throw new Error(errMsg);
           }
 
-          if (residentData.output?.pesan) {
-            if (Array.isArray(residentData.output.pesan)) {
-              family_id = residentData.output.pesan[0]?.insertId;
-            } else {
-              family_id = residentData.output.pesan.insertId;
-            }
-          }
+          family_id = residentData.output?.pesan?.insertId || 
+                      residentData.output?.insertId || 
+                      residentData.insertId || 
+                      (Array.isArray(residentData.output?.pesan) ? residentData.output.pesan[0]?.insertId : null);
+
           if (!family_id) {
             throw new Error('Gagal mendapatkan ID keluarga (family) dari server.');
           }
@@ -1895,6 +2038,228 @@ export default function AdminDashboard({
         saveAgenda(updated);
       }
       setModalType('');
+    }
+  };
+
+  // --- HANDLERS FOR SURAT MASUK & SURAT KELUAR ---
+  const handleDeleteSuratMasuk = async (id) => {
+    const confirm = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: "Data surat masuk akan dihapus secara permanen!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    const token = localStorage.getItem('rt_token');
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/surat-masuk/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        Swal.fire('Terhapus!', 'Surat masuk berhasil dihapus.', 'success');
+        fetchSuratMasuk();
+      } else {
+        throw new Error('Gagal menghapus di server.');
+      }
+    } catch (err) {
+      console.warn('Gagal menghapus di server, menghapus secara lokal:', err.message);
+      const updated = suratMasukList.filter(s => s.id !== id);
+      setSuratMasukList(updated);
+      localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(updated));
+      Swal.fire('Terhapus Lokal!', 'Data dihapus secara lokal.', 'success');
+    }
+  };
+
+  const handleDeleteSuratKeluar = async (id) => {
+    const confirm = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: "Data surat keluar akan dihapus secara permanen!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    });
+
+    if (!confirm.isConfirmed) return;
+
+    const token = localStorage.getItem('rt_token');
+    try {
+      const res = await fetch(`http://172.20.32.62:3333/admin/surat-keluar/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        Swal.fire('Terhapus!', 'Surat keluar berhasil dihapus.', 'success');
+        fetchSuratKeluar();
+      } else {
+        throw new Error('Gagal menghapus di server.');
+      }
+    } catch (err) {
+      console.warn('Gagal menghapus di server, menghapus secara lokal:', err.message);
+      const updated = suratKeluarList.filter(s => s.id !== id);
+      setSuratKeluarList(updated);
+      localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(updated));
+      Swal.fire('Terhapus Lokal!', 'Data dihapus secara lokal.', 'success');
+    }
+  };
+
+  const handleSuratMasukSubmit = async (e) => {
+    e.preventDefault();
+    setSuratMasukSubmitLoading(true);
+    const token = localStorage.getItem('rt_token');
+    const isEdit = !!suratMasukForm.id;
+
+    let uploadedFileName = suratMasukForm.fileUrl;
+    if (suratMasukForm.fileLampiran) {
+      uploadedFileName = suratMasukForm.fileLampiran.name;
+    }
+
+    const payload = {
+      nomor_surat: suratMasukForm.nomorSurat,
+      pengirim: suratMasukForm.asalSurat,
+      tanggal_surat: suratMasukForm.tanggalSurat,
+      tanggal_terima: suratMasukForm.tanggalDiterima,
+      perihal: suratMasukForm.perihal,
+      isi_ringkas: suratMasukForm.isiRingkas || '',
+      file_lampiran: uploadedFileName,
+      status: suratMasukForm.status
+    };
+
+    try {
+      const url = isEdit 
+        ? `http://172.20.32.62:3333/admin/surat-masuk/${suratMasukForm.id}`
+        : 'http://172.20.32.62:3333/admin/surat-masuk';
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: `Surat masuk berhasil ${isEdit ? 'diperbarui' : 'diregistrasikan'}!`,
+          icon: 'success',
+          confirmButtonColor: '#10b981'
+        });
+        setModalType('');
+        fetchSuratMasuk();
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Gagal menyimpan ke server.');
+      }
+    } catch (err) {
+      console.warn('Gagal memproses di server, beralih ke penyimpanan lokal:', err.message);
+      let updatedList;
+      if (isEdit) {
+        updatedList = suratMasukList.map(s => s.id === suratMasukForm.id ? { ...suratMasukForm, fileLampiran: uploadedFileName } : s);
+      } else {
+        const newEntry = {
+          ...suratMasukForm,
+          id: 'SM-' + Math.floor(Math.random() * 900 + 100),
+          fileLampiran: uploadedFileName
+        };
+        updatedList = [newEntry, ...suratMasukList];
+      }
+      setSuratMasukList(updatedList);
+      localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(updatedList));
+      Swal.fire({
+        title: 'Disimpan Lokal',
+        text: `Data berhasil disimpan secara lokal (Server offline: ${err.message}).`,
+        icon: 'warning',
+        confirmButtonColor: '#10b981'
+      });
+      setModalType('');
+    } finally {
+      setSuratMasukSubmitLoading(false);
+    }
+  };
+
+  const handleSuratKeluarSubmit = async (e) => {
+    e.preventDefault();
+    setSuratKeluarSubmitLoading(true);
+    const token = localStorage.getItem('rt_token');
+    const isEdit = !!suratKeluarForm.id;
+
+    const payload = {
+      nomor_surat: suratKeluarForm.nomorSurat,
+      jenis_surat: suratKeluarForm.jenisSurat,
+      nama_pemohon: suratKeluarForm.namaPemohon,
+      nik: suratKeluarForm.nik,
+      tujuan: suratKeluarForm.tujuan,
+      tanggal_surat: suratKeluarForm.tanggalSurat,
+      status: suratKeluarForm.status
+    };
+
+    try {
+      const url = isEdit 
+        ? `http://172.20.32.62:3333/admin/surat-keluar/${suratKeluarForm.id}`
+        : 'http://172.20.32.62:3333/admin/surat-keluar';
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: `Surat keluar berhasil ${isEdit ? 'diperbarui' : 'dicatat'}!`,
+          icon: 'success',
+          confirmButtonColor: '#10b981'
+        });
+        setModalType('');
+        fetchSuratKeluar();
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.message || 'Gagal menyimpan ke server.');
+      }
+    } catch (err) {
+      console.warn('Gagal memproses di server, beralih ke penyimpanan lokal:', err.message);
+      let updatedList;
+      if (isEdit) {
+        updatedList = suratKeluarList.map(s => s.id === suratKeluarForm.id ? { ...suratKeluarForm } : s);
+      } else {
+        const newEntry = {
+          ...suratKeluarForm,
+          id: 'SK-' + Math.floor(Math.random() * 900 + 100)
+        };
+        updatedList = [newEntry, ...suratKeluarList];
+      }
+      setSuratKeluarList(updatedList);
+      localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(updatedList));
+      Swal.fire({
+        title: 'Disimpan Lokal',
+        text: `Data berhasil disimpan secara lokal (Server offline: ${err.message}).`,
+        icon: 'warning',
+        confirmButtonColor: '#10b981'
+      });
+      setModalType('');
+    } finally {
+      setSuratKeluarSubmitLoading(false);
     }
   };
 
@@ -3135,7 +3500,13 @@ export default function AdminDashboard({
                                     {status}
                                   </span>
                                 </td>
-                                <td className="p-4 text-right">
+                                <td className="p-4 text-right flex justify-end gap-1.5">
+                                  <button
+                                    onClick={() => setSelectedFamilyForDetail(r)}
+                                    className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                  >
+                                    Detail
+                                  </button>
                                   <button
                                     onClick={() => triggerPatchResidentKK(id, noKK)}
                                     className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
@@ -3333,150 +3704,479 @@ export default function AdminDashboard({
           )}
 
           {/* SEKRETARIS: 4. SURAT MASUK */}
-          {activeTab === 'sek_surat_masuk' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!suratMasukForm.sender || !suratMasukForm.subject) return;
-                  const newEntry = {
-                    id: 'SM-' + Math.floor(Math.random() * 900 + 100),
-                    date: suratMasukForm.date,
-                    sender: suratMasukForm.sender,
-                    subject: suratMasukForm.subject,
-                    status: suratMasukForm.status
-                  };
-                  setSuratMasukList([newEntry, ...suratMasukList]);
-                  setSuratMasukForm({ sender: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Penting' });
-                  alert('Surat masuk berhasil diregistrasikan!');
-                }}
-                className="p-5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
-              >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Masuk Baru</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Pengirim / Instansi Asal *</label>
-                    <input
-                      required
-                      type="text"
-                      value={suratMasukForm.sender}
-                      onChange={(e) => setSuratMasukForm({ ...suratMasukForm, sender: e.target.value })}
-                      placeholder="Contoh: Kelurahan Sawangan Baru"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
+          {activeTab === 'sek_surat_masuk' && (() => {
+            // Apply filtering logic
+            const filtered = suratMasukList.filter(s => {
+              const matchSearch = 
+                (s.asalSurat && s.asalSurat.toLowerCase().includes(suratMasukSearch.toLowerCase())) ||
+                (s.perihal && s.perihal.toLowerCase().includes(suratMasukSearch.toLowerCase())) ||
+                (s.nomorSurat && s.nomorSurat.toLowerCase().includes(suratMasukSearch.toLowerCase()));
+              
+              const matchStatus = suratMasukStatusFilter === 'All' || s.status === suratMasukStatusFilter;
+
+              let matchDate = true;
+              const itemDate = new Date(s.tanggalSurat);
+              if (suratMasukDateStart) {
+                const start = new Date(suratMasukDateStart);
+                start.setHours(0,0,0,0);
+                itemDate.setHours(0,0,0,0);
+                if (itemDate < start) matchDate = false;
+              }
+              if (suratMasukDateEnd) {
+                const end = new Date(suratMasukDateEnd);
+                end.setHours(23,59,59,999);
+                itemDate.setHours(0,0,0,0);
+                if (itemDate > end) matchDate = false;
+              }
+
+              return matchSearch && matchStatus && matchDate;
+            });
+
+            const itemsPerPage = 5;
+            const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+            const paginated = filtered.slice(
+              (suratMasukPage - 1) * itemsPerPage,
+              suratMasukPage * itemsPerPage
+            );
+
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                {/* TOOLBAR: SEARCH & FILTERS */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-md">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Cari Nomor / Pengirim / Perihal..."
+                        value={suratMasukSearch}
+                        onChange={(e) => { setSuratMasukSearch(e.target.value); setSuratMasukPage(1); }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all"
+                      />
+                    </div>
+
+                    {/* Status dropdown */}
+                    <select
+                      value={suratMasukStatusFilter}
+                      onChange={(e) => { setSuratMasukStatusFilter(e.target.value); setSuratMasukPage(1); }}
+                      className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-extrabold text-slate-600 dark:text-slate-300 cursor-pointer"
+                    >
+                      <option value="All">Semua Status</option>
+                      <option value="Baru">Baru</option>
+                      <option value="Diproses">Diproses</option>
+                      <option value="Selesai">Selesai</option>
+                    </select>
+
+                    {/* Date filter picker */}
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/40 p-1.5 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <input
+                        type="date"
+                        value={suratMasukDateStart}
+                        onChange={(e) => { setSuratMasukDateStart(e.target.value); setSuratMasukPage(1); }}
+                        className="bg-transparent outline-none text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                        title="Tanggal Mulai"
+                      />
+                      <span className="text-slate-400 text-[10px] font-black uppercase">s/d</span>
+                      <input
+                        type="date"
+                        value={suratMasukDateEnd}
+                        onChange={(e) => { setSuratMasukDateEnd(e.target.value); setSuratMasukPage(1); }}
+                        className="bg-transparent outline-none text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                        title="Tanggal Selesai"
+                      />
+                      {(suratMasukDateStart || suratMasukDateEnd || suratMasukStatusFilter !== 'All' || suratMasukSearch) && (
+                        <button
+                          onClick={() => {
+                            setSuratMasukSearch('');
+                            setSuratMasukStatusFilter('All');
+                            setSuratMasukDateStart('');
+                            setSuratMasukDateEnd('');
+                            setSuratMasukPage(1);
+                          }}
+                          className="ml-1 p-1 bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                          title="Reset Filters"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Hal / Perihal Surat *</label>
-                    <input
-                      required
-                      type="text"
-                      value={suratMasukForm.subject}
-                      onChange={(e) => setSuratMasukForm({ ...suratMasukForm, subject: e.target.value })}
-                      placeholder="Contoh: Rapat Posyandu Kelurahan"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
+
+                  {/* Add Button */}
+                  <button
+                    onClick={() => {
+                      setSuratMasukForm({
+                        id: '',
+                        nomorSurat: '',
+                        asalSurat: '',
+                        perihal: '',
+                        tanggalSurat: new Date().toISOString().split('T')[0],
+                        tanggalDiterima: new Date().toISOString().split('T')[0],
+                        status: 'Baru',
+                        fileLampiran: null,
+                        fileUrl: ''
+                      });
+                      setModalType('add_surat_masuk');
+                    }}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/10 transition-all flex items-center gap-2 cursor-pointer self-start md:self-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Registrasi Surat Masuk</span>
+                  </button>
                 </div>
-                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Registrasi Surat Masuk</button>
-              </form>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">No. Agenda</th>
-                      <th className="p-4">Tanggal Masuk</th>
-                      <th className="p-4">Instansi Pengirim</th>
-                      <th className="p-4">Perihal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {suratMasukList.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
-                        <td className="p-4 font-bold text-slate-600 dark:text-slate-405">{formatDateIndo(s.date)}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.sender}</td>
-                        <td className="p-4 text-slate-500 italic">"{s.subject}"</td>
+                {/* DATA TABLE */}
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">Nomor Surat</th>
+                        <th className="p-4">Asal / Pengirim</th>
+                        <th className="p-4">Perihal</th>
+                        <th className="p-4">Tgl Surat</th>
+                        <th className="p-4">Tgl Diterima</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Aksi</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* SEKRETARIS: 5. SURAT KELUAR */}
-          {activeTab === 'sek_surat_keluar' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!suratKeluarForm.recipient || !suratKeluarForm.subject) return;
-                  const newEntry = {
-                    id: 'SK-' + Math.floor(Math.random() * 900 + 100),
-                    date: suratKeluarForm.date,
-                    recipient: suratKeluarForm.recipient,
-                    subject: suratKeluarForm.subject,
-                    status: suratKeluarForm.status
-                  };
-                  setSuratKeluarList([newEntry, ...suratKeluarList]);
-                  setSuratKeluarForm({ recipient: '', subject: '', date: new Date().toISOString().split('T')[0], status: 'Dikirim' });
-                  alert('Surat keluar berhasil dicatat!');
-                }}
-                className="p-5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
-              >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Surat Keluar Baru</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Penerima / Warga Tujuan *</label>
-                    <input
-                      required
-                      type="text"
-                      value={suratKeluarForm.recipient}
-                      onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, recipient: e.target.value })}
-                      placeholder="Contoh: Budi Santoso"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Hal / Perihal Surat *</label>
-                    <input
-                      required
-                      type="text"
-                      value={suratKeluarForm.subject}
-                      onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, subject: e.target.value })}
-                      placeholder="Contoh: Surat Pengantar KTP"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {suratMasukLoading ? (
+                        Array.from({ length: 3 }).map((_, idx) => (
+                          <tr key={idx} className="animate-pulse">
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-28"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-36"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-44"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-18"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-18"></div></td>
+                            <td className="p-4"><div className="h-5 bg-slate-100 dark:bg-slate-800 rounded-full w-14"></div></td>
+                            <td className="p-4 text-right"><div className="h-7 bg-slate-100 dark:bg-slate-800 rounded-lg w-20 ml-auto"></div></td>
+                          </tr>
+                        ))
+                      ) : paginated.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="p-12 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <FolderOpen className="w-10 h-10 text-slate-300 dark:text-slate-700" />
+                              <h5 className="font-extrabold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Tidak Ada Surat Masuk</h5>
+                              <p className="text-[10px] text-slate-400 max-w-xs font-bold leading-normal">
+                                Belum ada surat masuk terdaftar atau cocok dengan pencarian.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginated.map((s) => (
+                          <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-350">{s.nomorSurat}</td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.asalSurat}</td>
+                            <td className="p-4 font-medium text-slate-600 dark:text-slate-400">{s.perihal}</td>
+                            <td className="p-4 font-bold text-slate-500">{formatDateIndo(s.tanggalSurat)}</td>
+                            <td className="p-4 font-bold text-slate-500">{formatDateIndo(s.tanggalDiterima)}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                s.status === 'Baru' 
+                                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                                  : s.status === 'Diproses' 
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right flex justify-end gap-1.5">
+                              <button
+                                onClick={() => setSuratMasukDetail(s)}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-emerald-500 cursor-pointer"
+                                title="Detail Surat"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSuratMasukForm({
+                                    id: s.id,
+                                    nomorSurat: s.nomorSurat,
+                                    asalSurat: s.asalSurat,
+                                    perihal: s.perihal,
+                                    tanggalSurat: s.tanggalSurat,
+                                    tanggalDiterima: s.tanggalDiterima,
+                                    status: s.status,
+                                    fileLampiran: null,
+                                    fileUrl: s.fileLampiran
+                                  });
+                                  setModalType('edit_surat_masuk');
+                                }}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-amber-500 cursor-pointer"
+                                title="Edit Surat"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSuratMasuk(s.id)}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-rose-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-rose-500 cursor-pointer"
+                                title="Hapus Surat"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
-                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Catat Surat Keluar</button>
-              </form>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">No. Agenda</th>
-                      <th className="p-4">Tanggal Keluar</th>
-                      <th className="p-4">Penerima / Ditujukan</th>
-                      <th className="p-4">Hal / Perihal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {suratKeluarList.map((s) => (
-                      <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{s.id}</td>
-                        <td className="p-4 font-bold text-slate-600 dark:text-slate-400">{formatDateIndo(s.date)}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.recipient}</td>
-                        <td className="p-4 text-slate-550 dark:text-slate-400 italic font-medium">"{s.subject}"</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {/* PAGINATION */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 font-sans">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">
+                      Halaman {suratMasukPage} dari {totalPages} ({filtered.length} Surat)
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        disabled={suratMasukPage === 1}
+                        onClick={() => setSuratMasukPage(prev => Math.max(prev - 1, 1))}
+                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        disabled={suratMasukPage === totalPages}
+                        onClick={() => setSuratMasukPage(prev => Math.min(prev + 1, totalPages))}
+                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}          {activeTab === 'sek_surat_keluar' && (() => {
+            const filtered = suratKeluarList.filter(s => {
+              const matchSearch =
+                (s.namaPemohon && s.namaPemohon.toLowerCase().includes(suratKeluarSearch.toLowerCase())) ||
+                (s.nik && s.nik.includes(suratKeluarSearch)) ||
+                (s.nomorSurat && s.nomorSurat.toLowerCase().includes(suratKeluarSearch.toLowerCase())) ||
+                (s.jenisSurat && s.jenisSurat.toLowerCase().includes(suratKeluarSearch.toLowerCase())) ||
+                (s.tujuan && s.tujuan.toLowerCase().includes(suratKeluarSearch.toLowerCase()));
+
+              const matchStatus = suratKeluarStatusFilter === 'All' || s.status === suratKeluarStatusFilter;
+
+              return matchSearch && matchStatus;
+            });
+
+            const itemsPerPage = 5;
+            const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
+            const paginated = filtered.slice(
+              (suratKeluarPage - 1) * itemsPerPage,
+              suratKeluarPage * itemsPerPage
+            );
+
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                {/* TOOLBAR: SEARCH & FILTERS */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
+                    {/* Search Input */}
+                    <div className="relative flex-1 max-w-md">
+                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Search className="h-4 w-4 text-slate-400" />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="Cari Nomor / Pemohon / NIK / Tujuan..."
+                        value={suratKeluarSearch}
+                        onChange={(e) => { setSuratKeluarSearch(e.target.value); setSuratKeluarPage(1); }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all"
+                      />
+                    </div>
+
+                    {/* Status dropdown */}
+                    <select
+                      value={suratKeluarStatusFilter}
+                      onChange={(e) => { setSuratKeluarStatusFilter(e.target.value); setSuratKeluarPage(1); }}
+                      className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-extrabold text-slate-600 dark:text-slate-300 cursor-pointer"
+                    >
+                      <option value="All">Semua Status</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Diproses">Diproses</option>
+                      <option value="Disetujui">Disetujui</option>
+                      <option value="Selesai">Selesai</option>
+                    </select>
+
+                    {(suratKeluarStatusFilter !== 'All' || suratKeluarSearch) && (
+                      <button
+                        onClick={() => {
+                          setSuratKeluarSearch('');
+                          setSuratKeluarStatusFilter('All');
+                          setSuratKeluarPage(1);
+                        }}
+                        className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl text-slate-500 transition-colors cursor-pointer"
+                        title="Reset Filters"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Add Button */}
+                  <button
+                    onClick={() => {
+                      setSuratKeluarForm({
+                        id: '',
+                        nomorSurat: '',
+                        jenisSurat: 'Surat Pengantar',
+                        namaPemohon: '',
+                        nik: '',
+                        tujuan: '',
+                        tanggalSurat: new Date().toISOString().split('T')[0],
+                        status: 'Draft'
+                      });
+                      setModalType('add_surat_keluar');
+                    }}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/10 transition-all flex items-center gap-2 cursor-pointer self-start md:self-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Catat Surat Keluar</span>
+                  </button>
+                </div>
+
+                {/* DATA TABLE */}
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">Nomor Surat</th>
+                        <th className="p-4">Jenis Surat</th>
+                        <th className="p-4">Nama Pemohon</th>
+                        <th className="p-4">NIK</th>
+                        <th className="p-4">Tujuan</th>
+                        <th className="p-4">Tanggal Surat</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {suratKeluarLoading ? (
+                        Array.from({ length: 3 }).map((_, idx) => (
+                          <tr key={idx} className="animate-pulse">
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-28"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-28"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-32"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-32"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-36"></div></td>
+                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-18"></div></td>
+                            <td className="p-4"><div className="h-5 bg-slate-100 dark:bg-slate-800 rounded-full w-14"></div></td>
+                            <td className="p-4 text-right"><div className="h-7 bg-slate-100 dark:bg-slate-800 rounded-lg w-20 ml-auto"></div></td>
+                          </tr>
+                        ))
+                      ) : paginated.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="p-12 text-center">
+                            <div className="flex flex-col items-center justify-center gap-2">
+                              <FolderOpen className="w-10 h-10 text-slate-300 dark:text-slate-700" />
+                              <h5 className="font-extrabold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Tidak Ada Surat Keluar</h5>
+                              <p className="text-[10px] text-slate-400 max-w-xs font-bold leading-normal">
+                                Belum ada surat keluar terdaftar atau cocok dengan pencarian.
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        paginated.map((s) => (
+                          <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-350">{s.nomorSurat}</td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.jenisSurat}</td>
+                            <td className="p-4 font-bold text-slate-700 dark:text-slate-350">{s.namaPemohon}</td>
+                            <td className="p-4 font-mono text-slate-500 font-bold">{s.nik}</td>
+                            <td className="p-4 font-medium text-slate-500">{s.tujuan}</td>
+                            <td className="p-4 font-bold text-slate-500">{formatDateIndo(s.tanggalSurat)}</td>
+                            <td className="p-4">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                s.status === 'Draft' 
+                                  ? 'bg-slate-500/10 text-slate-600 dark:text-slate-400' 
+                                  : s.status === 'Diproses' 
+                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                                    : s.status === 'Disetujui'
+                                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                                      : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                              }`}>
+                                {s.status}
+                              </span>
+                            </td>
+                            <td className="p-4 text-right flex justify-end gap-1.5">
+                              <button
+                                onClick={() => setSuratKeluarDetail(s)}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-emerald-500 cursor-pointer"
+                                title="Detail / Preview Surat"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setSuratKeluarForm({
+                                    id: s.id,
+                                    nomorSurat: s.nomorSurat,
+                                    jenisSurat: s.jenisSurat,
+                                    namaPemohon: s.namaPemohon,
+                                    nik: s.nik,
+                                    tujuan: s.tujuan,
+                                    tanggalSurat: s.tanggalSurat,
+                                    status: s.status
+                                  });
+                                  setModalType('edit_surat_keluar');
+                                }}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-amber-500 cursor-pointer"
+                                title="Edit Surat"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSuratKeluar(s.id)}
+                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-rose-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-rose-500 cursor-pointer"
+                                title="Hapus Surat"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* PAGINATION */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 font-sans">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">
+                      Halaman {suratKeluarPage} dari {totalPages} ({filtered.length} Surat)
+                    </span>
+                    <div className="flex gap-1">
+                      <button
+                        disabled={suratKeluarPage === 1}
+                        onClick={() => setSuratKeluarPage(prev => Math.max(prev - 1, 1))}
+                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        disabled={suratKeluarPage === totalPages}
+                        onClick={() => setSuratKeluarPage(prev => Math.min(prev + 1, totalPages))}
+                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* SEKRETARIS: 6. TEMPLATE SURAT */}
           {activeTab === 'sek_surat_template' && (
@@ -6374,7 +7074,11 @@ export default function AdminDashboard({
                       <DateInput
                         required
                         value={wargaForm.tglLahir || ''}
-                        onChange={(e) => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
+                        onChange={(e) => {
+                          const birthDate = e.target.value;
+                          const calculatedAge = calculateAge(birthDate);
+                          setWargaForm({ ...wargaForm, tglLahir: birthDate, usia: calculatedAge });
+                        }}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
                       />
                     </div>
@@ -6929,6 +7633,612 @@ export default function AdminDashboard({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT SURAT MASUK MODAL */}
+      {(modalType === 'add_surat_masuk' || modalType === 'edit_surat_masuk') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {modalType === 'add_surat_masuk' ? 'Registrasi Surat Masuk' : 'Edit Surat Masuk'}
+              </h3>
+              <button onClick={() => setModalType('')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSuratMasukSubmit} className="p-6 space-y-4 text-xs font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Nomor Surat *</label>
+                  <input
+                    required
+                    type="text"
+                    value={suratMasukForm.nomorSurat}
+                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, nomorSurat: e.target.value })}
+                    placeholder="Contoh: 025/RT05/VII/2026"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Asal / Instansi Pengirim *</label>
+                  <input
+                    required
+                    type="text"
+                    value={suratMasukForm.asalSurat}
+                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, asalSurat: e.target.value })}
+                    placeholder="Contoh: Kelurahan Sawangan"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500 block">Hal / Perihal Surat *</label>
+                <input
+                  required
+                  type="text"
+                  value={suratMasukForm.perihal}
+                  onChange={(e) => setSuratMasukForm({ ...suratMasukForm, perihal: e.target.value })}
+                  placeholder="Contoh: Undangan Rapat HUT RI"
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Tanggal Surat *</label>
+                  <input
+                    required
+                    type="date"
+                    value={suratMasukForm.tanggalSurat}
+                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, tanggalSurat: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Tanggal Diterima *</label>
+                  <input
+                    required
+                    type="date"
+                    value={suratMasukForm.tanggalDiterima}
+                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, tanggalDiterima: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Status Surat</label>
+                  <select
+                    value={suratMasukForm.status}
+                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, status: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
+                  >
+                    <option value="Baru">Baru</option>
+                    <option value="Diproses">Diproses</option>
+                    <option value="Selesai">Selesai</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">File Lampiran (PDF / Gambar)</label>
+                  <div className="relative flex items-center bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden px-3 py-2">
+                    <Upload className="w-4 h-4 text-slate-400 mr-2" />
+                    <input
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          setSuratMasukForm({ ...suratMasukForm, fileLampiran: file });
+                        }
+                      }}
+                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                    />
+                    <span className="text-[10px] font-bold text-slate-500 truncate">
+                      {suratMasukForm.fileLampiran ? suratMasukForm.fileLampiran.name : (suratMasukForm.fileUrl || 'Pilih file...')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500 block">Ringkasan / Catatan Isi Surat</label>
+                <textarea
+                  rows={2}
+                  value={suratMasukForm.isiRingkas}
+                  onChange={(e) => setSuratMasukForm({ ...suratMasukForm, isiRingkas: e.target.value })}
+                  placeholder="Catat intisari isi surat masuk di sini..."
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  disabled={suratMasukSubmitLoading}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {suratMasukSubmitLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Surat</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalType('')}
+                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD / EDIT SURAT KELUAR MODAL */}
+      {(modalType === 'add_surat_keluar' || modalType === 'edit_surat_keluar') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                {modalType === 'add_surat_keluar' ? 'Pencatatan Surat Keluar Baru' : 'Edit Surat Keluar'}
+              </h3>
+              <button onClick={() => setModalType('')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSuratKeluarSubmit} className="p-6 space-y-4 text-xs font-sans">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Nomor Surat *</label>
+                  <input
+                    required
+                    type="text"
+                    value={suratKeluarForm.nomorSurat}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, nomorSurat: e.target.value })}
+                    placeholder="Contoh: 104/RT05/VII/2026"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Jenis Surat *</label>
+                  <select
+                    value={suratKeluarForm.jenisSurat}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, jenisSurat: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
+                  >
+                    <option value="Surat Pengantar KTP">Surat Pengantar KTP</option>
+                    <option value="Surat Pengantar KK">Surat Pengantar KK</option>
+                    <option value="Surat Keterangan Domisili">Surat Keterangan Domisili</option>
+                    <option value="Surat Pengantar SKCK">Surat Pengantar SKCK</option>
+                    <option value="Surat Pengantar Nikah">Surat Pengantar Nikah</option>
+                    <option value="Surat Lainnya">Surat Lainnya</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Nama Pemohon (Warga) *</label>
+                  <input
+                    required
+                    type="text"
+                    value={suratKeluarForm.namaPemohon}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, namaPemohon: e.target.value })}
+                    placeholder="Contoh: Ahmad Subarjo"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">NIK Pemohon *</label>
+                  <input
+                    required
+                    type="text"
+                    maxLength={16}
+                    value={suratKeluarForm.nik}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, nik: e.target.value.replace(/\D/g, '') })}
+                    placeholder="Masukkan 16 digit NIK"
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500 block">Instansi / Keperluan Tujuan *</label>
+                <input
+                  required
+                  type="text"
+                  value={suratKeluarForm.tujuan}
+                  onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tujuan: e.target.value })}
+                  placeholder="Contoh: Kelurahan Sawangan (Pengurusan E-KTP)"
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Tanggal Surat *</label>
+                  <input
+                    required
+                    type="date"
+                    value={suratKeluarForm.tanggalSurat}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tanggalSurat: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500 block">Status Surat</label>
+                  <select
+                    value={suratKeluarForm.status}
+                    onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, status: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
+                  >
+                    <option value="Draft">Draft</option>
+                    <option value="Diproses">Diproses</option>
+                    <option value="Disetujui">Disetujui</option>
+                    <option value="Selesai">Selesai</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  disabled={suratKeluarSubmitLoading}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {suratKeluarSubmitLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Menyimpan...</span>
+                    </>
+                  ) : (
+                    <span>Simpan Surat Keluar</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalType('')}
+                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL SURAT MASUK MODAL */}
+      {suratMasukDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sans">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSuratMasukDetail(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Detail Surat Masuk</h3>
+                <span className="text-[10px] text-slate-400 font-bold font-mono block mt-0.5">{suratMasukDetail.nomorSurat}</span>
+              </div>
+              <button onClick={() => setSuratMasukDetail(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs font-sans">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Pengirim / Asal</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200">{suratMasukDetail.asalSurat}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Status</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase inline-block mt-1 ${
+                    suratMasukDetail.status === 'Baru' 
+                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
+                      : suratMasukDetail.status === 'Diproses' 
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {suratMasukDetail.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Surat</span>
+                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratMasukDetail.tanggalSurat)}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Diterima</span>
+                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratMasukDetail.tanggalDiterima)}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[9px] font-bold text-slate-400 block uppercase">Perihal</span>
+                <span className="font-bold text-slate-800 dark:text-white leading-normal text-xs block">{suratMasukDetail.perihal}</span>
+              </div>
+
+              {suratMasukDetail.isiRingkas && (
+                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Isi Ringkas / Catatan</span>
+                  <p className="text-slate-600 dark:text-slate-400 leading-normal italic">"{suratMasukDetail.isiRingkas}"</p>
+                </div>
+              )}
+
+              {/* FILE LAMPIRAN PREVIEW & DOWNLOAD */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/30 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-emerald-500" />
+                    <div>
+                      <span className="font-extrabold text-slate-700 dark:text-slate-300 block text-[10px] uppercase">File Lampiran</span>
+                      <span className="text-[9px] font-bold text-slate-400 truncate max-w-[180px] block">
+                        {suratMasukDetail.fileLampiran || 'Tidak ada lampiran file'}
+                      </span>
+                    </div>
+                  </div>
+                  {suratMasukDetail.fileLampiran && (
+                    <button 
+                      type="button"
+                      onClick={() => alert(`Simulasi mengunduh file: ${suratMasukDetail.fileLampiran}`)}
+                      className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer"
+                      title="Download File"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {suratMasukDetail.fileLampiran && (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950 p-2.5 text-center mt-1">
+                    <div className="py-6 flex flex-col items-center justify-center gap-1.5 font-sans">
+                      <File className="w-8 h-8 text-slate-300 dark:text-slate-700" />
+                      <span className="text-[10px] text-slate-500 font-bold">Preview Lampiran ({suratMasukDetail.fileLampiran})</span>
+                      <button 
+                        type="button"
+                        onClick={() => alert(`Simulasi Preview Dokumen: ${suratMasukDetail.fileLampiran}`)}
+                        className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[9px] font-extrabold text-slate-600 dark:text-slate-300 rounded-lg cursor-pointer transition-colors"
+                      >
+                        Pratinjau File
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button type="button" onClick={() => setSuratMasukDetail(null)} className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-extrabold rounded-xl cursor-pointer">
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL SURAT KELUAR MODAL */}
+      {suratKeluarDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSuratKeluarDetail(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Detail Surat Keluar</h3>
+                <span className="text-[10px] text-slate-400 font-bold font-mono block mt-0.5">{suratKeluarDetail.nomorSurat}</span>
+              </div>
+              <button onClick={() => setSuratKeluarDetail(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs font-sans">
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Jenis Surat</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200">{suratKeluarDetail.jenisSurat}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Status</span>
+                  <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase inline-block mt-1 ${
+                    suratKeluarDetail.status === 'Draft' 
+                      ? 'bg-slate-500/10 text-slate-600 dark:text-slate-405' 
+                      : suratKeluarDetail.status === 'Diproses' 
+                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                        : suratKeluarDetail.status === 'Disetujui'
+                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                  }`}>
+                    {suratKeluarDetail.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Nama Pemohon</span>
+                  <span className="font-bold text-slate-805 dark:text-white">{suratKeluarDetail.namaPemohon}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">NIK Pemohon</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{suratKeluarDetail.nik}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tujuan / Keperluan</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 leading-normal block">{suratKeluarDetail.tujuan}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Cetak Surat</span>
+                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratKeluarDetail.tanggalSurat)}</span>
+                </div>
+              </div>
+
+              {/* MOCK PREVIEW LETTER GENERATOR */}
+              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/20 text-center flex flex-col items-center justify-center gap-2">
+                <FileText className="w-8 h-8 text-emerald-500" />
+                <h4 className="font-extrabold text-[10px] text-slate-700 dark:text-slate-300 uppercase">Dokumen Preview Pengantar</h4>
+                <p className="text-[9px] text-slate-400 max-w-[240px] font-bold leading-normal font-sans">
+                  Pratinjau draft surat pengantar resmi yang akan dikirimkan ke pihak kelurahan.
+                </p>
+                <div className="flex gap-2 mt-1">
+                  <button 
+                    type="button"
+                    onClick={() => alert(`Simulasi mencetak preview surat: ${suratKeluarDetail.nomorSurat}`)}
+                    className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[9px] rounded-lg cursor-pointer"
+                  >
+                    Pratinjau Surat
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => alert(`Simulasi mengunduh berkas surat: ${suratKeluarDetail.nomorSurat}.pdf`)}
+                    className="py-1.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                  >
+                    Unduh PDF
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button type="button" onClick={() => setSuratKeluarDetail(null)} className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-extrabold rounded-xl cursor-pointer">
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DETAIL KELUARGA MODAL */}
+      {selectedFamilyForDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+            onClick={() => setSelectedFamilyForDetail(null)}
+          ></div>
+
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Susunan Anggota Keluarga
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold mt-0.5 font-mono">
+                  No. KK: {revealedKks[selectedFamilyForDetail.family_id || selectedFamilyForDetail.id] || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK}
+                </p>
+              </div>
+              <button 
+                onClick={() => setSelectedFamilyForDetail(null)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 font-sans text-xs space-y-6">
+              {/* Detail Info Rumah */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Alamat Domisili</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 font-sans">
+                    {selectedFamilyForDetail.house_alamat || selectedFamilyForDetail.alamat || 'Tidak Diketahui'}
+                    {selectedFamilyForDetail.house_blok ? ` Blok ${selectedFamilyForDetail.house_blok}` : ''}
+                    {selectedFamilyForDetail.house_nomor ? ` No. ${selectedFamilyForDetail.house_nomor}` : ''}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Rumah</span>
+                  <span className="px-2 py-0.5 rounded-full font-bold text-[9px] capitalize bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 inline-block mt-0.5 font-sans">
+                    {selectedFamilyForDetail.house_status || selectedFamilyForDetail.status || '-'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Anggota Keluarga Table */}
+              <div className="space-y-3 font-sans">
+                <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
+                  Daftar Anggota Keluarga Terdaftar
+                </h4>
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-3">Nama</th>
+                        <th className="p-3">NIK</th>
+                        <th className="p-3">Hubungan</th>
+                        <th className="p-3">Gender</th>
+                        <th className="p-3">Tgl Lahir / Usia</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {wargaList
+                        .filter(w => w.family_id === (selectedFamilyForDetail.family_id || selectedFamilyForDetail.id))
+                        .map((w) => {
+                          const isKepala = w.name === selectedFamilyForDetail.kepala_keluarga_nama;
+                          return (
+                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                {w.name}
+                              </td>
+                              <td className="p-3 font-mono font-bold text-slate-500">
+                                {w.nik}
+                              </td>
+                              <td className="p-3">
+                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase ${
+                                  isKepala
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-blue-500/10 text-blue-600'
+                                }`}>
+                                  {isKepala ? 'Kepala Keluarga' : 'Anggota Keluarga'}
+                                </span>
+                              </td>
+                              <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                {w.gender}
+                              </td>
+                              <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                {formatDateIndo(w.tgl_lahir)} ({w.umur} Thn)
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      {wargaList.filter(w => w.family_id === (selectedFamilyForDetail.family_id || selectedFamilyForDetail.id)).length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="p-4 text-center text-slate-400 italic">
+                            Tidak ada anggota keluarga terdaftar.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end font-sans">
+              <button 
+                onClick={() => setSelectedFamilyForDetail(null)}
+                className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}

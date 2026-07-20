@@ -1431,27 +1431,27 @@ export default function ProfilWarga({
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* 1. SIDEBAR */}
-      <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
+      <aside className="w-full md:w-64 bg-[var(--color-accent-green)]/10 dark:bg-[var(--color-accent-green)]/25 text-slate-900 dark:text-white border-r border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/40 flex flex-col flex-shrink-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl text-white">
+        <div className="p-6 border-b border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/50 flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-tr from-[var(--color-accent-green)] to-teal-400 rounded-xl text-white">
             <Landmark className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
-            <span className="text-[9px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
+            <h1 className="font-extrabold text-sm text-white tracking-tight leading-tight">Warga Portal</h1>
+            <span className="text-[9px] text-white/80 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs uppercase">
+        <div className="p-4 mx-4 my-3 bg-[var(--color-accent-green)]/10 dark:bg-[var(--color-accent-green)]/20 rounded-2xl border border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/40 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/20 text-white font-bold flex items-center justify-center text-xs uppercase">
             {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{displayNama}</p>
-            <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Warga Portal</p>
+            <p className="text-xs font-bold text-white truncate">{displayNama}</p>
+            <p className="text-[9px] text-white/80 font-semibold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
 
@@ -1464,7 +1464,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dashboard'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <LayoutDashboard className="w-4 h-4 text-emerald-400" />
@@ -1477,7 +1477,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'profil_saya'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <User className="w-4 h-4 text-sky-400" />
@@ -1490,7 +1490,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'keluarga_saya'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Users className="w-4 h-4 text-purple-400" />
@@ -1504,7 +1504,7 @@ export default function ProfilWarga({
               className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'warga_upload_berkas'
                   ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                  : 'text-white/90 hover:bg-white/10 dark:hover:bg-white/10 hover:text-white'
               }`}
             >
               <Upload className="w-4 h-4 text-emerald-500" />
@@ -1516,13 +1516,13 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Volume2 className="w-4 h-4 text-emerald-400" />
                 <span>Informasi</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
             </button>
 
             {isInformasiOpen && (
@@ -1532,7 +1532,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_pengumuman' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1543,7 +1543,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_jadwal' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1554,7 +1554,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_kontak' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1568,13 +1568,13 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsIuranOpen(!isIuranOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Wallet className="w-4 h-4 text-amber-400" />
                 <span>Iuran</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
             </button>
 
             {isIuranOpen && (
@@ -1584,7 +1584,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_tagihan' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1595,7 +1595,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_riwayat' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1606,7 +1606,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_upload' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1620,13 +1620,13 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsSuratOpen(!isSuratOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-sky-400" />
                 <span>Layanan Surat</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
             </button>
 
             {isSuratOpen && (
@@ -1636,7 +1636,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_ajukan' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1647,7 +1647,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_status' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1663,7 +1663,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaduan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -1676,7 +1676,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dokumen'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -1689,7 +1689,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'voting_karyawan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-400" />
@@ -1702,7 +1702,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'notifikasi'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -1720,7 +1720,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaturan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Settings className="w-4 h-4 text-slate-400" />
