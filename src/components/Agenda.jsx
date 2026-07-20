@@ -1,5 +1,9 @@
 import { useState } from 'react';
-import { Calendar as CalendarIcon, MapPin, Clock, Users, ArrowRight } from 'lucide-react';
+import { 
+  Calendar as CalendarIcon, Clock, MapPin, Users, ArrowRight,
+  ChevronLeft, ChevronRight
+} from 'lucide-react';
+import { formatDateToDDMMYYYY } from '../utils/dateUtils';
 
 export default function Agenda({ agendas }) {
   const [selectedAgenda, setSelectedAgenda] = useState(agendas[0] || null);
@@ -30,12 +34,8 @@ export default function Agenda({ agendas }) {
   };
 
   const formatLongDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString('id-ID', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    const weekday = new Date(dateStr).toLocaleDateString('id-ID', { weekday: 'long' });
+    return `${weekday}, ${formatDateToDDMMYYYY(dateStr)}`;
   };
 
   return (
@@ -178,7 +178,7 @@ export default function Agenda({ agendas }) {
                           {agenda.category}
                         </span>
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                          {new Date(agenda.date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' })}
+                          {formatDateToDDMMYYYY(agenda.date)}
                         </span>
                       </div>
                       <h5 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug">

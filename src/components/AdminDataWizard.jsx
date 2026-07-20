@@ -5,6 +5,7 @@ import {
   Sparkles, Building2, CreditCard, ArrowRight, CheckCircle2, XCircle,
   Key, Copy
 } from 'lucide-react';
+import DateInput from './DateInput';
 
 const API_BASE = 'http://172.20.32.62:3333';
 
@@ -1009,14 +1010,13 @@ export default function AdminDataWizard() {
                   </div>
                   <div>
                     <label className={labelClass}>Tanggal Lahir <span className="text-red-400">*</span></label>
-                    <input
+                    <DateInput
                       required
-                      type="date"
                       value={oneStepForm.tglLahirKepalaKeluarga}
                       onChange={e => setOneStepForm({ ...oneStepForm, tglLahirKepalaKeluarga: e.target.value })}
                       className={inputClass('tglLahirKepalaKeluarga')}
                     />
-                    {fieldErrors.tglLahirKepalaKeluarga && <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.tglLahirKepalaKeluarga}</p>}
+                    {fieldErrors.tglLahirKepalaKeluarga && <p className="text-red-550 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.tglLahirKepalaKeluarga}</p>}
                   </div>
                 </div>
 
@@ -1431,8 +1431,8 @@ export default function AdminDataWizard() {
                         </div>
                         <div>
                           <label className={labelClass}>Tanggal Lahir <span className="text-red-400">*</span></label>
-                          <input
-                            type="date"
+                          <DateInput
+                            required
                             value={wargaForm.tglLahir}
                             onChange={e => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
                             className={inputClass('tglLahir')}

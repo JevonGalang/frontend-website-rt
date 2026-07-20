@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
+import DateInput from './DateInput';
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -444,9 +445,8 @@ export default function ProfilWarga({
       });
       if (response.ok) {
         const data = await response.json();
-        if (data.response === 200 && data.output) {
-          setWargaPayments(data.output);
-        }
+        const paymentsData = data.output?.pesan || data.output || data.pesan || { ipl: [], kas: [] };
+        setWargaPayments(paymentsData);
       } else {
         throw new Error('Gagal mengambil histori pembayaran.');
       }
@@ -639,6 +639,7 @@ export default function ProfilWarga({
         formData.append('file', iplForm.file);
 
         console.log('--- WARGA: Sending pay-ipl ---');
+        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
         console.log('Payload months:', JSON.stringify(iplForm.months));
         console.log('Payload year:', iplForm.year);
         console.log('Payload amount:', iplForm.months.length * 200000);
@@ -688,6 +689,7 @@ export default function ProfilWarga({
         formData.append('file', kasForm.file);
 
         console.log('--- WARGA: Sending pay-kas ---');
+        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
         console.log('Payload amount:', parseInt(kasForm.amount));
         console.log('Payload category:', kasForm.category);
         console.log('Payload description:', kasForm.description.trim());
@@ -758,7 +760,7 @@ export default function ProfilWarga({
           resident_name: selectedResidentForDoc.nama,
           type: docUploadType,
           file_path: data.output?.pesan?.file_path || docUploadFile.name,
-          upload_date: new Date().toLocaleDateString('id-ID')
+          upload_date: formatDateIndo(new Date())
         };
         setWargaDocuments(prev => [newDoc, ...prev]);
         setDocUploadFile(null);
@@ -1125,7 +1127,7 @@ export default function ProfilWarga({
           type: uploadDocForm.type,
           fileName: fileName,
           documentId: documentId,
-          date: new Date().toLocaleDateString('id-ID')
+          date: formatDateIndo(new Date())
         };
         
         const updatedDocs = [newDoc, ...uploadedDocsList];
@@ -1203,6 +1205,13 @@ export default function ProfilWarga({
       formData.append('amount', totalAmount);
       formData.append('months', JSON.stringify(iplPaymentForm.months));
 
+      console.log('--- WARGA: Sending pay-ipl (Form) ---');
+      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
+      console.log('Payload months:', JSON.stringify(iplPaymentForm.months));
+      console.log('Payload year:', iplPaymentForm.year);
+      console.log('Payload amount:', totalAmount);
+      console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
+
       try {
         const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
           method: 'POST',
@@ -1269,6 +1278,13 @@ export default function ProfilWarga({
       formData.append('amount', parseInt(kasPaymentForm.amount));
       formData.append('category', kasPaymentForm.category);
       formData.append('description', description);
+
+      console.log('--- WARGA: Sending pay-kas (Form) ---');
+      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
+      console.log('Payload amount:', parseInt(kasPaymentForm.amount));
+      console.log('Payload category:', kasPaymentForm.category);
+      console.log('Payload description:', description);
+      console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
         const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
@@ -2267,12 +2283,11 @@ export default function ProfilWarga({
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="font-bold text-slate-500 dark:text-slate-400">Tanggal Lahir</label>
-                          <input
+                          <DateInput
                             required
-                            type="date"
                             value={memberForm.tglLahir}
                             onChange={(e) => setMemberForm({ ...memberForm, tglLahir: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium cursor-pointer"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
                           />
                         </div>
 

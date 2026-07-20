@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { TrendingUp, TrendingDown, Wallet, Search, Calendar } from 'lucide-react';
+import { formatDateToDDMMYYYY } from '../utils/dateUtils';
 
 export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transaksiKas }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -149,11 +150,7 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
                     <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors">
                       <td className="py-4 px-4 font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-slate-400" />
-                        {new Date(item.date).toLocaleDateString('id-ID', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {formatDateToDDMMYYYY(item.date)}
                       </td>
                       <td className="py-4 px-4 font-bold text-slate-800 dark:text-white">
                         {item.description}

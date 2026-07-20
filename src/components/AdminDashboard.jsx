@@ -8,6 +8,7 @@ import {
   Database, Lock
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
+import DateInput from './DateInput';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
 
@@ -1310,7 +1311,7 @@ export default function AdminDashboard({
           <div class="header">
             <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 05 / RW 06</h2>
             <h3>Perumahan Sawangan Green Park</h3>
-            <p>Dicetak pada: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            <p>Dicetak pada: ${formatDateIndo(new Date())}</p>
           </div>
           <table>
             <thead>
@@ -1906,11 +1907,7 @@ export default function AdminDashboard({
           return {
             ...sub,
             status: nextStatus,
-            processedDate: new Date().toLocaleDateString('id-ID', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })
+            processedDate: formatDateIndo(new Date())
           };
         }
         return sub;
@@ -3279,9 +3276,8 @@ export default function AdminDashboard({
                   </div>
                   <div className="space-y-1">
                     <label className="font-bold text-slate-500">Tanggal Keluar *</label>
-                    <input
+                    <DateInput
                       required
-                      type="date"
                       value={pendudukKeluarForm.date}
                       onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, date: e.target.value })}
                       className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
@@ -4806,9 +4802,8 @@ export default function AdminDashboard({
 
                   <div className="space-y-1.5">
                     <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Transaksi *</label>
-                    <input
+                    <DateInput
                       required
-                      type="date"
                       value={iuranPembayaranForm.date}
                       onChange={(e) => setIuranPembayaranForm({ ...iuranPembayaranForm, date: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
@@ -5267,9 +5262,8 @@ export default function AdminDashboard({
 
                 <div className="space-y-1.5 max-w-xs">
                   <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Masuk *</label>
-                  <input
+                  <DateInput
                     required
-                    type="date"
                     value={pemasukanForm.date}
                     onChange={(e) => setPemasukanForm({ ...pemasukanForm, date: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
@@ -5384,9 +5378,8 @@ export default function AdminDashboard({
 
                 <div className="space-y-1.5 max-w-xs">
                   <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Belanja *</label>
-                  <input
+                  <DateInput
                     required
-                    type="date"
                     value={pengeluaranForm.date}
                     onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, date: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
@@ -6378,9 +6371,8 @@ export default function AdminDashboard({
                     </div>
                     <div className="space-y-1.5">
                       <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Lahir *</label>
-                      <input
+                      <DateInput
                         required
-                        type="date"
                         value={wargaForm.tglLahir || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
@@ -6538,9 +6530,8 @@ export default function AdminDashboard({
                     
                     <div className="space-y-1.5">
                       <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Transaksi *</label>
-                      <input
+                      <DateInput
                         required
-                        type="date"
                         value={kasForm.date}
                         onChange={(e) => setKasForm({ ...kasForm, date: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono"
@@ -6618,9 +6609,8 @@ export default function AdminDashboard({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Pelaksanaan *</label>
-                      <input
+                      <DateInput
                         required
-                        type="date"
                         value={agendaForm.date}
                         onChange={(e) => setAgendaForm({ ...agendaForm, date: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono"
