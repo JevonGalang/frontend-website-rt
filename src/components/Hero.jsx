@@ -55,22 +55,18 @@ export default function Hero({
   };
 
   // Infographic statistics fallback calculation
-  const income = publicStats?.total_income || 14800000;
-  const expense = publicStats?.total_expense || 5200000;
-  const balance = publicStats?.current_balance || sisaKasRT || 9600000;
-  const prevBalance = publicStats?.previous_balance || 7500000;
-  const totalWarga = publicStats?.total_warga || 128;
+  const income = publicStats?.total_income || 0;
+  const expense = publicStats?.total_expense || 0;
+  const balance = publicStats?.current_balance || sisaKasRT || 0;
+  const prevBalance = publicStats?.previous_balance || 0;
+  const totalWarga = publicStats?.total_warga || 0;
 
   const totalArus = income + expense || 1;
   const incomePct = Math.round((income / totalArus) * 100);
   const expensePct = Math.round((expense / totalArus) * 100);
 
-  // Mock ledger data if API falls back to empty
-  const displayLedger = publicLedger.length > 0 ? publicLedger.slice(0, 3) : [
-    { id: 1, type: 'in', amount: 4800000, source_type: 'ipl', description: 'Iuran Bulanan Warga (IPL Juli)', transaction_date: '2026-07-05' },
-    { id: 2, type: 'out', amount: 1500000, source_type: 'kebersihan', description: 'Pengangkutan Sampah TPA Sawangan', transaction_date: '2026-07-04' },
-    { id: 3, type: 'in', amount: 2000000, source_type: 'donasi', description: 'Donasi Pembelian Mesin Fogging', transaction_date: '2026-07-02' }
-  ];
+  // Ledger data from backend API
+  const displayLedger = publicLedger.slice(0, 3);
 
   // Access log helper
   const recordAccessLog = (user) => {

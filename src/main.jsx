@@ -57,6 +57,148 @@ window.fetch = async (...args) => {
   }
 };
 
+// Global Input Character Limit Interceptor (Max 200 characters for non-numeric/non-date inputs and textareas)
+const shouldExcludeFromLimit = (target) => {
+  const name = (target.name || '').toLowerCase();
+  const id = (target.id || '').toLowerCase();
+  const placeholder = (target.placeholder || '').toLowerCase();
+  const type = (target.type || '').toLowerCase();
+
+  const parent = target.parentNode;
+  const grandParent = parent ? parent.parentNode : null;
+  const parentText = parent ? parent.textContent.toLowerCase() : '';
+  const grandParentText = grandParent ? grandParent.textContent.toLowerCase() : '';
+  const fullTextContext = `${name} ${id} ${placeholder} ${parentText} ${grandParentText}`;
+
+  // Exclude date inputs (e.g. DD/MM/YYYY placeholder, native date type, name/id containing 'date' or 'tgl')
+  if (placeholder.includes('dd/mm/yyyy') || type === 'date' || fullTextContext.includes('date') || fullTextContext.includes('tanggal') || fullTextContext.includes('tgl') || fullTextContext.includes('lahir')) {
+    return true;
+  }
+  
+  // Exclude numbers and critical numeric/phone/identity fields (NIK, KK, Phone, Amount, etc.)
+  const numKeywords = [
+    'nik', 'kk', 'nokk', 'kartu keluarga', 
+    'phone', 'hp', 'telepon', 'telp', 'mobile',
+    'amount', 'nominal', 'harga', 'saldo', 'balance', 'jumlah', 'setor', 'uang', 'rupiah', 'rp',
+    'usia', 'umur', 'tahun', 'year', 'month', 'bulan', 'no. kk', 'no kk', 'no.kk'
+  ];
+  if (type === 'number' || numKeywords.some(keyword => fullTextContext.includes(keyword))) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Check if input is a descriptive field that should show the "limit 200 karakter" label
+const shouldShowLimitWarning = (target) => {
+  if (shouldExcludeFromLimit(target)) return false;
+  
+  const name = (target.name || '').toLowerCase();
+  const id = (target.id || '').toLowerCase();
+  const placeholder = (target.placeholder || '').toLowerCase();
+  const type = (target.type || '').toLowerCase();
+
+  const parent = target.parentNode;
+  const grandParent = parent ? parent.parentNode : null;
+  const parentText = parent ? parent.textContent.toLowerCase() : '';
+  const grandParentText = grandParent ? grandParent.textContent.toLowerCase() : '';
+  const fullTextContext = `${name} ${id} ${placeholder} ${parentText} ${grandParentText}`;
+  
+  // Exclude all search bars, search inputs, login inputs, email inputs, titles, and headers
+  const excludeWarningKeywords = [
+    'search', 'cari', 'find', 'filter', // search/filter bars
+    'username', 'password', 'email', 'login', 'pass', 'token', 'kredensial', // login
+    'judul pengumuman', 'judul', 'title', 'subject', 'tema', // announcement title / agenda title / etc.
+    'nama lengkap kepala keluarga', 'kepala keluarga', 'nama kepala', // name of head of family
+    'nomor kk', 'no kk', 'no. kk', 'nokk', // kk
+    'hp aktif', 'no hp', 'nohp', 'no. hp', 'nomor hp', // phone number
+    'alamat email', 'surel' // email
+  ];
+  
+  if (
+    type === 'password' || 
+    type === 'email' ||
+    excludeWarningKeywords.some(keyword => fullTextContext.includes(keyword))
+  ) {
+    return false;
+  }
+  
+  return true;
+};
+
+// Helper to inject warning labels under matching inputs
+const addLimitWarnings = () => {
+  const inputs = document.querySelectorAll('input, textarea');
+  inputs.forEach(target => {
+    const textTypes = ['text', 'search', 'email', 'password', 'url', 'tel'];
+    const isTextInput = target.tagName === 'TEXTAREA' || 
+                        (target.tagName === 'INPUT' && (!target.type || textTypes.includes(target.type.toLowerCase())));
+                        
+    if (isTextInput && !target.readOnly && !target.disabled && shouldShowLimitWarning(target)) {
+      const parent = target.parentNode;
+      if (parent) {
+        const alreadyHasWarn = parent.querySelector('.char-limit-warn');
+        if (!alreadyHasWarn) {
+          const warn = document.createElement('p');
+          warn.className = 'char-limit-warn text-[10px] text-rose-500 dark:text-rose-450 font-bold mt-1 block';
+          warn.innerText = 'limit 200 karakter';
+          // Insert warning right after the input/textarea element
+          target.parentNode.insertBefore(warn, target.nextSibling);
+        }
+      }
+    } else {
+      // Clean up warning if it shouldn't show (for exclusions)
+      const parent = target.parentNode;
+      if (parent) {
+        let sibling = target.nextSibling;
+        while (sibling) {
+          if (sibling.classList && sibling.classList.contains('char-limit-warn')) {
+            sibling.remove();
+            break;
+          }
+          sibling = sibling.nextSibling;
+        }
+      }
+    }
+  });
+};
+
+// Watch for DOM changes to inject warnings dynamically on React tab changes/modal openings
+const observer = new MutationObserver(() => {
+  addLimitWarnings();
+});
+observer.observe(document.documentElement, { childList: true, subtree: true });
+
+window.addEventListener('focusin', (e) => {
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+    const textTypes = ['text', 'search', 'email', 'password', 'url', 'tel'];
+    const isTextInput = target.tagName === 'TEXTAREA' || 
+                        (target.tagName === 'INPUT' && (!target.type || textTypes.includes(target.type.toLowerCase())));
+                        
+    if (isTextInput && !target.readOnly && !target.disabled && !shouldExcludeFromLimit(target)) {
+      const currentMaxLength = target.maxLength;
+      if (currentMaxLength === -1 || currentMaxLength > 200) {
+        target.maxLength = 200;
+      }
+      addLimitWarnings();
+    }
+  }
+}, true);
+
+window.addEventListener('input', (e) => {
+  const target = e.target;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+    const textTypes = ['text', 'search', 'email', 'password', 'url', 'tel'];
+    const isTextInput = target.tagName === 'TEXTAREA' || 
+                        (target.tagName === 'INPUT' && (!target.type || textTypes.includes(target.type.toLowerCase())));
+                        
+    if (isTextInput && !shouldExcludeFromLimit(target) && target.value && target.value.length > 200) {
+      target.value = target.value.slice(0, 200);
+    }
+  }
+}, true);
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />

@@ -350,19 +350,27 @@ export default function AdminDataWizard() {
     const token = localStorage.getItem('rt_token');
     try {
       const payload = {
-        blok: oneStepForm.blok.trim(),
-        nomor: parseInt(oneStepForm.nomor),
-        alamat: oneStepForm.alamat.trim(),
-        noKK: oneStepForm.noKK.trim(),
-        namaKepalaKeluarga: oneStepForm.namaKepalaKeluarga.trim(),
-        nikKepalaKeluarga: oneStepForm.nikKepalaKeluarga.trim(),
-        jenisKelaminKepalaKeluarga: oneStepForm.jenisKelaminKepalaKeluarga,
-        tglLahirKepalaKeluarga: oneStepForm.tglLahirKepalaKeluarga,
-        noHpKepalaKeluarga: oneStepForm.noHpKepalaKeluarga.trim(),
-        umurKepalaKeluarga: parseInt(oneStepForm.umurKepalaKeluarga),
+        house: {
+          blok: oneStepForm.blok.trim(),
+          nomor: String(oneStepForm.nomor).trim(),
+          alamat: oneStepForm.alamat.trim(),
+          status: 'tetap'
+        },
+        family: {
+          noKK: oneStepForm.noKK.trim()
+        },
+        kepalaKeluarga: {
+          nik: oneStepForm.nikKepalaKeluarga.trim(),
+          nama: oneStepForm.namaKepalaKeluarga.trim(),
+          jenisKelamin: oneStepForm.jenisKelaminKepalaKeluarga === 'Laki-laki' ? 'L' : 'P',
+          tglLahir: oneStepForm.tglLahirKepalaKeluarga,
+          statusHidup: 'Hidup',
+          noHp: oneStepForm.noHpKepalaKeluarga.trim(),
+          umur: parseInt(oneStepForm.umurKepalaKeluarga)
+        }
       };
       if (oneStepForm.emailKepalaKeluarga?.trim()) {
-        payload.emailKepalaKeluarga = oneStepForm.emailKepalaKeluarga.trim();
+        payload.kepalaKeluarga.email = oneStepForm.emailKepalaKeluarga.trim();
       }
       if (oneStepForm.username?.trim()) {
         payload.username = oneStepForm.username.trim();
@@ -394,7 +402,7 @@ export default function AdminDataWizard() {
             blok: oneStepForm.blok,
             nomor: oneStepForm.nomor,
             alamat: oneStepForm.alamat,
-            status: 'pribadi'
+            status: 'tetap'
           },
           resident: {
             id: output.familyId,

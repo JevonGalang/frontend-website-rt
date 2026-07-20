@@ -4697,42 +4697,67 @@ export default function AdminDashboard({
               </div>
 
               <form 
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (!iuranPembayaranForm.wargaId) {
                     alert('Silakan pilih warga terlebih dahulu.');
                     return;
                   }
                   
-                  const targetWarga = wargaList.find(w => w.id === iuranPembayaranForm.wargaId);
+                  const targetWarga = wargaList.find(w => String(w.id) === String(iuranPembayaranForm.wargaId));
                   const targetJenis = jenisIuranList.find(j => j.id === iuranPembayaranForm.jenisIuranId);
                   
                   if (!targetWarga || !targetJenis) return;
 
-                  // Create new kas entry
-                  const newTx = {
-                    id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
-                    description: `Pembayaran ${targetJenis.name} (${iuranPembayaranForm.month}) - ${targetWarga.name}`,
-                    amount: iuranPembayaranForm.amount,
-                    date: iuranPembayaranForm.date,
-                    type: 'income',
-                    category: 'Iuran Warga'
+                  const token = localStorage.getItem('rt_token');
+                  if (!token) {
+                    alert('Token otentikasi tidak ditemukan. Harap login kembali.');
+                    return;
+                  }
+
+                  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                  const monthInt = monthNames.indexOf(iuranPembayaranForm.month) + 1;
+                  const yearInt = iuranPembayaranForm.date ? parseInt(iuranPembayaranForm.date.split('-')[0], 10) : new Date().getFullYear();
+                  const jenisIuran = iuranPembayaranForm.jenisIuranId === 'IUR-003' ? 'kas' : 'ipl';
+
+                  const payload = {
+                    family_id: parseInt(targetWarga.family_id, 10) || parseInt(targetWarga.id, 10),
+                    jenis_iuran: jenisIuran,
+                    amount: parseInt(iuranPembayaranForm.amount, 10),
+                    month: monthInt,
+                    year: yearInt,
+                    payment_date: iuranPembayaranForm.date
                   };
 
-                  // Update warga status to Lunas
-                  const updatedWarga = wargaList.map(w => w.id === targetWarga.id ? { ...w, statusIuran: 'Lunas' } : w);
-                  saveWarga(updatedWarga);
+                  try {
+                    const response = await fetch('http://172.20.32.62:3333/admin/finance/manual-payment', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify(payload)
+                    });
 
-                  // Update kas list
-                  saveKas([newTx, ...transaksiKasList]);
+                    const data = await response.json();
+                    if (response.ok) {
+                      alert(data.message || 'Pembayaran iuran berhasil dicatat di server!');
+                      
+                      // Refresh data from server to sync UI
+                      await fetchLedgerFromServer();
+                      await fetchWargaListFromServer();
 
-                  alert(`Berhasil mencatat pembayaran iuran ${targetJenis.name} (${iuranPembayaranForm.month}) untuk warga: ${targetWarga.name} sebesar ${formatRupiah(iuranPembayaranForm.amount)}.`);
-                  
-                  // Reset form
-                  setIuranPembayaranForm(prev => ({
-                    ...prev,
-                    wargaId: ''
-                  }));
+                      // Reset form
+                      setIuranPembayaranForm(prev => ({
+                        ...prev,
+                        wargaId: ''
+                      }));
+                    } else {
+                      alert(data.message || data.pesan || 'Gagal menyimpan pembayaran di server.');
+                    }
+                  } catch (err) {
+                    alert(`Gagal menghubungkan ke server: ${err.message}`);
+                  }
                 }}
                 className="max-w-xl space-y-4 text-xs sm:text-sm"
               >

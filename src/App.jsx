@@ -88,6 +88,22 @@ export default function App() {
   const [publicStats, setPublicStats] = useState(null);
   const [publicLedger, setPublicLedger] = useState([]);
 
+  useEffect(() => {
+    const keysToReset = ['rt_wargalist', 'rt_kaslist', 'rt_agendalist', 'rt_submissions', 'rt_warga_bukti_bayar', 'rt_warga_documents', 'rt_uploaded_docs'];
+    if (!localStorage.getItem('rt_dummy_cleared_v3')) {
+      keysToReset.forEach(k => {
+        try {
+          localStorage.removeItem(k);
+        } catch (e) {}
+      });
+      localStorage.setItem('rt_dummy_cleared_v3', 'true');
+      setWargaList([]);
+      setTransaksiKasList([]);
+      setAgendaList([]);
+      setSubmissionsList([]);
+    }
+  }, []);
+
   // Sesi User login
   const [currentUser, setCurrentUser] = useState(() => {
     try {

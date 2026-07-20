@@ -1420,8 +1420,8 @@ export default function ProfilWarga({
   const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
   const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
   const displayEmail = currentUser.email || '';
-  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
-  const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
+  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : '');
+  const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : '');
   const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
 
   return (
