@@ -1294,6 +1294,7 @@ export default function AdminDashboard({
   const [modalType, setModalType] = useState(''); // '' | 'add_warga' | 'edit_warga' | 'add_kas' | 'edit_kas' | 'add_agenda' | 'edit_agenda'
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedFamilyForDetail, setSelectedFamilyForDetail] = useState(null);
+  const [previewingTemplate, setPreviewingTemplate] = useState(null);
   
   // Form States
   const [wargaForm, setWargaForm] = useState({
@@ -4183,15 +4184,31 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { name: 'Template Surat Pengantar KTP / KK', desc: 'Format standar RT 05 untuk pengurusan KTP/KK di Kelurahan.' },
-                  { name: 'Template Surat Keterangan Domisili Warga', desc: 'Format resmi keterangan tempat tinggal sementara/kontrak.' },
-                  { name: 'Template Surat Pengantar Nikah', desc: 'Format persetujuan menikah untuk warga domisili RT 05.' },
-                  { name: 'Template Surat Izin Keramaian', desc: 'Format permohonan izin acara di lingkungan perumahan.' }
+                  { name: 'Surat Pengantar KTP / KK', desc: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Sawangan Baru dikarenakan baru pindah domisili ke wilayah RT 05.' },
+                  { name: 'Surat Keterangan Domisili Warga', desc: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
+                  { name: 'Surat Pengantar Nikah', desc: 'Memberikan pengantar persetujuan pernikahan bagi warga yang bersangkutan di kantor urusan agama Kelurahan Sawangan Baru.' },
+                  { name: 'Surat Izin Keramaian', desc: 'Format permohonan izin menyelenggarakan acara / keramaian di lingkungan perumahan.' }
                 ].map((t, idx) => (
-                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
-                    <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
-                    <button onClick={() => alert(`Mengunduh ${t.name}.docx... (Simulasi Unduh Template)`)} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer">Unduh Format</button>
+                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                    <div className="space-y-1">
+                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Format Resmi RT</h4>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
+                      <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPreviewingTemplate(t)}
+                        className="py-2 px-3.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-350 hover:text-emerald-500 font-extrabold text-[10px] rounded-xl cursor-pointer transition-colors"
+                      >
+                        Pratinjau Kop Surat
+                      </button>
+                      <button
+                        onClick={() => alert(`Mengunduh format ${t.name}.docx... (Simulasi Unduh Template)`)}
+                        className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer"
+                      >
+                        Unduh Format
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -8238,6 +8255,136 @@ export default function AdminDashboard({
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
+      {previewingTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setPreviewingTemplate(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Kop Surat Resmi RT 05</h3>
+              <button onClick={() => setPreviewingTemplate(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-150 dark:bg-slate-955 flex justify-center p-4 sm:p-8">
+              {/* Printable A4 Paper Simulator */}
+              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
+                {/* KOP SURAT HEADER */}
+                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
+                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                </div>
+
+                {/* LETTER CONTENT */}
+                <div className="pt-8 space-y-6">
+                  {/* Letter Title */}
+                  <div className="text-center font-sans">
+                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
+                      {previewingTemplate.name}
+                    </h5>
+                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">No. 042 / RT05-RW06 / VII / 2026</span>
+                  </div>
+
+                  {/* Body Text */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                  </p>
+
+                  {/* Citizen Biodata Table */}
+                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
+                    <tbody>
+                      <tr>
+                        <td className="w-1/3 font-bold">Nama Lengkap</td>
+                        <td className="w-4">:</td>
+                        <td className="font-semibold uppercase tracking-wider">............................................................</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">NIK / No. KTP</td>
+                        <td>:</td>
+                        <td className="font-mono">............................................................</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Tempat/Tgl Lahir</td>
+                        <td>:</td>
+                        <td>............................................................</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Jenis Kelamin</td>
+                        <td>:</td>
+                        <td>Laki-laki / Perempuan</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Pekerjaan</td>
+                        <td>:</td>
+                        <td>............................................................</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Alamat Lengkap</td>
+                        <td>:</td>
+                        <td className="leading-snug">
+                          Sawangan Green Park Blok ......... No. ........., RT 05 RW 06 Kel. Sawangan Baru, Kec. Sawangan, Depok.
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Purpose Paragraph */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Adapun nama tersebut di atas adalah benar merupakan warga tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{previewingTemplate.desc}"</span>.
+                  </p>
+
+                  <p className="text-slate-850 leading-relaxed text-justify">
+                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
+                  </p>
+                </div>
+
+                {/* SIGNATURE BLOCK */}
+                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
+                  <div>
+                    <span className="block">Mengetahui,</span>
+                    <span className="block font-bold">Sekretaris RT 05</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">( ........................................ )</span>
+                  </div>
+                  <div>
+                    <span className="block">Depok, {formatDateIndo(new Date().toISOString())}</span>
+                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => alert(`Mengunduh berkas template: ${previewingTemplate.name}.docx`)}
+                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh Dokumen</span>
+                </button>
+                <button
+                  onClick={() => setPreviewingTemplate(null)}
+                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>

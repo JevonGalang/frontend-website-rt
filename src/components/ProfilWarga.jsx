@@ -30,6 +30,38 @@ const formatDateIndo = (dateStr) => {
   }
 };
 
+const getTemplatesForType = (type) => {
+  const templates = {
+    'Surat Pengantar Pengurusan KTP': [
+      { label: 'KTP Baru (Pindah)', text: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Sawangan Baru dikarenakan baru pindah domisili ke wilayah RT 05.' },
+      { label: 'KK Baru (Keluarga)', text: 'Syarat pembaruan Kartu Keluarga (KK) dikarenakan adanya penambahan anggota keluarga baru.' },
+      { label: 'KTP Hilang', text: 'Syarat pembuatan duplikat KTP baru di Kelurahan dikarenakan KTP lama hilang.' }
+    ],
+    'Surat Keterangan Domisili': [
+      { label: 'Buka Rekening Bank', text: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
+      { label: 'Melamar Pekerjaan', text: 'Syarat keterangan tempat tinggal sementara untuk kelengkapan administrasi melamar pekerjaan.' },
+      { label: 'Pendaftaran Sekolah', text: 'Keterangan domisili tinggal untuk syarat pendaftaran sekolah anak (PPDB jalur zonasi).' }
+    ],
+    'Surat Keterangan Catatan Kepolisian (SKCK)': [
+      { label: 'Melamar Kerja Swasta', text: 'Sebagai syarat pembuatan SKCK baru guna melamar pekerjaan di sektor swasta.' },
+      { label: 'Seleksi CPNS / BUMN', text: 'Sebagai syarat pembuatan/perpanjangan SKCK guna mengikuti seleksi penerimaan CPNS / BUMN.' },
+      { label: 'Pemberkasan Paspor', text: 'Sebagai kelengkapan berkas pembuatan SKCK untuk keperluan pengurusan paspor/visa ke luar negeri.' }
+    ],
+    'Surat Keterangan Tidak Mampu (SKTM)': [
+      { label: 'Keringanan RS', text: 'Sebagai syarat pengajuan keringanan biaya rawat inap/pengobatan di Rumah Sakit.' },
+      { label: 'Beasiswa Sekolah', text: 'Sebagai kelengkapan berkas pengajuan beasiswa pendidikan kurang mampu untuk anak sekolah.' }
+    ],
+    'Surat Pengantar Izin Keramaian': [
+      { label: 'Syukuran Pernikahan', text: 'Pemberitahuan penyelenggaraan acara syukuran pernikahan keluarga di halaman rumah warga.' },
+      { label: 'HUT RI Lingkungan', text: 'Pemberitahuan izin keramaian untuk pelaksanaan rangkaian perlombaan HUT RI warga RT 05.' }
+    ]
+  };
+
+  return templates[type] || [
+    { label: 'Keperluan Umum', text: 'Untuk keperluan pengurusan administrasi kependudukan di tingkat kelurahan.' }
+  ];
+};
+
 export default function ProfilWarga({ 
   currentUser, 
   setCurrentUser,
@@ -50,6 +82,7 @@ export default function ProfilWarga({
   const [isInformasiOpen, setIsInformasiOpen] = useState(true);
   const [isIuranOpen, setIsIuranOpen] = useState(true);
   const [isSuratOpen, setIsSuratOpen] = useState(true);
+  const [viewingApprovedLetter, setViewingApprovedLetter] = useState(null);
   
   // Profile Form & Password verification States
   const [isEditing, setIsEditing] = useState(false);
@@ -3353,6 +3386,22 @@ export default function ProfilWarga({
                   </select>
                 </div>
 
+                <div className="space-y-2">
+                  <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
+                  <div className="flex flex-wrap gap-2">
+                    {getTemplatesForType(letterForm.tipeSurat).map((tmpl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setLetterForm({ ...letterForm, keperluan: tmpl.text })}
+                        className="px-3 py-2 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/40 text-slate-750 dark:text-slate-350 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                      >
+                        {tmpl.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Tulis Keperluan / Alasan Pengajuan *</label>
                   <textarea
@@ -3427,14 +3476,20 @@ export default function ProfilWarga({
                         </div>
 
                         {(sub.status === 'Approved' || sub.status === 'Completed') && (
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
+                            <button
+                              onClick={() => setViewingApprovedLetter(sub)}
+                              className="flex-1 py-2 border border-emerald-500 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block"
+                            >
+                              Pratinjau Kop Surat
+                            </button>
                             <button
                               onClick={() => {
                                 alert(`Mengunduh berkas ${sub.wargaTipeSurat} untuk keperluan: ${sub.wargaKeperluan}. (Simulasi berkas PDF RT berhasil diunduh)`);
                               }}
-                              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-xs"
+                              className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-xs"
                             >
-                              Unduh Surat Pengantar
+                              Unduh Format
                             </button>
                           </div>
                         )}
@@ -3944,6 +3999,127 @@ export default function ProfilWarga({
         )}
 
       </main>
+
+      {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
+      {viewingApprovedLetter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setViewingApprovedLetter(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05</h3>
+              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                <span className="font-extrabold text-sm">✕</span>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
+              {/* Printable A4 Paper Simulator */}
+              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
+                {/* KOP SURAT HEADER */}
+                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
+                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                </div>
+
+                {/* LETTER CONTENT */}
+                <div className="pt-8 space-y-6">
+                  {/* Letter Title */}
+                  <div className="text-center font-sans">
+                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
+                      {viewingApprovedLetter.wargaTipeSurat}
+                    </h5>
+                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">
+                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW06 / VII / 2026
+                    </span>
+                  </div>
+
+                  {/* Body Text */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                  </p>
+
+                  {/* Citizen Biodata Table */}
+                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
+                    <tbody>
+                      <tr>
+                        <td className="w-1/3 font-bold">Nama Lengkap</td>
+                        <td className="w-4">:</td>
+                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.wargaNama || currentUser.name}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">NIK / No. KTP</td>
+                        <td>:</td>
+                        <td className="font-mono">{viewingApprovedLetter.wargaNik || currentUser.nik}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Jenis Kelamin</td>
+                        <td>:</td>
+                        <td>{currentUser.gender || 'Laki-laki'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Alamat Lengkap</td>
+                        <td>:</td>
+                        <td className="leading-snug">
+                          {viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Sawangan Green Park, RT 05 RW 06, Kel. Sawangan Baru, Kec. Sawangan, Depok.'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Purpose Paragraph */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
+                  </p>
+
+                  <p className="text-slate-850 leading-relaxed text-justify">
+                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
+                  </p>
+                </div>
+
+                {/* SIGNATURE BLOCK */}
+                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
+                  <div>
+                    <span className="block">Mengetahui,</span>
+                    <span className="block font-bold">Sekretaris RT 05</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">( ........................................ )</span>
+                  </div>
+                  <div>
+                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
+                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat}.docx`)}
+                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                >
+                  <span>Unduh Dokumen</span>
+                </button>
+                <button
+                  onClick={() => setViewingApprovedLetter(null)}
+                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

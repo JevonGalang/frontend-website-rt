@@ -76,7 +76,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             </button>
 
             {/* Auth Controls */}
-            {currentUser ? (
+            {currentUser && (
               <div className="flex items-center gap-3 ml-2 border-l border-[var(--color-hairline)] pl-3">
                 <span className="text-xs font-bold text-[var(--color-body-text)]">
                   Hi, {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
@@ -93,13 +93,6 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                   Keluar
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => handleNavClick('beranda')}
-                className="ml-3 px-4 py-1.5 bg-[var(--color-primary-wf)] hover:opacity-90 text-[var(--color-on-primary-wf)] font-bold text-xs rounded-sm shadow-xs cursor-pointer transition-all"
-              >
-                Login Portal
-              </button>
             )}
           </div>
 
@@ -152,7 +145,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             ))}
 
           {/* Auth Controls for Mobile */}
-          {currentUser ? (
+          {currentUser && (
             <div className="pt-3 mt-3 border-t border-[var(--color-hairline)] px-4 space-y-3">
               <div className="text-xs font-bold text-[var(--color-ink)]">
                 Nama Sesi: {currentUser.name}
@@ -168,18 +161,6 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"
               >
                 Keluar Portal
-              </button>
-            </div>
-          ) : (
-            <div className="pt-3 mt-3 border-t border-[var(--color-hairline)] px-4">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  handleNavClick('beranda');
-                }}
-                className="w-full py-2.5 bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"
-              >
-                Login Portal
               </button>
             </div>
           )}
