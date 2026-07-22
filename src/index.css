@@ -119,6 +119,16 @@
 .border-emerald-100, .border-emerald-100\/30, .border-emerald-500\/20, .border-emerald-500\/30 {
   border-color: var(--color-hairline) !important;
 }
+/* Generic catch-alls: map any remaining utility classes that include emerald- */
+[class*="text-emerald-"] {
+  color: var(--color-primary-wf) !important;
+}
+[class*="bg-emerald-"] {
+  background-color: var(--color-primary-wf) !important;
+}
+[class*="border-emerald-"] {
+  border-color: var(--color-hairline) !important;
+}
 
 
 .dark .text-white[class*="bg-emerald-"],
