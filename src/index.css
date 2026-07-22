@@ -1,64 +1,30 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary-wf: #080808;
+  --color-primary-wf: #059669;
   --color-on-primary-wf: #ffffff;
-  --color-ink: #080808;
-  --color-ink-strong: #222222;
-  --color-body-text: #363636;
-  --color-body-mid: #5a5a5a;
-  --color-mute: #898989;
-  --color-mute-soft: #ababab;
-  --color-hairline: #d8d8d8;
-  --color-canvas: #ffffff;
+  --color-ink: #0f172a;
+  --color-ink-strong: #020617;
+  --color-body-text: #334155;
+  --color-body-mid: #475569;
+  --color-mute: #64748b;
+  --color-mute-soft: #94a3b8;
+  --color-hairline: #e2e8f0;
+  --color-canvas: #f8fafc;
 
   --color-accent-purple: #7a3dff;
   --color-accent-pink: #ed52cb;
-  --color-accent-blue: #3b89ff;
-  --color-accent-blue-deep: #006acc;
-  --color-accent-blue-info: #146ef5;
-  --color-accent-orange: #ff6b00;
-  --color-accent-green: #00d722;
-  --color-accent-yellow: #ffae13;
-  --color-accent-red: #ee1d36;
-
-  /* Override standard Tailwind Emerald classes to brand primary */
-  --color-emerald-50: #f8fafc;
-  --color-emerald-100: #f1f5f9;
-  --color-emerald-200: #cbd5e1;
-  --color-emerald-300: #94a3b8;
-  --color-emerald-400: #475569;
-  --color-emerald-500: #080808;
-  --color-emerald-600: #080808;
-  --color-emerald-700: #222222;
-  --color-emerald-800: #333333;
-  --color-emerald-900: #111111;
-  --color-emerald-950: #080808;
-
-  /* Override standard Tailwind Teal classes to brand primary */
-  --color-teal-50: #f8fafc;
-  --color-teal-100: #f1f5f9;
-  --color-teal-200: #cbd5e1;
-  --color-teal-300: #94a3b8;
-  --color-teal-400: #080808;
-  --color-teal-500: #080808;
-  --color-teal-600: #080808;
-  --color-teal-700: #222222;
-  --color-teal-800: #333333;
-  --color-teal-900: #111111;
-  --color-teal-950: #080808;
-
-  /* Override standard border radiuses to match Webflow geometry */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
-  --radius-xl: 8px;
-  --radius-2xl: 8px;
-  --radius-3xl: 8px;
+  --color-accent-blue: #2563eb;
+  --color-accent-blue-deep: #1d4ed8;
+  --color-accent-blue-info: #0284c7;
+  --color-accent-orange: #ea580c;
+  --color-accent-green: #059669;
+  --color-accent-teal: #0d9488;
+  --color-accent-yellow: #d97706;
+  --color-accent-red: #dc2626;
 
   --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   
@@ -75,67 +41,16 @@
 }
 
 .dark {
-  --color-primary-wf: #ffffff;
-  --color-on-primary-wf: #080808;
-  --color-ink: #ffffff;
-  --color-ink-strong: #f1f5f9;
+  --color-primary-wf: #10b981;
+  --color-on-primary-wf: #ffffff;
+  --color-ink: #f8fafc;
+  --color-ink-strong: #ffffff;
   --color-body-text: #cbd5e1;
   --color-body-mid: #94a3b8;
   --color-mute: #64748b;
   --color-mute-soft: #475569;
-  --color-hairline: #222222;
-  --color-canvas: #080808;
-
-  --color-emerald-50: #080808;
-  --color-emerald-100: #1e293b;
-  --color-emerald-200: #334155;
-  --color-emerald-300: #475569;
-  --color-emerald-400: #64748b;
-  --color-emerald-500: #ffffff;
-  --color-emerald-600: #ffffff;
-  --color-emerald-700: #cbd5e1;
-  --color-emerald-800: #cbd5e1;
-  --color-emerald-950: #080808;
-
-  --color-teal-50: #080808;
-  --color-teal-100: #1e293b;
-  --color-teal-200: #334155;
-  --color-teal-300: #475569;
-  --color-teal-400: #ffffff;
-  --color-teal-500: #ffffff;
-  --color-teal-600: #ffffff;
-  --color-teal-700: #cbd5e1;
-  --color-teal-800: #cbd5e1;
-  --color-teal-955: #080808;
-}
-
-/* Quick overrides: ensure existing Tailwind emerald utilities follow brand primary variables */
-.text-emerald-400, .text-emerald-600, .text-emerald-455, .text-emerald-450 {
-  color: var(--color-primary-wf) !important;
-}
-.bg-emerald-500, .bg-emerald-500\/10, .bg-emerald-500\/20, .bg-emerald-500\/15, .bg-emerald-50, .bg-emerald-50\/50, .bg-emerald-450 {
-  background-color: var(--color-primary-wf) !important;
-}
-.border-emerald-100, .border-emerald-100\/30, .border-emerald-500\/20, .border-emerald-500\/30 {
-  border-color: var(--color-hairline) !important;
-}
-/* Generic catch-alls: map any remaining utility classes that include emerald- */
-[class*="text-emerald-"] {
-  color: var(--color-primary-wf) !important;
-}
-[class*="bg-emerald-"] {
-  background-color: var(--color-primary-wf) !important;
-}
-[class*="border-emerald-"] {
-  border-color: var(--color-hairline) !important;
-}
-
-
-.dark .text-white[class*="bg-emerald-"],
-.dark .text-white[class*="bg-teal-"],
-.dark .text-white[class*="from-emerald-"],
-.dark .text-white[class*="from-teal-"] {
-  color: var(--color-on-primary-wf) !important;
+  --color-hairline: #1e293b;
+  --color-canvas: #020617;
 }
 
 html {
@@ -149,31 +64,75 @@ body {
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Custom scrollbar to match theme */
-::-webkit-scrollbar {
-  width: 8px;
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-.dark ::-webkit-scrollbar-track {
-  background: #080808;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 4px;
-}
-.dark ::-webkit-scrollbar-thumb {
-  background: #222222;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #333333;
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
 }
 
-/* Wizard animations */
+/* Sleek custom sidebar scrollbar */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 5px !important;
+  display: block !important;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: rgba(2, 6, 23, 0.3) !important;
+  border-radius: 9999px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(16, 185, 129, 0.5) !important;
+  border-radius: 9999px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.85) !important;
+}
+.sidebar-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(16, 185, 129, 0.5) rgba(2, 6, 23, 0.3) !important;
+}
+
+/* Light Mode Enhancement Helpers */
+.light-mode-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 20px -2px rgba(5, 150, 105, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+}
+
+.dark .light-mode-card {
+  background-color: #0f172a;
+  border-color: #1e293b;
+  box-shadow: none;
+}
+
+/* Single clean primary scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #020617;
+}
+::-webkit-scrollbar-thumb {
+  background: #059669;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #10b981;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #047857;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #059669;
+}
+
+/* Animations */
 @keyframes slide-in-right {
   from {
     opacity: 0;
@@ -209,9 +168,9 @@ body {
 }
 
 .animate-pulse-slow {
-  animation: pulse-slow 2s ease-in-out infinite;
+  animation: pulse-slow 2.5s ease-in-out infinite;
 }
 
 .animate-bounce-slow {
-  animation: bounce-slow 2s ease-in-out infinite;
+  animation: bounce-slow 2.5s ease-in-out infinite;
 }

@@ -1463,33 +1463,33 @@ export default function ProfilWarga({
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
-      {/* 1. SIDEBAR */}
-      <aside className="w-full md:w-64 bg-[var(--color-accent-green)]/10 dark:bg-[var(--color-accent-green)]/25 text-slate-900 dark:text-white border-r border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/40 flex flex-col flex-shrink-0">
+      {/* 1. SIDEBAR - Dual Mode Adaptive */}
+      <aside className="w-full md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-6 border-b border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/50 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-tr from-[var(--color-accent-green)] to-teal-400 rounded-xl text-white">
+        <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-tr from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md shadow-emerald-500/20">
             <Landmark className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="font-extrabold text-sm text-white tracking-tight leading-tight">Warga Portal</h1>
-            <span className="text-[9px] text-white/80 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
+            <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
+            <span className="text-[9px] text-emerald-700 dark:text-emerald-300 uppercase font-extrabold tracking-widest leading-none">RT 05 / RW 06</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-[var(--color-accent-green)]/10 dark:bg-[var(--color-accent-green)]/20 rounded-2xl border border-[var(--color-accent-green)]/20 dark:border-[var(--color-accent-green)]/40 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/20 text-white font-bold flex items-center justify-center text-xs uppercase">
+        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
             {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-white truncate">{displayNama}</p>
-            <p className="text-[9px] text-white/80 font-semibold uppercase tracking-wider">Warga Portal</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
+            <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-250px)]">
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar">
           
           {/* Dashboard Button */}
           <button
@@ -1808,10 +1808,10 @@ export default function ProfilWarga({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-grow flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto max-h-screen">
+      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
         {/* Dynamic Header Ribbon */}
-        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
           <div className="flex flex-col font-sans">
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}
@@ -1862,53 +1862,74 @@ export default function ProfilWarga({
         </header>
 
         {/* 3. SCROLL CONTENT AREA */}
-        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">
-          
-          {/* TAB 1: Dashboard View */}
+        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">          {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 dark:from-emerald-950/70 dark:via-teal-950/70 dark:to-emerald-950/50 border border-emerald-500/20 dark:border-emerald-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-emerald-500/10 dark:bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="space-y-1.5 z-10">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-emerald-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 dark:border-white/20">
+                  Portal Mandiri Warga RT 05
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
+                {activeTab === 'dashboard' && `Selamat Datang Kembali, ${currentUser.name}! 👋`}
+                {activeTab === 'profil_saya' && 'Profil Mandiri & Biodata Warga 👤'}
+                {activeTab === 'keluarga_saya' && 'Daftar Anggota Keluarga Saya 👨‍👩‍👧‍👦'}
+                {activeTab === 'warga_upload_berkas' && 'Upload Berkas Kependudukan Mandiri 📤'}
+                {activeTab === 'informasi_pengumuman' && 'Pengumuman & Berita RT 05 📢'}
+                {activeTab === 'informasi_jadwal' && 'Penjadwalan Kegiatan & Gotong Royong 🗓️'}
+                {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus RT 05 📞'}
+                {activeTab === 'iuran_tagihan' && 'Rincian Tagihan Iuran Bulanan 💳'}
+                {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Pembayaran Iuran 📊'}
+                {activeTab === 'iuran_upload' && 'Form Upload Bukti Pembayaran 📲'}
+                {activeTab === 'layanan_ajukan' && 'Loket Pengajuan Surat Pengantar 📝'}
+                {activeTab === 'layanan_status' && 'Status Layanan Pengajuan Surat 📄'}
+                {activeTab === 'pengaduan' && 'Laporan Pengaduan & Aspirasi Lingkungan 🔔'}
+                {activeTab === 'dokumen' && 'Arsip Dokumen & AD/ART RT 05 📁'}
+                {activeTab === 'notifikasi' && 'Kotak Masuk Notifikasi System 📩'}
+                {activeTab === 'pengaturan' && 'Pengaturan Akun & Kata Sandi 🔑'}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-emerald-100 max-w-xl leading-relaxed font-medium">
+                Akses seluruh layanan RT 05 secara mandiri, transparan, dan mudah dari perangkat Anda.
+              </p>
+            </div>
+            <div className="px-4 py-2 bg-emerald-600 dark:bg-white/20 hover:bg-emerald-700 dark:hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-md border border-emerald-500/30 dark:border-white/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
+              <Landmark className="w-4 h-4 text-white dark:text-emerald-300" />
+              <span>RT 05 / RW 06</span>
+            </div>
+          </div>
           {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-fade-in font-sans">
               
-              {/* Welcome banner card */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                <div className="space-y-2 z-10">
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">Selamat datang kembali, {currentUser.name}! 👋</h3>
-                  <p className="text-xs text-slate-400 max-w-lg leading-relaxed">Pantau iuran bulanan Anda secara transparan, ajukan surat pengantar mandiri, dan dapatkan pengumuman RT 05 terupdate dalam satu dasbor.</p>
-                </div>
-                <div className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/10 flex items-center gap-2">
-                  <Landmark className="w-4 h-4" />
-                  <span>Blok: {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'Belum diisi'}</span>
-                </div>
-              </div>
-
               {/* Quick statistics widgets grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className={`p-4 rounded-2xl ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className={`p-4 rounded-2xl text-white shadow-md ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
                     <Wallet className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Iuran Kas RT</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Iuran Kas RT</span>
                     <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{currentUser.statusIuran || 'Lunas'}</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-2xl">
+                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white dark:from-sky-950/40 dark:to-slate-900 border border-sky-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-4 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-2xl shadow-md shadow-sky-500/30">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Surat Pengantar</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Pengantar</span>
                     <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{mySubmissions.length} Diajukan</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl">
+                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl shadow-md shadow-purple-500/30">
                     <Calendar className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Kegiatan RT</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Kegiatan RT</span>
                     <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{agendaList.length} Terjadwal</span>
                   </div>
                 </div>
