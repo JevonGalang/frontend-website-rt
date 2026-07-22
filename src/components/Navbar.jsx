@@ -33,7 +33,9 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             <div className="p-2 bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] rounded-sm shadow-xs flex items-center">
               <Landmark className="w-4 h-4" />
             </div>
-            <img src={logoGSP} alt="Logo GSP" className="w-9 h-9 object-cover rounded-full border border-[var(--color-hairline)] shadow-xs" />
+            <div className="rounded-full p-0.5 bg-[var(--color-primary-wf)]">
+              <img src={logoGSP} alt="Logo GSP" className="w-8 h-8 object-cover rounded-full border border-[var(--color-hairline)] shadow-xs" />
+            </div>
             <div className="leading-tight">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-[var(--color-ink)] block">
                 Sawangan Green Park
