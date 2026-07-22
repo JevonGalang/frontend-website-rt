@@ -109,6 +109,18 @@
   --color-teal-955: #080808;
 }
 
+/* Quick overrides: ensure existing Tailwind emerald utilities follow brand primary variables */
+.text-emerald-400, .text-emerald-600, .text-emerald-455, .text-emerald-450 {
+  color: var(--color-primary-wf) !important;
+}
+.bg-emerald-500, .bg-emerald-500\/10, .bg-emerald-500\/20, .bg-emerald-500\/15, .bg-emerald-50, .bg-emerald-50\/50, .bg-emerald-450 {
+  background-color: var(--color-primary-wf) !important;
+}
+.border-emerald-100, .border-emerald-100\/30, .border-emerald-500\/20, .border-emerald-500\/30 {
+  border-color: var(--color-hairline) !important;
+}
+
+
 .dark .text-white[class*="bg-emerald-"],
 .dark .text-white[class*="bg-teal-"],
 .dark .text-white[class*="from-emerald-"],
