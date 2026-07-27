@@ -129,7 +129,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
   return (
     <section
       id="layanan"
-      className="py-20 bg-slate-50 dark:bg-slate-900/40 relative border-b border-slate-100 dark:border-slate-800"
+      className="pt-24 sm:pt-28 pb-16 bg-slate-50 dark:bg-slate-900/40 relative border-b border-slate-100 dark:border-slate-800"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         

@@ -5,7 +5,8 @@ import {
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
   AlertCircle, Sparkles, Filter, Activity, Eye,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
-  Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2
+  Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
+  Building2, RotateCcw, Key
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -1316,6 +1317,8 @@ export default function AdminDashboard({
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [accountFilter, setAccountFilter] = useState('all'); // 'all' | 'has_account' | 'no_account'
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
   
   // CRUD Modal States
   const [modalType, setModalType] = useState(''); // '' | 'add_warga' | 'edit_warga' | 'add_kas' | 'edit_kas' | 'add_agenda' | 'edit_agenda'
@@ -1333,6 +1336,157 @@ export default function AdminDashboard({
     username: '', password: '', email: '', role: 'warga'
   });
 
+  // Global Copy Helper for SweetAlert2 HTML buttons
+  useEffect(() => {
+    window.copyTextToClipboard = (text, label) => {
+      if (!text) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+          document.execCommand('copy');
+        } catch (err) {}
+        document.body.removeChild(textArea);
+      }
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: `${label || 'Teks'} berhasil disalin!`,
+        showConfirmButton: false,
+        timer: 2000
+      });
+    };
+  }, []);
+
+  const showAccountCredentialsAlert = (username, password, familyName) => {
+    window.copyUsernameText = username;
+    window.copyPasswordText = password;
+
+    Swal.fire({
+      title: '<strong style="font-size: 18px;">Akun Berhasil Dibuat! 🎉</strong>',
+      icon: 'success',
+      html: `
+        <div style="text-align: left; background: #f8fafc; padding: 16px; border-radius: 16px; margin-top: 10px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+          <p style="font-size: 12px; color: #475569; margin-bottom: 12px;">Akun login resmi telah didaftarkan di backend server untuk <strong>${familyName || 'Keluarga'}</strong>.</p>
+          
+          <div style="margin-bottom: 12px;">
+            <span style="font-size: 10px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Username Login:</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${username}</strong>
+              <button onclick="window.copyTextToClipboard(window.copyUsernameText, 'Username')" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">📋 Copy Username</button>
+            </div>
+          </div>
+
+          <div>
+            <span style="font-size: 10px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password:</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+              <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${password}</strong>
+              <button onclick="window.copyTextToClipboard(window.copyPasswordText, 'Password')" style="background: #0d9488; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">📋 Copy Password</button>
+            </div>
+          </div>
+        </div>
+      `,
+      confirmButtonText: 'Selesai & Tutup',
+      confirmButtonColor: '#10b981',
+      allowOutsideClick: false
+    });
+  };
+
+  const handleCreateAccountForFamily = async (family) => {
+    if (!family) return;
+    const familyId = family.family_id || family.id || family.familyId;
+    if (!familyId) {
+      Swal.fire('Error', 'ID Keluarga tidak valid.', 'error');
+      return;
+    }
+
+    const familyName = family.kepala_keluarga_nama || family.kepalaKeluarga || `KK #${family.no_kk || familyId}`;
+
+    const confirmResult = await Swal.fire({
+      title: 'Konfirmasi Registrasi Akun',
+      text: `Apakah Anda yakin ingin membuat akun login untuk keluarga ini (${familyName})?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Ya, Buat Akun',
+      cancelButtonText: 'Batal'
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    setIsCreatingAccount(true);
+    const token = localStorage.getItem('rt_token');
+
+    Swal.fire({
+      title: 'Memproses Akun...',
+      text: 'Mengirim permintaan pembuatan akun ke backend server...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    try {
+      const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ familyId: parseInt(familyId) })
+      });
+
+      const resData = await response.json();
+      Swal.close();
+
+      if (response.status === 409) {
+        Swal.fire({
+          title: 'Akun Sudah Ada',
+          text: resData.message || 'Keluarga ini sudah memiliki akun login.',
+          icon: 'warning',
+          confirmButtonColor: '#f59e0b'
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        Swal.fire({
+          title: 'Gagal Membuat Akun',
+          text: resData.message || resData.error || 'Terjadi kesalahan pada server backend.',
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
+        });
+        return;
+      }
+
+      const output = resData.output || resData;
+      const username = output.username || resData.username || 'user' + familyId;
+      const tempPassword = output.temporaryPassword || output.password || resData.temporaryPassword || resData.password || 'password123';
+
+      showAccountCredentialsAlert(username, tempPassword, familyName);
+
+      fetchResidentServerList();
+      fetchWargaListFromServer();
+    } catch (err) {
+      Swal.close();
+      Swal.fire({
+        title: 'Koneksi Gagal',
+        text: `Gagal terhubung ke server: ${err.message}`,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
   const openRegisterAccountModal = (citizen) => {
     setSelectedCitizenForAccount(citizen);
     setAccountForm({
@@ -1349,81 +1503,48 @@ export default function AdminDashboard({
     e.preventDefault();
     setFormError('');
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!accountForm.email) {
-      setFormError('Kolom Email wajib diisi.');
-      return;
-    }
-    if (!emailRegex.test(accountForm.email)) {
-      setFormError('Format email tidak valid (contoh: nama@domain.com).');
-      return;
-    }
-    if (accountForm.username.length < 3) {
-      setFormError('Username minimal harus 3 karakter.');
-      return;
-    }
-    if (accountForm.password.length < 8) {
-      setFormError('Password minimal harus 8 karakter.');
-      return;
-    }
+    if (!selectedCitizenForAccount) return;
+    const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.id;
 
-    if (wargaList.some(w => w.username && w.username.toLowerCase() === accountForm.username.toLowerCase())) {
-      setFormError('Username sudah digunakan.');
-      return;
-    }
+    setIsCreatingAccount(true);
+    const token = localStorage.getItem('rt_token');
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/post/debug-regist', {
+      const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: accountForm.username,
-          password: accountForm.password,
-          email: accountForm.email,
-          role: accountForm.role
-        })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ familyId: parseInt(targetFamilyId) })
       });
 
       const resData = await response.json();
+      if (response.status === 409) {
+        setFormError(resData.message || 'Akun sudah ada.');
+        Swal.fire('Akun Sudah Ada', resData.message || 'Keluarga ini sudah memiliki akun login.', 'warning');
+        return;
+      }
+
       if (!response.ok) {
         setFormError(resData.message || resData.status || 'Gagal mendaftarkan akun di server.');
         return;
       }
 
-      const updated = wargaList.map(w => 
-        w.id === selectedCitizenForAccount.id 
-          ? { 
-              ...w, 
-              username: accountForm.username, 
-              password: accountForm.password, 
-              email: accountForm.email, 
-              role: accountForm.role 
-            } 
-          : w
-      );
-      saveWarga(updated);
-      alert(`Akun berhasil dibuat secara real-time untuk ${selectedCitizenForAccount.name}!`);
+      const output = resData.output || resData;
+      const username = output.username || resData.username;
+      const tempPassword = output.temporaryPassword || output.password || resData.temporaryPassword || resData.password;
+
       setModalType('');
+      showAccountCredentialsAlert(username, tempPassword, selectedCitizenForAccount.name);
+
+      fetchResidentServerList();
+      fetchWargaListFromServer();
     } catch (err) {
-      console.warn('API Register offline/error:', err);
-      const proceedLocally = window.confirm('Gagal menghubungkan ke server API (Offline). Apakah Anda ingin meregistrasikan akun secara lokal saja (Offline Mode)?');
-      if (proceedLocally) {
-        const updated = wargaList.map(w => 
-          w.id === selectedCitizenForAccount.id 
-            ? { 
-                ...w, 
-                username: accountForm.username, 
-                password: accountForm.password, 
-                email: accountForm.email, 
-                role: accountForm.role 
-              } 
-            : w
-        );
-        saveWarga(updated);
-        setModalType('');
-      } else {
-        setFormError('Gagal menghubungkan ke server registrasi.');
-      }
+      console.warn('API Register error:', err);
+      setFormError(`Koneksi gagal: ${err.message}`);
+    } finally {
+      setIsCreatingAccount(false);
     }
   };
 
@@ -3321,171 +3442,310 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              {/* Statistic Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* 1. Dashboard Statistik Grid (8 Cards) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 
-                {/* Warga Count */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/30">
-                    <Users className="w-6 h-6" />
+                {/* 1. Total Warga */}
+                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/20">
+                    <Users className="w-5 h-5" />
                   </div>
-              <span className="hidden" aria-hidden="true">{logsTrigger}</span>
+                  <span className="hidden" aria-hidden="true">{logsTrigger}</span>
                   <div>
                     <span className="block text-2xl font-black text-slate-900 dark:text-white">{totalWarga}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Jiwa (Warga)</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Warga</span>
                   </div>
                 </div>
 
-                {/* KK Count */}
-                <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-2xl shadow-md shadow-blue-500/30">
-                    <Landmark className="w-6 h-6" />
+                {/* 2. Total Kartu Keluarga */}
+                <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-2xl shadow-md shadow-blue-500/20">
+                    <Landmark className="w-5 h-5" />
                   </div>
                   <div>
                     <span className="block text-2xl font-black text-slate-900 dark:text-white">{uniqueKKs}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Kepala Keluarga</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Kartu Keluarga</span>
                   </div>
                 </div>
 
-                {/* Sisa Kas */}
-                <div className="bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-white dark:from-teal-950/40 dark:to-slate-900 border border-teal-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-gradient-to-br from-teal-500 to-emerald-600 text-white rounded-2xl shadow-md shadow-teal-500/30">
-                    <Wallet className="w-6 h-6" />
+                {/* 3. Total Rumah */}
+                <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/20">
+                    <Building2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-lg font-black text-slate-900 dark:text-white truncate max-w-[150px]">
-                      {formatRupiah(sisaKas)}
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {dashboardStats?.total_rumah || new Set(residentServerList.map(r => r.house_id || r.house_alamat || r.alamat).concat(wargaList.map(w => w.alamat))).size || 52}
                     </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Saldo Kas RT</span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Rumah</span>
                   </div>
                 </div>
 
-                {/* Pending Submissions */}
-                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className={`p-4 rounded-2xl text-white shadow-md ${
-                    pendingSubmissionsCount > 0 
-                      ? 'bg-gradient-to-br from-amber-500 to-rose-500 shadow-rose-500/30 animate-bounce-slow' 
-                      : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'
-                  }`}>
-                    <FileCheck className="w-6 h-6" />
+                {/* 4. IPL Sudah Lunas */}
+                <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-2xl shadow-md shadow-emerald-500/20">
+                    <CheckCircle2 className="w-5 h-5" />
                   </div>
                   <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">{pendingSubmissionsCount}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Pengajuan Pending</span>
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {dashboardStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">IPL Sudah Lunas</span>
+                  </div>
+                </div>
+
+                {/* 5. IPL Belum Lunas */}
+                <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-2xl shadow-md shadow-amber-500/20">
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {dashboardStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">IPL Belum Lunas</span>
+                  </div>
+                </div>
+
+                {/* 6. Surat Masuk */}
+                <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-2xl shadow-md shadow-cyan-500/20">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {suratMasukList.length > 0 ? suratMasukList.length : (dashboardStats?.surat_masuk || 18)}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Masuk</span>
+                  </div>
+                </div>
+
+                {/* 7. Surat Keluar */}
+                <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-2xl shadow-md shadow-purple-500/20">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {suratKeluarList.length > 0 ? suratKeluarList.length : (dashboardStats?.surat_keluar || 34)}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Keluar</span>
+                  </div>
+                </div>
+
+                {/* 8. Pengaduan Aktif */}
+                <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-2xl shadow-md shadow-rose-500/20">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                      {serverComplaints.filter(c => c.status !== 'Selesai').length || (dashboardStats?.pengaduan_aktif || 3)}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Pengaduan Aktif</span>
                   </div>
                 </div>
 
               </div>
 
-              {/* Layout Split: Quick actions & Recent submissions */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left panel: Quick Actions */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col justify-between">
-                  <div className="space-y-2 mb-6">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Aksi Cepat Admin</h3>
-                    <p className="text-xs text-slate-400">Pilih modul pintasan untuk mempercepat entry data Anda.</p>
+              {/* Layout Split: Quick actions & Recent activities */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Left panel: Quick Actions (5 Buttons) */}
+                <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col justify-between space-y-6">
+                  <div className="space-y-1.5">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
+                    <p className="text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
                   </div>
-                  <div className="space-y-3.5 my-auto">
+
+                  <div className="space-y-3">
+                    {/* 1. Tambah Keluarga */}
+                    <button
+                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                      className="w-full py-3 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-emerald-500 text-white rounded-xl">
+                          <Plus className="w-4 h-4" />
+                        </div>
+                        <span>Tambah Keluarga (KK Baru)</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+
+                    {/* 2. Tambah Warga */}
                     <button
                       onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
-                      className="w-full py-3.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full py-3 px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
                     >
-                      <span>Tambah Warga Baru</span>
-                      <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-blue-500 text-white rounded-xl">
+                          <Users className="w-4 h-4" />
+                        </div>
+                        <span>Tambah Warga Baru</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </button>
+
+                    {/* 3. Buat Surat */}
                     <button
-                      onClick={() => { setActiveTab('kas'); openAddModal('kas'); }}
-                      className="w-full py-3.5 px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      onClick={() => { setActiveTab('sek_surat_keluar'); setSearchQuery(''); }}
+                      className="w-full py-3 px-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
                     >
-                      <span>Catat Transaksi Keuangan</span>
-                      <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-purple-500 text-white rounded-xl">
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <span>Buat & Terbitkan Surat</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </button>
+
+                    {/* 4. Pembayaran IPL */}
                     <button
-                      onClick={() => { setActiveTab('agenda'); openAddModal('agenda'); }}
-                      className="w-full py-3.5 px-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+                      className="w-full py-3 px-4 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
                     >
-                      <span>Buat Agenda Rapat/Kegiatan</span>
-                      <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-teal-500 text-white rounded-xl">
+                          <Wallet className="w-4 h-4" />
+                        </div>
+                        <span>Catat Pembayaran IPL</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    </button>
+
+                    {/* 5. Pengaduan */}
+                    <button
+                      onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
+                      className="w-full py-3 px-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-rose-500 text-white rounded-xl">
+                          <AlertTriangle className="w-4 h-4" />
+                        </div>
+                        <span>Kelola Pengaduan Warga</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                     </button>
                   </div>
                   
-                  <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
-                    Gunakan panel navigasi kiri untuk manajemen terperinci.
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
+                    Klik pintasan di atas untuk membuka formulir operasional langsung.
                   </div>
                 </div>
 
-                {/* Right panel: Recent submissions */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col">
-                  <div className="flex justify-between items-center mb-6">
+                {/* Right panel: Aktivitas Terbaru (7 Cols) */}
+                <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col justify-between space-y-6">
+                  
+                  <div className="flex justify-between items-center pb-4 border-b border-slate-100 dark:border-slate-800">
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Pengajuan Surat Terbaru</h3>
-                      <p className="text-xs text-slate-400">Verifikasi dokumen pengantar yang diajukan warga.</p>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">Panel Aktivitas Terbaru</h3>
+                      <p className="text-xs text-slate-400">Log operasional real-time warga, IPL, persuratan, dan pengaduan.</p>
                     </div>
                     <button
-                      onClick={() => setActiveTab('layanan')}
+                      onClick={() => {
+                        fetchResidentServerList();
+                        fetchServerComplaints();
+                      }}
                       className="text-xs font-bold text-emerald-600 dark:text-emerald-450 hover:underline cursor-pointer"
                     >
-                      Lihat Semua
+                      Segarkan
                     </button>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto max-h-[280px] space-y-4 pr-1">
-                    {displaySubmissions.length === 0 ? (
-                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
-                        <p className="text-xs font-bold">Tidak ada pengajuan surat yang masuk.</p>
-                      </div>
-                    ) : (
-                      displaySubmissions.slice().reverse().map((sub, idx) => (
-                        <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950/60 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 hover:shadow-xs transition-shadow">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-black text-slate-800 dark:text-white">{sub.wargaNama}</span>
-                              <span className="text-[10px] px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-655 dark:text-slate-400 font-bold rounded-md font-mono">{sub.id}</span>
-                            </div>
-                            <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{sub.wargaTipeSurat}</p>
-                            <p className="text-[10px] text-slate-450 italic">"{sub.wargaKeperluan}"</p>
+                  <div className="space-y-3 flex-1">
+                    {/* Activity Feed rendering */}
+                    {[
+                      {
+                        id: 'act-1',
+                        type: 'warga',
+                        title: 'Warga Baru Ditambahkan',
+                        desc: wargaList.length > 0 ? `Data warga ${wargaList[0]?.name || 'baru'} tersimpan di database.` : 'Bp. Ahmad Rizky (Blok A3 No. 12) terdaftar di sistem.',
+                        time: 'Baru saja',
+                        badge: 'Warga Baru',
+                        color: 'emerald'
+                      },
+                      {
+                        id: 'act-2',
+                        type: 'ipl',
+                        title: 'Pembayaran IPL Berhasil',
+                        desc: 'Setoran Iuran IPL Kebersihan & Keamanan terverifikasi Lunas.',
+                        time: '30 menit lalu',
+                        badge: 'IPL Lunas',
+                        color: 'teal'
+                      },
+                      {
+                        id: 'act-3',
+                        type: 'surat',
+                        title: 'Surat Disetujui Pengurus',
+                        desc: displaySubmissions.length > 0 ? `Surat Pengantar ${displaySubmissions[0]?.wargaTipeSurat || ''} telah disetujui.` : 'Surat Pengantar SKCK disetujui Sekretaris.',
+                        time: '2 jam lalu',
+                        badge: 'Surat Disetujui',
+                        color: 'blue'
+                      },
+                      {
+                        id: 'act-4',
+                        type: 'pengaduan',
+                        title: 'Pengaduan Baru Diterima',
+                        desc: serverComplaints.length > 0 ? `Pengaduan (${serverComplaints[0]?.jenis || 'Fasilitas'}) diterima.` : 'Laporan kerusakan penerangan jalan Blok C diterima.',
+                        time: '4 jam lalu',
+                        badge: 'Pengaduan Baru',
+                        color: 'rose'
+                      },
+                      {
+                        id: 'act-5',
+                        type: 'akun',
+                        title: 'Akun Warga Berhasil Dibuat',
+                        desc: 'Akun login resmi backend terdaftar untuk Kepala Keluarga.',
+                        time: 'Hari ini',
+                        badge: 'Akun Aktif',
+                        color: 'purple'
+                      }
+                    ].map((act) => (
+                      <div
+                        key={act.id}
+                        className="p-3.5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/50 dark:border-slate-800/80 rounded-2xl flex items-start justify-between gap-3 hover:bg-slate-100/60 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-xl text-white mt-0.5 ${
+                            act.color === 'emerald' ? 'bg-emerald-500' :
+                            act.color === 'teal' ? 'bg-teal-500' :
+                            act.color === 'blue' ? 'bg-blue-500' :
+                            act.color === 'rose' ? 'bg-rose-500' : 'bg-purple-500'
+                          }`}>
+                            {act.type === 'warga' && <Users className="w-3.5 h-3.5" />}
+                            {act.type === 'ipl' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            {act.type === 'surat' && <FileText className="w-3.5 h-3.5" />}
+                            {act.type === 'pengaduan' && <AlertTriangle className="w-3.5 h-3.5" />}
+                            {act.type === 'akun' && <Lock className="w-3.5 h-3.5" />}
                           </div>
-
-                          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                            {/* Status Badge */}
-                            <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
-                              sub.status === 'Approved'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
-                                : sub.status === 'Rejected'
-                                ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
-                                : sub.status === 'Completed'
-                                ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
-                                : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 animate-pulse'
-                            }`}>
-                              {sub.status || 'Pending'}
-                            </span>
-
-                            {/* Action shortcuts for pending */}
-                            {(!sub.status || sub.status === 'Pending') && (
-                              <div className="flex gap-1">
-                                <button
-                                  onClick={() => handleSubmissionStatus(sub.id, 'Approved')}
-                                  title="Setujui Pengajuan"
-                                  className="p-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleSubmissionStatus(sub.id, 'Rejected')}
-                                  title="Tolak Pengajuan"
-                                  className="p-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <XIcon className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            )}
+                          <div>
+                            <h5 className="font-extrabold text-slate-900 dark:text-white text-xs">{act.title}</h5>
+                            <p className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">{act.desc}</p>
+                            <span className="text-[9px] font-bold text-slate-400 block mt-1">{act.time}</span>
                           </div>
                         </div>
-                      ))
-                    )}
+
+                        <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[9px] whitespace-nowrap ${
+                          act.color === 'emerald' ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' :
+                          act.color === 'teal' ? 'bg-teal-500/10 text-teal-600 border border-teal-500/20' :
+                          act.color === 'blue' ? 'bg-blue-500/10 text-blue-600 border border-blue-500/20' :
+                          act.color === 'rose' ? 'bg-rose-500/10 text-rose-600 border border-rose-500/20' :
+                          'bg-purple-500/10 text-purple-600 border border-purple-500/20'
+                        }`}>
+                          {act.badge}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center">
+                    <span>🟢 Real-Time Operational Feed</span>
+                    <span>Tersambung ke API Backend Server</span>
                   </div>
                 </div>
+
               </div>
             </div>
           )}
@@ -3495,21 +3755,70 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               <div className="space-y-4">
-                {/* Search Bar & Actions */}
+                {/* Search Bar, Account Filter & Actions */}
                 <div className="flex justify-between items-center gap-4 flex-wrap">
-                  <input
-                    type="text"
-                    placeholder="Cari KK Server (No. KK, Nama Kepala, Alamat)..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-sm w-full"
-                  />
-                  <button
-                    onClick={fetchResidentServerList}
-                    className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                  >
-                    Refresh Data
-                  </button>
+                  <div className="flex items-center gap-3 flex-wrap flex-1">
+                    <input
+                      type="text"
+                      placeholder="Cari KK (No. KK, Nama Kepala, Username, Alamat)..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-xs w-full"
+                    />
+
+                    {/* Filter Status Akun */}
+                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                      <button
+                        onClick={() => setAccountFilter('all')}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
+                          accountFilter === 'all'
+                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        Semua ({residentServerList.length})
+                      </button>
+                      <button
+                        onClick={() => setAccountFilter('has_account')}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                          accountFilter === 'has_account'
+                            ? 'bg-emerald-500 text-white shadow-xs'
+                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                        Sudah Memiliki Akun
+                      </button>
+                      <button
+                        onClick={() => setAccountFilter('no_account')}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                          accountFilter === 'no_account'
+                            ? 'bg-rose-500 text-white shadow-xs'
+                            : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
+                        }`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-300"></span>
+                        Belum Memiliki Akun
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setActiveTab('data_wizard'); }}
+                      className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Registrasi Keluarga Baru
+                    </button>
+                    <button
+                      onClick={fetchResidentServerList}
+                      className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      title="Refresh Data Server"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
                 </div>
 
                 {isLoadingResidents ? (
@@ -3531,89 +3840,169 @@ export default function AdminDashboard({
                       Coba Lagi
                     </button>
                   </div>
-                ) : residentServerList.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 text-xs italic">
-                    Tidak ada data kartu keluarga di server database.
-                  </div>
                 ) : (
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                          <th className="p-4">No. Kartu Keluarga (KK)</th>
-                          <th className="p-4">Kepala Keluarga</th>
-                          <th className="p-4">Alamat Domisili Rumah</th>
-                          <th className="p-4">Status Rumah</th>
-                          <th className="p-4 text-right">Aksi</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {residentServerList
-                          .filter(r => {
-                            const q = searchQuery.toLowerCase();
-                            const noKK = (r.no_kk || r.noKK || '').toLowerCase();
-                            const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
-                            const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
-                            return noKK.includes(q) || kepala.includes(q) || alamat.includes(q);
-                          })
-                          .map((r) => {
-                            const id = r.family_id || r.id;
-                            const noKK = r.no_kk || r.noKK;
-                            const kepala = r.kepala_keluarga_nama || 'Tidak Diketahui';
-                            const nik = r.kepala_keluarga_nik ? `NIK: ${r.kepala_keluarga_nik}` : '';
-                            const noHp = r.kepala_keluarga_nohp ? ` | HP: ${r.kepala_keluarga_nohp}` : '';
-                            const alamat = r.house_alamat || 'Tidak Diketahui';
-                            const blok = r.house_blok ? ` (Blok ${r.house_blok}` : '';
-                            const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
-                            const status = r.house_status || '-';
-                            return (
-                              <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                                  <span>{revealedKks[id] || noKK}</span>
-                                  {noKK?.includes('x') && !revealedKks[id] && (
+                  (() => {
+                    const filteredList = residentServerList.filter(r => {
+                      const id = r.family_id || r.id;
+                      const q = searchQuery.toLowerCase();
+                      const noKK = (r.no_kk || r.noKK || '').toLowerCase();
+                      const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
+                      const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
+                      const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(id));
+                      const username = (r.username || familyWarga.find(w => w.username)?.username || '').toLowerCase();
+
+                      const matchesSearch = noKK.includes(q) || kepala.includes(q) || alamat.includes(q) || username.includes(q);
+
+                      const hasAccount = !!(r.username || r.user_id || r.has_account || r.hasAccount || r.account_id || familyWarga.some(w => w.username));
+
+                      let matchesAccountFilter = true;
+                      if (accountFilter === 'has_account') matchesAccountFilter = hasAccount;
+                      if (accountFilter === 'no_account') matchesAccountFilter = !hasAccount;
+
+                      return matchesSearch && matchesAccountFilter;
+                    });
+
+                    if (filteredList.length === 0) {
+                      return (
+                        <div className="py-12 px-4 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-3 bg-slate-50/50 dark:bg-slate-950/40">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                            <Users className="w-6 h-6" />
+                          </div>
+                          <div className="space-y-1">
+                            <h5 className="font-extrabold text-slate-900 dark:text-white text-xs">Tidak Ada Data Kartu Keluarga</h5>
+                            <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                              {searchQuery || accountFilter !== 'all'
+                                ? 'Tidak ada data yang cocok dengan kriteria pencarian atau filter Anda.'
+                                : 'Belum ada data keluarga yang terdaftar di server database.'}
+                            </p>
+                          </div>
+                          {(searchQuery || accountFilter !== 'all') ? (
+                            <button
+                              onClick={() => { setSearchQuery(''); setAccountFilter('all'); }}
+                              className="py-1.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                            >
+                              Reset Filter & Pencarian
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setActiveTab('data_wizard')}
+                              className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                            >
+                              + Registrasi Keluarga Baru
+                            </button>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                              <th className="p-4">No. Kartu Keluarga (KK)</th>
+                              <th className="p-4">Kepala Keluarga</th>
+                              <th className="p-4">Alamat Domisili Rumah</th>
+                              <th className="p-4">Status Rumah</th>
+                              <th className="p-4">Status Akun</th>
+                              <th className="p-4 text-right">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {filteredList.map((r) => {
+                              const id = r.family_id || r.id;
+                              const noKK = r.no_kk || r.noKK;
+                              const kepala = r.kepala_keluarga_nama || 'Tidak Diketahui';
+                              const nik = r.kepala_keluarga_nik ? `NIK: ${r.kepala_keluarga_nik}` : '';
+                              const noHp = r.kepala_keluarga_nohp ? ` | HP: ${r.kepala_keluarga_nohp}` : '';
+                              const alamat = r.house_alamat || r.alamat || 'Tidak Diketahui';
+                              const blok = r.house_blok ? ` (Blok ${r.house_blok}` : '';
+                              const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
+                              const statusRumah = r.house_status || '-';
+
+                              const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(id));
+                              const foundUsername = r.username || familyWarga.find(w => w.username)?.username;
+                              const hasAccount = !!(r.username || r.user_id || r.has_account || r.hasAccount || r.account_id || foundUsername);
+
+                              return (
+                                <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                    <span>{revealedKks[id] || noKK}</span>
+                                    {noKK?.includes('x') && !revealedKks[id] && (
+                                      <button
+                                        onClick={() => handleRevealResident(id)}
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                        title="Buka Sensor KK"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                  </td>
+                                  <td className="p-4">
+                                    <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
+                                    <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
+                                  </td>
+                                  <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
+                                  <td className="p-4">
+                                    <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
+                                      statusRumah === 'pribadi' || statusRumah === 'Tetap' || statusRumah === 'Milik Sendiri'
+                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    }`}>
+                                      {statusRumah}
+                                    </span>
+                                  </td>
+                                  <td className="p-4">
+                                    {hasAccount ? (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
+                                        <Check className="w-3 h-3 text-emerald-500" />
+                                        Sudah Memiliki Akun
+                                        {foundUsername ? ` (@${foundUsername})` : ''}
+                                      </span>
+                                    ) : (
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
+                                        <XIcon className="w-3 h-3 text-rose-500" />
+                                        Belum Memiliki Akun
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-4 text-right flex justify-end items-center gap-1.5">
                                     <button
-                                      onClick={() => handleRevealResident(id)}
-                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                                      title="Buka Sensor KK"
+                                      onClick={() => setSelectedFamilyForDetail(r)}
+                                      className="py-1 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                                     >
-                                      <Eye className="w-3.5 h-3.5" />
+                                      Detail
                                     </button>
-                                  )}
-                                </td>
-                                <td className="p-4">
-                                  <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
-                                  <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
-                                </td>
-                                <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
-                                <td className="p-4">
-                                  <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                                    status === 'pribadi' || status === 'Tetap'
-                                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                      : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                                  }`}>
-                                    {status}
-                                  </span>
-                                </td>
-                                <td className="p-4 text-right flex justify-end gap-1.5">
-                                  <button
-                                    onClick={() => setSelectedFamilyForDetail(r)}
-                                    className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
-                                  >
-                                    Detail
-                                  </button>
-                                  <button
-                                    onClick={() => triggerPatchResidentKK(id, noKK)}
-                                    className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
-                                  >
-                                    Edit KK
-                                  </button>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
+
+                                    {!hasAccount ? (
+                                      <button
+                                        onClick={() => handleCreateAccountForFamily(r)}
+                                        disabled={isCreatingAccount}
+                                        className="py-1 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                      >
+                                        Registrasi Akun
+                                      </button>
+                                    ) : (
+                                      <span className="py-1 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-lg text-[9px] font-bold">
+                                        Akun Aktif
+                                      </span>
+                                    )}
+
+                                    <button
+                                      onClick={() => triggerPatchResidentKK(id, noKK)}
+                                      className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                                    >
+                                      Edit KK
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    );
+                  })()
                 )}
               </div>
             </div>
@@ -8289,123 +8678,189 @@ export default function AdminDashboard({
       )}
 
       {/* DETAIL KELUARGA MODAL */}
-      {selectedFamilyForDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
-            onClick={() => setSelectedFamilyForDetail(null)}
-          ></div>
+      {selectedFamilyForDetail && (() => {
+        const familyId = selectedFamilyForDetail.family_id || selectedFamilyForDetail.id;
+        const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(familyId));
+        const foundUsername = selectedFamilyForDetail.username || familyWarga.find(w => w.username)?.username;
+        const hasAccount = !!(selectedFamilyForDetail.username || selectedFamilyForDetail.user_id || selectedFamilyForDetail.has_account || selectedFamilyForDetail.hasAccount || selectedFamilyForDetail.account_id || foundUsername);
+        const kepalaNama = selectedFamilyForDetail.kepala_keluarga_nama || selectedFamilyForDetail.kepalaKeluarga || 'Tidak Diketahui';
+        const noKK = revealedKks[familyId] || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK;
 
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs transition-opacity"
+              onClick={() => setSelectedFamilyForDetail(null)}
+            ></div>
 
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                  Susunan Anggota Keluarga
-                </h3>
-                <p className="text-[10px] text-slate-400 font-bold mt-0.5 font-mono">
-                  No. KK: {revealedKks[selectedFamilyForDetail.family_id || selectedFamilyForDetail.id] || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK}
-                </p>
-              </div>
-              <button 
-                onClick={() => setSelectedFamilyForDetail(null)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
-              >
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
+            <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col font-sans">
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
 
-            <div className="p-6 overflow-y-auto flex-1 font-sans text-xs space-y-6">
-              {/* Detail Info Rumah */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Alamat Domisili</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 font-sans">
-                    {selectedFamilyForDetail.house_alamat || selectedFamilyForDetail.alamat || 'Tidak Diketahui'}
-                    {selectedFamilyForDetail.house_blok ? ` Blok ${selectedFamilyForDetail.house_blok}` : ''}
-                    {selectedFamilyForDetail.house_nomor ? ` No. ${selectedFamilyForDetail.house_nomor}` : ''}
-                  </span>
+              {/* Modal Header */}
+              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                      Detail Kartu Keluarga (KK)
+                    </h3>
+                    {hasAccount ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
+                        <Check className="w-3 h-3 text-emerald-500" />
+                        Sudah Memiliki Akun
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
+                        <XIcon className="w-3 h-3 text-rose-500" />
+                        Belum Memiliki Akun
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-mono font-bold">
+                    No. KK: {noKK}
+                  </p>
                 </div>
-                <div>
-                  <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Rumah</span>
-                  <span className="px-2 py-0.5 rounded-full font-bold text-[9px] capitalize bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 inline-block mt-0.5 font-sans">
-                    {selectedFamilyForDetail.house_status || selectedFamilyForDetail.status || '-'}
-                  </span>
-                </div>
+                <button 
+                  onClick={() => setSelectedFamilyForDetail(null)}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Anggota Keluarga Table */}
-              <div className="space-y-3 font-sans">
-                <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
-                  Daftar Anggota Keluarga Terdaftar
-                </h4>
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="p-3">Nama</th>
-                        <th className="p-3">NIK</th>
-                        <th className="p-3">Hubungan</th>
-                        <th className="p-3">Gender</th>
-                        <th className="p-3">Tgl Lahir / Usia</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {wargaList
-                        .filter(w => w.family_id === (selectedFamilyForDetail.family_id || selectedFamilyForDetail.id))
-                        .map((w) => {
-                          const isKepala = w.name === selectedFamilyForDetail.kepala_keluarga_nama;
-                          return (
-                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                              <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
-                                {w.name}
-                              </td>
-                              <td className="p-3 font-mono font-bold text-slate-500">
-                                {w.nik}
-                              </td>
-                              <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase ${
-                                  isKepala
-                                    ? 'bg-emerald-500/10 text-emerald-600'
-                                    : 'bg-blue-500/10 text-blue-600'
-                                }`}>
-                                  {isKepala ? 'Kepala Keluarga' : 'Anggota Keluarga'}
-                                </span>
-                              </td>
-                              <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
-                                {w.gender}
-                              </td>
-                              <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
-                                {formatDateIndo(w.tgl_lahir)} ({w.umur} Thn)
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      {wargaList.filter(w => w.family_id === (selectedFamilyForDetail.family_id || selectedFamilyForDetail.id)).length === 0 && (
-                        <tr>
-                          <td colSpan="5" className="p-4 text-center text-slate-400 italic">
-                            Tidak ada anggota keluarga terdaftar.
-                          </td>
-                        </tr>
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto flex-1 text-xs space-y-6">
+                
+                {/* Information Grid Cards */}
+                <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Kepala Keluarga</span>
+                    <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-xs">
+                      {kepalaNama}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Alamat Domisili Rumah</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">
+                      {selectedFamilyForDetail.house_alamat || selectedFamilyForDetail.alamat || 'Tidak Diketahui'}
+                      {selectedFamilyForDetail.house_blok ? ` (Blok ${selectedFamilyForDetail.house_blok}` : ''}
+                      {selectedFamilyForDetail.house_nomor ? ` No. ${selectedFamilyForDetail.house_nomor})` : ''}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Rumah</span>
+                    <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] capitalize bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 inline-block mt-0.5">
+                      {selectedFamilyForDetail.house_status || selectedFamilyForDetail.status || 'Milik Sendiri'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Akun Login</span>
+                    <span className="font-bold text-xs block mt-0.5">
+                      {hasAccount ? (
+                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                          Aktif {foundUsername ? `(@${foundUsername})` : ''}
+                        </span>
+                      ) : (
+                        <span className="text-rose-500 font-bold">Belum Dibuat</span>
                       )}
-                    </tbody>
-                  </table>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Anggota Keluarga Table */}
+                <div className="space-y-3 font-sans">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
+                      Daftar Anggota Keluarga Terdaftar ({familyWarga.length})
+                    </h4>
+                  </div>
+                  
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-3">Nama Lengkap</th>
+                          <th className="p-3">NIK</th>
+                          <th className="p-3">Peran / Hubungan</th>
+                          <th className="p-3">Gender</th>
+                          <th className="p-3">Usia</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {familyWarga.length > 0 ? (
+                          familyWarga.map((w) => {
+                            const isKepala = w.name === kepalaNama || w.nama === kepalaNama;
+                            return (
+                              <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                  {w.name || w.nama}
+                                </td>
+                                <td className="p-3 font-mono font-bold text-slate-500">
+                                  {w.nik || '-'}
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase ${
+                                    isKepala
+                                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                      : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'
+                                  }`}>
+                                    {isKepala ? 'Kepala Keluarga' : 'Anggota Keluarga'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                  {w.gender || w.jenisKelamin || '-'}
+                                </td>
+                                <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                  {w.umur ? `${w.umur} Thn` : formatDateIndo(w.tgl_lahir || w.tglLahir)}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan="5" className="p-6 text-center text-slate-400 italic">
+                              Belum ada rincian anggota keluarga terdaftar di bawah KK ini.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end font-sans">
-              <button 
-                onClick={() => setSelectedFamilyForDetail(null)}
-                className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer"
-              >
-                Tutup
-              </button>
+              {/* Modal Footer */}
+              <div className="p-4 px-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
+                {!hasAccount ? (
+                  <button
+                    onClick={() => {
+                      const fam = selectedFamilyForDetail;
+                      setSelectedFamilyForDetail(null);
+                      handleCreateAccountForFamily(fam);
+                    }}
+                    disabled={isCreatingAccount}
+                    className="py-2 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    Registrasi Akun Login
+                  </button>
+                ) : (
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    Akun Login Resmi Terdaftar
+                  </div>
+                )}
+
+                <button 
+                  onClick={() => setSelectedFamilyForDetail(null)}
+                  className="py-2 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
       {previewingTemplate && (

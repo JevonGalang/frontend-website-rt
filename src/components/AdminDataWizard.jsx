@@ -6,6 +6,7 @@ import {
   Key, Copy
 } from 'lucide-react';
 import DateInput from './DateInput';
+import Swal from 'sweetalert2';
 
 const API_BASE = 'http://172.20.32.62:3333';
 
@@ -438,9 +439,43 @@ export default function AdminDataWizard() {
         });
 
         if (account.username) {
+          const un = account.username;
+          const pw = account.temporaryPassword || 'password123';
           setCreatedAccount({
-            username: account.username,
-            temporaryPassword: account.temporaryPassword
+            username: un,
+            temporaryPassword: pw
+          });
+
+          window.copyUsernameText = un;
+          window.copyPasswordText = pw;
+
+          Swal.fire({
+            title: '<strong style="font-size: 18px;">Pendaftaran Keluarga Berhasil! 🎉</strong>',
+            icon: 'success',
+            html: `
+              <div style="text-align: left; background: #f8fafc; padding: 16px; border-radius: 16px; margin-top: 10px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+                <p style="font-size: 12px; color: #475569; margin-bottom: 12px;">Registrasi 1-Step keluarga telah tersimpan di server. Berikut akun login warga:</p>
+                
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 10px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Username Login:</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                    <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${un}</strong>
+                    <button onclick="window.copyTextToClipboard(window.copyUsernameText, 'Username')" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer;">📋 Copy Username</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style="font-size: 10px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password:</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                    <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${pw}</strong>
+                    <button onclick="window.copyTextToClipboard(window.copyPasswordText, 'Password')" style="background: #0d9488; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer;">📋 Copy Password</button>
+                  </div>
+                </div>
+              </div>
+            `,
+            confirmButtonText: 'Selesai & Lanjutkan',
+            confirmButtonColor: '#10b981',
+            allowOutsideClick: false
           });
         }
 

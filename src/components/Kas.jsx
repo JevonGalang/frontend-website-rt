@@ -32,7 +32,7 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
   return (
     <section
       id="kas"
-      className="py-20 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800"
+      className="pt-24 sm:pt-28 pb-16 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
@@ -48,48 +48,47 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
         </div>
 
         {/* 3 Core Kas Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
           
           {/* Card 1: Total Pemasukan */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-sm flex items-center gap-5">
-            <div className="p-4 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
-              <TrendingUp className="w-8 h-8" />
+          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0">
+              <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
-            <div>
-              <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pemasukan</span>
-              <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pemasukan</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 block truncate">
                 {formatCurrency(totalPemasukan)}
               </span>
             </div>
           </div>
 
           {/* Card 2: Total Pengeluaran */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-sm flex items-center gap-5">
-            <div className="p-4 bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl">
-              <TrendingDown className="w-8 h-8" />
+          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3.5 bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl shrink-0">
+              <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
-            <div>
-              <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pengeluaran</span>
-              <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pengeluaran</span>
+              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 block truncate">
                 {formatCurrency(totalPengeluaran)}
               </span>
             </div>
           </div>
 
           {/* Card 3: Sisa Kas (Balance) */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-md flex items-center gap-5 relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md flex items-center gap-4 relative overflow-hidden col-span-1 sm:col-span-2 md:col-span-1">
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
-            <div className="p-4 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl">
-              <Wallet className="w-8 h-8" />
+            <div className="p-3.5 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl shrink-0">
+              <Wallet className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
-            <div>
-              <span className="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Sisa Saldo Kas</span>
-              <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+            <div className="min-w-0 flex-1">
+              <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Sisa Saldo Kas</span>
+              <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">
                 {formatCurrency(sisaKas)}
               </span>
             </div>
           </div>
-
         </div>
 
         {/* Transaction Table Controls */}

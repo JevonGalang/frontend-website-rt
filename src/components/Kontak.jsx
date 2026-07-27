@@ -34,7 +34,7 @@ export default function Kontak() {
   return (
     <section
       id="kontak"
-      className="py-20 bg-white dark:bg-slate-950"
+      className="pt-24 sm:pt-28 pb-16 bg-white dark:bg-slate-950"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         

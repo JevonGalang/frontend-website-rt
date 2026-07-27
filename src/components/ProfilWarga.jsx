@@ -83,6 +83,22 @@ export default function ProfilWarga({
   const [isIuranOpen, setIsIuranOpen] = useState(true);
   const [isSuratOpen, setIsSuratOpen] = useState(true);
   const [viewingApprovedLetter, setViewingApprovedLetter] = useState(null);
+
+  // Auto scroll to top when tab changes inside ProfilWarga
+  useEffect(() => {
+    const forceScroll = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    forceScroll();
+    const t1 = setTimeout(forceScroll, 10);
+    const t2 = setTimeout(forceScroll, 100);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [activeTab]);
   
   // Profile Form & Password verification States
   const [isEditing, setIsEditing] = useState(false);
@@ -1458,7 +1474,7 @@ export default function ProfilWarga({
   const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-16 lg:pt-20">
       {/* Premium ambient glows */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
@@ -1810,8 +1826,35 @@ export default function ProfilWarga({
       {/* 2. MAIN AREA */}
       <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
+        {/* Mobile Portrait Quick Scrollable Pill Tabs */}
+        <div className="md:hidden px-3 py-2.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-emerald-500/20 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar font-sans sticky top-0 z-30 shadow-xs">
+          {[
+            { id: 'dashboard', label: '📊 Dashboard' },
+            { id: 'profil_saya', label: '👤 Profil Saya' },
+            { id: 'keluarga_saya', label: '👨‍👩‍👧 Keluarga' },
+            { id: 'warga_upload_berkas', label: '📤 Upload Berkas' },
+            { id: 'iuran_ipl', label: '💳 Bayar IPL' },
+            { id: 'surat_pengajuan', label: '📑 Ajukan Surat' },
+            { id: 'pengaduan', label: '🚨 Aduan Warga' },
+            { id: 'voting_karyawan', label: '⭐ Voting' },
+            { id: 'informasi_pengumuman', label: '📢 Pengumuman' },
+          ].map((tb) => (
+            <button
+              key={tb.id}
+              onClick={() => setActiveTab(tb.id)}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer ${
+                activeTab === tb.id
+                  ? 'bg-emerald-500 text-white shadow-xs scale-[1.02]'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+              }`}
+            >
+              {tb.label}
+            </button>
+          ))}
+        </div>
+
         {/* Dynamic Header Ribbon */}
-        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
           <div className="flex flex-col font-sans">
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}

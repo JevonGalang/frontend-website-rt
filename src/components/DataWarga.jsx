@@ -46,7 +46,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
   return (
     <section
       id="data-warga"
-      className="py-20 bg-white dark:bg-slate-950"
+      className="pt-24 sm:pt-28 pb-16 bg-white dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
@@ -62,10 +62,10 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
         </div>
 
         {/* 3 Core Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8 mb-12 sm:mb-16">
           
           {/* Card 1: Total KK */}
-          <div className="group relative bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-8 shadow-sm transition-all duration-300 hover:shadow-md hover:scale-[1.01]">
+          <div className="group relative bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-sm transition-all duration-300 hover:shadow-md">
             <div className="flex justify-between items-start">
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Kartu Keluarga</span>

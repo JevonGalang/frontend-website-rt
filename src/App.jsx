@@ -132,6 +132,24 @@ export default function App() {
     fetchDashboardStats();
   }, []);
 
+  // Bulletproof instant scroll to top on page change (handles mobile browsers & DOM re-renders)
+  useEffect(() => {
+    const forceScroll = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    forceScroll();
+    const t1 = setTimeout(forceScroll, 10);
+    const t2 = setTimeout(forceScroll, 100);
+    const t3 = setTimeout(forceScroll, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [currentPage]);
+
 
   const handleUpdateWargaProfile = (updatedCitizen) => {
     const newList = wargaList.map(w => {
