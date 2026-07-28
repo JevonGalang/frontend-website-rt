@@ -535,110 +535,110 @@ export default function Hero({
             </p>
           </div>
 
-          {/* 1. Dashboard Statistik Grid (8 Cards) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
             
             {/* 1. Total Warga */}
-            <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
-                <Users className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.total_warga || (wargaList.length > 0 ? wargaList.length : 128)}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
               </div>
             </div>
 
             {/* 2. Total Kartu Keluarga */}
-            <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
-                <Building2 className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {totalKK || publicStats?.total_kk || 48}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Kartu Keluarga</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
               </div>
             </div>
 
             {/* 3. Total Rumah */}
-            <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
-                <Home className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
+                <Home className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.total_rumah || 52}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
               </div>
             </div>
 
             {/* 4. IPL Sudah Lunas */}
-            <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
-                <CheckCircle2 className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Sudah Lunas</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
               </div>
             </div>
 
             {/* 5. IPL Belum Lunas */}
-            <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
-                <AlertTriangle className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
               </div>
             </div>
 
             {/* 6. Surat Masuk */}
-            <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
-                <BookOpen className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.surat_masuk || 18}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
               </div>
             </div>
 
             {/* 7. Surat Keluar */}
-            <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
-                <Layers className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.surat_keluar || 34}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
               </div>
             </div>
 
             {/* 8. Pengaduan Aktif */}
-            <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-3 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
-                <ShieldAlert className="w-5 h-5" />
+            <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
+                <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
                   {publicStats?.pengaduan_aktif || 3}
                 </span>
-                <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
               </div>
             </div>
 

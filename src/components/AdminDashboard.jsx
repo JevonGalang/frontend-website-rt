@@ -6,7 +6,7 @@ import {
   AlertCircle, Sparkles, Filter, Activity, Eye,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
-  Building2, RotateCcw, Key
+  Building2, RotateCcw, Key, Menu
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -83,6 +83,7 @@ export default function AdminDashboard({
 }) {
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   
   // Nested Sidebar Open States for Bendahara
   const [isIuranOpen, setIsIuranOpen] = useState(true);
@@ -2473,8 +2474,171 @@ export default function AdminDashboard({
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-[var(--color-primary-wf)]/5 dark:bg-[var(--color-primary-wf)]/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
-      {/* 1. SIDEBAR - Dual Mode Adaptive */}
-      <aside className="w-full md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      {/* Mobile Sticky Header Bar (< md) */}
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            aria-label="Buka Menu Navigasi"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+              <Landmark className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Admin Portal</h1>
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+            title="Ganti Mode Tampilan"
+          >
+            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Slide-Over Drawer Modal (< md) */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-emerald-50/95 via-slate-50 to-teal-50/95 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+            <div className="p-4 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+                  <Landmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Admin Portal</h1>
+                  <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                aria-label="Tutup Menu"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs shadow-md shadow-emerald-500/20">
+                AD
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
+                <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">
+                  {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto" onClick={(e) => { if (e.target.closest('button')) setIsMobileDrawerOpen(false); }}>
+              {/* Drawer navigation list */}
+              <nav className="px-3 py-2 space-y-1 font-sans text-xs">
+                <button
+                  onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'overview'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4 text-emerald-500" />
+                  <span>Dashboard Overview</span>
+                </button>
+                {currentUser.role !== 'bendahara' && (
+                  <button
+                    onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      activeTab === 'warga'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <Users className="w-4 h-4 text-sky-400" />
+                    <span>Data Warga</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'kas'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4 text-amber-400" />
+                  <span>Kas & Iuran</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'agenda'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4 text-purple-400" />
+                  <span>Agenda Kegiatan</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'layanan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span>Persuratan & Layanan</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'pengaturan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  <span>Pengaturan</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="p-3 border-t border-slate-800 space-y-2">
+              <button
+                onClick={() => { setDarkMode(!darkMode); setIsMobileDrawerOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+              >
+                {darkMode ? <><Sun className="w-4 h-4 text-amber-400" /> Mode Terang</> : <><Moon className="w-4 h-4 text-indigo-400" /> Mode Gelap</>}
+              </button>
+              <button
+                onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar Dashboard</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         {/* Brand/Logo Header */}
         <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
           <div className="p-2.5 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md shadow-emerald-500/20">
@@ -3442,195 +3606,195 @@ export default function AdminDashboard({
                 </div>
               </div>
 
-              {/* 1. Dashboard Statistik Grid (8 Cards) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                 
                 {/* 1. Total Warga */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/20">
-                    <Users className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <span className="hidden" aria-hidden="true">{logsTrigger}</span>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">{totalWarga}</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Warga</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{totalWarga}</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
                   </div>
                 </div>
 
                 {/* 2. Total Kartu Keluarga */}
-                <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-2xl shadow-md shadow-blue-500/20">
-                    <Landmark className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+                    <Landmark className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">{uniqueKKs}</span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Kartu Keluarga</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{uniqueKKs}</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
                   </div>
                 </div>
 
                 {/* 3. Total Rumah */}
-                <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/20">
-                    <Building2 className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
+                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {dashboardStats?.total_rumah || new Set(residentServerList.map(r => r.house_id || r.house_alamat || r.alamat).concat(wargaList.map(w => w.alamat))).size || 52}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Total Rumah</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
                   </div>
                 </div>
 
                 {/* 4. IPL Sudah Lunas */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-2xl shadow-md shadow-emerald-500/20">
-                    <CheckCircle2 className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {dashboardStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">IPL Sudah Lunas</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
                   </div>
                 </div>
 
                 {/* 5. IPL Belum Lunas */}
-                <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-2xl shadow-md shadow-amber-500/20">
-                    <AlertCircle className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
+                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {dashboardStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">IPL Belum Lunas</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
                   </div>
                 </div>
 
                 {/* 6. Surat Masuk */}
-                <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-2xl shadow-md shadow-cyan-500/20">
-                    <FileText className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {suratMasukList.length > 0 ? suratMasukList.length : (dashboardStats?.surat_masuk || 18)}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Masuk</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
                   </div>
                 </div>
 
                 {/* 7. Surat Keluar */}
-                <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-2xl shadow-md shadow-purple-500/20">
-                    <FileCheck className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
+                    <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {suratKeluarList.length > 0 ? suratKeluarList.length : (dashboardStats?.surat_keluar || 34)}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Keluar</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
                   </div>
                 </div>
 
                 {/* 8. Pengaduan Aktif */}
-                <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-3xl p-5 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-2xl shadow-md shadow-rose-500/20">
-                    <AlertTriangle className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-2xl font-black text-slate-900 dark:text-white">
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
                       {serverComplaints.filter(c => c.status !== 'Selesai').length || (dashboardStats?.pengaduan_aktif || 3)}
                     </span>
-                    <span className="text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Pengaduan Aktif</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
                   </div>
                 </div>
 
               </div>
 
               {/* Layout Split: Quick actions & Recent activities */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
                 
-                {/* Left panel: Quick Actions (5 Buttons) */}
-                <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col justify-between space-y-6">
-                  <div className="space-y-1.5">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
-                    <p className="text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
+                {/* Left panel: Quick Actions (5 Buttons in 2-Column Grid on Portrait/Mobile) */}
+                <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6">
+                  <div className="space-y-1">
+                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
+                    <p className="text-[11px] sm:text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
                     {/* 1. Tambah Keluarga */}
                     <button
                       onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
-                      className="w-full py-3 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full p-3 sm:py-3 sm:px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-emerald-500 text-white rounded-xl">
-                          <Plus className="w-4 h-4" />
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-1.5 bg-emerald-500 text-white rounded-xl shadow-xs shrink-0">
+                          <Plus className="w-5 h-5 sm:w-4 sm:h-4" />
                         </div>
-                        <span>Tambah Keluarga (KK Baru)</span>
+                        <span className="text-[11px] sm:text-xs leading-tight">Tambah KK Baru</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
                     </button>
 
                     {/* 2. Tambah Warga */}
                     <button
                       onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
-                      className="w-full py-3 px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full p-3 sm:py-3 sm:px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-blue-500 text-white rounded-xl">
-                          <Users className="w-4 h-4" />
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
+                          <Users className="w-5 h-5 sm:w-4 sm:h-4" />
                         </div>
-                        <span>Tambah Warga Baru</span>
+                        <span className="text-[11px] sm:text-xs leading-tight">Tambah Warga Baru</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
                     </button>
 
                     {/* 3. Buat Surat */}
                     <button
                       onClick={() => { setActiveTab('sek_surat_keluar'); setSearchQuery(''); }}
-                      className="w-full py-3 px-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full p-3 sm:py-3 sm:px-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-purple-500 text-white rounded-xl">
-                          <FileText className="w-4 h-4" />
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
+                          <FileText className="w-5 h-5 sm:w-4 sm:h-4" />
                         </div>
-                        <span>Buat & Terbitkan Surat</span>
+                        <span className="text-[11px] sm:text-xs leading-tight">Buat Surat</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
                     </button>
 
                     {/* 4. Pembayaran IPL */}
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-                      className="w-full py-3 px-4 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full p-3 sm:py-3 sm:px-4 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-teal-500 text-white rounded-xl">
-                          <Wallet className="w-4 h-4" />
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
+                          <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
                         </div>
-                        <span>Catat Pembayaran IPL</span>
+                        <span className="text-[11px] sm:text-xs leading-tight">Bayar IPL</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
                     </button>
 
                     {/* 5. Pengaduan */}
                     <button
                       onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
-                      className="w-full py-3 px-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex items-center justify-between group transition-all cursor-pointer"
+                      className="w-full p-3 sm:py-3 sm:px-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px] col-span-2 sm:col-span-1"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-rose-500 text-white rounded-xl">
-                          <AlertTriangle className="w-4 h-4" />
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                        <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
+                          <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
                         </div>
-                        <span>Kelola Pengaduan Warga</span>
+                        <span className="text-[11px] sm:text-xs leading-tight">Kelola Pengaduan</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
                     </button>
                   </div>
                   
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
+                  <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
                     Klik pintasan di atas untuk membuka formulir operasional langsung.
                   </div>
                 </div>

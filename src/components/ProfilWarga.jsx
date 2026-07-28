@@ -4,7 +4,7 @@ import {
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
   Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
-  Loader2, Search
+  Loader2, Search, Menu
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
@@ -79,6 +79,7 @@ export default function ProfilWarga({
 }) {
   // Navigation & Collapsible Menu States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isInformasiOpen, setIsInformasiOpen] = useState(true);
   const [isIuranOpen, setIsIuranOpen] = useState(true);
   const [isSuratOpen, setIsSuratOpen] = useState(true);
@@ -1479,8 +1480,177 @@ export default function ProfilWarga({
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
-      {/* 1. SIDEBAR - Dual Mode Adaptive */}
-      <aside className="w-full md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      {/* Mobile Sticky Header Bar (< md) */}
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            aria-label="Buka Menu Navigasi"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+              <Landmark className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+            title="Ganti Mode Tampilan"
+          >
+            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Slide-Over Drawer Modal (< md) */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-emerald-50/95 via-slate-50 to-teal-50/95 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+            <div className="p-4 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+                  <Landmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
+                  <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                aria-label="Tutup Menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
+                {displayNama.charAt(0) || 'W'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
+                <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto" onClick={(e) => { if (e.target.closest('button')) setIsMobileDrawerOpen(false); }}>
+              <nav className="px-3 py-2 space-y-1 font-sans text-xs">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'dashboard'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                  <span>Dashboard Utama</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('profil_saya'); handleCancel(); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'profil_saya'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <User className="w-4 h-4 text-sky-400" />
+                  <span>Profil Saya</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'keluarga_saya'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <span>Keluarga Saya</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('informasi_pengumuman')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'informasi_pengumuman'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Volume2 className="w-4 h-4 text-emerald-400" />
+                  <span>Pengumuman</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('iuran_tagihan')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'iuran_tagihan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4 text-amber-400" />
+                  <span>Status Iuran</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('layanan_ajukan')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'layanan_ajukan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <span>Ajukan Surat</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('pengaduan')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'pengaduan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4 text-rose-500" />
+                  <span>Pengaduan Warga</span>
+                </button>
+              </nav>
+            </div>
+
+            <div className="p-3 border-t border-slate-800 space-y-2">
+              <button
+                onClick={() => { setDarkMode(!darkMode); setIsMobileDrawerOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+              >
+                {darkMode ? <><Sun className="w-4 h-4 text-amber-400" /> Mode Terang</> : <><Moon className="w-4 h-4 text-indigo-400" /> Mode Gelap</>}
+              </button>
+              <button
+                onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar Portal</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         
         {/* Logo/Brand Header */}
         <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
@@ -1946,96 +2116,107 @@ export default function ProfilWarga({
             <div className="space-y-8 animate-fade-in font-sans">
               
               {/* Quick statistics widgets grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className={`p-4 rounded-2xl text-white shadow-md ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
-                    <Wallet className="w-5 h-5" />
+              {/* Quick statistics widgets grid (2 Columns on Mobile Portrait) */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
+                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-white shadow-md shrink-0 ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
+                    <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Iuran Kas RT</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{currentUser.statusIuran || 'Lunas'}</span>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white dark:from-sky-950/40 dark:to-slate-900 border border-sky-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-2xl shadow-md shadow-sky-500/30">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Surat Pengantar</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{mySubmissions.length} Diajukan</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Iuran Kas RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{currentUser.statusIuran || 'Lunas'}</span>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-3xl p-6 shadow-sm flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-2xl shadow-md shadow-purple-500/30">
-                    <Calendar className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white dark:from-sky-950/40 dark:to-slate-900 border border-sky-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-sky-500/30 shrink-0">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider">Kegiatan RT</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{agendaList.length} Terjadwal</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Surat Pengantar</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{mySubmissions.length} Diajukan</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl">
-                    <AlertTriangle className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/30 shrink-0">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Pengaduan Saya</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{pengaduanList.length} Dikirim</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Kegiatan RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{agendaList.length} Terjadwal</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl sm:rounded-2xl shrink-0">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Pengaduan Saya</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{pengaduanList.length} Dikirim</span>
                   </div>
                 </div>
               </div>
 
               {/* Layout Split: Quick Action Menu & Latest Notifications feed */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 
-                {/* Left panel: Quick shortcuts list */}
-                <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-2">Tautan Aksi Cepat</h4>
+                {/* Left panel: Quick shortcuts list (2-Column Grid on Portrait/Mobile) */}
+                <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-3">
+                  <h4 className="font-extrabold text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block mb-1">Tautan Aksi Cepat</h4>
                   
-                  <button 
-                    onClick={() => setActiveTab('layanan_ajukan')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    <span>Ajukan Surat Pengantar</span>
-                  </button>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
+                    <button 
+                      onClick={() => setActiveTab('layanan_ajukan')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-emerald-500/10 text-emerald-600 rounded-xl shrink-0">
+                        <FileText className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Ajukan Surat</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('iuran_upload')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <Upload className="w-4 h-4 text-amber-500" />
-                    <span>Upload Bukti Bayar Iuran</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('iuran_upload')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-amber-500/10 text-amber-500 rounded-xl shrink-0">
+                        <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Upload Bayar</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('pengaduan')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-rose-500" />
-                    <span>Kirim Pengaduan Warga</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('pengaduan')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-rose-500/10 text-rose-500 rounded-xl shrink-0">
+                        <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Kirim Laporan</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('informasi_kontak')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <Phone className="w-4 h-4 text-blue-500" />
-                    <span>Hubungi Pengurus RT</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('informasi_kontak')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-blue-500/10 text-blue-500 rounded-xl shrink-0">
+                        <Phone className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Kontak RT</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Right panel: Active announcements and notification updates */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-4">Informasi Lingkungan Terkini</h4>
+                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3">Informasi Lingkungan Terkini</h4>
                   
-                  <div className="flex-1 space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="flex-1 space-y-3 max-h-[340px] sm:max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                     {currentUser.tagihNotification && (
-                      <div className="p-4 bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/30 rounded-2xl flex items-center gap-3 animate-pulse">
-                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                      <div className="p-3 sm:p-4 bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/30 rounded-2xl flex items-center gap-3 animate-pulse">
+                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                         <span className="text-xs font-bold text-rose-700 dark:text-rose-400">🚨 Anda memiliki tagihan iuran yang belum dikonfirmasi Bendahara. Mohon segera lunasi.</span>
                       </div>
                     )}
