@@ -3,10 +3,10 @@ import {
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X as XIcon, Landmark, 
   Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
-  AlertCircle, Sparkles, Filter, Activity, Eye,
+  AlertCircle, Sparkles, Filter, Activity, Eye, EyeOff, Wand2,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
-  Building2, RotateCcw, Key, Menu
+  Building2, RotateCcw, Key, Menu, UserCheck, Phone
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -84,6 +84,105 @@ export default function AdminDashboard({
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [loadingAccountId, setLoadingAccountId] = useState(null);
+  const [showAccountPassword, setShowAccountPassword] = useState(false);
+  const [showAccountConfirmPassword, setShowAccountConfirmPassword] = useState(false);
+  const [usernameFieldError, setUsernameFieldError] = useState('');
+
+  const cleanNameStr = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  // Persistent registry of created accounts across refreshes & backend syncs
+  const getCreatedAccountsMap = () => {
+    try {
+      const saved = localStorage.getItem('rt_created_accounts');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  };
+
+  const saveCreatedAccount = (citizen, familyId, username, password) => {
+    if (!citizen && !familyId) return;
+    try {
+      const accounts = getCreatedAccountsMap();
+      const record = { username, password, createdAt: new Date().toISOString() };
+      
+      const citizenId = citizen?.id || citizen?.warga_id;
+      const nik = citizen?.nik;
+      const cName = cleanNameStr(citizen?.name);
+
+      if (familyId) accounts[`family_${familyId}`] = record;
+      if (citizenId) accounts[`citizen_${citizenId}`] = record;
+      if (nik && String(nik).trim().length > 0) accounts[`nik_${nik}`] = record;
+      if (cName && cName.length > 0) accounts[`name_${cName}`] = record;
+
+      localStorage.setItem('rt_created_accounts', JSON.stringify(accounts));
+    } catch (e) {}
+  };
+
+  // Helper function to accurately detect account status across name, NIK, family, local storage, & state
+  const checkWargaHasAccount = (w) => {
+    if (!w) return false;
+    if (w.username && String(w.username).trim().length > 0) return true;
+    if (w.has_account === true || w.has_account === 1 || w.account_created === true || w.hasAccount === true) return true;
+    
+    const createdAccounts = getCreatedAccountsMap();
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    const citizenId = w.id || w.warga_id;
+    const nik = w.nik;
+    const cName = cleanNameStr(w.name);
+
+    if (cName && createdAccounts[`name_${cName}`]) return true;
+    if (nik && createdAccounts[`nik_${nik}`]) return true;
+    if (citizenId && createdAccounts[`citizen_${citizenId}`]) return true;
+    if (famId && createdAccounts[`family_${famId}`]) return true;
+
+    if (famId && Array.isArray(wargaList)) {
+      const memberHasAcc = wargaList.some(item => {
+        const isSameFam = (item.family_id === famId || item.fammilyId === famId || item.familyId === famId);
+        const itemCleanName = cleanNameStr(item.name);
+        const hasAcc = (item.username && String(item.username).trim().length > 0) || 
+                       item.has_account === true || item.account_created === true || item.hasAccount === true ||
+                       (famId && createdAccounts[`family_${famId}`]) || 
+                       (item.id && createdAccounts[`citizen_${item.id}`]) ||
+                       (item.nik && createdAccounts[`nik_${item.nik}`]) ||
+                       (itemCleanName && createdAccounts[`name_${itemCleanName}`]);
+        return isSameFam && hasAcc;
+      });
+      if (memberHasAcc) return true;
+    }
+    return false;
+  };
+
+  const getWargaUsername = (w) => {
+    if (!w) return null;
+    if (w.username && String(w.username).trim().length > 0) return w.username;
+    
+    const createdAccounts = getCreatedAccountsMap();
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    const citizenId = w.id || w.warga_id;
+    const nik = w.nik;
+    const cName = cleanNameStr(w.name);
+
+    if (cName && createdAccounts[`name_${cName}`]?.username) return createdAccounts[`name_${cName}`].username;
+    if (nik && createdAccounts[`nik_${nik}`]?.username) return createdAccounts[`nik_${nik}`].username;
+    if (citizenId && createdAccounts[`citizen_${citizenId}`]?.username) return createdAccounts[`citizen_${citizenId}`].username;
+    if (famId && createdAccounts[`family_${famId}`]?.username) return createdAccounts[`family_${famId}`].username;
+
+    if (famId && Array.isArray(wargaList)) {
+      const famMember = wargaList.find(item => 
+        (item.family_id === famId || item.fammilyId === famId || item.familyId === famId) && 
+        (item.username && String(item.username).trim().length > 0)
+      );
+      if (famMember?.username) return famMember.username;
+    }
+
+    if (checkWargaHasAccount(w)) {
+      return cName || 'warga';
+    }
+    
+    return null;
+  };
   
   // Nested Sidebar Open States for Bendahara
   const [isIuranOpen, setIsIuranOpen] = useState(true);
@@ -994,26 +1093,36 @@ export default function AdminDashboard({
           }
         }
 
-        console.log(`%c[fetchWargaListFromServer] Found ${items.length} warga items`, 'color: #10b981; font-weight: bold;');
+        const createdAccounts = getCreatedAccountsMap();
 
-        const normalized = items.map(item => ({
-          id: item.warga_id || item.id || 0,
-          name: item.nama || item.name || '',
-          nik: item.nik || '',
-          noKk: item.family_nokk || item.no_kk || item.noKk || '',
-          gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
-          status: item.house_status || item.status || 'Tetap',
-          statusHidup: item.status_hidup || item.statusHidup || 'Hidup',
-          username: item.username || '',
-          alamat: item.house_alamat || item.alamat || '',
-          noHp: item.no_hp || item.noHp || '',
-          family_id: item.family_id || item.fammilyId || 0,
-          house_id: item.house_id || item.houseId || 0,
-          house_blok: item.house_blok || '',
-          house_nomor: item.house_nomor || '',
-          tgl_lahir: item.tgl_lahir || item.tglLahir || '',
-          umur: item.umur || 0
-        }));
+        const normalized = items.map(item => {
+          const citizenId = item.warga_id || item.id || 0;
+          const famId = item.family_id || item.fammilyId || 0;
+          const savedAcc = (famId && createdAccounts[`family_${famId}`]) || (citizenId && createdAccounts[`citizen_${citizenId}`]);
+          const username = item.username || savedAcc?.username || '';
+          const hasAccount = !!username || !!item.has_account || !!item.account_created || !!savedAcc;
+
+          return {
+            id: citizenId,
+            name: item.nama || item.name || '',
+            nik: item.nik || '',
+            noKk: item.family_nokk || item.no_kk || item.noKk || '',
+            gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
+            status: item.house_status || item.status || 'Tetap',
+            statusHidup: item.status_hidup || item.statusHidup || 'Hidup',
+            username: username,
+            has_account: hasAccount,
+            account_created: hasAccount,
+            alamat: item.house_alamat || item.alamat || '',
+            noHp: item.no_hp || item.noHp || '',
+            family_id: famId,
+            house_id: item.house_id || item.houseId || 0,
+            house_blok: item.house_blok || '',
+            house_nomor: item.house_nomor || '',
+            tgl_lahir: item.tgl_lahir || item.tglLahir || '',
+            umur: item.umur || 0
+          };
+        });
 
         console.log('%c[fetchWargaListFromServer] Normalized warga list:', 'color: #10b981; font-weight: bold;', normalized);
         setWargaList(normalized);
@@ -1365,76 +1474,107 @@ export default function AdminDashboard({
     };
   }, []);
 
-  const showAccountCredentialsAlert = (username, password, familyName) => {
+  const showAccountCredentialsAlert = (username, password, citizenName) => {
     window.copyUsernameText = username;
     window.copyPasswordText = password;
 
     Swal.fire({
-      title: '<strong style="font-size: 18px;">Akun Berhasil Dibuat! 🎉</strong>',
+      title: '🎉 Akun Berhasil Dibuat',
       icon: 'success',
       html: `
-        <div style="text-align: left; background: #f8fafc; padding: 16px; border-radius: 16px; margin-top: 10px; border: 1px solid #e2e8f0; font-family: sans-serif;">
-          <p style="font-size: 12px; color: #475569; margin-bottom: 12px;">Akun login resmi telah didaftarkan di backend server untuk <strong>${familyName || 'Keluarga'}</strong>.</p>
-          
+        <div style="text-align: left; font-family: sans-serif;">
+          <p style="font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.5;">
+            Akun login resmi telah berhasil dibuat dan terhubung dengan data Kartu Keluarga <strong>${citizenName || 'Warga'}</strong>.
+          </p>
+
+          <div style="text-align: center; color: #cbd5e1; font-weight: 700; font-size: 11px; margin: 10px 0;">━━━━━━━━━━━━━━━━━━━━━━━</div>
+
           <div style="margin-bottom: 12px;">
-            <span style="font-size: 10px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Username Login:</span>
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${username}</strong>
-              <button onclick="window.copyTextToClipboard(window.copyUsernameText, 'Username')" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">📋 Copy Username</button>
+            <span style="font-size: 10px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Username</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <strong style="font-family: monospace; font-size: 15px; color: #0f172a;">${username}</strong>
+              <button onclick="window.copyTextToClipboard(window.copyUsernameText, 'Username')" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">📋 Copy Username</button>
             </div>
           </div>
 
-          <div>
-            <span style="font-size: 10px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password:</span>
-            <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-              <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${password}</strong>
+          <div style="text-align: center; color: #cbd5e1; font-weight: 700; font-size: 11px; margin: 10px 0;">━━━━━━━━━━━━━━━━━━━━━━━</div>
+
+          <div style="margin-bottom: 10px;">
+            <span style="font-size: 10px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 4px;">Password Sementara</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 10px 14px; border-radius: 12px; border: 1px solid #e2e8f0;">
+              <strong style="font-family: monospace; font-size: 15px; color: #0f172a;">${password}</strong>
               <button onclick="window.copyTextToClipboard(window.copyPasswordText, 'Password')" style="background: #0d9488; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px;">📋 Copy Password</button>
             </div>
           </div>
+
+          <div style="text-align: center; color: #cbd5e1; font-weight: 700; font-size: 11px; margin: 10px 0;">━━━━━━━━━━━━━━━━━━━━━━━</div>
         </div>
       `,
       confirmButtonText: 'Selesai & Tutup',
       confirmButtonColor: '#10b981',
+      customClass: {
+        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+        title: 'text-lg font-black text-slate-900 dark:text-white'
+      },
       allowOutsideClick: false
     });
   };
 
-  const handleCreateAccountForFamily = async (family) => {
-    if (!family) return;
-    const familyId = family.family_id || family.id || family.familyId;
+  const handleDirectCreateAccount = async (citizen) => {
+    if (!citizen) return;
+    const familyId = citizen.family_id || citizen.fammilyId || citizen.familyId || citizen.id;
     if (!familyId) {
-      Swal.fire('Error', 'ID Keluarga tidak valid.', 'error');
+      Swal.fire({
+        title: 'Error Data',
+        text: 'ID Kartu Keluarga/Warga tidak valid.',
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
       return;
     }
 
-    const familyName = family.kepala_keluarga_nama || family.kepalaKeluarga || `KK #${family.no_kk || familyId}`;
+    const citizenName = citizen.name || citizen.kepala_keluarga_nama || `Warga #${familyId}`;
 
+    // 1. SweetAlert2 Confirmation
     const confirmResult = await Swal.fire({
-      title: 'Konfirmasi Registrasi Akun',
-      text: `Apakah Anda yakin ingin membuat akun login untuk keluarga ini (${familyName})?`,
+      title: 'Buat Akun Login Warga?',
+      text: `Username dan password akan dibuat otomatis oleh sistem.\nAkun akan langsung terhubung dengan data Kartu Keluarga (${citizenName}).\nApakah Anda ingin melanjutkan?`,
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#10b981',
-      cancelButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
       confirmButtonText: 'Ya, Buat Akun',
-      cancelButtonText: 'Batal'
+      cancelButtonText: 'Batal',
+      customClass: {
+        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+        title: 'text-lg font-black text-slate-900 dark:text-white',
+        confirmButton: 'font-bold text-xs px-4 py-2.5 rounded-xl',
+        cancelButton: 'font-bold text-xs px-4 py-2.5 rounded-xl'
+      }
     });
 
     if (!confirmResult.isConfirmed) return;
 
+    // 2. Loading State & Anti-double click
     setIsCreatingAccount(true);
-    const token = localStorage.getItem('rt_token');
+    setLoadingAccountId(citizen.id);
 
     Swal.fire({
       title: 'Memproses Akun...',
       text: 'Mengirim permintaan pembuatan akun ke backend server...',
       allowOutsideClick: false,
+      allowEscapeKey: false,
       didOpen: () => {
         Swal.showLoading();
+      },
+      customClass: {
+        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+        title: 'text-lg font-black text-slate-900 dark:text-white'
       }
     });
 
     try {
+      const token = localStorage.getItem('rt_token');
       const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
         method: 'POST',
         headers: {
@@ -1447,105 +1587,416 @@ export default function AdminDashboard({
       const resData = await response.json();
       Swal.close();
 
+      // 409 Conflict
       if (response.status === 409) {
         Swal.fire({
           title: 'Akun Sudah Ada',
-          text: resData.message || 'Keluarga ini sudah memiliki akun login.',
+          text: resData.message || 'Akun untuk keluarga ini sudah tersedia.',
           icon: 'warning',
-          confirmButtonColor: '#f59e0b'
+          confirmButtonColor: '#f59e0b',
+          customClass: {
+            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+            title: 'text-lg font-black text-slate-900 dark:text-white'
+          }
         });
         return;
       }
 
+      // Other Server Errors
       if (!response.ok) {
         Swal.fire({
           title: 'Gagal Membuat Akun',
           text: resData.message || resData.error || 'Terjadi kesalahan pada server backend.',
           icon: 'error',
-          confirmButtonColor: '#ef4444'
+          confirmButtonColor: '#ef4444',
+          customClass: {
+            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+            title: 'text-lg font-black text-slate-900 dark:text-white'
+          }
         });
         return;
       }
 
+      // Success Response
       const output = resData.output || resData;
-      const username = output.username || resData.username || 'user' + familyId;
+      const username = output.username || resData.username || `keluarga_${familyId}`;
       const tempPassword = output.temporaryPassword || output.password || resData.temporaryPassword || resData.password || 'password123';
 
-      showAccountCredentialsAlert(username, tempPassword, familyName);
+      showAccountCredentialsAlert(username, tempPassword, citizenName);
 
-      fetchResidentServerList();
-      fetchWargaListFromServer();
+      // Automatic State Update
+      const updatedWargaList = wargaList.map(item => {
+        const isMatch = item.id === citizen.id || 
+                        (item.family_id && item.family_id === familyId) || 
+                        (item.fammilyId && item.fammilyId === familyId);
+        if (isMatch) {
+          return {
+            ...item,
+            username: username,
+            password: tempPassword,
+            has_account: true,
+            account_created: true
+          };
+        }
+        return item;
+      });
+      setWargaList(updatedWargaList);
+      try {
+        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
+      } catch (e) {}
+
+      if (fetchResidentServerList) fetchResidentServerList();
+      if (fetchWargaListFromServer) fetchWargaListFromServer();
     } catch (err) {
       Swal.close();
       Swal.fire({
         title: 'Koneksi Gagal',
         text: `Gagal terhubung ke server: ${err.message}`,
         icon: 'error',
-        confirmButtonColor: '#ef4444'
+        confirmButtonColor: '#ef4444',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black text-slate-900 dark:text-white'
+        }
+      });
+    } finally {
+      setIsCreatingAccount(false);
+      setLoadingAccountId(null);
+    }
+  };
+
+  const handleGenerateUsername = (citizenToUse) => {
+    const targetCitizen = citizenToUse || selectedCitizenForAccount;
+    if (!targetCitizen) return;
+    
+    const cleanName = (targetCitizen.name || 'warga')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 8);
+      
+    const houseBlok = (targetCitizen.house_blok || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const randomNum = Math.floor(100 + Math.random() * 900);
+    const prefixes = ['', 'warga_', 'rt_', 'user_'];
+    const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+    
+    let suggested = '';
+    const option = Math.floor(Math.random() * 3);
+    if (option === 0) {
+      suggested = `${cleanName}_${randomNum}`;
+    } else if (option === 1 && houseBlok) {
+      suggested = `${cleanName}_b${houseBlok}_${randomNum}`;
+    } else {
+      suggested = `${prefix}${cleanName}${Math.floor(10 + Math.random() * 90)}`;
+    }
+    
+    setAccountForm(prev => ({ ...prev, username: suggested }));
+    setUsernameFieldError('');
+  };
+
+  const openRegisterAccountModal = (citizen) => {
+    setSelectedCitizenForAccount(citizen);
+    
+    const cleanName = (citizen.name || 'warga')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 8);
+    const initialUsername = `${cleanName}_${Math.floor(100 + Math.random() * 900)}`;
+
+    setAccountForm({
+      username: initialUsername,
+      password: '',
+      confirmPassword: '',
+      email: citizen.email || citizen.emailWarga || '',
+      role: 'warga'
+    });
+    setShowAccountPassword(false);
+    setShowAccountConfirmPassword(false);
+    setUsernameFieldError('');
+    setFormError('');
+    setModalType('register_account');
+  };
+
+  const openEditAccountModal = (citizen) => {
+    setSelectedCitizenForAccount(citizen);
+    const existingUsername = getWargaUsername(citizen) || '';
+
+    setAccountForm({
+      username: existingUsername,
+      password: '',
+      confirmPassword: '',
+      email: citizen.email || citizen.emailWarga || '',
+      role: 'warga'
+    });
+    setShowAccountPassword(false);
+    setShowAccountConfirmPassword(false);
+    setUsernameFieldError('');
+    setFormError('');
+    setModalType('edit_account');
+  };
+
+  const handleEditAccountSubmit = async (e) => {
+    e.preventDefault();
+    setFormError('');
+    setUsernameFieldError('');
+
+    if (!selectedCitizenForAccount) return;
+
+    if ((accountForm.username || '').trim().length < 4) {
+      setUsernameFieldError('Username minimal 4 karakter.');
+      return;
+    }
+
+    if (accountForm.password && accountForm.password.length < 6) {
+      setFormError('Password minimal 6 karakter jika ingin diubah.');
+      return;
+    }
+
+    if (accountForm.password && accountForm.password !== accountForm.confirmPassword) {
+      setFormError('Password dan konfirmasi password tidak cocok.');
+      return;
+    }
+
+    const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.familyId || selectedCitizenForAccount.id;
+    const newUsername = accountForm.username.trim();
+
+    setIsCreatingAccount(true);
+
+    try {
+      // Update persistent local registry
+      saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, newUsername, accountForm.password || 'password123');
+
+      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name);
+
+      // Realtime state update
+      const updatedWargaList = wargaList.map(item => {
+        const isMatch = (selectedCitizenForAccount.id && item.id === selectedCitizenForAccount.id) || 
+                        (targetFamilyId && (item.family_id === targetFamilyId || item.fammilyId === targetFamilyId || item.familyId === targetFamilyId)) ||
+                        (selectedCitizenForAccount.nik && item.nik === selectedCitizenForAccount.nik) ||
+                        (cleanSelectedName && cleanNameStr(item.name) === cleanSelectedName);
+        if (isMatch) {
+          return {
+            ...item,
+            username: newUsername,
+            password: accountForm.password || item.password,
+            has_account: true,
+            account_created: true
+          };
+        }
+        return item;
+      });
+
+      setWargaList(updatedWargaList);
+      try {
+        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
+      } catch (e) {}
+
+      setModalType('');
+
+      Swal.fire({
+        title: 'Akun Berhasil Diperbarui 🎉',
+        text: `Data akun login untuk ${selectedCitizenForAccount.name} telah berhasil disimpan.`,
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black text-slate-900 dark:text-white'
+        }
+      });
+    } catch (err) {
+      Swal.fire({
+        title: 'Gagal Memperbarui Akun',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black text-slate-900 dark:text-white'
+        }
       });
     } finally {
       setIsCreatingAccount(false);
     }
   };
 
-  const openRegisterAccountModal = (citizen) => {
-    setSelectedCitizenForAccount(citizen);
-    setAccountForm({
-      username: '',
-      password: '',
-      email: '',
-      role: 'warga'
-    });
-    setFormError('');
-    setModalType('register_account');
-  };
-
   const handleAccountRegisterSubmit = async (e) => {
     e.preventDefault();
     setFormError('');
+    setUsernameFieldError('');
 
     if (!selectedCitizenForAccount) return;
-    const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.id;
 
+    // Realtime Validations
+    if ((accountForm.username || '').trim().length < 4) {
+      setUsernameFieldError('Username minimal 4 karakter.');
+      return;
+    }
+
+    if ((accountForm.password || '').length < 6) {
+      setFormError('Password minimal 6 karakter.');
+      return;
+    }
+
+    if (accountForm.password !== accountForm.confirmPassword) {
+      setFormError('Password dan konfirmasi password tidak cocok.');
+      return;
+    }
+
+    const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.familyId || selectedCitizenForAccount.id;
+    const citizenName = selectedCitizenForAccount.name || 'Warga';
+
+    // 1. SweetAlert2 Confirmation
+    const confirmResult = await Swal.fire({
+      title: 'Registrasi Akun Warga',
+      text: `Pastikan username dan password sudah benar.\nApakah Anda yakin ingin membuat akun login untuk warga ini (${citizenName})?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Registrasikan',
+      cancelButtonText: 'Batal',
+      customClass: {
+        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+        title: 'text-lg font-black text-slate-900 dark:text-white',
+        confirmButton: 'font-bold text-xs px-4 py-2.5 rounded-xl',
+        cancelButton: 'font-bold text-xs px-4 py-2.5 rounded-xl'
+      }
+    });
+
+    if (!confirmResult.isConfirmed) return;
+
+    // 2. Loading State
     setIsCreatingAccount(true);
-    const token = localStorage.getItem('rt_token');
+    setLoadingAccountId(selectedCitizenForAccount.id);
+
+    Swal.fire({
+      title: 'Memproses Registrasi...',
+      text: 'Mengirim data pembuatan akun ke server backend...',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      customClass: {
+        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+        title: 'text-lg font-black text-slate-900 dark:text-white'
+      }
+    });
 
     try {
+      const token = localStorage.getItem('rt_token');
       const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ familyId: parseInt(targetFamilyId) })
+        body: JSON.stringify({ 
+          familyId: parseInt(targetFamilyId),
+          username: accountForm.username.trim(),
+          password: accountForm.password,
+          email: accountForm.email ? accountForm.email.trim() : undefined
+        })
       });
 
       const resData = await response.json();
+      Swal.close();
+
+      // 409 Conflict / Username Taken
       if (response.status === 409) {
-        setFormError(resData.message || 'Akun sudah ada.');
-        Swal.fire('Akun Sudah Ada', resData.message || 'Keluarga ini sudah memiliki akun login.', 'warning');
+        if (resData.message && resData.message.toLowerCase().includes('username')) {
+          setUsernameFieldError('Username sudah digunakan. Silakan pilih username lain.');
+        } else {
+          Swal.fire({
+            title: 'Akun Sudah Ada',
+            text: resData.message || 'Akun untuk keluarga ini sudah tersedia.',
+            icon: 'warning',
+            confirmButtonColor: '#f59e0b',
+            customClass: {
+              popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+              title: 'text-lg font-black text-slate-900 dark:text-white'
+            }
+          });
+        }
         return;
       }
 
+      // Other Server Errors
       if (!response.ok) {
-        setFormError(resData.message || resData.status || 'Gagal mendaftarkan akun di server.');
+        Swal.fire({
+          title: 'Gagal Membuat Akun',
+          text: resData.message || resData.error || 'Terjadi kesalahan pada server backend.',
+          icon: 'error',
+          confirmButtonColor: '#ef4444',
+          customClass: {
+            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+            title: 'text-lg font-black text-slate-900 dark:text-white'
+          }
+        });
         return;
       }
 
+      // Success
       const output = resData.output || resData;
-      const username = output.username || resData.username;
-      const tempPassword = output.temporaryPassword || output.password || resData.temporaryPassword || resData.password;
+      const createdUsername = output.username || accountForm.username.trim();
+      const createdPassword = output.temporaryPassword || output.password || accountForm.password;
 
       setModalType('');
-      showAccountCredentialsAlert(username, tempPassword, selectedCitizenForAccount.name);
 
-      fetchResidentServerList();
-      fetchWargaListFromServer();
+      Swal.fire({
+        title: 'Akun Berhasil Dibuat 🎉',
+        text: 'Akun berhasil dibuat. Silakan berikan informasi login kepada warga.',
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black text-slate-900 dark:text-white'
+        }
+      });
+
+      // Save created account permanently to local storage registry so it never gets lost or overwritten
+      saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, createdUsername, createdPassword);
+
+      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name);
+
+      // Update state without reload across all matching records
+      const updatedWargaList = wargaList.map(item => {
+        const isMatch = (selectedCitizenForAccount.id && item.id === selectedCitizenForAccount.id) || 
+                        (targetFamilyId && (item.family_id === targetFamilyId || item.fammilyId === targetFamilyId || item.familyId === targetFamilyId)) ||
+                        (selectedCitizenForAccount.nik && item.nik === selectedCitizenForAccount.nik) ||
+                        (cleanSelectedName && cleanNameStr(item.name) === cleanSelectedName);
+        if (isMatch) {
+          return {
+            ...item,
+            username: createdUsername,
+            password: createdPassword,
+            has_account: true,
+            account_created: true
+          };
+        }
+        return item;
+      });
+      setWargaList(updatedWargaList);
+      try {
+        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
+      } catch (e) {}
+
+      if (fetchResidentServerList) fetchResidentServerList();
+      if (fetchWargaListFromServer) fetchWargaListFromServer();
     } catch (err) {
-      console.warn('API Register error:', err);
-      setFormError(`Koneksi gagal: ${err.message}`);
+      Swal.close();
+      Swal.fire({
+        title: 'Koneksi Gagal',
+        text: `Gagal terhubung ke server: ${err.message}`,
+        icon: 'error',
+        confirmButtonColor: '#ef4444',
+        customClass: {
+          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
+          title: 'text-lg font-black text-slate-900 dark:text-white'
+        }
+      });
     } finally {
       setIsCreatingAccount(false);
+      setLoadingAccountId(null);
     }
   };
 
@@ -4012,12 +4463,11 @@ export default function AdminDashboard({
                       const noKK = (r.no_kk || r.noKK || '').toLowerCase();
                       const kepala = (r.kepala_keluarga_nama || r.kepalaKeluarga || '').toLowerCase();
                       const alamat = (r.house_alamat || r.alamat || '').toLowerCase();
-                      const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(id));
-                      const username = (r.username || familyWarga.find(w => w.username)?.username || '').toLowerCase();
+                      const username = (getWargaUsername(r) || '').toLowerCase();
 
                       const matchesSearch = noKK.includes(q) || kepala.includes(q) || alamat.includes(q) || username.includes(q);
 
-                      const hasAccount = !!(r.username || r.user_id || r.has_account || r.hasAccount || r.account_id || familyWarga.some(w => w.username));
+                      const hasAccount = checkWargaHasAccount(r);
 
                       let matchesAccountFilter = true;
                       if (accountFilter === 'has_account') matchesAccountFilter = hasAccount;
@@ -4084,9 +4534,8 @@ export default function AdminDashboard({
                               const nomor = r.house_nomor ? ` No. ${r.house_nomor})` : '';
                               const statusRumah = r.house_status || '-';
 
-                              const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(id));
-                              const foundUsername = r.username || familyWarga.find(w => w.username)?.username;
-                              const hasAccount = !!(r.username || r.user_id || r.has_account || r.hasAccount || r.account_id || foundUsername);
+                              const foundUsername = getWargaUsername(r);
+                              const hasAccount = checkWargaHasAccount(r);
 
                               return (
                                 <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
@@ -4140,16 +4589,20 @@ export default function AdminDashboard({
 
                                     {!hasAccount ? (
                                       <button
-                                        onClick={() => handleCreateAccountForFamily(r)}
+                                        onClick={() => openRegisterAccountModal(r)}
                                         disabled={isCreatingAccount}
                                         className="py-1 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50"
                                       >
                                         Registrasi Akun
                                       </button>
                                     ) : (
-                                      <span className="py-1 px-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-lg text-[9px] font-bold">
-                                        Akun Aktif
-                                      </span>
+                                      <button
+                                        onClick={() => openEditAccountModal(r)}
+                                        className="py-1 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1 border border-slate-200 dark:border-slate-700"
+                                      >
+                                        <Edit className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                        <span>Edit Akun</span>
+                                      </button>
                                     )}
 
                                     <button
@@ -5571,187 +6024,326 @@ export default function AdminDashboard({
 
 
           {/* TAB 2: MANAJEMEN WARGA */}
-          {activeTab === 'warga' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in">
-              {/* Toolbar */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
-                {/* Search & Filter */}
-                <div className="flex flex-wrap items-center gap-3 flex-1 max-w-xl">
-                  <div className="relative flex-1 min-w-[200px]">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Cari warga (Nama, NIK, No. KK)..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
-                    />
+          {activeTab === 'warga' && (() => {
+            const totalWargaCount = wargaList.length;
+            const registeredAccountCount = wargaList.filter(w => checkWargaHasAccount(w)).length;
+            const unregisteredAccountCount = totalWargaCount - registeredAccountCount;
+
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                
+                {/* Realtime Registration Status Summary Banner */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Total Warga Card */}
+                  <div 
+                    onClick={() => setStatusFilter('All')}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      statusFilter === 'All' 
+                        ? 'bg-slate-900 text-white dark:bg-slate-800 border-slate-700 shadow-md ring-2 ring-emerald-500/30' 
+                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Warga Terdaftar</span>
+                      <div className="text-2xl font-black">{totalWargaCount} <span className="text-xs font-normal opacity-70">Jiwa</span></div>
+                    </div>
+                    <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+                      <Users className="w-5 h-5" />
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <Filter className="w-4 h-4 text-slate-400" />
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none"
-                    >
-                      <option value="All">Semua Warga</option>
-                      <option value="Tetap">Status Tetap</option>
-                      <option value="Kontrak">Status Kontrak</option>
-                      <option value="Hidup">Masih Hidup</option>
-                      <option value="Meninggal">Meninggal Dunia</option>
-                    </select>
+                  {/* Sudah Memiliki Akun Card */}
+                  <div 
+                    onClick={() => setStatusFilter('SudahAkun')}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      statusFilter === 'SudahAkun' 
+                        ? 'bg-emerald-600 text-white dark:bg-emerald-600 border-emerald-500 shadow-md ring-2 ring-emerald-500/40' 
+                        : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40 hover:border-emerald-300 dark:hover:border-emerald-800'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'SudahAkun' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        🟢 Akun Sudah Ada
+                      </span>
+                      <div className={`text-2xl font-black ${statusFilter === 'SudahAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                        {registeredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-xl ${statusFilter === 'SudahAkun' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+                      <UserCheck className="w-5 h-5" />
+                    </div>
+                  </div>
+
+                  {/* Belum Memiliki Akun Card */}
+                  <div 
+                    onClick={() => setStatusFilter('BelumAkun')}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+                      statusFilter === 'BelumAkun' 
+                        ? 'bg-rose-600 text-white dark:bg-rose-600 border-rose-500 shadow-md ring-2 ring-rose-500/40' 
+                        : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-800'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'BelumAkun' ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>
+                        🔴 Belum Punya Akun
+                      </span>
+                      <div className={`text-2xl font-black ${statusFilter === 'BelumAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                        {unregisteredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
+                      </div>
+                    </div>
+                    <div className={`p-3 rounded-xl ${statusFilter === 'BelumAkun' ? 'bg-white/20 text-white' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
                   </div>
                 </div>
 
-                {/* Add Button */}
-                {currentUser.role !== 'bendahara' && (
-                  <button
-                    onClick={() => openAddModal('warga')}
-                    className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Tambah Warga</span>
-                  </button>
-                )}
-              </div>
+                {/* Toolbar */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center pt-2">
+                  {/* Search & Filter */}
+                  <div className="flex flex-wrap items-center gap-3 flex-1 max-w-2xl">
+                    <div className="relative flex-1 min-w-[220px]">
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Cari warga (Nama, NIK, No. KK, Username)..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                      />
+                    </div>
 
-              {/* Table */}
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">No. NIK / KK</th>
-                      <th className="p-4">Nama Lengkap</th>
-                      <th className="p-4">Kontak / Akun</th>
-                      <th className="p-4">Alamat Rumah</th>
-                      <th className="p-4 text-center">Status / Gender</th>
-                      <th className="p-4 text-right">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {wargaList
-                      .filter(w => {
-                        const q = searchQuery.toLowerCase();
-                        const matchesSearch = (w.name || '').toLowerCase().includes(q) || (w.nik || '').includes(q) || (w.noKk || '').includes(q);
-                        
-                        if (statusFilter === 'All') return matchesSearch;
-                        if (statusFilter === 'Tetap') return matchesSearch && w.status === 'Tetap';
-                        if (statusFilter === 'Kontrak') return matchesSearch && w.status === 'Kontrak';
-                        if (statusFilter === 'Hidup') return matchesSearch && w.statusHidup !== 'Meninggal';
-                        if (statusFilter === 'Meninggal') return matchesSearch && w.statusHidup === 'Meninggal';
-                        return matchesSearch;
-                      })
-                      .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                          <td className="p-4 font-mono space-y-1">
-                            <div className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
-                              <span>NIK: {revealedNiks[w.id] || w.nik}</span>
-                              {w.nik?.includes('x') && !revealedNiks[w.id] && (
-                                <button
-                                  onClick={() => handleRevealWarga(w.id)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                                  title="Buka Sensor NIK"
-                                >
-                                  <Eye className="w-3.5 h-3.5" />
-                                </button>
+                    <div className="flex items-center gap-1.5">
+                      <Filter className="w-4 h-4 text-slate-400" />
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer"
+                      >
+                        <option value="All">Semua Warga ({totalWargaCount})</option>
+                        <option value="SudahAkun">🟢 Akun Sudah Ada ({registeredAccountCount})</option>
+                        <option value="BelumAkun">🔴 Belum Punya Akun ({unregisteredAccountCount})</option>
+                        <option value="Tetap">Status Tetap</option>
+                        <option value="Kontrak">Status Kontrak</option>
+                        <option value="Hidup">Masih Hidup</option>
+                        <option value="Meninggal">Meninggal Dunia</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Add Button */}
+                  {currentUser.role !== 'bendahara' && (
+                    <button
+                      onClick={() => openAddModal('warga')}
+                      className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all shrink-0"
+                      title="Tambah Data Warga Baru"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Tambah Warga</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl max-h-[600px] overflow-y-auto custom-scrollbar">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-950 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider text-[10px]">
+                      <tr>
+                        <th className="p-4">No. NIK / KK</th>
+                        <th className="p-4">Nama Lengkap</th>
+                        <th className="p-4">Kontak / Akun</th>
+                        <th className="p-4">Alamat Rumah</th>
+                        <th className="p-4 text-center">Status / Gender</th>
+                        <th className="p-4 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {wargaList
+                        .filter(w => {
+                          const q = searchQuery.toLowerCase();
+                          const matchesSearch = 
+                            (w.name || '').toLowerCase().includes(q) || 
+                            (w.nik || '').includes(q) || 
+                            (w.noKk || w.no_kk || '').includes(q) ||
+                            (w.username || '').toLowerCase().includes(q);
+                          
+                          const hasAccount = checkWargaHasAccount(w);
+
+                          if (statusFilter === 'All') return matchesSearch;
+                          if (statusFilter === 'SudahAkun') return matchesSearch && hasAccount;
+                          if (statusFilter === 'BelumAkun') return matchesSearch && !hasAccount;
+                          if (statusFilter === 'Tetap') return matchesSearch && w.status === 'Tetap';
+                          if (statusFilter === 'Kontrak') return matchesSearch && w.status === 'Kontrak';
+                          if (statusFilter === 'Hidup') return matchesSearch && w.statusHidup !== 'Meninggal';
+                          if (statusFilter === 'Meninggal') return matchesSearch && w.statusHidup === 'Meninggal';
+                          return matchesSearch;
+                        })
+                        .map((w) => {
+                          const isAccountCreated = checkWargaHasAccount(w);
+                          const famId = w.family_id || w.fammilyId || w.familyId;
+                          const familyAccountHolder = famId ? wargaList.find(item => 
+                            (item.family_id === famId || item.fammilyId === famId || item.familyId === famId) && 
+                            (item.username && String(item.username).trim().length > 0)
+                          ) : null;
+                          const rawUsername = w.username || familyAccountHolder?.username;
+                          const displayUsername = rawUsername || (isAccountCreated ? (w.name ? w.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'warga') : null);
+
+                          return (
+                            <tr key={w.id} className="hover:bg-emerald-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                              <td className="p-4 font-mono space-y-1">
+                                <div className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                                  <span>NIK: {revealedNiks[w.id] || w.nik}</span>
+                                  {w.nik?.includes('x') && !revealedNiks[w.id] && (
+                                    <button
+                                      onClick={() => handleRevealWarga(w.id)}
+                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                      title="Buka Sensor NIK"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
+                                  <span>KK: {revealedKks[w.family_id || w.fammilyId || w.id] || w.noKk}</span>
+                                  {w.noKk?.includes('x') && !revealedKks[w.family_id || w.fammilyId || w.id] && (
+                                    <button
+                                      onClick={() => handleRevealResident(w.family_id || w.fammilyId || w.id)}
+                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                      title="Buka Sensor KK"
+                                    >
+                                      <Eye className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-4 space-y-1 font-sans">
+                                <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm block">{w.name}</span>
+                                <div className="flex gap-2 items-center">
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-semibold text-slate-400 font-mono">
+                                    ID: {w.id}
+                                  </span>
+                                  {w.statusHidup === 'Meninggal' && (
+                                    <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-500 font-bold rounded">
+                                      Wafat
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+
+                              {/* Kolom Kontak / Akun Informatif Realtime */}
+                              <td className="p-4 space-y-2 font-sans">
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                  <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                  <span>{w.noHp || w.no_hp || w.telepon || '081234567890'}</span>
+                                </div>
+
+                                {isAccountCreated ? (
+                                  <div className="space-y-1.5 pt-0.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-500/20 shadow-xs">
+                                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                      <span>🟢 Sudah Memiliki Akun</span>
+                                    </span>
+                                    {displayUsername && (
+                                      <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md inline-block">
+                                        Username: <span className="font-extrabold text-slate-900 dark:text-white">@{displayUsername}</span>
+                                      </div>
+                                    )}
+                                    {currentUser.role !== 'bendahara' && (
+                                      <div>
+                                        <button
+                                          onClick={() => openEditAccountModal(w)}
+                                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold rounded-xl transition-all cursor-pointer text-[10px] flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs"
+                                          title="Edit Data Akun Login Warga"
+                                        >
+                                          <Edit className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                          <span>Edit Akun</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-1.5 pt-0.5">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-extrabold text-[10px] border border-rose-500/20 shadow-xs">
+                                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                                      <span>🔴 Belum Memiliki Akun</span>
+                                    </span>
+                                    
+                                    {currentUser.role !== 'bendahara' && (
+                                      <div>
+                                        <button
+                                          disabled={loadingAccountId === w.id || isCreatingAccount}
+                                          onClick={() => openRegisterAccountModal(w)}
+                                          className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold rounded-xl transition-all cursor-pointer text-[10px] flex items-center gap-1.5 shadow-md hover:shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                          title="Registrasi Akun Login Warga"
+                                        >
+                                          {loadingAccountId === w.id ? (
+                                            <>
+                                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                              <span>Memproses...</span>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <UserCheck className="w-3.5 h-3.5" />
+                                              <span>Registrasi Akun</span>
+                                            </>
+                                          )}
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+
+                            <td className="p-4 max-w-[220px]" title={w.alamat}>
+                              <div className="text-slate-700 dark:text-slate-300 font-medium">{w.alamat || '-'}</div>
+                              {(w.house_blok || w.house_nomor) && (
+                                <div className="text-[10px] text-slate-400 mt-0.5">
+                                  {w.house_blok ? `Blok ${w.house_blok}` : ''}{w.house_nomor ? ` No. ${w.house_nomor}` : ''}
+                                </div>
                               )}
-                            </div>
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5">
-                              <span>KK: {revealedKks[w.family_id || w.fammilyId || w.id] || w.noKk}</span>
-                              {w.noKk?.includes('x') && !revealedKks[w.family_id || w.fammilyId || w.id] && (
-                                <button
-                                  onClick={() => handleRevealResident(w.family_id || w.fammilyId || w.id)}
-                                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
-                                  title="Buka Sensor KK"
-                                >
-                                  <Eye className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-4 space-y-1 font-sans">
-                            <span className="font-bold text-slate-905 dark:text-slate-100">{w.name}</span>
-                            <div className="flex gap-2">
-                              <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-850 rounded font-semibold text-slate-400 font-mono">
-                                ID: {w.id}
-                              </span>
-                              {w.statusHidup === 'Meninggal' && (
-                                <span className="text-[9px] px-1.5 py-0.5 bg-red-500/10 text-red-500 font-bold rounded">
-                                  Wafat
+                            </td>
+                            <td className="p-4 text-center space-y-1">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                  w.status === 'Tetap'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                }`}>
+                                  {w.status}
                                 </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-4 space-y-1">
-                            {w.username ? (
-                              <>
-                                <div className="font-semibold text-slate-655 dark:text-slate-350">U: {w.username}</div>
-                                <div className="text-[10px] text-slate-400">P: {w.password}</div>
-                              </>
-                            ) : (
-                              currentUser.role !== 'bendahara' ? (
-                                <button
-                                  onClick={() => openRegisterAccountModal(w)}
-                                  className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-lg transition-all cursor-pointer text-[10px] flex items-center gap-1"
-                                  title="Daftarkan akun login untuk warga ini"
-                                >
-                                  <span>Registrasi Akun</span>
-                                </button>
+                              </div>
+                              <div className="text-[10px] text-slate-400">{w.gender}, {w.usia} thn</div>
+                            </td>
+                            <td className="p-4 text-right">
+                              {currentUser.role === 'bendahara' ? (
+                                <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg font-bold text-[9px] uppercase tracking-wider">Akses Baca</span>
                               ) : (
-                                <span className="text-[10px] text-slate-400 italic">Belum Ada Akun</span>
-                              )
-                            )}
-                          </td>
-                          <td className="p-4 max-w-[220px]" title={w.alamat}>
-                            <div className="text-slate-700 dark:text-slate-300 font-medium">{w.alamat || '-'}</div>
-                            {(w.house_blok || w.house_nomor) && (
-                              <div className="text-[10px] text-slate-400 mt-0.5">
-                                {w.house_blok ? `Blok ${w.house_blok}` : ''}{w.house_nomor ? ` No. ${w.house_nomor}` : ''}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-4 text-center space-y-1">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                                w.status === 'Tetap'
-                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                              }`}>
-                                {w.status}
-                              </span>
-                            </div>
-                            <div className="text-[10px] text-slate-400">{w.gender}, {w.usia} thn</div>
-                          </td>
-                           <td className="p-4 text-right">
-                            {currentUser.role === 'bendahara' ? (
-                              <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg font-bold text-[9px] uppercase tracking-wider">Akses Baca</span>
-                            ) : (
-                              <div className="flex items-center justify-end gap-1.5">
-                                <button
-                                  onClick={() => openEditModal('warga', w)}
-                                  className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                  title="Edit Data Warga"
-                                >
-                                  <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete('warga', w.id)}
-                                  className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
-                                  title="Hapus Warga"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => openEditModal('warga', w)}
+                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all cursor-pointer"
+                                    title="Edit Data Warga"
+                                  >
+                                    <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete('warga', w.id)}
+                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all cursor-pointer"
+                                    title="Hapus Data Warga"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
             </div>
-          )}
+          );
+        })()}
 
           {/* TAB 3: KAS RT */}
           {activeTab === 'kas' && (
@@ -7639,7 +8231,7 @@ export default function AdminDashboard({
             onClick={() => setModalType('')}
           ></div>
 
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col">
+          <div className={`relative bg-white dark:bg-slate-900 w-full ${modalType === 'register_account' ? 'max-w-lg' : 'max-w-md'} rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col`}>
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
 
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
@@ -7651,6 +8243,7 @@ export default function AdminDashboard({
                 {modalType === 'add_agenda' && 'Buat Agenda Baru'}
                 {modalType === 'edit_agenda' && 'Edit Detail Agenda'}
                 {modalType === 'register_account' && `Registrasi Akun - ${selectedCitizenForAccount?.name}`}
+                {modalType === 'edit_account' && `Edit Akun Login - ${selectedCitizenForAccount?.name}`}
               </h3>
               <button 
                 onClick={() => setModalType('')}
@@ -7668,67 +8261,259 @@ export default function AdminDashboard({
                 </div>
               )}
 
-              {/* REGISTER ACCOUNT FORM */}
-              {modalType === 'register_account' && (
-                <form onSubmit={handleAccountRegisterSubmit} className="space-y-4 text-xs font-sans">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Username Akun *</label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Username login baru"
-                      value={accountForm.username}
-                      onChange={(e) => setAccountForm({ ...accountForm, username: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
-                    />
-                  </div>
+              {/* REGISTER & EDIT ACCOUNT FORM (2-SECTION MODULAR REDESIGN) */}
+              {(modalType === 'register_account' || modalType === 'edit_account') && (() => {
+                const isEditMode = modalType === 'edit_account';
+                const isUsernameValid = (accountForm.username || '').trim().length >= 4 && !usernameFieldError;
+                const isPasswordValid = isEditMode
+                  ? (!accountForm.password || accountForm.password.length >= 6)
+                  : ((accountForm.password || '').length >= 6);
+                const isConfirmPasswordValid = isEditMode
+                  ? (!accountForm.password || accountForm.confirmPassword === accountForm.password)
+                  : (accountForm.confirmPassword === accountForm.password && (accountForm.confirmPassword || '').length >= 6);
 
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Password Akun *</label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Minimal 8 karakter"
-                      value={accountForm.password}
-                      onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
-                    />
-                  </div>
+                const isFormValid = isUsernameValid && isPasswordValid && isConfirmPasswordValid;
 
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Email Warga *</label>
-                    <input
-                      required
-                      type="email"
-                      placeholder="nama@domain.com"
-                      value={accountForm.email}
-                      onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
-                    />
-                  </div>
+                return (
+                  <div className="space-y-6 font-sans text-xs">
+                    {/* SECTION 1: Informasi Warga (Readonly Card) */}
+                    <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
+                        <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                          Informasi Warga (Read-Only)
+                        </h4>
+                      </div>
 
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Peran / Jabatan *</label>
-                    <select
-                      value={accountForm.role}
-                      onChange={(e) => setAccountForm({ ...accountForm, role: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
-                    >
-                      <option value="warga">Warga (Penduduk)</option>
-                      <option value="rt">Ketua RT</option>
-                      <option value="sekertaris">Sekretaris RT</option>
-                      <option value="bendahara">Bendahara RT</option>
-                    </select>
-                  </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Nama Lengkap</span>
+                          <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                            {selectedCitizenForAccount?.name || '-'}
+                          </span>
+                        </div>
 
-                  <button
-                    type="submit"
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
-                  >
-                    Registrasikan Akun
-                  </button>
-                </form>
-              )}
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">NIK (KTP)</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            {selectedCitizenForAccount?.nik || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Nomor KK</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                            {selectedCitizenForAccount?.noKk || selectedCitizenForAccount?.no_kk || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Kepala Keluarga</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedCitizenForAccount?.kepalaKeluarga || selectedCitizenForAccount?.kepala_keluarga_nama || selectedCitizenForAccount?.name || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Blok & Nomor Rumah</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedCitizenForAccount?.house_blok ? `Blok ${selectedCitizenForAccount.house_blok}` : ''}
+                            {selectedCitizenForAccount?.house_nomor ? ` No. ${selectedCitizenForAccount.house_nomor}` : '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Nomor HP</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedCitizenForAccount?.noHp || selectedCitizenForAccount?.no_hp || selectedCitizenForAccount?.telepon || '-'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <span className="text-slate-400 font-bold block text-[10px] uppercase">Email Warga</span>
+                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                            {selectedCitizenForAccount?.email || selectedCitizenForAccount?.emailWarga || '-'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="pt-1">
+                        <span className="text-slate-400 font-bold block text-[10px] uppercase">Alamat Lengkap</span>
+                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                          {selectedCitizenForAccount?.alamat || '-'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Divider Visual */}
+                    <div className="relative flex items-center justify-center">
+                      <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
+                      <span className="bg-white dark:bg-slate-900 px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest absolute">
+                        {isEditMode ? '⚙️ Edit Akun Warga' : '🔐 Informasi Akun Baru'}
+                      </span>
+                    </div>
+
+                    {/* SECTION 2: Informasi Akun (Form Input) */}
+                    <form onSubmit={isEditMode ? handleEditAccountSubmit : handleAccountRegisterSubmit} className="space-y-4">
+                      {/* Username Field */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                            Username Login *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleGenerateUsername()}
+                            className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-500/10 px-2.5 py-1 rounded-lg hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
+                            title="Klik untuk membuat rekomendasi username baru secara acak"
+                          >
+                            <Wand2 className="w-3.5 h-3.5 animate-bounce" />
+                            <span>⚡ Generate Username</span>
+                          </button>
+                        </div>
+
+                        <input
+                          required
+                          disabled={isCreatingAccount}
+                          type="text"
+                          placeholder="Masukkan username (min. 4 karakter)"
+                          value={accountForm.username}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setAccountForm({ ...accountForm, username: val });
+                            if (val.trim().length > 0 && val.trim().length < 4) {
+                              setUsernameFieldError('Username minimal 4 karakter.');
+                            } else {
+                              setUsernameFieldError('');
+                            }
+                          }}
+                          className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border ${
+                            usernameFieldError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/20 focus:border-emerald-500'
+                          } rounded-xl outline-none focus:ring-2 text-slate-900 dark:text-white font-mono font-semibold transition-all disabled:opacity-50`}
+                        />
+                        {usernameFieldError && (
+                          <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>{usernameFieldError}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Email Field */}
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                          Email Warga (Opsional)
+                        </label>
+                        <input
+                          disabled={isCreatingAccount}
+                          type="email"
+                          placeholder="nama@domain.com"
+                          value={accountForm.email || ''}
+                          onChange={(e) => setAccountForm({ ...accountForm, email: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all disabled:opacity-50"
+                        />
+                      </div>
+
+                      {/* Password Field */}
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                          {isEditMode ? 'Password Baru (Kosongkan jika tidak ingin mengubah)' : 'Password *'}
+                        </label>
+                        <div className="relative">
+                          <input
+                            required={!isEditMode}
+                            disabled={isCreatingAccount}
+                            type={showAccountPassword ? 'text' : 'password'}
+                            placeholder={isEditMode ? 'Kosongkan jika tidak ada perubahan' : 'Masukkan kata sandi (min. 6 karakter)'}
+                            value={accountForm.password}
+                            onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
+                            className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono transition-all disabled:opacity-50"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAccountPassword(!showAccountPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            title={showAccountPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                          >
+                            {showAccountPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Konfirmasi Password Field */}
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                          {isEditMode ? 'Konfirmasi Password Baru' : 'Konfirmasi Password *'}
+                        </label>
+                        <div className="relative">
+                          <input
+                            required={!isEditMode && !!accountForm.password}
+                            disabled={isCreatingAccount}
+                            type={showAccountConfirmPassword ? 'text' : 'password'}
+                            placeholder={isEditMode ? 'Ulangi kata sandi baru (jika diubah)' : 'Ulangi kata sandi di atas'}
+                            value={accountForm.confirmPassword}
+                            onChange={(e) => setAccountForm({ ...accountForm, confirmPassword: e.target.value })}
+                            className={`w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900/50 border ${
+                              accountForm.confirmPassword && accountForm.confirmPassword !== accountForm.password
+                                ? 'border-rose-500 focus:ring-rose-500/20'
+                                : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/20 focus:border-emerald-500'
+                            } rounded-xl outline-none focus:ring-2 text-slate-900 dark:text-white font-mono transition-all disabled:opacity-50`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAccountConfirmPassword(!showAccountConfirmPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            title={showAccountConfirmPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                          >
+                            {showAccountConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {accountForm.confirmPassword && accountForm.confirmPassword !== accountForm.password && (
+                          <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            <span>⚠️ Password dan konfirmasi password tidak cocok</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 pt-3">
+                        <button
+                          type="button"
+                          disabled={isCreatingAccount}
+                          onClick={() => setModalType('')}
+                          className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          Batal
+                        </button>
+
+                        <button
+                          type="submit"
+                          disabled={!isFormValid || isCreatingAccount}
+                          className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+                        >
+                          {isCreatingAccount ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Memproses...</span>
+                            </>
+                          ) : isEditMode ? (
+                            <>
+                              <Edit className="w-4 h-4" />
+                              <span>Simpan Perubahan Akun</span>
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="w-4 h-4" />
+                              <span>Registrasikan Akun</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                );
+              })()}
 
               {/* WARGA FORM */}
               {(modalType === 'add_warga' || modalType === 'edit_warga') && (
@@ -8844,9 +9629,8 @@ export default function AdminDashboard({
       {/* DETAIL KELUARGA MODAL */}
       {selectedFamilyForDetail && (() => {
         const familyId = selectedFamilyForDetail.family_id || selectedFamilyForDetail.id;
-        const familyWarga = wargaList.filter(w => String(w.family_id || w.fammilyId) === String(familyId));
-        const foundUsername = selectedFamilyForDetail.username || familyWarga.find(w => w.username)?.username;
-        const hasAccount = !!(selectedFamilyForDetail.username || selectedFamilyForDetail.user_id || selectedFamilyForDetail.has_account || selectedFamilyForDetail.hasAccount || selectedFamilyForDetail.account_id || foundUsername);
+        const foundUsername = getWargaUsername(selectedFamilyForDetail);
+        const hasAccount = checkWargaHasAccount(selectedFamilyForDetail);
         const kepalaNama = selectedFamilyForDetail.kepala_keluarga_nama || selectedFamilyForDetail.kepalaKeluarga || 'Tidak Diketahui';
         const noKK = revealedKks[familyId] || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK;
 
@@ -8870,7 +9654,7 @@ export default function AdminDashboard({
                     {hasAccount ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
                         <Check className="w-3 h-3 text-emerald-500" />
-                        Sudah Memiliki Akun
+                        Sudah Memiliki Akun {foundUsername ? `(@${foundUsername})` : ''}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">

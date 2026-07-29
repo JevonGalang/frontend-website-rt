@@ -4,7 +4,7 @@ import {
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
   Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
-  Loader2, Search, Menu
+  Loader2, Search, Menu, Camera
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
@@ -115,6 +115,11 @@ export default function ProfilWarga({
     status: currentUser ? currentUser.status || 'Tetap' : 'Tetap',
     email: currentUser ? currentUser.email || '' : '',
     noHp: currentUser ? currentUser.noHp || '' : '',
+    pekerjaan: currentUser ? currentUser.pekerjaan || '' : '',
+    tglLahir: currentUser ? currentUser.tglLahir || currentUser.tanggalLahir || '' : '',
+    house_blok: currentUser ? currentUser.house_blok || '' : '',
+    house_nomor: currentUser ? currentUser.house_nomor || '' : '',
+    foto: currentUser ? currentUser.foto || currentUser.avatar || '' : ''
   });
 
   const [revealPassword, setRevealPassword] = useState(false);
@@ -545,17 +550,29 @@ export default function ProfilWarga({
         usia: currentUser.usia || prev.usia,
         email: currentUser.email || prev.email,
         noHp: currentUser.noHp || prev.noHp,
-        status: currentUser.status || prev.status
+        status: currentUser.status || prev.status,
+        pekerjaan: currentUser.pekerjaan || prev.pekerjaan,
+        tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || prev.tglLahir,
+        house_blok: currentUser.house_blok || prev.house_blok,
+        house_nomor: currentUser.house_nomor || prev.house_nomor,
+        foto: currentUser.foto || currentUser.avatar || prev.foto
       }));
     }
   }, [currentUser]);
 
-  const formatRupiah = (num) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(num);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        setError('Ukuran foto profil maksimal 3MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, foto: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleCancel = () => {
@@ -572,6 +589,11 @@ export default function ProfilWarga({
       status: currentUser.status || (familyHead && familyHead.house_status === 'kontrak' ? 'Kontrak' : 'Tetap'),
       email: currentUser.email || '',
       noHp: currentUser.noHp || (familyHead ? familyHead.no_hp : ''),
+      pekerjaan: currentUser.pekerjaan || '',
+      tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || '',
+      house_blok: currentUser.house_blok || '',
+      house_nomor: currentUser.house_nomor || '',
+      foto: currentUser.foto || currentUser.avatar || ''
     });
     setIsEditing(false);
   };
@@ -595,10 +617,15 @@ export default function ProfilWarga({
     }
   };
 
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!formData.name || !formData.name.trim()) {
+      setError('Nama Lengkap wajib diisi.');
+      return;
+    }
 
     if (!formData.email || !formData.noHp) {
       setError('Email dan nomor HP wajib diisi.');
@@ -607,12 +634,46 @@ export default function ProfilWarga({
 
     const updated = {
       ...currentUser,
-      email: formData.email,
-      noHp: formData.noHp,
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      noHp: formData.noHp.trim(),
+      alamat: (formData.alamat || '').trim(),
+      gender: formData.gender,
+      tglLahir: formData.tglLahir,
+      tanggalLahir: formData.tglLahir,
+      pekerjaan: (formData.pekerjaan || '').trim(),
+      status: formData.status,
+      house_blok: (formData.house_blok || '').trim(),
+      house_nomor: (formData.house_nomor || '').trim(),
+      foto: formData.foto || currentUser.foto
     };
 
+    const token = localStorage.getItem('rt_token');
+    if (token && (currentUser.id || currentUser.warga_id)) {
+      const citizenId = currentUser.id || currentUser.warga_id;
+      try {
+        await fetch(`http://172.20.32.62:3333/resident/warga/${citizenId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            nama: formData.name.trim(),
+            noHp: formData.noHp.trim(),
+            email: formData.email.trim(),
+            alamat: formData.alamat.trim(),
+            jenisKelamin: formData.gender,
+            pekerjaan: (formData.pekerjaan || '').trim()
+          })
+        });
+      } catch (err) {
+        console.warn('Backend update failed, updating local state:', err);
+      }
+    }
+
     onUpdateProfile(updated);
-    setSuccess('Profil berhasil diperbarui!');
+    setSuccess('Data profil Anda berhasil diperbarui!');
     setIsEditing(false);
   };
 
@@ -2817,34 +2878,47 @@ export default function ProfilWarga({
             </div>
           )}
 
-          {/* TAB 2: Profil Saya (MOCKUP ALIGNED) */}
+          {/* TAB 2: Profil Saya */}
           {activeTab === 'profil_saya' && (
             <div className="space-y-6 animate-fade-in font-sans">
               
-              {/* Header Visual               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
+              {/* Header Visual */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
                 <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800">
-                    {displayNama.charAt(0) || 'W'}
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
+                    {formData.foto ? (
+                      <img src={formData.foto} alt={displayNama} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{displayNama.charAt(0) || 'W'}</span>
+                    )}
                   </div>
-                  <div className="absolute inset-0 rounded-full bg-black/40 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    👤 FOTO PROFIL
-                  </div>
+                  {isEditing && (
+                    <label className="absolute bottom-0 right-0 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white dark:border-slate-800" title="Ubah Foto Profil">
+                      <Camera className="w-4 h-4" />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                    </label>
+                  )}
                 </div>
                 
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{displayNama}</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{formData.name || displayNama}</h3>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">Warga RT {rtRw}</p>
                 </div>
 
                 {!isEditing ? (
                   <button
                     onClick={handleEditClick}
-                    className="py-1.5 px-4 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                    className="py-2 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02]"
                   >
-                    Edit Profil
+                    <Edit2 className="w-4 h-4" />
+                    <span>Edit Profil Saya</span>
                   </button>
                 ) : (
-                  <span className="text-[10px] text-amber-500 font-bold animate-pulse">Mode Edit Kontak Aktif</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-extrabold px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 animate-pulse">
+                      Mode Edit Profil Aktif
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -2862,110 +2936,188 @@ export default function ProfilWarga({
                 </div>
               )}
 
-              {/* Card 2: Informasi Pribadi */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Informasi Pribadi</h4>
-                
-                <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Nama</span>
-                    <span className="text-slate-805 dark:text-slate-200 font-bold">{displayNama}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">NIK</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
-                      {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Jenis Kelamin</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Tanggal Lahir</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Pekerjaan</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 3: Alamat */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Alamat</h4>
-                
-                <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">RT/RW</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Alamat</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Status Rumah</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{statusRumah}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 4: Kontak (HP & Email edit mode supported) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Kontak</h4>
-                
-                <form onSubmit={handleProfileSubmit} className="space-y-4 text-xs sm:text-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                    <span className="w-32 text-slate-400 font-bold">No HP</span>
-                    {isEditing ? (
-                      <input
-                        required
-                        type="text"
-                        value={formData.noHp}
-                        onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
-                        className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
-                      />
-                    ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
-                    )}
-                  </div>
+              {/* Profile Editing Form Container */}
+              <form onSubmit={handleProfileSubmit} className="space-y-6">
+                {/* Card 2: Informasi Pribadi */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Informasi Pribadi</h4>
                   
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                    <span className="w-32 text-slate-400 font-bold">Email</span>
-                    {isEditing ? (
-                      <input
-                        required
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
-                      />
-                    ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
-                    )}
-                  </div>
-
-                  {isEditing && (
-                    <div className="flex gap-2.5 pt-2">
-                      <button
-                        type="submit"
-                        className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
-                      >
-                        Simpan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleCancel}
-                        className="py-1.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-800"
-                      >
-                        Batal
-                      </button>
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    {/* Nama */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Nama Lengkap</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Nama lengkap sesuai KTP"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-extrabold">{displayNama}</span>
+                      )}
                     </div>
-                  )}
-                </form>
-              </div>
+
+                    {/* NIK */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">NIK (KTP)</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
+                        {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
+                      </span>
+                    </div>
+
+                    {/* Jenis Kelamin */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Jenis Kelamin</span>
+                      {isEditing ? (
+                        <select
+                          value={formData.gender}
+                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="Laki-laki">Laki-laki</option>
+                          <option value="Perempuan">Perempuan</option>
+                        </select>
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
+                      )}
+                    </div>
+
+                    {/* Tanggal Lahir */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Tanggal Lahir</span>
+                      {isEditing ? (
+                        <input
+                          type="date"
+                          value={formData.tglLahir}
+                          onChange={(e) => setFormData({ ...formData, tglLahir: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
+                      )}
+                    </div>
+
+                    {/* Pekerjaan */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Pekerjaan</span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={formData.pekerjaan}
+                          onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Pekerjaan saat ini"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 3: Alamat & Tempat Tinggal */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Alamat & Tempat Tinggal</h4>
+                  
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">RT/RW</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Alamat Lengkap</span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={formData.alamat}
+                          onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Alamat tempat tinggal"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Status Rumah</span>
+                      {isEditing ? (
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="Tetap">Tetap (Milik Sendiri)</option>
+                          <option value="Kontrak">Kontrak / Sewa</option>
+                        </select>
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{statusRumah}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Kontak */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Kontak & Komunikasi</h4>
+                  
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">No HP / WhatsApp</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="text"
+                          value={formData.noHp}
+                          onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Email</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Form Action Buttons when Editing */}
+                {isEditing && (
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-lg cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.01]"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Perubahan Profil</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="py-2.5 px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                )}
+              </form>
 
               {/* Card 5: Keamanan */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
