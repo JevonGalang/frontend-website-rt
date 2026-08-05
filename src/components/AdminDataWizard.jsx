@@ -775,7 +775,7 @@ export default function AdminDataWizard() {
                 Pendaftaran Berhasil Disimpan!
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto">
-                Seluruh data rumah, Kartu Keluarga, dan warga telah terhubung di database backend.
+                Seluruh data rumah, Kartu Keluarga, dan warga telah terhubung di database.
               </p>
             </div>
           </div>
@@ -1192,7 +1192,7 @@ export default function AdminDataWizard() {
                 Daftar Satu Langkah
               </h4>
               <p className="text-[11px] text-slate-450 dark:text-slate-500 leading-relaxed font-medium">
-                Pendaftaran mode Satu Langkah secara otomatis mengamankan database dari rumah duplikat dan KK ganda dengan mengeksekusi validasi transaksional di server backend.
+                Pendaftaran mode Satu Langkah secara otomatis mengamankan database dari rumah duplikat dan KK ganda dengan mengeksekusi validasi transaksional di server.
               </p>
               <button
                 type="submit"

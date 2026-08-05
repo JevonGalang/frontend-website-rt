@@ -6,7 +6,7 @@ import {
   AlertCircle, Sparkles, Filter, Activity, Eye, EyeOff, Wand2,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
-  Building2, RotateCcw, Key, Menu, UserCheck, Phone
+  Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -88,6 +88,10 @@ export default function AdminDashboard({
   const [showAccountPassword, setShowAccountPassword] = useState(false);
   const [showAccountConfirmPassword, setShowAccountConfirmPassword] = useState(false);
   const [usernameFieldError, setUsernameFieldError] = useState('');
+  const [existingAccountPassword, setExistingAccountPassword] = useState('');
+  const [showExistingPassword, setShowExistingPassword] = useState(false);
+  const [existingAccountCreatedAt, setExistingAccountCreatedAt] = useState(null);
+  const [existingPasswordChangedAt, setExistingPasswordChangedAt] = useState(null);
 
   const cleanNameStr = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
@@ -101,15 +105,29 @@ export default function AdminDashboard({
     }
   };
 
-  const saveCreatedAccount = (citizen, familyId, username, password) => {
+  const saveCreatedAccount = (citizen, familyId, username, password, options = {}) => {
     if (!citizen && !familyId) return;
     try {
       const accounts = getCreatedAccountsMap();
-      const record = { username, password, createdAt: new Date().toISOString() };
-      
       const citizenId = citizen?.id || citizen?.warga_id;
       const nik = citizen?.nik;
-      const cName = cleanNameStr(citizen?.name);
+      const cName = cleanNameStr(citizen?.name || citizen?.nama);
+
+      // Find existing record to preserve data
+      const existingRecord = (cName && accounts[`name_${cName}`]) ||
+                             (nik && accounts[`nik_${nik}`]) ||
+                             (citizenId && accounts[`citizen_${citizenId}`]) ||
+                             (familyId && accounts[`family_${familyId}`]);
+
+      const now = new Date().toISOString();
+      const record = {
+        username: username || existingRecord?.username || '',
+        password: password || existingRecord?.password || '',
+        createdAt: existingRecord?.createdAt || now,
+        passwordChangedAt: (password && password !== existingRecord?.password)
+          ? now
+          : (existingRecord?.passwordChangedAt || null)
+      };
 
       if (familyId) accounts[`family_${familyId}`] = record;
       if (citizenId) accounts[`citizen_${citizenId}`] = record;
@@ -124,13 +142,14 @@ export default function AdminDashboard({
   const checkWargaHasAccount = (w) => {
     if (!w) return false;
     if (w.username && String(w.username).trim().length > 0) return true;
-    if (w.has_account === true || w.has_account === 1 || w.account_created === true || w.hasAccount === true) return true;
+    if (w.user?.username || w.account?.username || w.user_name) return true;
+    if (w.has_account === true || w.has_account === 1 || w.account_created === true || w.hasAccount === true || w.hasAccount === 1 || !!w.user_id || !!w.account_id || !!w.user || !!w.account) return true;
     
     const createdAccounts = getCreatedAccountsMap();
     const famId = w.family_id || w.fammilyId || w.familyId;
     const citizenId = w.id || w.warga_id;
     const nik = w.nik;
-    const cName = cleanNameStr(w.name);
+    const cName = cleanNameStr(w.name || w.nama);
 
     if (cName && createdAccounts[`name_${cName}`]) return true;
     if (nik && createdAccounts[`nik_${nik}`]) return true;
@@ -140,9 +159,9 @@ export default function AdminDashboard({
     if (famId && Array.isArray(wargaList)) {
       const memberHasAcc = wargaList.some(item => {
         const isSameFam = (item.family_id === famId || item.fammilyId === famId || item.familyId === famId);
-        const itemCleanName = cleanNameStr(item.name);
+        const itemCleanName = cleanNameStr(item.name || item.nama);
         const hasAcc = (item.username && String(item.username).trim().length > 0) || 
-                       item.has_account === true || item.account_created === true || item.hasAccount === true ||
+                       item.has_account === true || item.has_account === 1 || item.account_created === true || item.hasAccount === true || item.hasAccount === 1 || !!item.user_id || !!item.account_id ||
                        (famId && createdAccounts[`family_${famId}`]) || 
                        (item.id && createdAccounts[`citizen_${item.id}`]) ||
                        (item.nik && createdAccounts[`nik_${item.nik}`]) ||
@@ -157,12 +176,15 @@ export default function AdminDashboard({
   const getWargaUsername = (w) => {
     if (!w) return null;
     if (w.username && String(w.username).trim().length > 0) return w.username;
-    
+    if (w.user?.username) return w.user.username;
+    if (w.account?.username) return w.account.username;
+    if (w.user_name) return w.user_name;
+
     const createdAccounts = getCreatedAccountsMap();
     const famId = w.family_id || w.fammilyId || w.familyId;
     const citizenId = w.id || w.warga_id;
     const nik = w.nik;
-    const cName = cleanNameStr(w.name);
+    const cName = cleanNameStr(w.name || w.nama);
 
     if (cName && createdAccounts[`name_${cName}`]?.username) return createdAccounts[`name_${cName}`].username;
     if (nik && createdAccounts[`nik_${nik}`]?.username) return createdAccounts[`nik_${nik}`].username;
@@ -181,6 +203,28 @@ export default function AdminDashboard({
       return cName || 'warga';
     }
     
+    return null;
+  };
+
+  // Retrieve full saved account record (username, password, createdAt) for a warga
+  const getWargaAccountRecord = (w) => {
+    if (!w) return null;
+    const createdAccounts = getCreatedAccountsMap();
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    const citizenId = w.id || w.warga_id;
+    const nik = w.nik;
+    const cName = cleanNameStr(w.name || w.nama);
+
+    if (cName && createdAccounts[`name_${cName}`]) return createdAccounts[`name_${cName}`];
+    if (nik && createdAccounts[`nik_${nik}`]) return createdAccounts[`nik_${nik}`];
+    if (citizenId && createdAccounts[`citizen_${citizenId}`]) return createdAccounts[`citizen_${citizenId}`];
+    if (famId && createdAccounts[`family_${famId}`]) return createdAccounts[`family_${famId}`];
+
+    // Also check warga item password field directly
+    if (w.password && String(w.password).trim().length > 0) {
+      return { username: getWargaUsername(w), password: w.password, createdAt: null };
+    }
+
     return null;
   };
   
@@ -986,7 +1030,7 @@ export default function AdminDashboard({
         }));
         setSuratMasukList(formatted);
       } else {
-        throw new Error('Endpoint backend belum aktif atau mengembalikan error.');
+        throw new Error('Endpoint server belum aktif atau mengembalikan error.');
       }
     } catch (err) {
       console.warn('Gagal mengambil surat masuk dari server, menggunakan local storage/state:', err.message);
@@ -1032,7 +1076,7 @@ export default function AdminDashboard({
         }));
         setSuratKeluarList(formatted);
       } else {
-        throw new Error('Endpoint backend belum aktif atau mengembalikan error.');
+        throw new Error('Endpoint server belum aktif atau mengembalikan error.');
       }
     } catch (err) {
       console.warn('Gagal mengambil surat keluar dari server, menggunakan local storage/state:', err.message);
@@ -1098,14 +1142,25 @@ export default function AdminDashboard({
         const normalized = items.map(item => {
           const citizenId = item.warga_id || item.id || 0;
           const famId = item.family_id || item.fammilyId || 0;
-          const savedAcc = (famId && createdAccounts[`family_${famId}`]) || (citizenId && createdAccounts[`citizen_${citizenId}`]);
-          const username = item.username || savedAcc?.username || '';
-          const hasAccount = !!username || !!item.has_account || !!item.account_created || !!savedAcc;
+          const nik = item.nik || '';
+          const cName = cleanNameStr(item.nama || item.name);
+
+          const savedAcc = (famId && createdAccounts[`family_${famId}`]) || 
+                           (citizenId && createdAccounts[`citizen_${citizenId}`]) ||
+                           (nik && createdAccounts[`nik_${nik}`]) ||
+                           (cName && createdAccounts[`name_${cName}`]);
+
+          const backendUsername = item.username || item.user?.username || item.account?.username || item.user_name || '';
+          const username = backendUsername || savedAcc?.username || '';
+          const hasAccount = !!username || 
+                             item.has_account === true || item.has_account === 1 || 
+                             item.account_created === true || item.hasAccount === true || 
+                             !!item.user_id || !!item.account_id || !!item.user || !!savedAcc;
 
           return {
             id: citizenId,
             name: item.nama || item.name || '',
-            nik: item.nik || '',
+            nik: nik,
             noKk: item.family_nokk || item.no_kk || item.noKk || '',
             gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
             status: item.house_status || item.status || 'Tetap',
@@ -1114,7 +1169,7 @@ export default function AdminDashboard({
             has_account: hasAccount,
             account_created: hasAccount,
             alamat: item.house_alamat || item.alamat || '',
-            noHp: item.no_hp || item.noHp || '',
+            noHp: item.no_hp || item.noHp || item.telepon || '',
             family_id: famId,
             house_id: item.house_id || item.houseId || 0,
             house_blok: item.house_blok || '',
@@ -1561,7 +1616,7 @@ export default function AdminDashboard({
 
     Swal.fire({
       title: 'Memproses Akun...',
-      text: 'Mengirim permintaan pembuatan akun ke backend server...',
+      text: 'Mengirim permintaan pembuatan akun ke server...',
       allowOutsideClick: false,
       allowEscapeKey: false,
       didOpen: () => {
@@ -1606,7 +1661,7 @@ export default function AdminDashboard({
       if (!response.ok) {
         Swal.fire({
           title: 'Gagal Membuat Akun',
-          text: resData.message || resData.error || 'Terjadi kesalahan pada server backend.',
+          text: resData.message || resData.error || 'Terjadi kesalahan pada server.',
           icon: 'error',
           confirmButtonColor: '#ef4444',
           customClass: {
@@ -1719,6 +1774,12 @@ export default function AdminDashboard({
   const openEditAccountModal = (citizen) => {
     setSelectedCitizenForAccount(citizen);
     const existingUsername = getWargaUsername(citizen) || '';
+    const accountRecord = getWargaAccountRecord(citizen);
+
+    // Load existing password from saved record or from citizen object
+    const savedPassword = accountRecord?.password || citizen.password || '';
+    const savedCreatedAt = accountRecord?.createdAt || null;
+    const savedPasswordChangedAt = accountRecord?.passwordChangedAt || null;
 
     setAccountForm({
       username: existingUsername,
@@ -1727,6 +1788,10 @@ export default function AdminDashboard({
       email: citizen.email || citizen.emailWarga || '',
       role: 'warga'
     });
+    setExistingAccountPassword(savedPassword);
+    setExistingAccountCreatedAt(savedCreatedAt);
+    setExistingPasswordChangedAt(savedPasswordChangedAt);
+    setShowExistingPassword(false);
     setShowAccountPassword(false);
     setShowAccountConfirmPassword(false);
     setUsernameFieldError('');
@@ -1758,12 +1823,13 @@ export default function AdminDashboard({
 
     const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.familyId || selectedCitizenForAccount.id;
     const newUsername = accountForm.username.trim();
+    const newPassword = accountForm.password ? accountForm.password : ''; // empty = keep existing
 
     setIsCreatingAccount(true);
 
     try {
-      // Update persistent local registry
-      saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, newUsername, accountForm.password || 'password123');
+      // Update persistent local registry — pass empty password to preserve existing
+      saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, newUsername, newPassword);
 
       const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name);
 
@@ -1777,7 +1843,7 @@ export default function AdminDashboard({
           return {
             ...item,
             username: newUsername,
-            password: accountForm.password || item.password,
+            password: newPassword || item.password || existingAccountPassword,
             has_account: true,
             account_created: true
           };
@@ -1870,7 +1936,7 @@ export default function AdminDashboard({
 
     Swal.fire({
       title: 'Memproses Registrasi...',
-      text: 'Mengirim data pembuatan akun ke server backend...',
+      text: 'Mengirim data pembuatan akun ke server...',
       allowOutsideClick: false,
       allowEscapeKey: false,
       didOpen: () => {
@@ -1924,7 +1990,7 @@ export default function AdminDashboard({
       if (!response.ok) {
         Swal.fire({
           title: 'Gagal Membuat Akun',
-          text: resData.message || resData.error || 'Terjadi kesalahan pada server backend.',
+          text: resData.message || resData.error || 'Terjadi kesalahan pada server.',
           icon: 'error',
           confirmButtonColor: '#ef4444',
           customClass: {
@@ -3927,7 +3993,7 @@ export default function AdminDashboard({
               {activeTab === 'agenda' && 'PENJADWALAN KOMUNITAS'}
               {activeTab === 'layanan' && 'LOKET PELAYANAN SURAT'}
               {activeTab === 'logs' && 'LOG AKTIVITAS & SESI'}
-              {activeTab === 'data_wizard' && 'INPUT DATA SERVER'}
+              {activeTab === 'data_wizard' && 'INPUT DATA PENDUDUK'}
               {activeTab.startsWith('iuran_') && 'MANAJEMEN IURAN WARGA'}
               {activeTab.startsWith('keuangan_') && 'MANAJEMEN KEUANGAN'}
               {activeTab.startsWith('laporan_') && 'LAPORAN & EKSPOR'}
@@ -4002,7 +4068,7 @@ export default function AdminDashboard({
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
                     {activeTab === 'sek_warga_kk' && 'Kelola Data Kartu Keluarga (KK) 📄'}
                     {activeTab === 'sek_warga_masuk' && 'Verifikasi Registrasi Warga Baru ✨'}
-                    {activeTab === 'data_wizard' && 'Wizard Server Input Rumah, KK & Warga ⚡'}
+                    {activeTab === 'data_wizard' && 'Pendaftaran Rumah, KK & Warga ⚡'}
                     {activeTab === 'layanan' && 'Loket Persetujuan Surat Pengantar Warga 📝'}
                     {activeTab === 'sek_surat_masuk' && 'Modul Catatan & Berkas Surat Masuk 📥'}
                     {activeTab === 'sek_surat_keluar' && 'Modul Penerbitan & Berkas Surat Keluar 📤'}
@@ -4014,7 +4080,7 @@ export default function AdminDashboard({
                     {activeTab === 'iuran_verifikasi' && 'Verifikasi Setoran Transfer & Bukti Warga 🔍'}
                     {activeTab === 'keuangan_pemasukan' && 'Form Catat Pemasukan Kas RT Non-Iuran 📥'}
                     {activeTab === 'keuangan_pengeluaran' && 'Form Catat Pengeluaran Belanja RT 📤'}
-                    {activeTab === 'keuangan_kas' && 'Buku Kas Umum & Transaksi Real-Time 💰'}
+                    {activeTab === 'keuangan_kas' && 'Buku Kas Umum & Transaksi 💰'}
                     {activeTab === 'keuangan_qris' && 'Pengaturan Rekening RT & Kode QRIS 📲'}
                     {activeTab === 'laporan_bulanan' && 'Laporan Rekapitulasi Kas RT Bulanan 📅'}
                     {activeTab === 'laporan_tahunan' && 'Laporan Audit Kas RT Tahunan 📈'}
@@ -4027,11 +4093,11 @@ export default function AdminDashboard({
                     {activeTab === 'sek_arsip' && 'Galeri Berkas Dokumentasi RT 📂'}
                     {activeTab === 'sek_laporan' && 'Laporan Ringkasan Sekretariat 📊'}
                     {activeTab === 'sek_akun_manage' && 'Manajemen Akun & Registrasi Warga 🔑'}
-                    {activeTab === 'logs' && 'Log Audit Akses & Sesi Pengurus 🛡️'}
+                    {activeTab === 'logs' && 'Log Audit Akses Pengurus 🛡️'}
                     {activeTab === 'pengaturan' && 'Pengaturan Keuangan & Kata Sandi ⚙️'}
                   </h3>
                   <p className="text-xs text-slate-600 dark:text-emerald-100 max-w-2xl leading-relaxed font-medium">
-                    Sistem Portal Manajemen RT 05 terhubung langsung dengan database server secara transparan dan real-time.
+                    Sistem Portal Manajemen RT 05 untuk kelancaran administrasi dan pelayanan warga.
                   </p>
                 </div>
                 <div className="px-4 py-2 bg-emerald-600 dark:bg-white/20 hover:bg-emerald-700 dark:hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-md border border-emerald-500/30 dark:border-white/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
@@ -4312,7 +4378,7 @@ export default function AdminDashboard({
                         id: 'act-5',
                         type: 'akun',
                         title: 'Akun Warga Berhasil Dibuat',
-                        desc: 'Akun login resmi backend terdaftar untuk Kepala Keluarga.',
+                        desc: 'Akun login resmi terdaftar untuk Kepala Keluarga.',
                         time: 'Hari ini',
                         badge: 'Akun Aktif',
                         color: 'purple'
@@ -4357,7 +4423,7 @@ export default function AdminDashboard({
 
                   <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center">
                     <span>🟢 Real-Time Operational Feed</span>
-                    <span>Tersambung ke API Backend Server</span>
+                    <span>Tersambung ke Server</span>
                   </div>
                 </div>
 
@@ -4429,7 +4495,7 @@ export default function AdminDashboard({
                     <button
                       onClick={fetchResidentServerList}
                       className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
-                      title="Refresh Data Server"
+                      title="Muat Ulang Data"
                     >
                       🔄 Refresh
                     </button>
@@ -4439,13 +4505,13 @@ export default function AdminDashboard({
                 {isLoadingResidents ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3">
                     <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                    <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data dari server database...</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data...</span>
                   </div>
                 ) : residentError ? (
                   <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center gap-3 text-center">
                     <AlertCircle className="w-8 h-8 text-red-500" />
                     <div className="space-y-1">
-                      <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Menghubungkan ke Server</h5>
+                      <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Memuat Data</h5>
                       <p className="text-[10px] text-slate-400">{residentError}</p>
                     </div>
                     <button
@@ -4487,7 +4553,7 @@ export default function AdminDashboard({
                             <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
                               {searchQuery || accountFilter !== 'all'
                                 ? 'Tidak ada data yang cocok dengan kriteria pencarian atau filter Anda.'
-                                : 'Belum ada data keluarga yang terdaftar di server database.'}
+                                : 'Belum ada data keluarga yang terdaftar.'}
                             </p>
                           </div>
                           {(searchQuery || accountFilter !== 'all') ? (
@@ -4569,13 +4635,13 @@ export default function AdminDashboard({
                                     {hasAccount ? (
                                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
                                         <Check className="w-3 h-3 text-emerald-500" />
-                                        Sudah Memiliki Akun
+                                        Sudah Ada Akun
                                         {foundUsername ? ` (@${foundUsername})` : ''}
                                       </span>
                                     ) : (
                                       <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
                                         <XIcon className="w-3 h-3 text-rose-500" />
-                                        Belum Memiliki Akun
+                                        Belum Ada Akun
                                       </span>
                                     )}
                                   </td>
@@ -5586,7 +5652,7 @@ export default function AdminDashboard({
                       {serverComplaints.length === 0 && (
                         <tr>
                           <td colSpan={5} className="p-12 text-center text-slate-450 font-bold italic">
-                            Belum ada pengaduan terdaftar di server.
+                            Belum ada pengaduan terdaftar.
                           </td>
                         </tr>
                       )}
@@ -6063,7 +6129,7 @@ export default function AdminDashboard({
                   >
                     <div className="space-y-1">
                       <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'SudahAkun' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        🟢 Akun Sudah Ada
+                        🟢 Sudah Ada Akun
                       </span>
                       <div className={`text-2xl font-black ${statusFilter === 'SudahAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                         {registeredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
@@ -6085,7 +6151,7 @@ export default function AdminDashboard({
                   >
                     <div className="space-y-1">
                       <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'BelumAkun' ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>
-                        🔴 Belum Punya Akun
+                        🔴 Belum Ada Akun
                       </span>
                       <div className={`text-2xl font-black ${statusFilter === 'BelumAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
                         {unregisteredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
@@ -6120,8 +6186,8 @@ export default function AdminDashboard({
                         className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer"
                       >
                         <option value="All">Semua Warga ({totalWargaCount})</option>
-                        <option value="SudahAkun">🟢 Akun Sudah Ada ({registeredAccountCount})</option>
-                        <option value="BelumAkun">🔴 Belum Punya Akun ({unregisteredAccountCount})</option>
+                        <option value="SudahAkun">🟢 Sudah Ada Akun ({registeredAccountCount})</option>
+                        <option value="BelumAkun">🔴 Belum Ada Akun ({unregisteredAccountCount})</option>
                         <option value="Tetap">Status Tetap</option>
                         <option value="Kontrak">Status Kontrak</option>
                         <option value="Hidup">Masih Hidup</option>
@@ -6240,10 +6306,10 @@ export default function AdminDashboard({
                                   <div className="space-y-1.5 pt-0.5">
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-500/20 shadow-xs">
                                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                      <span>🟢 Sudah Memiliki Akun</span>
+                                      <span>🟢 Sudah Ada Akun</span>
                                     </span>
                                     {displayUsername && (
-                                      <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md inline-block">
+                                      <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md inline-block max-w-full break-all">
                                         Username: <span className="font-extrabold text-slate-900 dark:text-white">@{displayUsername}</span>
                                       </div>
                                     )}
@@ -6251,7 +6317,7 @@ export default function AdminDashboard({
                                       <div>
                                         <button
                                           onClick={() => openEditAccountModal(w)}
-                                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold rounded-xl transition-all cursor-pointer text-[10px] flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs"
+                                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-extrabold rounded-xl transition-all cursor-pointer text-[10px] flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-xs active:scale-95"
                                           title="Edit Data Akun Login Warga"
                                         >
                                           <Edit className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -6264,7 +6330,7 @@ export default function AdminDashboard({
                                   <div className="space-y-1.5 pt-0.5">
                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-extrabold text-[10px] border border-rose-500/20 shadow-xs">
                                       <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                                      <span>🔴 Belum Memiliki Akun</span>
+                                      <span>🔴 Belum Ada Akun</span>
                                     </span>
                                     
                                     {currentUser.role !== 'bendahara' && (
@@ -8281,7 +8347,7 @@ export default function AdminDashboard({
                       <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
                         <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                         <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
-                          Informasi Warga (Read-Only)
+                          Informasi Warga
                         </h4>
                       </div>
 
@@ -8352,6 +8418,81 @@ export default function AdminDashboard({
                         {isEditMode ? '⚙️ Edit Akun Warga' : '🔐 Informasi Akun Baru'}
                       </span>
                     </div>
+
+                    {/* SECTION 1.5: Data Akun Saat Ini (Only in Edit Mode) */}
+                    {isEditMode && (
+                      <div className="bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                        <div className="flex items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 pb-2.5">
+                          <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <h4 className="font-extrabold text-emerald-800 dark:text-emerald-300 text-xs uppercase tracking-wider">
+                            Data Akun Saat Ini
+                          </h4>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full font-extrabold text-[9px] ml-auto">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                            Aktif
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          {/* Username Saat Ini */}
+                          <div>
+                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Username Saat Ini</span>
+                            <span className="font-extrabold text-emerald-900 dark:text-emerald-100 text-sm font-mono">
+                              @{accountForm.username || '-'}
+                            </span>
+                          </div>
+
+                          {/* Tanggal Pembuatan Akun */}
+                          <div>
+                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Tanggal Pembuatan Akun</span>
+                            <span className="font-bold text-emerald-800 dark:text-emerald-200 text-xs">
+                              {existingAccountCreatedAt
+                                ? new Date(existingAccountCreatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                : 'Terdaftar pada registrasi'}
+                            </span>
+                          </div>
+
+                          {/* Tanggal Pergantian Password Terakhir */}
+                          <div className="sm:col-span-2 bg-emerald-500/5 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/10 flex items-center justify-between">
+                            <div>
+                              <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Tanggal Pergantian Password Terakhir</span>
+                              <span className="font-extrabold text-emerald-900 dark:text-emerald-100 text-xs font-mono">
+                                {existingPasswordChangedAt
+                                  ? new Date(existingPasswordChangedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                  : (existingAccountCreatedAt 
+                                      ? `Belum pernah diubah (sejak ${new Date(existingAccountCreatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })})`
+                                      : 'Belum ada riwayat perubahan')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Password Saat Ini */}
+                          <div className="sm:col-span-2">
+                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase mb-1">Password Saat Ini</span>
+                            {existingAccountPassword ? (
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 px-3 py-2 bg-white/80 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl font-mono font-bold text-emerald-900 dark:text-emerald-100 text-sm select-all break-all shadow-xs">
+                                  {showExistingPassword ? existingAccountPassword : '•'.repeat(Math.max(existingAccountPassword.length, 8))}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowExistingPassword(!showExistingPassword)}
+                                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer text-[10px] flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+                                  title={showExistingPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
+                                >
+                                  {showExistingPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                  <span>{showExistingPassword ? 'Sembunyikan Password' : 'Lihat Password'}</span>
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 dark:text-slate-500 italic font-semibold text-[11px]">
+                                Password tersimpan di server (masukkan password baru di bawah jika ingin mengubah)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* SECTION 2: Informasi Akun (Form Input) */}
                     <form onSubmit={isEditMode ? handleEditAccountSubmit : handleAccountRegisterSubmit} className="space-y-4">
@@ -9066,7 +9207,7 @@ export default function AdminDashboard({
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                {sudoActionType === 'patch_kk' ? 'Edit Nomor Kartu Keluarga' : 'Verifikasi Sudo Mode'}
+                {sudoActionType === 'patch_kk' ? 'Edit Nomor Kartu Keluarga' : 'Verifikasi Sandi Keamanan'}
               </h4>
               <button 
                 onClick={() => setShowSudoPrompt(false)} 
@@ -9654,12 +9795,12 @@ export default function AdminDashboard({
                     {hasAccount ? (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
                         <Check className="w-3 h-3 text-emerald-500" />
-                        Sudah Memiliki Akun {foundUsername ? `(@${foundUsername})` : ''}
+                        Sudah Ada Akun {foundUsername ? `(@${foundUsername})` : ''}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
                         <XIcon className="w-3 h-3 text-rose-500" />
-                        Belum Memiliki Akun
+                        Belum Ada Akun
                       </span>
                     )}
                   </div>

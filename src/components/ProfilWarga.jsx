@@ -537,26 +537,54 @@ export default function ProfilWarga({
     localStorage.setItem('rt_warga_pengaduan_list', JSON.stringify(pengaduanList));
   }, [pengaduanList]);
 
+  // Logout handler
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: 'Keluar Portal',
+      text: 'Apakah Anda yakin ingin keluar dari portal warga?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Ya, keluar',
+      cancelButtonText: 'Batal'
+    });
+    if (result.isConfirmed) {
+      setCurrentUser(null);
+      localStorage.removeItem('rt_current_user');
+      localStorage.removeItem('rt_token');
+    }
+  };
+
+  const formatCurrency = (val) => {
+    const num = Number(val) || 0;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+  };
+  const formatRupiah = formatCurrency;
+
   useEffect(() => {
     if (currentUser) {
-      setFormData(prev => ({
-        ...prev,
-        name: currentUser.name || prev.name,
-        username: currentUser.username || prev.username,
-        nik: currentUser.nik || prev.nik,
-        noKk: currentUser.noKk || prev.noKk,
-        alamat: currentUser.alamat || prev.alamat,
-        gender: currentUser.gender || prev.gender,
-        usia: currentUser.usia || prev.usia,
-        email: currentUser.email || prev.email,
-        noHp: currentUser.noHp || prev.noHp,
-        status: currentUser.status || prev.status,
-        pekerjaan: currentUser.pekerjaan || prev.pekerjaan,
-        tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || prev.tglLahir,
-        house_blok: currentUser.house_blok || prev.house_blok,
-        house_nomor: currentUser.house_nomor || prev.house_nomor,
-        foto: currentUser.foto || currentUser.avatar || prev.foto
-      }));
+      const timer = setTimeout(() => {
+        setFormData(prev => ({
+          ...prev,
+          name: currentUser.name || prev.name,
+          username: currentUser.username || prev.username,
+          nik: currentUser.nik || prev.nik,
+          noKk: currentUser.noKk || prev.noKk,
+          alamat: currentUser.alamat || prev.alamat,
+          gender: currentUser.gender || prev.gender,
+          usia: currentUser.usia || prev.usia,
+          email: currentUser.email || prev.email,
+          noHp: currentUser.noHp || prev.noHp,
+          status: currentUser.status || prev.status,
+          pekerjaan: currentUser.pekerjaan || prev.pekerjaan,
+          tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || prev.tglLahir,
+          house_blok: currentUser.house_blok || prev.house_blok,
+          house_nomor: currentUser.house_nomor || prev.house_nomor,
+          foto: currentUser.foto || currentUser.avatar || prev.foto
+        }));
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 
@@ -2029,22 +2057,7 @@ export default function ProfilWarga({
           </button>
 
           <button
-            onClick={async () => {
-              const result = await Swal.fire({
-                title: 'Keluar Portal',
-                text: 'Apakah Anda ingin keluar dari portal warga?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Ya, keluar',
-                cancelButtonText: 'Batal'
-              });
-              if (result.isConfirmed) {
-                setCurrentUser(null);
-                localStorage.removeItem('rt_current_user');
-              }
-            }}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-500/20 hover:text-rose-400 text-rose-500 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4" />
