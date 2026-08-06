@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { 
   Users, Calendar, Wallet, CheckCircle2, BarChart2, BookOpen, Layers, 
   Lock, User, LogIn, ShieldAlert, Eye, EyeOff, Loader2,
@@ -30,6 +31,67 @@ export default function Hero({
   const [success, setSuccess] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [revealPassword, setRevealPassword] = useState(false);
+
+  // Modal dialog for Emergency Call
+  const handleEmergencyClick = (emg) => {
+    Swal.fire({
+      title: `📞 ${emg.title}`,
+      html: `
+        <div class="space-y-3 text-left font-sans text-xs pt-2">
+          <p class="text-slate-500 font-medium">${emg.subtitle}</p>
+          <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
+            <span class="block text-slate-400 text-[10px] font-bold uppercase tracking-wider">Nomor Siaga Utama</span>
+            <span class="text-lg font-black font-mono text-emerald-600">${emg.phone}</span>
+            <span class="block text-[10px] text-slate-400 font-medium mt-1">${emg.altPhone}</span>
+          </div>
+          <p class="text-[10px] text-slate-400 italic text-center">Tekan 'Panggil Sekarang' untuk menghubungi kontak darurat secara langsung.</p>
+        </div>
+      `,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: '📞 Panggil Sekarang',
+      cancelButtonText: 'Tutup'
+    }).then((res) => {
+      if (res.isConfirmed && typeof window !== 'undefined') {
+        window.open(`tel:${emg.phone.replace(/[^0-9+]/g, '')}`, '_self');
+      }
+    });
+  };
+
+  // Modal dialog for Service Requirement Guide
+  const handleShowGuideModal = (srv) => {
+    const reqList = srv.requirements.map(r => `<li class="flex items-center gap-2 text-slate-700 font-semibold py-1 border-b border-slate-100"><span class="text-emerald-500 font-bold">✓</span> ${r}</li>`).join('');
+    Swal.fire({
+      title: `📋 ${srv.title}`,
+      html: `
+        <div class="space-y-3 text-left font-sans text-xs pt-2">
+          <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <span class="font-bold text-emerald-600 uppercase text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-md">${srv.category}</span>
+            <span class="text-slate-500 font-bold text-[10px]">⏱️ Estimasi: ${srv.estimate}</span>
+          </div>
+          <div>
+            <span class="block text-slate-400 font-extrabold uppercase text-[10px] tracking-wider mb-2">Dokumen Persyaratan Wajib:</span>
+            <ul class="space-y-1">
+              ${reqList}
+            </ul>
+          </div>
+          <p class="text-[10px] text-slate-400 italic text-center pt-2">Setelah dokumen siap, Anda dapat mengajukan permohonan secara mandiri di portal layanan warga.</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: '📑 Ajukan Surat Pengantar',
+      cancelButtonText: 'Tutup'
+    }).then((res) => {
+      if (res.isConfirmed) {
+        if (setCurrentPage) setCurrentPage('layanan');
+      }
+    });
+  };
 
   // Sync main tab toggle if auth state changes
   useEffect(() => {
@@ -78,7 +140,7 @@ export default function Hero({
         name: user.name || user.username,
         role: user.role || 'warga',
         loginTime: new Date().toISOString(),
-        ipAddress: '172.20.32.62',
+        ipAddress: '172.20.32.31',
         userAgent: navigator.userAgent.includes('Chrome') ? 'Google Chrome (Windows)' : 'Mozilla Firefox (Windows)',
         status: 'Aktif'
       };
@@ -112,7 +174,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/post/login', {
+      const response = await fetch('http://172.20.32.31:3333/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -165,7 +227,7 @@ export default function Hero({
   return (
     <section
       id="beranda"
-      className="relative min-h-screen pt-24 pb-16 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
+      className="relative min-h-screen pt-4 sm:pt-6 pb-16 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col justify-center font-sans">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -709,10 +771,17 @@ export default function Hero({
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEmergencyClick(emg);
+                    }}
+                    className="mt-3.5 w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
                     <span>Hubungi Sekarang</span>
-                    <span>→</span>
-                  </div>
+                  </button>
                 </div>
               ))}
             </div>
@@ -744,6 +813,7 @@ export default function Hero({
               ].map((srv) => (
                 <div
                   key={srv.id}
+                  onClick={() => handleShowGuideModal(srv)}
                   className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-3">
@@ -769,10 +839,17 @@ export default function Hero({
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
-                    <span>Lihat Syarat Lengkap</span>
-                    <span>→</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowGuideModal(srv);
+                    }}
+                    className="mt-4 w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs rounded-xl border border-emerald-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Lihat Panduan Lengkap</span>
+                  </button>
                 </div>
               ))}
             </div>

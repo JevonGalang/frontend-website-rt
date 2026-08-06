@@ -1,6 +1,6 @@
 async function testPatchResident() {
-  const registUrl = 'http://172.20.32.62:3333/post/regist';
-  const loginUrl = 'http://172.20.32.62:3333/post/login';
+  const registUrl = 'http://172.20.32.31:3333/post/regist';
+  const loginUrl = 'http://172.20.32.31:3333/post/login';
   
   // Register/login admin user
   const adminUser = {
@@ -42,7 +42,7 @@ async function testPatchResident() {
     }
 
     console.log('Fetching residents...');
-    const resList = await fetch('http://172.20.32.62:3333/admin/resident', {
+    const resList = await fetch('http://172.20.32.31:3333/admin/resident', {
       method: 'GET',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -58,7 +58,7 @@ async function testPatchResident() {
     const residentId = firstResident.family_id || firstResident.id;
     console.log(`Patching resident ID: ${residentId}...`);
 
-    const patchRes = await fetch(`http://172.20.32.62:3333/admin/resident/${residentId}`, {
+    const patchRes = await fetch(`http://172.20.32.31:3333/admin/resident/${residentId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

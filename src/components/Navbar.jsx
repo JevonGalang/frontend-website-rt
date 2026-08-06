@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Sun, Moon, Menu, X, Landmark } from 'lucide-react';
+import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
 import logoGSP from '../assets/logoGSP.jpg';
 
 const menuItems = [
@@ -178,11 +178,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
       </div>
 
       {/* Interactive Mobile Bottom Floating Dock Bar (Portrait Mode Optimized) */}
-      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/90 dark:bg-slate-950/90 backdrop-blur-md text-white px-2.5 py-1.5 rounded-full border border-emerald-500/30 shadow-2xl flex items-center gap-1 max-w-[92vw] overflow-x-auto no-scrollbar">
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-lg text-white px-3 py-2 rounded-full border border-emerald-500/30 shadow-2xl flex items-center gap-1.5 max-w-[94vw] overflow-x-auto no-scrollbar font-sans">
         <button
           onClick={() => handleNavClick('beranda')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'beranda' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+            currentPage === 'beranda' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
           }`}
         >
           <Landmark className="w-3.5 h-3.5" />
@@ -192,11 +192,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         {currentUser && (
           <button
             onClick={() => handleNavClick('profil-saya')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'profil-saya' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'profil-saya' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
-            <Landmark className="w-3.5 h-3.5 hidden" />
+            <User className="w-3.5 h-3.5" />
             <span>Profil</span>
           </button>
         )}
@@ -204,10 +204,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         {currentUser && (
           <button
             onClick={() => handleNavClick('layanan')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'layanan' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'layanan' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
+            <FileText className="w-3.5 h-3.5" />
             <span>Surat</span>
           </button>
         )}
@@ -215,20 +216,22 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         {currentUser && (
           <button
             onClick={() => handleNavClick('kas')}
-            className={`flex flex-col items-center py-1 px-2.5 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'kas' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'kas' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
+            <Wallet className="w-3.5 h-3.5" />
             <span>Kas RT</span>
           </button>
         )}
 
         <button
           onClick={() => handleNavClick('kontak')}
-          className={`flex flex-col items-center py-1 px-2.5 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'kontak' ? 'bg-emerald-500 text-white shadow-xs' : 'text-slate-300 hover:text-white'
+          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+            currentPage === 'kontak' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
           }`}
         >
+          <PhoneCall className="w-3.5 h-3.5" />
           <span>Kontak</span>
         </button>
       </div>

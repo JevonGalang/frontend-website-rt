@@ -345,7 +345,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -379,7 +379,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -410,7 +410,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/create-staff-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-staff-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -448,7 +448,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
-      const res = await fetch('http://172.20.32.62:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Gagal memuat pengumuman.');
@@ -468,7 +468,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch('http://172.20.32.62:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
@@ -494,7 +494,7 @@ export default function AdminDashboard({
     if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
     if (!Object.keys(body).length) return;
     try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/announcement/${editingAnnouncementId}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${editingAnnouncementId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
@@ -516,7 +516,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/announcement/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -546,7 +546,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -589,7 +589,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/pending-warga', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pending-warga', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Gagal mengambil daftar warga pending.');
@@ -607,7 +607,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/admin/pending-warga/${wargaId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pending-warga/${wargaId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -643,7 +643,7 @@ export default function AdminDashboard({
     try {
       console.log('--- BENDAHARA: fetchPendingPayments started ---');
       console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
-      const response = await fetch('http://172.20.32.62:3333/admin/finance/pending', {
+      const response = await fetch('http://172.20.32.31:3333/admin/finance/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('HTTP Status Response:', response.status);
@@ -729,8 +729,8 @@ export default function AdminDashboard({
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
       const endpoint = type === 'ipl' 
-        ? `http://172.20.32.62:3333/admin/finance/approve-ipl/${paymentId}`
-        : `http://172.20.32.62:3333/admin/finance/approve-kas/${paymentId}`;
+        ? `http://172.20.32.31:3333/admin/finance/approve-ipl/${paymentId}`
+        : `http://172.20.32.31:3333/admin/finance/approve-kas/${paymentId}`;
 
       const response = await fetch(endpoint, {
         method: 'PATCH',
@@ -768,7 +768,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/finance/settings', {
+      const response = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -796,7 +796,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/finance/settings', {
+      const response = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -841,7 +841,7 @@ export default function AdminDashboard({
 
     setIsAdminChangingPassword(true);
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/password', {
+      const response = await fetch('http://172.20.32.31:3333/resident/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -885,7 +885,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Gagal mengambil data tracking iuran.');
@@ -964,7 +964,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/resident', {
+      const response = await fetch('http://172.20.32.31:3333/admin/resident', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1009,7 +1009,7 @@ export default function AdminDashboard({
     setSuratMasukLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/surat-masuk', {
+      const response = await fetch('http://172.20.32.31:3333/admin/surat-masuk', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1055,7 +1055,7 @@ export default function AdminDashboard({
     setSuratKeluarLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/surat-keluar', {
+      const response = await fetch('http://172.20.32.31:3333/admin/surat-keluar', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1107,7 +1107,7 @@ export default function AdminDashboard({
     if (!token) return;
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+      const response = await fetch('http://172.20.32.31:3333/admin/datawarga', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1253,7 +1253,7 @@ export default function AdminDashboard({
 
     try {
       if (sudoActionType === 'reveal_warga') {
-        const res = await fetch(`http://172.20.32.62:3333/admin/reveal-warga/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-warga/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1269,7 +1269,7 @@ export default function AdminDashboard({
           setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
         }
       } else if (sudoActionType === 'reveal_resident') {
-        const res = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1286,7 +1286,7 @@ export default function AdminDashboard({
         }
       } else if (sudoActionType === 'patch_kk') {
         // verify password first by making a dry run reveal-resident call
-        const verifyRes = await fetch(`http://172.20.32.62:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const verifyRes = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1299,7 +1299,7 @@ export default function AdminDashboard({
           throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
         }
 
-        const response = await fetch(`http://172.20.32.62:3333/admin/resident/${sudoTargetId}`, {
+        const response = await fetch(`http://172.20.32.31:3333/admin/resident/${sudoTargetId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1357,7 +1357,7 @@ export default function AdminDashboard({
 
   const fetchLedgerFromServer = async () => {
     try {
-      const response = await fetch('http://172.20.32.62:3333/post/dashboard-stats');
+      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200 && data.output?.ledger) {
@@ -1433,7 +1433,7 @@ export default function AdminDashboard({
     fetchFinanceSettings();
     if (fetchAgendas) fetchAgendas();
 
-    const socketConnection = io('http://172.20.32.62:3333', {
+    const socketConnection = io('http://172.20.32.31:3333', {
       transports: ['websocket'],
       auth: { token }
     });
@@ -1630,7 +1630,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1950,7 +1950,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.62:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2329,7 +2329,7 @@ export default function AdminDashboard({
         }
 
         try {
-          const response = await fetch(`http://172.20.32.62:3333/admin/agenda/${id}`, {
+          const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -2400,7 +2400,7 @@ export default function AdminDashboard({
       } else {
         try {
           // Step 1: POST /admin/house
-          const houseRes = await fetch('http://172.20.32.62:3333/admin/house', {
+          const houseRes = await fetch('http://172.20.32.31:3333/admin/house', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2429,7 +2429,7 @@ export default function AdminDashboard({
           }
 
           // Step 2: POST /admin/resident
-          const residentRes = await fetch('http://172.20.32.62:3333/admin/resident', {
+          const residentRes = await fetch('http://172.20.32.31:3333/admin/resident', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2458,7 +2458,7 @@ export default function AdminDashboard({
           }
 
           // Step 3: POST /admin/datawarga
-          const citizenRes = await fetch('http://172.20.32.62:3333/admin/datawarga', {
+          const citizenRes = await fetch('http://172.20.32.31:3333/admin/datawarga', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2515,7 +2515,7 @@ export default function AdminDashboard({
       const isNumericId = /^\d+$/.test(selectedItem.id);
       if (token && isNumericId) {
         try {
-          const response = await fetch(`http://172.20.32.62:3333/resident/warga/${selectedItem.id}`, {
+          const response = await fetch(`http://172.20.32.31:3333/resident/warga/${selectedItem.id}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -2570,8 +2570,8 @@ export default function AdminDashboard({
       try {
         const isIncome = kasForm.type === 'income';
         const url = isIncome 
-          ? 'http://172.20.32.62:3333/admin/finance/income' 
-          : 'http://172.20.32.62:3333/admin/finance/expense';
+          ? 'http://172.20.32.31:3333/admin/finance/income' 
+          : 'http://172.20.32.31:3333/admin/finance/expense';
         const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
 
         const res = await fetch(url, {
@@ -2646,7 +2646,7 @@ export default function AdminDashboard({
       };
 
       if (modalType === 'add_agenda') {
-        const response = await fetch('http://172.20.32.62:3333/admin/agenda', {
+        const response = await fetch('http://172.20.32.31:3333/admin/agenda', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2670,7 +2670,7 @@ export default function AdminDashboard({
         saveAgenda([newAgenda, ...agendaList]);
         alert(resData.message || 'agenda kegiatan berhasil dibuat masbro');
       } else {
-        const response = await fetch(`http://172.20.32.62:3333/admin/agenda/${selectedItem.id}`, {
+        const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${selectedItem.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -2725,7 +2725,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/surat-masuk/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/surat-masuk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2762,7 +2762,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.62:3333/admin/surat-keluar/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/surat-keluar/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2807,8 +2807,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.62:3333/admin/surat-masuk/${suratMasukForm.id}`
-        : 'http://172.20.32.62:3333/admin/surat-masuk';
+        ? `http://172.20.32.31:3333/admin/surat-masuk/${suratMasukForm.id}`
+        : 'http://172.20.32.31:3333/admin/surat-masuk';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -2878,8 +2878,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.62:3333/admin/surat-keluar/${suratKeluarForm.id}`
-        : 'http://172.20.32.62:3333/admin/surat-keluar';
+        ? `http://172.20.32.31:3333/admin/surat-keluar/${suratKeluarForm.id}`
+        : 'http://172.20.32.31:3333/admin/surat-keluar';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -2964,7 +2964,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/admin/pengajuan/${id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -6749,7 +6749,7 @@ export default function AdminDashboard({
                   // Send to backend API
                   const token = localStorage.getItem('rt_token');
                   if (token) {
-                    fetch('http://172.20.32.62:3333/admin/finance/income', {
+                    fetch('http://172.20.32.31:3333/admin/finance/income', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -7240,7 +7240,7 @@ export default function AdminDashboard({
 
                   try {
                     const backendCategory = mapCategoryToBackend(pemasukanForm.category, 'income');
-                    const res = await fetch('http://172.20.32.62:3333/admin/finance/income', {
+                    const res = await fetch('http://172.20.32.31:3333/admin/finance/income', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -7360,7 +7360,7 @@ export default function AdminDashboard({
 
                   try {
                     const backendCategory = mapCategoryToBackend(pengeluaranForm.category, 'expense');
-                    const res = await fetch('http://172.20.32.62:3333/admin/finance/expense', {
+                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

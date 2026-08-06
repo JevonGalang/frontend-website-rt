@@ -226,7 +226,7 @@ export default function ProfilWarga({
     }
     if (!token) return;
 
-    const socketConnection = io('http://172.20.32.62:3333', {
+    const socketConnection = io('http://172.20.32.31:3333', {
       auth: { token }
     });
 
@@ -323,14 +323,19 @@ export default function ProfilWarga({
   useEffect(() => {
     try {
       localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
-    } catch (e) {}
+    } catch {
+      // ignore
+    }
   }, [wargaDocuments]);
 
   // Voting Karyawan Terbaik States
   const [karyawanList, setKaryawanList] = useState([]);
   const [voteResults, setVoteResults] = useState([]);
   const [isLoadingVoting, setIsLoadingVoting] = useState(false);
-  const [votingError, setVotingError] = useState('');
+
+  // Universal Notification States
+  const [notifCategoryFilter, setNotifCategoryFilter] = useState('semua');
+  const [isAllNotifRead, setIsAllNotifRead] = useState(false);
 
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -376,7 +381,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/getmyfamily/${famId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/getmyfamily/${famId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -427,7 +432,7 @@ export default function ProfilWarga({
     if (!token) return;
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -453,7 +458,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingAnnouncements(true);
     try {
-      const res = await fetch('http://172.20.32.62:3333/resident/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/resident/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -472,7 +477,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -495,7 +500,7 @@ export default function ProfilWarga({
     setIsLoadingPayments(true);
     setPaymentsError('');
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/my-payments', {
+      const response = await fetch('http://172.20.32.31:3333/resident/my-payments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -680,7 +685,7 @@ export default function ProfilWarga({
     if (token && (currentUser.id || currentUser.warga_id)) {
       const citizenId = currentUser.id || currentUser.warga_id;
       try {
-        await fetch(`http://172.20.32.62:3333/resident/warga/${citizenId}`, {
+        await fetch(`http://172.20.32.31:3333/resident/warga/${citizenId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -719,7 +724,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -748,121 +753,6 @@ export default function ProfilWarga({
     }
   };
 
-  const handleUploadSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token tidak ditemukan. Harap login kembali.');
-      return;
-    }
-
-    setIsSubmittingPayment(true);
-
-    try {
-      if (paymentType === 'ipl') {
-        if (iplForm.months.length === 0) {
-          alert('Silakan pilih minimal satu bulan iuran IPL yang ingin dibayar.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!iplForm.file) {
-          alert('Silakan unggah berkas bukti transfer.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('months', JSON.stringify(iplForm.months));
-        formData.append('year', iplForm.year);
-        formData.append('amount', iplForm.months.length * 200000);
-        formData.append('file', iplForm.file);
-
-        console.log('--- WARGA: Sending pay-ipl ---');
-        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
-        console.log('Payload months:', JSON.stringify(iplForm.months));
-        console.log('Payload year:', iplForm.year);
-        console.log('Payload amount:', iplForm.months.length * 200000);
-        console.log('Payload file name:', iplForm.file ? iplForm.file.name : 'None');
-
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        console.log('Response pay-ipl status:', response.status);
-        const data = await response.json();
-        console.log('Response pay-ipl data:', data);
-
-        if (response.ok) {
-          alert(data.message || 'Bukti pembayaran IPL berhasil diunggah, menunggu persetujuan Bendahara!');
-          setIplForm({ months: [], year: 2026, file: null });
-          fetchWargaPayments();
-          setActiveTab('iuran_riwayat');
-        } else {
-          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran IPL.');
-        }
-      } else {
-        if (!kasForm.amount || isNaN(kasForm.amount) || parseInt(kasForm.amount) <= 0) {
-          alert('Silakan masukkan nominal sumbangan kas yang valid.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!kasForm.description.trim()) {
-          alert('Silakan masukkan keterangan atau nama kegiatan.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!kasForm.file) {
-          alert('Silakan unggah berkas bukti transfer.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('amount', parseInt(kasForm.amount));
-        formData.append('category', kasForm.category);
-        formData.append('description', kasForm.description.trim());
-        formData.append('file', kasForm.file);
-
-        console.log('--- WARGA: Sending pay-kas ---');
-        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
-        console.log('Payload amount:', parseInt(kasForm.amount));
-        console.log('Payload category:', kasForm.category);
-        console.log('Payload description:', kasForm.description.trim());
-        console.log('Payload file name:', kasForm.file ? kasForm.file.name : 'None');
-
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        console.log('Response pay-kas status:', response.status);
-        const data = await response.json();
-        console.log('Response pay-kas data:', data);
-
-        if (response.ok) {
-          alert(data.message || 'Bukti pembayaran Kas berhasil diunggah, menunggu persetujuan Bendahara!');
-          setKasForm({ amount: '', category: 'sosial', description: '', file: null });
-          fetchWargaPayments();
-          setActiveTab('iuran_riwayat');
-        } else {
-          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran Kas.');
-        }
-      }
-    } catch (err) {
-      console.error('Error occurred in handleUploadSubmit:', err);
-      alert(`Gagal mengirim bukti pembayaran: ${err.message}`);
-    } finally {
-      setIsSubmittingPayment(false);
-    }
-  };
-
   const handleUploadDocument = async (e) => {
     e.preventDefault();
     if (!docUploadFile) {
@@ -880,7 +770,7 @@ export default function ProfilWarga({
       formData.append('file', docUploadFile);
       formData.append('type', docUploadType);
 
-      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${idWarga}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/uploadsensitifdata/${idWarga}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -917,7 +807,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -944,11 +834,10 @@ export default function ProfilWarga({
 
   const fetchKaryawanList = async () => {
     setIsLoadingVoting(true);
-    setVotingError('');
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/karyawan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/karyawan', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -966,7 +855,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/vote/results', {
+      const response = await fetch('http://172.20.32.31:3333/resident/vote/results', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -982,7 +871,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/vote', {
+      const response = await fetch('http://172.20.32.31:3333/resident/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1016,7 +905,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengaduan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1059,7 +948,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/password', {
+      const response = await fetch('http://172.20.32.31:3333/resident/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1124,7 +1013,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/datawarga', {
+      const response = await fetch('http://172.20.32.31:3333/resident/datawarga', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1189,7 +1078,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/warga/${editingMember.warga_id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/warga/${editingMember.warga_id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1247,7 +1136,7 @@ export default function ProfilWarga({
     formData.append('type', uploadDocForm.type);
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1293,7 +1182,7 @@ export default function ProfilWarga({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1345,14 +1234,14 @@ export default function ProfilWarga({
       formData.append('months', JSON.stringify(iplPaymentForm.months));
 
       console.log('--- WARGA: Sending pay-ipl (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-ipl');
       console.log('Payload months:', JSON.stringify(iplPaymentForm.months));
       console.log('Payload year:', iplPaymentForm.year);
       console.log('Payload amount:', totalAmount);
       console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
+        const response = await fetch('http://172.20.32.31:3333/resident/pay-ipl', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1419,14 +1308,14 @@ export default function ProfilWarga({
       formData.append('description', description);
 
       console.log('--- WARGA: Sending pay-kas (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-kas');
       console.log('Payload amount:', parseInt(kasPaymentForm.amount));
       console.log('Payload category:', kasPaymentForm.category);
       console.log('Payload description:', description);
       console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
+        const response = await fetch('http://172.20.32.31:3333/resident/pay-kas', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1547,7 +1436,6 @@ export default function ProfilWarga({
     })),
     ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-'))
   ];
-  const myPayments = transaksiKasList.filter(t => t.description.includes(currentUser.name));
 
   const familyHead = familyMembers[0] || null;
 
@@ -1561,10 +1449,85 @@ export default function ProfilWarga({
   const displayEmail = currentUser.email || '';
   const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
-  const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
+  // Real-time notifications derived from actual citizen submissions, complaints, payments, & announcements
+  const liveNotifFeed = [
+    // Real-time letter requests submitted by citizen
+    ...mySubmissions.map(sub => ({
+      id: `NTF-SUB-${sub.id}`,
+      category: 'surat',
+      targetTab: 'layanan_status',
+      title: `Pengajuan Surat: ${sub.wargaTipeSurat || 'Surat Pengantar RT'}`,
+      message: `Permohonan surat "${sub.wargaKeperluan || 'Administrasi'}" diajukan pada ${sub.submissionDate || 'Hari ini'} (Status: ${sub.status || 'Pending'}).`,
+      time: sub.submissionDate || 'Terbaru',
+      isUnread: !isAllNotifRead && (sub.status === 'Pending' || sub.status === 'Approved')
+    })),
+
+    // Real-time complaints submitted by citizen
+    ...pengaduanList.map(p => ({
+      id: `NTF-PGD-${p.id}`,
+      category: 'pengaduan',
+      targetTab: 'pengaduan',
+      title: `Laporan Aduan: ${p.jenis_pengaduan || 'Fasilitas Umum'}`,
+      message: `Laporan "${p.isi || 'Laporan Warga'}" dikirimkan pada ${p.tanggal || 'Hari ini'} (Status: ${p.status || 'Proses'}).`,
+      time: p.tanggal || 'Terbaru',
+      isUnread: !isAllNotifRead && (p.status === 'Menunggu' || p.status === 'Proses')
+    })),
+
+    // Real-time payment proofs uploaded by citizen
+    ...buktiBayarList.map(pay => ({
+      id: `NTF-PAY-${pay.id}`,
+      category: 'iuran',
+      targetTab: 'iuran_riwayat',
+      title: `Setoran Iuran: ${pay.bulan || 'Iuran Kas'}`,
+      message: `Setor bukti bayar ${formatRupiah(pay.nominal)} pada ${pay.date || 'Hari ini'} (Status: ${pay.status || 'Menunggu Verifikasi'}).`,
+      time: pay.date || 'Terbaru',
+      isUnread: !isAllNotifRead && pay.status === 'Menunggu Verifikasi'
+    })),
+
+    // Real-time announcements from backend RT
+    ...wargaAnnouncements.map(ann => ({
+      id: `NTF-ANN-${ann.id}`,
+      category: 'pengumuman',
+      targetTab: 'informasi_pengumuman',
+      title: `Pengumuman RT: ${ann.judul || 'Info Warga'}`,
+      message: ann.isi || ann.kategori || 'Pengumuman resmi Pengurus RT 05 Sawangan Green Park.',
+      time: ann.tanggal || 'Terbaru',
+      isUnread: false
+    }))
+  ];
+
+  const displayNotifications = liveNotifFeed.length > 0 ? liveNotifFeed : [
+    {
+      id: 'NTF-101',
+      category: 'iuran',
+      targetTab: 'iuran_tagihan',
+      title: 'Pemberitahuan Tagihan Iuran Bulanan',
+      message: `Tagihan Iuran Kas & Kebersihan RT 05 bulan ini telah terbit untuk ${currentUser.name || 'Warga'}. Harap lakukan konfirmasi pembayaran.`,
+      time: 'Hari Ini',
+      isUnread: !isAllNotifRead && currentUser.tagihNotification
+    },
+    {
+      id: 'NTF-102',
+      category: 'surat',
+      targetTab: 'layanan_status',
+      title: 'Status Pengajuan Surat Pengantar Approved',
+      message: 'Permohonan Surat Keterangan Domisili Anda telah diverifikasi & disetujui oleh Pengurus RT. Berkas fisik dapat diunduh.',
+      time: 'Hari Ini',
+      isUnread: !isAllNotifRead
+    },
+    {
+      id: 'NTF-103',
+      category: 'pengumuman',
+      targetTab: 'informasi_pengumuman',
+      title: 'Pengumuman Kerja Bakti Masal RT 05',
+      message: 'Pengurus RT mengundang seluruh kepala keluarga untuk hadir dalam kegiatan perapihan selokan dan kebersihan lingkungan hari Minggu pukul 07.00 WIB.',
+      time: 'Kemarin',
+      isUnread: false
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-16 lg:pt-20">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
       {/* Premium ambient glows */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
@@ -1637,85 +1600,276 @@ export default function ProfilWarga({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto" onClick={(e) => { if (e.target.closest('button')) setIsMobileDrawerOpen(false); }}>
+            <div className="flex-1 overflow-y-auto">
               <nav className="px-3 py-2 space-y-1 font-sans text-xs">
+                
+                {/* Dashboard Button */}
                 <button
-                  onClick={() => setActiveTab('dashboard')}
+                  onClick={() => { setActiveTab('dashboard'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'dashboard'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4 text-emerald-400" />
-                  <span>Dashboard Utama</span>
+                  <span>Dashboard</span>
                 </button>
+
+                {/* Profil Saya Button */}
                 <button
-                  onClick={() => { setActiveTab('profil_saya'); handleCancel(); }}
+                  onClick={() => { setActiveTab('profil_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'profil_saya'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
                   <User className="w-4 h-4 text-sky-400" />
                   <span>Profil Saya</span>
                 </button>
+
+                {/* Keluarga Saya Button */}
                 <button
-                  onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); }}
+                  onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'keluarga_saya'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
                   <Users className="w-4 h-4 text-purple-400" />
                   <span>Keluarga Saya</span>
                 </button>
+
+                {/* Upload Berkas Mandiri Button */}
                 <button
-                  onClick={() => setActiveTab('informasi_pengumuman')}
+                  onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'informasi_pengumuman'
+                    activeTab === 'warga_upload_berkas'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
-                  <Volume2 className="w-4 h-4 text-emerald-400" />
-                  <span>Pengumuman</span>
+                  <Upload className="w-4 h-4 text-emerald-500" />
+                  <span>Upload Berkas Mandiri</span>
                 </button>
+
+                {/* Informasi Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsInformasiOpen(!isInformasiOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                      <span>Informasi</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isInformasiOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('informasi_pengumuman'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_pengumuman' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Pengumuman</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('informasi_jadwal'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_jadwal' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Jadwal Kegiatan</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('informasi_kontak'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_kontak' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Kontak Pengurus</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Iuran Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsIuranOpen(!isIuranOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Wallet className="w-4 h-4 text-amber-400" />
+                      <span>Iuran</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isIuranOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('iuran_tagihan'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_tagihan' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Tagihan Saya</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('iuran_riwayat'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_riwayat' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Riwayat Pembayaran</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('iuran_upload'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_upload' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Upload Bukti Bayar</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Layanan Surat Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsSuratOpen(!isSuratOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-sky-400" />
+                      <span>Layanan Surat</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isSuratOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('layanan_ajukan'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'layanan_ajukan' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Ajukan Surat</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('layanan_status'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'layanan_status' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Status Pengajuan</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pengaduan */}
                 <button
-                  onClick={() => setActiveTab('iuran_tagihan')}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'iuran_tagihan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  <Wallet className="w-4 h-4 text-amber-400" />
-                  <span>Status Iuran</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('layanan_ajukan')}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'layanan_ajukan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                  }`}
-                >
-                  <FileText className="w-4 h-4 text-emerald-400" />
-                  <span>Ajukan Surat</span>
-                </button>
-                <button
-                  onClick={() => setActiveTab('pengaduan')}
+                  onClick={() => { setActiveTab('pengaduan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaduan'
                       ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
-                  <AlertTriangle className="w-4 h-4 text-rose-500" />
-                  <span>Pengaduan Warga</span>
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  <span>Pengaduan</span>
                 </button>
+
+                {/* Dokumen */}
+                <button
+                  onClick={() => { setActiveTab('dokumen'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'dokumen'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4 text-purple-400" />
+                  <span>Dokumen</span>
+                </button>
+
+                {/* Voting Karyawan */}
+                <button
+                  onClick={() => { setActiveTab('voting_karyawan'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'voting_karyawan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Voting Karyawan</span>
+                </button>
+
+                {/* Notifikasi */}
+                <button
+                  onClick={() => { setActiveTab('notifikasi'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'notifikasi'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-4 h-4 text-pink-400" />
+                    <span>Notifikasi</span>
+                  </div>
+                  {currentUser.tagihNotification && (
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                  )}
+                </button>
+
+                {/* Pengaturan */}
+                <button
+                  onClick={() => { setActiveTab('pengaturan'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'pengaturan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  <span>Pengaturan</span>
+                </button>
+
               </nav>
             </div>
 
@@ -1805,20 +1959,18 @@ export default function ProfilWarga({
             <span>Keluarga Saya</span>
           </button>
 
-          {/* Upload Berkas Mandiri Button (Only for Tetap/Milik Warga) */}
-          {isPermanentResident && (
-            <button
-              onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'warga_upload_berkas'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                  : 'text-white/90 hover:bg-white/10 dark:hover:bg-white/10 hover:text-white'
-              }`}
-            >
-              <Upload className="w-4 h-4 text-emerald-500" />
-              <span>Upload Berkas Mandiri</span>
-            </button>
-          )}
+          {/* Upload Berkas Mandiri Button */}
+          <button
+            onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'warga_upload_berkas'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Upload className="w-4 h-4 text-emerald-500" />
+            <span>Upload Berkas Mandiri</span>
+          </button>
 
           {/* Informasi Dropdown */}
           <div>
@@ -2070,32 +2222,7 @@ export default function ProfilWarga({
       {/* 2. MAIN AREA */}
       <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
-        {/* Mobile Portrait Quick Scrollable Pill Tabs */}
-        <div className="md:hidden px-3 py-2.5 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-emerald-500/20 dark:border-slate-800 flex items-center gap-1.5 overflow-x-auto no-scrollbar font-sans sticky top-0 z-30 shadow-xs">
-          {[
-            { id: 'dashboard', label: '📊 Dashboard' },
-            { id: 'profil_saya', label: '👤 Profil Saya' },
-            { id: 'keluarga_saya', label: '👨‍👩‍👧 Keluarga' },
-            { id: 'warga_upload_berkas', label: '📤 Upload Berkas' },
-            { id: 'iuran_ipl', label: '💳 Bayar IPL' },
-            { id: 'surat_pengajuan', label: '📑 Ajukan Surat' },
-            { id: 'pengaduan', label: '🚨 Aduan Warga' },
-            { id: 'voting_karyawan', label: '⭐ Voting' },
-            { id: 'informasi_pengumuman', label: '📢 Pengumuman' },
-          ].map((tb) => (
-            <button
-              key={tb.id}
-              onClick={() => setActiveTab(tb.id)}
-              className={`px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap transition-all cursor-pointer ${
-                activeTab === tb.id
-                  ? 'bg-emerald-500 text-white shadow-xs scale-[1.02]'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {tb.label}
-            </button>
-          ))}
-        </div>
+
 
         {/* Dynamic Header Ribbon */}
         <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
@@ -3763,7 +3890,7 @@ export default function ProfilWarga({
           )}
 
           {/* TAB 9: Layanan Surat -> Ajukan Surat */}
-          {activeTab === 'layanan_ajukan' && (
+          {(activeTab === 'layanan_ajukan' || activeTab === 'surat_pengajuan') && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Layanan Mandiri Pengajuan Surat</h3>
@@ -4004,6 +4131,223 @@ export default function ProfilWarga({
             </div>
           )}
 
+          {/* TAB: Upload Berkas Kependudukan Mandiri */}
+          {activeTab === 'warga_upload_berkas' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+              
+              {/* Section Header */}
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Berkas Kependudukan Mandiri</h3>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Unggah dokumen resmi (KTP, KK, KIA, Akta, SKCK) untuk verifikasi data kependudukan oleh Pengurus RT.
+                  </p>
+                </div>
+                <span className="px-3.5 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit">
+                  🔒 Enkripsi Aman & Terarah
+                </span>
+              </div>
+
+              {/* Upload Form & Instructions */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                <form onSubmit={handleUploadDocument} className="lg:col-span-6 space-y-5 bg-slate-50/70 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-1">
+                    Formulir Unggah Dokumen Baru
+                  </h4>
+
+                  {/* Member Selector */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Anggota Keluarga Pemilik Berkas *</label>
+                    <select
+                      value={selectedResidentForDoc ? (selectedResidentForDoc.warga_id || selectedResidentForDoc.id) : ''}
+                      onChange={(e) => {
+                        const targetId = parseInt(e.target.value);
+                        const found = familyMembers.find(m => (m.warga_id || m.id) === targetId) || currentUser;
+                        setSelectedResidentForDoc(found);
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                    >
+                      <option value={currentUser.id}>{currentUser.name} (Saya - Kepala Keluarga)</option>
+                      {familyMembers.map((m) => (
+                        <option key={m.id || m.warga_id} value={m.warga_id || m.id}>
+                          {m.nama} ({m.hubungan_keluarga || m.jenis_kelamin})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Document Category Selector */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Jenis Dokumen Kependudukan *</label>
+                    <select
+                      value={docUploadType}
+                      onChange={(e) => setDocUploadType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="ktp">🪪 Kartu Tanda Penduduk (KTP)</option>
+                      <option value="kk">📄 Kartu Keluarga (KK)</option>
+                      <option value="kia">👶 Kartu Identitas Anak (KIA)</option>
+                      <option value="akta">📜 Akta Kelahiran / Akta Nikah</option>
+                      <option value="domisili">📑 Surat Pindah / Ket. Domisili</option>
+                      <option value="skck">👮 Pengantar SKCK / Kelakuan Baik</option>
+                      <option value="lainnya">📦 Dokumen Pendukung Lainnya</option>
+                    </select>
+                  </div>
+
+                  {/* File Drag & Drop Box */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Berkas File (.jpg, .png, .pdf) *</label>
+                    <input
+                      type="file"
+                      required
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={(e) => {
+                        const f = e.target.files[0];
+                        if (f && f.size > 5 * 1024 * 1024) {
+                          alert('Ukuran berkas file terlalu besar! Maksimal ukuran file adalah 5MB.');
+                          e.target.value = '';
+                          return;
+                        }
+                        setDocUploadFile(f);
+                      }}
+                      className="hidden"
+                      id="warga-doc-file-input"
+                    />
+                    <label
+                      htmlFor="warga-doc-file-input"
+                      className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer block"
+                    >
+                      <Upload className="w-8 h-8 text-emerald-500 animate-pulse" />
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+                        {docUploadFile ? `Terpilih: ${docUploadFile.name}` : 'Klik untuk memilih file dokumen...'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">Format didukung: JPG, PNG, atau PDF (Maksimal 5MB)</span>
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isUploadingDoc || !docUploadFile}
+                    className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isUploadingDoc ? (
+                      <span>Mengunggah Berkas...</span>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Unggah Dokumen Mandiri</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Information Card & Requirement Guidelines */}
+                <div className="lg:col-span-6 space-y-5">
+                  <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <span>💡</span> Panduan Pengunggahan Berkas Kependudukan
+                    </h4>
+                    <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">1.</span>
+                        <span>Pastikan hasil foto/scan dokumen terlihat jelas, tidak buram, dan teks dapat terbaca dengan baik.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">2.</span>
+                        <span>Berkas yang diunggah akan tersimpan dengan enkripsi dan hanya dapat diakses oleh Pengurus RT & Sekretaris.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">3.</span>
+                        <span>Pengurus RT menggunakan berkas ini untuk mempercepat verifikasi surat pengantar mandiri warga.</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Quick Stats Badges */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Dokumen Terunggah</span>
+                      <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
+                        {wargaDocuments.length}
+                      </span>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Akses</span>
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-2 block">
+                        Terverifikasi RT
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Table of Uploaded Documents */}
+              <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800">
+                <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-4">
+                  Daftar Dokumen Kependudukan Terunggah Saya
+                </h4>
+
+                {wargaDocuments.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold italic text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                    Belum ada berkas kependudukan yang diunggah. Silakan unggah berkas KTP atau KK Anda melalui formulir di atas.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse font-sans">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-4">Jenis Dokumen</th>
+                          <th className="p-4">Pemilik Berkas</th>
+                          <th className="p-4">Nama Berkas File</th>
+                          <th className="p-4">Tanggal Unggah</th>
+                          <th className="p-4 text-right">Aksi & Unduh</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {wargaDocuments.map((doc) => (
+                          <tr key={doc.document_id || doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-extrabold uppercase">
+                                {doc.type || 'Dokumen'}
+                              </span>
+                            </td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                              {doc.resident_name || currentUser.name}
+                            </td>
+                            <td className="p-4 font-mono text-slate-500 truncate max-w-xs" title={doc.file_path}>
+                              {doc.file_path || 'dokumen.pdf'}
+                            </td>
+                            <td className="p-4 font-mono text-slate-400">
+                              {doc.upload_date || 'Hari Ini'}
+                            </td>
+                            <td className="p-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadDocument(doc.document_id || doc.id, doc.file_path)}
+                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <span>📥 Unduh / Lihat</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
           {/* TAB 12: Dokumen */}
           {activeTab === 'dokumen' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
@@ -4117,33 +4461,125 @@ export default function ProfilWarga({
             </div>
           )}
 
-          {/* TAB 13: Notifikasi */}
+          {/* TAB 13: Universal Notification Center */}
           {activeTab === 'notifikasi' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kotak Masuk Notifikasi Saya</h3>
-                <p className="text-xs text-slate-400">Daftar notifikasi terbaru terkait administrasi, iuran, dan agenda RT.</p>
-              </div>
-
-              <div className="space-y-4">
-                {currentUser.tagihNotification && (
-                  <div className="p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-rose-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-bold text-xs text-rose-600 dark:text-rose-400 font-sans">Peringatan Tagihan Pembayaran Iuran</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Bendahara RT 05 mengirimkan tagihan resmi pembayaran iuran kas Anda. Harap segera lakukan pembayaran.</p>
+              
+              {/* Section Header */}
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Bell className="w-5 h-5" />
                     </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pusat Notifikasi & Informasi Warga</h3>
                   </div>
-                )}
+                  <p className="text-xs text-slate-400">
+                    Pemberitahuan resmi mengenai tagihan iuran, persetujuan surat pengantar, pengumuman RT, dan status aduan.
+                  </p>
+                </div>
 
-                <div className="p-4 bg-slate-50 dark:bg-slate-905/35 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800 dark:text-white font-sans">Akses Portal Sukses</h4>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Akun warga Anda berhasil masuk ke portal layanan mandiri Sawangan Green Park.</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAllNotifRead(true);
+                      if (setCurrentUser) {
+                        const updated = { ...currentUser, tagihNotification: false };
+                        setCurrentUser(updated);
+                        localStorage.setItem('rt_current_user', JSON.stringify(updated));
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <span>✓ Tandai Semua Dibaca</span>
+                  </button>
                 </div>
               </div>
+
+              {/* Category Filters */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs font-bold font-sans">
+                {[
+                  { id: 'semua', label: '🔔 Semua' },
+                  { id: 'surat', label: '📑 Surat' },
+                  { id: 'iuran', label: '💳 Iuran' },
+                  { id: 'pengumuman', label: '📢 Pengumuman' },
+                  { id: 'pengaduan', label: '🚨 Pengaduan' },
+                ].map((flt) => (
+                  <button
+                    key={flt.id}
+                    type="button"
+                    onClick={() => setNotifCategoryFilter(flt.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                      notifCategoryFilter === flt.id
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {flt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Notifications Feed List */}
+              <div className="space-y-3 pt-2 font-sans">
+                {displayNotifications
+                  .filter(n => notifCategoryFilter === 'semua' || n.category === notifCategoryFilter)
+                  .map((ntf) => (
+                    <div
+                      key={ntf.id}
+                      onClick={() => setActiveTab(ntf.targetTab)}
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 cursor-pointer hover:scale-[1.01] hover:border-emerald-500/50 group ${
+                        ntf.isUnread
+                          ? 'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/30 shadow-xs'
+                          : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className={`p-2.5 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
+                        ntf.category === 'surat'
+                          ? 'bg-gradient-to-br from-sky-500 to-blue-600'
+                          : ntf.category === 'iuran'
+                          ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
+                          : ntf.category === 'pengaduan'
+                          ? 'bg-gradient-to-br from-rose-500 to-red-600'
+                          : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                      }`}>
+                        {ntf.category === 'surat' ? (
+                          <FileText className="w-4 h-4" />
+                        ) : ntf.category === 'iuran' ? (
+                          <Wallet className="w-4 h-4" />
+                        ) : ntf.category === 'pengaduan' ? (
+                          <AlertTriangle className="w-4 h-4" />
+                        ) : (
+                          <Volume2 className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                            {ntf.title}
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                            {ntf.time}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+                          {ntf.message}
+                        </p>
+                        <div className="pt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                          <span>Buka Menu Terkait</span>
+                          <span>→</span>
+                        </div>
+                      </div>
+
+                      {ntf.isUnread && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 animate-ping"></span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+
             </div>
           )}
 
