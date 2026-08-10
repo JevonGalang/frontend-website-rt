@@ -3,8 +3,8 @@ import {
   LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
-  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
-  Loader2, Search, Menu, Camera
+  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, X as XIcon, Edit2, Save,
+  Loader2, Search, Menu, Camera, Shield, ShieldCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
@@ -129,6 +129,8 @@ export default function ProfilWarga({
   const [pendingAction, setPendingAction] = useState(''); // 'edit' | 'reveal_pwd'
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedKtpWarga, setSelectedKtpWarga] = useState(null);
+  const [ktpTab, setKtpTab] = useState('asli');
 
   // Letter Request Form States
   const [letterForm, setLetterForm] = useState({
@@ -705,6 +707,11 @@ export default function ProfilWarga({
       }
     }
 
+    try {
+      localStorage.setItem('rt_user_email', formData.email.trim());
+      currentUser.email = formData.email.trim();
+    } catch(e) {}
+
     onUpdateProfile(updated);
     setSuccess('Data profil Anda berhasil diperbarui!');
     setIsEditing(false);
@@ -1200,6 +1207,33 @@ export default function ProfilWarga({
     }
   };
 
+  const handleDeleteSensitifDoc = async (documentId) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan.');
+      return;
+    }
+    if (!window.confirm('Apakah Anda yakin ingin menghapus berkas dokumen sensitif ini?')) return;
+
+    try {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/${documentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Dokumen kependudukan terunggah berhasil dihapus!');
+        if (typeof fetchMyFamily === 'function') fetchMyFamily();
+      } else {
+        alert(data.message || data.pesan || 'Gagal menghapus dokumen sensitif.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
   const handleAdvancedPaymentSubmit = async (e) => {
     e.preventDefault();
     setPaymentError('');
@@ -1446,7 +1480,7 @@ export default function ProfilWarga({
   const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
   const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
   const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
-  const displayEmail = currentUser.email || '';
+  const displayEmail = currentUser.email || formData.email || (function() { try { return localStorage.getItem('rt_user_email'); } catch(e) { return ''; } })() || '';
   const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
   // Real-time notifications derived from actual citizen submissions, complaints, payments, & announcements
@@ -3238,6 +3272,88 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
+                {/* Card 5: Upload & Berkas KTP Warga */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Berkas Identitas KTP Warga</h4>
+                      <p className="text-[10px] text-slate-400">Unggah foto KTP asli Anda untuk verifikasi identitas resmi RT 05.</p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${formData.foto_ktp || currentUser.foto_ktp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
+                      {formData.foto_ktp || currentUser.foto_ktp ? 'KTP Terunggah' : 'Belum Unggah KTP'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    {/* KTP Image Preview Box */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 flex flex-col items-center justify-center min-h-[160px] text-center">
+                      {(formData.foto_ktp || currentUser.foto_ktp) ? (
+                        <img
+                          src={formData.foto_ktp || currentUser.foto_ktp}
+                          alt="Foto KTP Warga"
+                          className="max-h-36 w-auto object-contain rounded-xl shadow-md border border-slate-200 dark:border-slate-800"
+                        />
+                      ) : (
+                        <div className="space-y-1.5 p-3">
+                          <Upload className="w-8 h-8 text-slate-400 mx-auto" />
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada foto KTP fisik</p>
+                          <p className="text-[10px] text-slate-400">Format yang didukung: JPG, PNG (Maks 5MB)</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* File Upload Input & Pratinjau Action */}
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Upload / Ganti Berkas Foto KTP Asli
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files && e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                const base64Data = reader.result;
+                                setFormData(prev => ({ ...prev, foto_ktp: base64Data }));
+                                try {
+                                  localStorage.setItem('rt_user_ktp_' + (currentUser.id || currentUser.nik || 'me'), base64Data);
+                                  currentUser.foto_ktp = base64Data;
+                                } catch(err) {}
+                                Swal.fire('KTP Berhasil Diunggah! 📸', 'Foto KTP asli Anda telah tersimpan dan siap diverifikasi pengurus RT.', 'success');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-600 dark:file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedKtpWarga({
+                            nama: displayNama,
+                            nik: displayNik,
+                            house_alamat: displayAlamat,
+                            jenis_kelamin: displayGender,
+                            foto_ktp: formData.foto_ktp || currentUser.foto_ktp,
+                            foto: currentUser.foto || currentUser.avatar,
+                            tgl_lahir: tanggalLahir,
+                            pekerjaan: pekerjaan
+                          });
+                        }}
+                        className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>Pratinjau Kartu e-KTP Digital</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Form Action Buttons when Editing */}
                 {isEditing && (
                   <div className="flex gap-3 pt-2">
@@ -4609,7 +4725,7 @@ export default function ProfilWarga({
                   <input
                     required
                     type="password"
-                    placeholder="Masukkan sandi baru (min 5 karakter)..."
+                    placeholder="Masukkan sandi baru (min 8 karakter)..."
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
@@ -4962,6 +5078,171 @@ export default function ProfilWarga({
                   Tutup
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL PREVIEW E-KTP RESMI */}
+      {selectedKtpWarga && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
+          <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border-b border-sky-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-sky-500/20 text-sky-300 rounded-xl border border-sky-400/30">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
+                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 06</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tabs: [1. Foto Berkas KTP Asli] & [2. Kartu Digital e-KTP] */}
+            <div className="p-5 space-y-5">
+              <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('asli')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  📸 Foto Berkas KTP Asli
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('digital')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  💳 Kartu Digital e-KTP
+                </button>
+              </div>
+
+              {ktpTab === 'asli' ? (
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col items-center justify-center p-3 min-h-[220px]">
+                    {selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp ? (
+                      <img
+                        src={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
+                        alt={`Foto KTP Asli - ${selectedKtpWarga.nama}`}
+                        className="max-h-80 w-auto object-contain rounded-xl shadow-lg border border-slate-800"
+                      />
+                    ) : (
+                      <div className="py-8 text-center space-y-2">
+                        <FileText className="w-12 h-12 text-slate-600 mx-auto" />
+                        <p className="text-xs text-slate-400 font-semibold">Anda belum mengunggah berkas foto KTP fisik.</p>
+                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full inline-block font-bold">Silakan unggah foto KTP fisik pada profil Anda</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedKtpWarga.foto_ktp && (
+                    <div className="flex justify-end gap-2">
+                      <a
+                        href={selectedKtpWarga.foto_ktp}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
+                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-sky-300 via-sky-200 to-cyan-300 dark:from-slate-800 dark:via-sky-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-sky-400/50 shadow-2xl space-y-3 font-sans">
+                  <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
+                    <Landmark className="w-48 h-48" />
+                  </div>
+
+                  <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
+                    <h4 className="text-xs sm:text-sm font-black text-sky-900 dark:text-sky-300">PROVINSI JAWA BARAT</h4>
+                    <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-sky-950/80 text-emerald-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-sky-700/50">
+                    <span className="text-sky-300 text-xs">NIK :</span>
+                    <span>{selectedKtpWarga.nik || '3276051508980004'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-3 text-[11px] items-start">
+                    <div className="col-span-8 space-y-1 font-semibold leading-relaxed">
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Nama</span>
+                        <span className="col-span-8 font-black uppercase text-slate-900 dark:text-white truncate">{selectedKtpWarga.nama}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Tempat/Tgl Lahir</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.tgl_lahir || 'DEPOK, 15-08-1998'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Jenis Kelamin</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.jenis_kelamin || 'Laki-laki'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
+                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || 'Jl. Sawangan Green Park B4/15'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
+                        <span className="col-span-8 font-bold">005 / 006</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
+                        <span className="col-span-8 font-bold">SAWANGAN BARU</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
+                        <span className="col-span-8 font-bold">SAWANGAN</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>
+                        <span className="col-span-8 font-bold capitalize">{selectedKtpWarga.pekerjaan || 'Karyawan Swasta'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Kewarganegaraan</span>
+                        <span className="col-span-8 font-bold">WNI</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Berlaku Hingga</span>
+                        <span className="col-span-8 font-black text-emerald-600 dark:text-emerald-400">SEUMUR HIDUP</span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-4 flex flex-col items-center gap-2">
+                      <div className="w-24 h-32 rounded-xl overflow-hidden border-2 border-red-500/80 shadow-md bg-slate-200 dark:bg-slate-800">
+                        <img
+                          src={selectedKtpWarga.foto_ktp || selectedKtpWarga.foto || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
+                          alt="Pasfoto KTP"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          VERIFIED RT 05
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs">
+              <span className="text-slate-400 text-[10px]">Pemeriksaan Berkas e-KTP Terdaftar</span>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
             </div>
           </div>
         </div>

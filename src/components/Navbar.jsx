@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
-import logoGSP from '../assets/logoGSP.jpg';
+import logoGSP from '../assets/logoDepok.jpeg';
 
 const menuItems = [
   { id: 'beranda', label: 'Beranda' },

@@ -158,7 +158,7 @@ export default function AdminDataWizard() {
     if (!houseForm.nomor || isNaN(houseForm.nomor) || parseInt(houseForm.nomor) <= 0)
       errs.nomor = 'Nomor rumah harus angka positif';
     if (!houseForm.alamat.trim()) errs.alamat = 'Alamat wajib diisi';
-    const allowedStatus = ['Milik Sendiri', 'Kontrak', 'Sewa', 'Kos', 'Dinas'];
+    const allowedStatus = ['Pribadi', 'Kontrak', 'Milik Sendiri', 'Tetap', 'Sewa'];
     if (!allowedStatus.includes(houseForm.status))
       errs.status = 'Status rumah tidak valid';
     setFieldErrors(errs);
@@ -169,8 +169,6 @@ export default function AdminDataWizard() {
     const errs = {};
     if (!residentForm.noKK || residentForm.noKK.trim().length < 5)
       errs.noKK = 'No KK minimal 5 karakter';
-    if (!residentForm.KepalaKeluarga || isNaN(residentForm.KepalaKeluarga) || parseInt(residentForm.KepalaKeluarga) <= 0)
-      errs.KepalaKeluarga = 'ID Kepala Keluarga harus angka positif';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -244,8 +242,8 @@ export default function AdminDataWizard() {
         },
         body: JSON.stringify({
           noKK: residentForm.noKK,
-          home: houseId,
-          KepalaKeluarga: parseInt(residentForm.KepalaKeluarga),
+          house_id: houseId,
+          ...(residentForm.KepalaKeluarga ? { KepalaKeluarga: parseInt(residentForm.KepalaKeluarga) } : {})
         }),
       });
       const data = await res.json();
@@ -288,13 +286,13 @@ export default function AdminDataWizard() {
         body: JSON.stringify({
           nik: wargaForm.nik,
           nama: wargaForm.nama,
-          jenisKelamin: wargaForm.jenisKelamin,
+          jenisKelamin: (wargaForm.jenisKelamin === 'Perempuan' || wargaForm.jenisKelamin === 'P') ? 'P' : 'L',
           tglLahir: wargaForm.tglLahir,
-          statusHidup: wargaForm.statusHidup,
+          statusHidup: wargaForm.statusHidup || 'Hidup',
           noHp: wargaForm.noHp,
           umur: parseInt(wargaForm.umur),
-          fammilyId: familyId,
-          houseId: houseId,
+          family_id: familyId,
+          house_id: houseId,
         }),
       });
       const data = await res.json();
@@ -375,17 +373,24 @@ export default function AdminDataWizard() {
     const token = localStorage.getItem('rt_token');
     try {
       const payload = {
-        blok: oneStepForm.blok.trim(),
-        nomor: parseInt(oneStepForm.nomor),
-        alamat: oneStepForm.alamat.trim(),
-        statusRumah: oneStepForm.statusRumah,
-        noKK: oneStepForm.noKK.trim(),
-        namaKepalaKeluarga: oneStepForm.namaKepalaKeluarga.trim(),
-        nikKepalaKeluarga: oneStepForm.nikKepalaKeluarga.trim(),
-        jenisKelaminKepalaKeluarga: oneStepForm.jenisKelaminKepalaKeluarga,
-        tglLahirKepalaKeluarga: oneStepForm.tglLahirKepalaKeluarga,
-        noHpKepalaKeluarga: oneStepForm.noHpKepalaKeluarga.trim(),
-        umurKepalaKeluarga: parseInt(oneStepForm.umurKepalaKeluarga),
+        house: {
+          blok: oneStepForm.blok.trim(),
+          nomor: String(oneStepForm.nomor),
+          alamat: oneStepForm.alamat.trim(),
+          status: oneStepForm.statusRumah.toLowerCase().includes('tetap') || oneStepForm.statusRumah.toLowerCase().includes('milik') ? 'tetap' : 'kontrak'
+        },
+        family: {
+          noKK: oneStepForm.noKK.trim()
+        },
+        kepalaKeluarga: {
+          nik: oneStepForm.nikKepalaKeluarga.trim(),
+          nama: oneStepForm.namaKepalaKeluarga.trim(),
+          jenisKelamin: (oneStepForm.jenisKelaminKepalaKeluarga === 'Perempuan' || oneStepForm.jenisKelaminKepalaKeluarga === 'P') ? 'P' : 'L',
+          tglLahir: oneStepForm.tglLahirKepalaKeluarga,
+          statusHidup: 'Hidup',
+          noHp: oneStepForm.noHpKepalaKeluarga.trim(),
+          umur: parseInt(oneStepForm.umurKepalaKeluarga)
+        }
       };
       if (oneStepForm.emailKepalaKeluarga?.trim()) {
         payload.emailKepalaKeluarga = oneStepForm.emailKepalaKeluarga.trim();
@@ -985,7 +990,7 @@ export default function AdminDataWizard() {
                 <div>
                   <label className={labelClass}>Status Kepemilikan Rumah <span className="text-red-400">*</span></label>
                   <div className="flex flex-wrap gap-2">
-                    {['Milik Sendiri', 'Kontrak', 'Sewa', 'Kos', 'Dinas'].map(opt => (
+                    {['Pribadi', 'Kontrak'].map(opt => (
                       <button
                         key={opt}
                         type="button"
@@ -1397,7 +1402,7 @@ export default function AdminDataWizard() {
                       <div>
                         <label className={labelClass}>Status Kepemilikan <span className="text-red-400">*</span></label>
                         <div className="flex flex-wrap gap-2">
-                          {['Milik Sendiri', 'Kontrak', 'Sewa', 'Kos', 'Dinas'].map(opt => (
+                          {['Pribadi', 'Kontrak'].map(opt => (
                             <button
                               key={opt}
                               type="button"

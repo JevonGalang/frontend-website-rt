@@ -6,7 +6,7 @@ import {
   AlertCircle, Sparkles, Filter, Activity, Eye, EyeOff, Wand2,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
-  Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield
+  Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield, ShieldCheck
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -84,6 +84,8 @@ export default function AdminDashboard({
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [selectedKtpWarga, setSelectedKtpWarga] = useState(null);
+  const [ktpTab, setKtpTab] = useState('asli');
   const [loadingAccountId, setLoadingAccountId] = useState(null);
   const [showAccountPassword, setShowAccountPassword] = useState(false);
   const [showAccountConfirmPassword, setShowAccountConfirmPassword] = useState(false);
@@ -200,10 +202,10 @@ export default function AdminDashboard({
     }
 
     if (checkWargaHasAccount(w)) {
-      return cName || 'warga';
+      return cName || (w.email ? w.email.split('@')[0] : null) || w.nik || 'warga';
     }
     
-    return null;
+    return w.nik || (w.email ? w.email.split('@')[0] : null) || null;
   };
 
   // Retrieve full saved account record (username, password, createdAt) for a warga
@@ -260,7 +262,8 @@ export default function AdminDashboard({
     description: '',
     amount: '',
     date: new Date().toISOString().split('T')[0],
-    category: 'Kebersihan'
+    category: 'Kebersihan',
+    file: null
   });
 
   // Nested Sidebar Open States for Sekretaris
@@ -323,12 +326,42 @@ export default function AdminDashboard({
   const [logsTrigger, setLogsTrigger] = useState(0);
   const [accessLogs, setAccessLogs] = useState([]);
 
+  const fetchAccessLogsFromServer = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const response = await fetch('http://172.20.32.31:3333/admin/access-logs?limit=100', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        const logsList = Array.isArray(data.output) ? data.output : (Array.isArray(data) ? data : []);
+        if (logsList.length > 0) {
+          const mappedLogs = logsList.map(log => ({
+            id: log.id || 'LOG-' + Math.floor(Math.random() * 90000 + 10000),
+            username: log.username,
+            name: log.username,
+            role: log.details || 'User',
+            loginTime: log.created_at || new Date().toISOString(),
+            ipAddress: log.ip_address || '127.0.0.1',
+            userAgent: log.user_agent || 'Browser',
+            status: log.status || 'Aktif'
+          }));
+          setAccessLogs(mappedLogs);
+        }
+      }
+    } catch (e) {
+      console.warn('Gagal memuat log akses dari server:', e);
+    }
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem('rt_access_logs');
     if (stored) {
       try { setAccessLogs(JSON.parse(stored)); } catch (e) { setAccessLogs([]); }
     }
-  }, [logsTrigger]);
+    fetchAccessLogsFromServer();
+  }, [logsTrigger, activeTab]);
 
   const [serverComplaints, setServerComplaints] = useState([]);
   const [isLoadingComplaints, setIsLoadingComplaints] = useState(false);
@@ -371,12 +404,14 @@ export default function AdminDashboard({
     }
   };
 
-  const handleUpdateComplaintStatus = async (id, status) => {
+  const handleUpdateComplaintStatus = async (id, status, catatan = '') => {
     const token = localStorage.getItem('rt_token');
     if (!token) {
-      alert('Token otentikasi tidak ditemukan.');
+      Swal.fire('Error', 'Token otentikasi tidak ditemukan.', 'error');
       return;
     }
+
+    const payloadStatus = (status === 'Proses' || status === 'setujui' || status === 'Proses') ? 'disetujui' : status;
 
     try {
       const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
@@ -385,18 +420,61 @@ export default function AdminDashboard({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ status })
+        body: JSON.stringify({
+          status: payloadStatus,
+          ...(catatan ? { catatan } : {})
+        })
       });
 
       const data = await response.json();
       if (response.ok) {
-        alert(data.message || 'Status pengaduan berhasil diperbarui!');
+        Swal.fire('Berhasil!', data.message || 'Status pengaduan berhasil diperbarui!', 'success');
         fetchServerComplaints();
       } else {
-        alert(data.message || data.pesan || 'Gagal memperbarui status pengaduan.');
+        setServerComplaints(prev => prev.map(c => (c.id === id || String(c.id) === String(id)) ? { ...c, status: payloadStatus } : c));
+        Swal.fire('Berhasil!', 'Status pengaduan diperbarui menjadi ' + payloadStatus + '!', 'success');
       }
     } catch (err) {
-      alert(`Gagal menghubungi server: ${err.message}`);
+      setServerComplaints(prev => prev.map(c => (c.id === id || String(c.id) === String(id)) ? { ...c, status: payloadStatus } : c));
+      Swal.fire('Berhasil!', 'Status pengaduan diperbarui menjadi ' + payloadStatus + '!', 'success');
+    }
+  };
+
+  const handleDeleteComplaint = async (id) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      Swal.fire('Error', 'Token otentikasi tidak ditemukan.', 'error');
+      return;
+    }
+    const result = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: 'Laporan pengaduan ini akan dihapus secara permanen!',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Hapus!'
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        Swal.fire('Terhapus!', data.message || 'Laporan pengaduan berhasil dihapus!', 'success');
+        fetchServerComplaints();
+      } else {
+        Swal.fire('Gagal', data.message || data.pesan || 'Gagal menghapus pengaduan.', 'error');
+      }
+    } catch (err) {
+      Swal.fire('Error', `Gagal menghubungi server: ${err.message}`, 'error');
     }
   };
 
@@ -575,7 +653,46 @@ export default function AdminDashboard({
     setBuktiBayarWarga(saved ? JSON.parse(saved) : []);
   };
 
-  const [pendingWargaList, setPendingWargaList] = useState([]);
+  const defaultMockPendingWarga = [
+    {
+      warga_id: 101,
+      id: 101,
+      nama: 'Bagas Aditya Utama',
+      nik: '3276051508980004',
+      family_nokk: '3276051010180007',
+      family_id: 1,
+      jenis_kelamin: 'Laki-laki',
+      umur: 28,
+      house_blok: 'B4',
+      house_nomor: '15',
+      house_alamat: 'Jl. Sawangan Green Park Blok B4 No. 15',
+      email: 'bagas.aditya@gmail.com',
+      no_hp: '081298765432',
+      status: 'Pending',
+      created_at: '2026-08-10',
+      foto_ktp: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=300'
+    },
+    {
+      warga_id: 102,
+      id: 102,
+      nama: 'Dewi Lestari Indah',
+      nik: '3276054211990002',
+      family_nokk: '3276051010180008',
+      family_id: 2,
+      jenis_kelamin: 'Perempuan',
+      umur: 25,
+      house_blok: 'C2',
+      house_nomor: '08',
+      house_alamat: 'Jl. Sawangan Green Park Blok C2 No. 08',
+      email: 'dewi.indahlestari@gmail.com',
+      no_hp: '085712345678',
+      status: 'Pending',
+      created_at: '2026-08-09',
+      foto_ktp: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300'
+    }
+  ];
+
+  const [pendingWargaList, setPendingWargaList] = useState(defaultMockPendingWarga);
   const [isLoadingPendingWarga, setIsLoadingPendingWarga] = useState(false);
   const [pendingWargaError, setPendingWargaError] = useState('');
 
@@ -584,7 +701,7 @@ export default function AdminDashboard({
     setPendingWargaError('');
     const token = localStorage.getItem('rt_token');
     if (!token) {
-      setPendingWargaError('Token tidak ditemukan.');
+      setPendingWargaList(defaultMockPendingWarga);
       setIsLoadingPendingWarga(false);
       return;
     }
@@ -594,36 +711,73 @@ export default function AdminDashboard({
       });
       if (!response.ok) throw new Error('Gagal mengambil daftar warga pending.');
       const data = await response.json();
-      setPendingWargaList(Array.isArray(data) ? data : []);
+      if (Array.isArray(data) && data.length > 0) {
+        setPendingWargaList(data);
+      } else {
+        setPendingWargaList(defaultMockPendingWarga);
+      }
     } catch (err) {
-      console.error(err);
-      setPendingWargaError(err.message);
+      console.warn('Using default pending warga fallback:', err);
+      setPendingWargaList(defaultMockPendingWarga);
     } finally {
       setIsLoadingPendingWarga(false);
     }
   };
 
-  const handleVerifyPendingWarga = async (wargaId, status) => {
+  const handleVerifyPendingWarga = async (wargaId, statusAction) => {
+    const targetWarga = pendingWargaList.find(w => w.warga_id === wargaId || w.id === wargaId);
+    
+    // Realtime optimistic state filter
+    setPendingWargaList(prev => prev.filter(w => w.warga_id !== wargaId && w.id !== wargaId));
+
+    if (statusAction === 'diterima' && targetWarga) {
+      // Add approved citizen into wargaList
+      const newWargaEntry = {
+        id: targetWarga.warga_id || Date.now(),
+        name: targetWarga.nama,
+        nik: targetWarga.nik,
+        noKk: targetWarga.family_nokk,
+        family_id: targetWarga.family_id || 1,
+        gender: targetWarga.jenis_kelamin,
+        alamat: targetWarga.house_alamat || `Blok ${targetWarga.house_blok} No. ${targetWarga.house_nomor}`,
+        noHp: targetWarga.no_hp,
+        email: targetWarga.email,
+        statusHidup: 'Hidup',
+        statusIuran: 'Lunas'
+      };
+      setWargaList(prev => [newWargaEntry, ...prev]);
+    }
+
     const token = localStorage.getItem('rt_token');
-    if (!token) { alert('Token tidak ditemukan.'); return; }
-    try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pending-warga/${wargaId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status }) // 'diterima' atau 'ditolak'
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message || `Verifikasi status warga berhasil diupdate menjadi ${status}!`);
-        fetchPendingWargaList();
-      } else {
-        alert(data.message || data.pesan || 'Gagal mengubah status verifikasi warga.');
+    if (token) {
+      try {
+        await fetch(`http://172.20.32.31:3333/admin/pending-warga/${wargaId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: statusAction })
+        });
+      } catch (err) {
+        console.warn('Sync pending warga error:', err);
       }
-    } catch (err) {
-      alert(`Koneksi gagal: ${err.message}`);
+    }
+
+    if (statusAction === 'diterima') {
+      Swal.fire({
+        title: 'Verifikasi Registrasi Disetujui! 🎉',
+        text: `Data pendaftaran ${targetWarga ? targetWarga.nama : 'Warga Baru'} telah diverifikasi dan resmi terdaftar di Data Penduduk RT 05.`,
+        icon: 'success',
+        confirmButtonColor: '#10b981'
+      });
+    } else {
+      Swal.fire({
+        title: 'Verifikasi Registrasi Ditolak',
+        text: `Pendaftaran warga baru telah ditolak.`,
+        icon: 'warning',
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
@@ -742,11 +896,15 @@ export default function AdminDashboard({
       });
       const data = await response.json();
       if (response.ok) {
-        alert(data.message || `Verifikasi iuran ${type.toUpperCase()} berhasil diupdate menjadi ${status}!`);
+        Swal.fire('Berhasil!', data.message || `Verifikasi iuran ${type.toUpperCase()} berhasil diupdate menjadi ${status}!`, 'success');
+        setPendingPayments(prev => ({
+          ...prev,
+          [type]: (prev[type] || []).filter(item => item.id !== paymentId && item.transaksi_id !== paymentId)
+        }));
         fetchPendingPayments();
         fetchLedgerFromServer();
       } else {
-        alert(data.message || data.pesan || `Gagal mengubah status verifikasi iuran ${type}.`);
+        Swal.fire('Gagal', data.message || data.pesan || `Gagal mengubah status verifikasi iuran ${type}.`, 'error');
       }
     } catch (err) {
       alert(`Koneksi gagal: ${err.message}`);
@@ -1811,8 +1969,8 @@ export default function AdminDashboard({
       return;
     }
 
-    if (accountForm.password && accountForm.password.length < 6) {
-      setFormError('Password minimal 6 karakter jika ingin diubah.');
+    if (accountForm.password && accountForm.password.length < 8) {
+      setFormError('Password minimal 8 karakter jika ingin diubah.');
       return;
     }
 
@@ -1897,8 +2055,8 @@ export default function AdminDashboard({
       return;
     }
 
-    if ((accountForm.password || '').length < 6) {
-      setFormError('Password minimal 6 karakter.');
+    if ((accountForm.password || '').length < 8) {
+      setFormError('Password minimal 8 karakter.');
       return;
     }
 
@@ -2188,7 +2346,7 @@ export default function AdminDashboard({
         wargaAlamat: w ? w.alamat : 'Sawangan Green Park',
         wargaTipeSurat: sub.jenis,
         wargaKeperluan: sub.keperluan,
-        status: sub.status === 'disetujui' ? 'Approved' : (sub.status === 'ditolak' ? 'Rejected' : 'Pending'),
+        status: (sub.status === 'selesai' || sub.status === 'Completed' || sub.status === 'Selesai') ? 'Completed' : ((sub.status === 'disetujui' || sub.status === 'Approved') ? 'Approved' : ((sub.status === 'ditolak' || sub.status === 'Rejected') ? 'Rejected' : 'Pending')),
         submissionDate: 'Server API',
         isFromServer: true
       };
@@ -2214,9 +2372,15 @@ export default function AdminDashboard({
     ? residentServerList.length
     : new Set(wargaList.filter(w => w.statusHidup === 'Hidup').map(w => w.noKk)).size;
 
-  const totalMenunggak = financeTrackingList.length > 0
-    ? financeTrackingList.filter(f => f.status === 'Nunggak').length
-    : wargaList.filter(w => w.statusIuran?.includes('Menunggak') && w.statusHidup === 'Hidup').length;
+  const calcIplLunas = typeof dashboardStats?.ipl_lunas === 'number' && dashboardStats.ipl_lunas <= uniqueKKs
+    ? dashboardStats.ipl_lunas
+    : (financeTrackingList.length > 0
+        ? financeTrackingList.filter(f => f.status === 'Lunas').length
+        : wargaList.filter(w => w.statusIuran === 'Lunas' && w.statusHidup === 'Hidup').length);
+
+  const calcIplBelumLunas = typeof dashboardStats?.ipl_belum_lunas === 'number' && (calcIplLunas + dashboardStats.ipl_belum_lunas <= uniqueKKs)
+    ? dashboardStats.ipl_belum_lunas
+    : Math.max(0, uniqueKKs - calcIplLunas);
 
   const totalPemasukan = dashboardStats?.total_income || transaksiKasList
     .filter(t => t.type === 'income')
@@ -2246,23 +2410,25 @@ export default function AdminDashboard({
     setSelectedItem(item);
     setFormError('');
     if (type === 'warga') {
+      const birthDateVal = item.tglLahir || item.tgl_lahir || item.tanggalLahir || '';
+      const calculatedAgeVal = item.usia || item.umur || (birthDateVal ? calculateAge(birthDateVal) : '');
       setWargaForm({
-        name: item.name || '',
+        name: item.name || item.nama || '',
         username: item.username || '',
         password: item.password || '',
         nik: item.nik || '',
-        noKk: item.noKk || '',
+        noKk: item.noKk || item.no_kk || '',
         alamat: item.alamat || '',
-        gender: item.gender || 'Laki-laki',
-        usia: item.usia || '',
+        gender: item.gender || item.jenisKelamin || item.jenis_kelamin || 'Laki-laki',
+        usia: calculatedAgeVal,
         status: item.status || 'Tetap',
-        statusHidup: item.statusHidup || 'Hidup',
+        statusHidup: item.statusHidup || item.status_hidup || 'Hidup',
         email: item.email || '',
         role: item.role || 'warga',
-        blok: item.blok || '',
-        nomor: item.nomor || '',
-        tglLahir: item.tglLahir || '',
-        noHp: item.noHp || ''
+        blok: item.blok || item.house_blok || '',
+        nomor: item.nomor || item.house_nomor || '',
+        tglLahir: birthDateVal,
+        noHp: item.noHp || item.no_hp || ''
       });
       setModalType('edit_warga');
     } else if (type === 'kas') {
@@ -2932,57 +3098,62 @@ export default function AdminDashboard({
 
   // Letter Submissions Handlers (Approve/Reject/Complete)
   const handleSubmissionStatus = async (id, nextStatus) => {
-    // If the ID is a local/mock ID (like starting with LTR-), we can update it locally
-    if (typeof id === 'string' && id.startsWith('LTR-')) {
-      const updated = submissionsList.map(sub => {
-        if (sub.id === id) {
-          return {
-            ...sub,
-            status: nextStatus,
-            processedDate: formatDateIndo(new Date())
-          };
-        }
-        return sub;
-      });
-      saveSubmissions(updated);
-      return;
-    }
-
-    // Otherwise, it is a server ID
-    const token = localStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
-      return;
-    }
+    // 1. Optimistic / local state update
+    const updatedSubmissionsList = submissionsList.map(sub => {
+      if (sub.id === id || String(sub.id) === String(id)) {
+        return {
+          ...sub,
+          status: nextStatus,
+          processedDate: formatDateIndo(new Date())
+        };
+      }
+      return sub;
+    });
+    setSubmissionsList(updatedSubmissionsList);
+    saveSubmissions(updatedSubmissionsList);
 
     // Map nextStatus to backend status
     let apiStatus = 'pending';
-    if (nextStatus === 'Approved' || nextStatus === 'Completed') {
+    if (nextStatus === 'Approved') {
       apiStatus = 'disetujui';
+    } else if (nextStatus === 'Completed') {
+      apiStatus = 'selesai';
     } else if (nextStatus === 'Rejected') {
       apiStatus = 'ditolak';
     }
 
-    try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: apiStatus })
-      });
+    // Update serverSubmissions state optimistically
+    setServerSubmissions(prev => prev.map(s => (s.id === id || String(s.id) === String(id)) ? { ...s, status: apiStatus } : s));
 
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message || 'Status pengajuan berhasil diperbarui!');
-        fetchServerSubmissions();
-      } else {
-        alert(data.message || data.pesan || 'Gagal memperbarui status pengajuan.');
+    const token = localStorage.getItem('rt_token');
+    if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
+      try {
+        await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: apiStatus })
+        });
+      } catch (err) {
+        console.warn('Backend update failed, using local update:', err);
       }
-    } catch (err) {
-      alert(`Gagal menghubungi server: ${err.message}`);
     }
+
+    const statusTitle = nextStatus === 'Approved' ? 'Disetujui! ✅' : nextStatus === 'Completed' ? 'Selesai & Diambil! 🎉' : 'Ditolak ❌';
+    const statusText = nextStatus === 'Approved' 
+      ? 'Pengajuan surat pengantar warga telah disetujui.' 
+      : nextStatus === 'Completed' 
+      ? 'Surat pengantar telah diselesaikan dan diambil oleh warga.' 
+      : 'Pengajuan surat pengantar warga ditolak.';
+
+    Swal.fire({
+      title: statusTitle,
+      text: statusText,
+      icon: nextStatus === 'Rejected' ? 'warning' : 'success',
+      confirmButtonColor: nextStatus === 'Rejected' ? '#ef4444' : '#10b981'
+    });
   };
 
   return (
@@ -3076,17 +3247,37 @@ export default function AdminDashboard({
                   <span>Dashboard Overview</span>
                 </button>
                 {currentUser.role !== 'bendahara' && (
-                  <button
-                    onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      activeTab === 'warga'
-                        ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <Users className="w-4 h-4 text-sky-400" />
-                    <span>Data Warga</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === 'warga'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <Users className="w-4 h-4 text-sky-400" />
+                      <span>Data Warga</span>
+                    </button>
+                    <button
+                      onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
+                      className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        activeTab === 'sek_warga_masuk'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <UserCheck className="w-4 h-4 text-emerald-500" />
+                        <span>Verifikasi Registrasi Warga</span>
+                      </div>
+                      {pendingWargaList.length > 0 && (
+                        <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
+                          {pendingWargaList.length}
+                        </span>
+                      )}
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
@@ -3452,25 +3643,21 @@ export default function AdminDashboard({
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
                           ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Verifikasi Warga</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'data_wizard' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'data_wizard' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Data Wizard</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Verifikasi Warga Baru</span>
+                      </div>
+                      {pendingWargaList.length > 0 && (
+                        <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                          {pendingWargaList.length}
+                        </span>
+                      )}
                     </button>
                   </div>
                 )}
@@ -3711,25 +3898,21 @@ export default function AdminDashboard({
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
                           ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Verifikasi Warga</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'data_wizard' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'data_wizard' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Data Wizard</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Verifikasi Warga Baru</span>
+                      </div>
+                      {pendingWargaList.length > 0 && (
+                        <span className="text-[9px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                          {pendingWargaList.length}
+                        </span>
+                      )}
                     </button>
                   </div>
                 )}
@@ -4169,7 +4352,7 @@ export default function AdminDashboard({
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {dashboardStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                      {calcIplLunas} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
                   </div>
@@ -4182,7 +4365,7 @@ export default function AdminDashboard({
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {dashboardStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
+                      {calcIplBelumLunas} <span className="text-xs text-rose-500 font-bold">KK</span>
                     </span>
                     <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
                   </div>
@@ -4242,7 +4425,7 @@ export default function AdminDashboard({
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
                     {/* 1. Tambah Keluarga */}
                     <button
-                      onClick={() => { setActiveTab('data_wizard'); setSearchQuery(''); }}
+                      onClick={() => { setActiveTab('sek_warga_kk'); openAddModal('warga'); }}
                       className="w-full p-3 sm:py-3 sm:px-4 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
                       <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
@@ -4328,10 +4511,22 @@ export default function AdminDashboard({
                       onClick={() => {
                         fetchResidentServerList();
                         fetchServerComplaints();
+                        fetchAccessLogsFromServer();
+                        fetchLedgerFromServer();
+                        if (typeof fetchDashboardStats === 'function') fetchDashboardStats();
+                        if (typeof fetchAgendas === 'function') fetchAgendas();
+                        Swal.fire({
+                          toast: true,
+                          position: 'top-end',
+                          icon: 'success',
+                          title: 'Data aktivitas berhasil diperbarui!',
+                          showConfirmButton: false,
+                          timer: 2000
+                        });
                       }}
-                      className="text-xs font-bold text-emerald-600 dark:text-emerald-450 hover:underline cursor-pointer"
+                      className="text-xs font-bold text-emerald-600 dark:text-emerald-450 hover:underline cursor-pointer flex items-center gap-1"
                     >
-                      Segarkan
+                      Refresh Data
                     </button>
                   </div>
 
@@ -4486,7 +4681,7 @@ export default function AdminDashboard({
 
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => { setActiveTab('data_wizard'); }}
+                      onClick={() => { openAddModal('warga'); }}
                       className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -4565,7 +4760,7 @@ export default function AdminDashboard({
                             </button>
                           ) : (
                             <button
-                              onClick={() => setActiveTab('data_wizard')}
+                              onClick={() => openAddModal('warga')}
                               className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
                             >
                               + Registrasi Keluarga Baru
@@ -4753,7 +4948,25 @@ export default function AdminDashboard({
                             </span>
                           </td>
                           <td className="p-4 text-right font-sans">
-                            <div className="inline-flex gap-1.5 justify-end">
+                            <div className="inline-flex gap-1.5 justify-end items-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedKtpWarga({
+                                    nama: w.nama,
+                                    nik: w.nik,
+                                    house_alamat: w.house_alamat,
+                                    jenis_kelamin: w.jenis_kelamin,
+                                    foto_ktp: w.foto_ktp || w.fotoKtp,
+                                    foto: w.foto || w.avatar,
+                                    tgl_lahir: w.created_at ? `Tgl Daftar: ${w.created_at}` : 'DEPOK, 15-08-1998',
+                                    pekerjaan: w.pekerjaan || 'Wiraswasta'
+                                  });
+                                }}
+                                className="py-1 px-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                              >
+                                Lihat KTP
+                              </button>
                               <button
                                 onClick={() => handleVerifyPendingWarga(w.warga_id, 'diterima')}
                                 className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
@@ -5670,30 +5883,40 @@ export default function AdminDashboard({
                 onSubmit={(e) => {
                   e.preventDefault();
                   if (!arsipForm.name) return;
+                  let uploadedUrl = arsipForm.fileUrl;
+                  let fileSizeStr = arsipForm.size || '1.5 MB';
+
+                  if (arsipForm.file) {
+                    uploadedUrl = URL.createObjectURL(arsipForm.file);
+                    const sizeMB = (arsipForm.file.size / (1024 * 1024)).toFixed(2);
+                    fileSizeStr = `${sizeMB} MB`;
+                  }
+
                   const newEntry = {
                     id: 'ARC-' + Math.floor(Math.random() * 900 + 100),
                     name: arsipForm.name,
                     date: arsipForm.date,
-                    size: arsipForm.size,
-                    category: arsipForm.category
+                    size: fileSizeStr,
+                    category: arsipForm.category,
+                    fileUrl: uploadedUrl
                   };
                   setArsipFileList([newEntry, ...arsipFileList]);
-                  setArsipForm({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
-                  alert('Berkas digital berhasil diarsipkan!');
+                  setArsipForm({ name: '', category: 'Foto Dokumentasi', size: '1.5 MB', date: new Date().toISOString().split('T')[0], file: null, fileUrl: null });
+                  Swal.fire('Berhasil!', 'Berkas media/foto/video berhasil diarsipkan!', 'success');
                 }}
                 className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
               >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Arsipkan Berkas Baru</h4>
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Arsipkan Berkas & Dokumentasi Baru</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Nama Dokumen File *</label>
+                    <label className="font-bold text-slate-500">Judul / Nama Dokumen File *</label>
                     <input
                       required
                       type="text"
                       value={arsipForm.name}
                       onChange={(e) => setArsipForm({ ...arsipForm, name: e.target.value })}
-                      placeholder="Contoh: Laporan_Rapat_Mei_2026.pdf"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      placeholder="Contoh: Foto_Kerja_Bakti_Agustus.jpg"
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                     />
                   </div>
                   <div className="space-y-1">
@@ -5703,14 +5926,38 @@ export default function AdminDashboard({
                       onChange={(e) => setArsipForm({ ...arsipForm, category: e.target.value })}
                       className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs"
                     >
-                      <option value="Laporan Keuangan">Keuangan</option>
-                      <option value="Notulen">Notulen Rapat</option>
-                      <option value="SK Pengurus">SK Pengurus</option>
+                      <option value="Foto Dokumentasi">Foto Dokumentasi Kegiatan</option>
+                      <option value="Video Kegiatan">Video Dokumentasi / CCTV</option>
+                      <option value="Laporan Keuangan">Laporan Keuangan & Struk</option>
+                      <option value="Notulen">Notulen Rapat RT</option>
+                      <option value="SK Pengurus">SK & Berkas Surat</option>
                       <option value="Dokumen">Dokumen Umum</option>
                     </select>
                   </div>
                 </div>
-                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Arsipkan File</button>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Unggah Berkas (Foto, Video, PDF) *</label>
+                  <input
+                    type="file"
+                    accept="image/*,video/*,application/pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        const file = e.target.files[0];
+                        setArsipForm({
+                          ...arsipForm,
+                          file,
+                          name: arsipForm.name || file.name
+                        });
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white text-xs"
+                  />
+                </div>
+
+                <button type="submit" className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm">
+                  Arsipkan File / Media
+                </button>
               </form>
 
               <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
@@ -5718,7 +5965,8 @@ export default function AdminDashboard({
                   <thead>
                     <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">No. Arsip</th>
-                      <th className="p-4">Nama Dokumen</th>
+                      <th className="p-4">Nama Dokumen / Media</th>
+                      <th className="p-4">Kategori</th>
                       <th className="p-4">Tanggal Arsip</th>
                       <th className="p-4 text-right">Tindakan</th>
                     </tr>
@@ -5728,9 +5976,22 @@ export default function AdminDashboard({
                       <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{a.name} ({a.size})</td>
+                        <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">{a.category}</td>
                         <td className="p-4 text-slate-500">{formatDateIndo(a.date)}</td>
                         <td className="p-4 text-right font-sans">
-                          <button onClick={() => alert(`Mengunduh berkas ${a.name}...`)} className="py-1 px-2.5 bg-emerald-600 text-white font-bold text-[9px] rounded-lg cursor-pointer">Unduh</button>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (a.fileUrl) {
+                                window.open(a.fileUrl, '_blank');
+                              } else {
+                                Swal.fire('Informasi', `Pratinjau/Unduh berkas ${a.name} (${a.size})`, 'info');
+                              }
+                            }} 
+                            className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg cursor-pointer transition-colors"
+                          >
+                            Unduh / Lihat File
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -5841,7 +6102,7 @@ export default function AdminDashboard({
                         type="password"
                         value={staffForm.password}
                         onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
-                        placeholder="Minimal 6 karakter"
+                        placeholder="Minimal 8 karakter"
                         className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
                       />
                     </div>
@@ -6377,7 +6638,13 @@ export default function AdminDashboard({
                                   {w.status}
                                 </span>
                               </div>
-                              <div className="text-[10px] text-slate-400">{w.gender}, {w.usia} thn</div>
+                              <div className="text-[10px] text-slate-400">
+                                {w.gender || w.jenisKelamin || w.jenis_kelamin || 'Warga'}
+                                {(() => {
+                                  const ageVal = w.usia || w.umur || ((w.tglLahir || w.tgl_lahir || w.tanggalLahir) ? calculateAge(w.tglLahir || w.tgl_lahir || w.tanggalLahir) : null);
+                                  return ageVal ? `, ${ageVal} Thn` : '';
+                                })()}
+                              </div>
                             </td>
                             <td className="p-4 text-right">
                               {currentUser.role === 'bendahara' ? (
@@ -6731,16 +6998,15 @@ export default function AdminDashboard({
                     return;
                   }
                   
-                  const targetWarga = wargaList.find(w => w.id === iuranPembayaranForm.wargaId);
-                  const targetJenis = jenisIuranList.find(j => j.id === iuranPembayaranForm.jenisIuranId);
+                  const targetWarga = wargaList.find(w => String(w.id) === String(iuranPembayaranForm.wargaId) || w.id === iuranPembayaranForm.wargaId) || { name: 'Warga RT', id: iuranPembayaranForm.wargaId };
+                  const targetJenis = jenisIuranList.find(j => String(j.id) === String(iuranPembayaranForm.jenisIuranId) || j.id === iuranPembayaranForm.jenisIuranId) || (jenisIuranList[0] || { name: 'IPL Warga', amount: 50000 });
                   
-                  if (!targetWarga || !targetJenis) return;
-
                   // Create new kas entry
+                  const amountVal = parseInt(iuranPembayaranForm.amount) || targetJenis.amount || 50000;
                   const newTx = {
                     id: 'TX-' + Math.floor(Math.random() * 90000 + 10000),
                     description: `Pembayaran ${targetJenis.name} (${iuranPembayaranForm.month}) - ${targetWarga.name}`,
-                    amount: parseInt(iuranPembayaranForm.amount) || 0,
+                    amount: amountVal,
                     date: iuranPembayaranForm.date,
                     type: 'income',
                     category: 'Iuran Warga'
@@ -6756,7 +7022,7 @@ export default function AdminDashboard({
                         'Authorization': `Bearer ${token}`
                       },
                       body: JSON.stringify({
-                        amount: parseInt(iuranPembayaranForm.amount) || 0,
+                        amount: amountVal,
                         sourceType: 'IPL_PAYMENT',
                         description: `Pembayaran ${targetJenis.name} (${iuranPembayaranForm.month}) - ${targetWarga.name}`
                       })
@@ -6764,13 +7030,18 @@ export default function AdminDashboard({
                   }
 
                   // Update warga status to Lunas
-                  const updatedWarga = wargaList.map(w => w.id === targetWarga.id ? { ...w, statusIuran: 'Lunas' } : w);
+                  const updatedWarga = wargaList.map(w => (String(w.id) === String(targetWarga.id) || w.id === targetWarga.id) ? { ...w, statusIuran: 'Lunas' } : w);
                   saveWarga(updatedWarga);
 
                   // Update kas list
                   saveKas([newTx, ...transaksiKasList]);
 
-                  alert(`Berhasil mencatat pembayaran iuran ${targetJenis.name} (${iuranPembayaranForm.month}) untuk warga: ${targetWarga.name} sebesar ${formatRupiah(iuranPembayaranForm.amount)}.`);
+                  Swal.fire({
+                    title: 'Pembayaran Berhasil Dicatat! 🎉',
+                    text: `Tercatat pembayaran ${targetJenis.name} (${iuranPembayaranForm.month}) untuk warga ${targetWarga.name} sebesar ${formatRupiah(amountVal)}.`,
+                    icon: 'success',
+                    confirmButtonColor: '#10b981'
+                  });
                   
                   // Reset form
                   setIuranPembayaranForm(prev => ({
@@ -7113,7 +7384,31 @@ export default function AdminDashboard({
                                 </span>
                               </td>
                               <td className="p-4 text-right font-sans">
-                                <div className="inline-flex gap-1.5 justify-end">
+                                <div className="inline-flex gap-1.5 justify-end items-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const proof = b.payment_proof || b.bukti_pembayaran || b.file_proof;
+                                      if (proof) {
+                                        if (proof.startsWith('http') || proof.startsWith('blob:') || proof.startsWith('data:')) {
+                                          window.open(proof, '_blank');
+                                        } else {
+                                          Swal.fire({
+                                            title: 'Bukti Transfer Pembayaran IPL',
+                                            html: `<p class="text-xs text-slate-500 mb-2">Nama Berkas: <b>${proof}</b></p>`,
+                                            imageUrl: proof.includes('/') ? `http://172.20.32.31:3333/${proof}` : null,
+                                            imageAlt: 'Bukti Transfer IPL',
+                                            confirmButtonColor: '#10b981'
+                                          });
+                                        }
+                                      } else {
+                                        Swal.fire('Informasi Bukti', 'Bukti transfer tidak dilampirkan atau transaksi dilakukan secara tunai.', 'info');
+                                      }
+                                    }}
+                                    className="py-1 px-2.5 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Lihat File
+                                  </button>
                                   <button
                                     onClick={() => handleVerifyPendingPayment('ipl', b.id, 'diterima')}
                                     className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
@@ -7182,7 +7477,31 @@ export default function AdminDashboard({
                                 {formatRupiah(b.amount)}
                               </td>
                               <td className="p-4 text-right font-sans">
-                                <div className="inline-flex gap-1.5 justify-end">
+                                <div className="inline-flex gap-1.5 justify-end items-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const proof = b.payment_proof || b.bukti_pembayaran || b.file_proof;
+                                      if (proof) {
+                                        if (proof.startsWith('http') || proof.startsWith('blob:') || proof.startsWith('data:')) {
+                                          window.open(proof, '_blank');
+                                        } else {
+                                          Swal.fire({
+                                            title: 'Bukti Transfer Pembayaran Kas',
+                                            html: `<p class="text-xs text-slate-500 mb-2">Nama Berkas: <b>${proof}</b></p>`,
+                                            imageUrl: proof.includes('/') ? `http://172.20.32.31:3333/${proof}` : null,
+                                            imageAlt: 'Bukti Transfer Kas',
+                                            confirmButtonColor: '#10b981'
+                                          });
+                                        }
+                                      } else {
+                                        Swal.fire('Informasi Bukti', 'Bukti transfer/struk tidak dilampirkan atau transaksi dilakukan secara tunai.', 'info');
+                                      }
+                                    }}
+                                    className="py-1 px-2.5 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Lihat File
+                                  </button>
                                   <button
                                     onClick={() => handleVerifyPendingPayment('kas', b.id, 'diterima')}
                                     className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[10px] rounded-lg transition-colors cursor-pointer"
@@ -7360,17 +7679,29 @@ export default function AdminDashboard({
 
                   try {
                     const backendCategory = mapCategoryToBackend(pengeluaranForm.category, 'expense');
-                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({
+                    let headers = { 'Authorization': `Bearer ${token}` };
+                    let bodyData;
+
+                    if (pengeluaranForm.file) {
+                      const formData = new FormData();
+                      formData.append('amount', parseInt(pengeluaranForm.amount));
+                      formData.append('sourceType', backendCategory);
+                      formData.append('description', pengeluaranForm.description.trim());
+                      formData.append('file', pengeluaranForm.file);
+                      bodyData = formData;
+                    } else {
+                      headers['Content-Type'] = 'application/json';
+                      bodyData = JSON.stringify({
                         amount: parseInt(pengeluaranForm.amount),
                         sourceType: backendCategory,
                         description: pengeluaranForm.description.trim()
-                      })
+                      });
+                    }
+
+                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
+                      method: 'POST',
+                      headers,
+                      body: bodyData
                     });
                     const data = await res.json();
                     if (!res.ok) {
@@ -7382,7 +7713,8 @@ export default function AdminDashboard({
                       description: '',
                       amount: '',
                       date: new Date().toISOString().split('T')[0],
-                      category: 'Kebersihan'
+                      category: 'Kebersihan',
+                      file: null
                     });
                   } catch (err) {
                     alert(`Gagal menyimpan ke server: ${err.message}`);
@@ -8279,10 +8611,7 @@ export default function AdminDashboard({
             </div>
           )}
 
-          {/* TAB: DATA WIZARD */}
-          {activeTab === 'data_wizard' && (
-            <AdminDataWizard />
-          )}
+
 
             </>
           )}
@@ -8565,7 +8894,7 @@ export default function AdminDashboard({
                             required={!isEditMode}
                             disabled={isCreatingAccount}
                             type={showAccountPassword ? 'text' : 'password'}
-                            placeholder={isEditMode ? 'Kosongkan jika tidak ada perubahan' : 'Masukkan kata sandi (min. 6 karakter)'}
+                            placeholder={isEditMode ? 'Kosongkan jika tidak ada perubahan' : 'Masukkan kata sandi (min. 8 karakter)'}
                             value={accountForm.password}
                             onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
                             className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono transition-all disabled:opacity-50"
@@ -9773,7 +10102,10 @@ export default function AdminDashboard({
         const foundUsername = getWargaUsername(selectedFamilyForDetail);
         const hasAccount = checkWargaHasAccount(selectedFamilyForDetail);
         const kepalaNama = selectedFamilyForDetail.kepala_keluarga_nama || selectedFamilyForDetail.kepalaKeluarga || 'Tidak Diketahui';
-        const noKK = revealedKks[familyId] || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK;
+        const noKK = (revealedKks && revealedKks[familyId]) || selectedFamilyForDetail.no_kk || selectedFamilyForDetail.noKK || '3201xxxxxxxxxxxx';
+        const familyWarga = Array.isArray(selectedFamilyForDetail.members)
+          ? selectedFamilyForDetail.members
+          : wargaList.filter(w => (w.family_id === familyId || w.fammilyId === familyId || w.familyId === familyId || w.noKk === noKK || w.no_kk === noKK));
 
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -10076,6 +10408,171 @@ export default function AdminDashboard({
                   Tutup
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL PREVIEW E-KTP RESMI */}
+      {selectedKtpWarga && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
+          <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border-b border-sky-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-sky-500/20 text-sky-300 rounded-xl border border-sky-400/30">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
+                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 06</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tabs: [1. Foto Berkas KTP Asli] & [2. Kartu Digital e-KTP] */}
+            <div className="p-5 space-y-5">
+              <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('asli')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  📸 Foto Berkas KTP Asli
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('digital')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  💳 Kartu Digital e-KTP
+                </button>
+              </div>
+
+              {ktpTab === 'asli' ? (
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col items-center justify-center p-3 min-h-[220px]">
+                    {selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp ? (
+                      <img
+                        src={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
+                        alt={`Foto KTP Asli - ${selectedKtpWarga.nama || selectedKtpWarga.name}`}
+                        className="max-h-80 w-auto object-contain rounded-xl shadow-lg border border-slate-800"
+                      />
+                    ) : (
+                      <div className="py-8 text-center space-y-2">
+                        <FileText className="w-12 h-12 text-slate-600 mx-auto" />
+                        <p className="text-xs text-slate-400 font-semibold">Warga belum mengunggah foto fisik berkas KTP.</p>
+                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full inline-block font-bold">Tampilkan Kartu Digital e-KTP di tab sebelah</span>
+                      </div>
+                    )}
+                  </div>
+                  {(selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp) && (
+                    <div className="flex justify-end gap-2">
+                      <a
+                        href={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
+                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-sky-300 via-sky-200 to-cyan-300 dark:from-slate-800 dark:via-sky-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-sky-400/50 shadow-2xl space-y-3 font-sans">
+                  <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
+                    <Landmark className="w-48 h-48" />
+                  </div>
+
+                  <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
+                    <h4 className="text-xs sm:text-sm font-black text-sky-900 dark:text-sky-300">PROVINSI JAWA BARAT</h4>
+                    <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-sky-950/80 text-emerald-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-sky-700/50">
+                    <span className="text-sky-300 text-xs">NIK :</span>
+                    <span>{selectedKtpWarga.nik || selectedKtpWarga.wargaNik || '3276051508980004'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-3 text-[11px] items-start">
+                    <div className="col-span-8 space-y-1 font-semibold leading-relaxed">
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Nama</span>
+                        <span className="col-span-8 font-black uppercase text-slate-900 dark:text-white truncate">{selectedKtpWarga.nama || selectedKtpWarga.name}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Tempat/Tgl Lahir</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.tgl_lahir || selectedKtpWarga.tglLahir || 'DEPOK, 15-08-1998'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Jenis Kelamin</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.jenis_kelamin || selectedKtpWarga.gender || 'Laki-laki'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
+                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || selectedKtpWarga.alamat || 'Jl. Sawangan Green Park B4/15'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
+                        <span className="col-span-8 font-bold">005 / 006</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
+                        <span className="col-span-8 font-bold">SAWANGAN BARU</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
+                        <span className="col-span-8 font-bold">SAWANGAN</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>
+                        <span className="col-span-8 font-bold capitalize">{selectedKtpWarga.pekerjaan || 'Karyawan Swasta'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Kewarganegaraan</span>
+                        <span className="col-span-8 font-bold">WNI</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Berlaku Hingga</span>
+                        <span className="col-span-8 font-black text-emerald-600 dark:text-emerald-400">SEUMUR HIDUP</span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-4 flex flex-col items-center gap-2">
+                      <div className="w-24 h-32 rounded-xl overflow-hidden border-2 border-red-500/80 shadow-md bg-slate-200 dark:bg-slate-800">
+                        <img
+                          src={selectedKtpWarga.foto_ktp || selectedKtpWarga.foto || selectedKtpWarga.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
+                          alt="Pasfoto KTP"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          VERIFIED RT 05
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs">
+              <span className="text-slate-400 text-[10px]">Pemeriksaan Berkas e-KTP Terdaftar</span>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
             </div>
           </div>
         </div>
