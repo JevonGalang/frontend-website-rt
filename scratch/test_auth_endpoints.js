@@ -1,6 +1,6 @@
 async function testAuth() {
-  const loginUrl = 'http://172.20.32.62:3333/post/login';
-  const targetUrl = 'http://172.20.32.62:3333/admin/resident';
+  const loginUrl = 'http://172.20.32.31:3333/post/login';
+  const targetUrl = 'http://172.20.32.31:3333/admin/resident';
 
   try {
     console.log('Logging in to get a token...');

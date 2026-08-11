@@ -6,8 +6,21 @@ import {
   Key, Copy
 } from 'lucide-react';
 import DateInput from './DateInput';
+import Swal from 'sweetalert2';
 
-const API_BASE = 'http://172.20.32.62:3333';
+const API_BASE = 'http://172.20.32.31:3333';
+
+const calculateAge = (birthDateString) => {
+  if (!birthDateString) return '';
+  const today = new Date();
+  const birthDate = new Date(birthDateString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? age : 0;
+};
 
 const STEPS = [
   { id: 1, title: 'Data Rumah', subtitle: 'Buat data rumah baru', icon: Home, endpoint: '/admin/house' },
@@ -64,7 +77,7 @@ export default function AdminDataWizard() {
     blok: '',
     nomor: '',
     alamat: '',
-    status: 'pribadi',
+    status: 'Milik Sendiri',
   });
 
   // Step 2 — Resident form
@@ -99,6 +112,7 @@ export default function AdminDataWizard() {
     blok: '',
     nomor: '',
     alamat: '',
+    statusRumah: 'Milik Sendiri',
     noKK: '',
     namaKepalaKeluarga: '',
     nikKepalaKeluarga: '',
@@ -144,8 +158,9 @@ export default function AdminDataWizard() {
     if (!houseForm.nomor || isNaN(houseForm.nomor) || parseInt(houseForm.nomor) <= 0)
       errs.nomor = 'Nomor rumah harus angka positif';
     if (!houseForm.alamat.trim()) errs.alamat = 'Alamat wajib diisi';
-    if (!['kontrak', 'pribadi'].includes(houseForm.status))
-      errs.status = 'Status harus "kontrak" atau "pribadi"';
+    const allowedStatus = ['Pribadi', 'Kontrak', 'Milik Sendiri', 'Tetap', 'Sewa'];
+    if (!allowedStatus.includes(houseForm.status))
+      errs.status = 'Status rumah tidak valid';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -154,8 +169,6 @@ export default function AdminDataWizard() {
     const errs = {};
     if (!residentForm.noKK || residentForm.noKK.trim().length < 5)
       errs.noKK = 'No KK minimal 5 karakter';
-    if (!residentForm.KepalaKeluarga || isNaN(residentForm.KepalaKeluarga) || parseInt(residentForm.KepalaKeluarga) <= 0)
-      errs.KepalaKeluarga = 'ID Kepala Keluarga harus angka positif';
     setFieldErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -192,13 +205,17 @@ export default function AdminDataWizard() {
         }),
       });
       const data = await res.json();
-      if (res.ok && data.output?.pesan?.insertId !== undefined) {
-        const insertedId = data.output.pesan.insertId;
+      if (res.ok) {
+        const insertedId = data.output?.pesan?.insertId || 
+                           data.output?.insertId || 
+                           data.insertId || 
+                           (Array.isArray(data.output?.pesan) ? data.output.pesan[0]?.insertId : null) || 
+                           '';
         setHouseId(insertedId);
         setCompletedSteps(prev => [...prev, 1]);
         setCurrentStep(2);
         setSummaryData(prev => ({ ...prev, house: { ...houseForm, id: insertedId } }));
-        setToast({ type: 'success', message: `Rumah berhasil dibuat! (ID: ${insertedId})` });
+        setToast({ type: 'success', message: `Rumah berhasil dibuat! ${insertedId ? `(ID: ${insertedId})` : ''}` });
         setFieldErrors({});
       } else {
         const errMsg = data.message || data.errors?.map(e => e.message).join(', ') || 'Gagal membuat data rumah';
@@ -225,18 +242,22 @@ export default function AdminDataWizard() {
         },
         body: JSON.stringify({
           noKK: residentForm.noKK,
-          home: houseId,
-          KepalaKeluarga: parseInt(residentForm.KepalaKeluarga),
+          house_id: houseId,
+          ...(residentForm.KepalaKeluarga ? { KepalaKeluarga: parseInt(residentForm.KepalaKeluarga) } : {})
         }),
       });
       const data = await res.json();
-      if (res.ok && data.output?.pesan?.insertId !== undefined) {
-        const insertedId = data.output.pesan.insertId;
+      if (res.ok) {
+        const insertedId = data.output?.pesan?.insertId || 
+                           data.output?.insertId || 
+                           data.insertId || 
+                           (Array.isArray(data.output?.pesan) ? data.output.pesan[0]?.insertId : null) || 
+                           '';
         setFamilyId(insertedId);
         setCompletedSteps(prev => [...prev, 2]);
         setCurrentStep(3);
         setSummaryData(prev => ({ ...prev, resident: { ...residentForm, id: insertedId, home: houseId } }));
-        setToast({ type: 'success', message: `Kartu Keluarga berhasil dibuat! (ID: ${insertedId})` });
+        setToast({ type: 'success', message: `Kartu Keluarga berhasil dibuat! ${insertedId ? `(ID: ${insertedId})` : ''}` });
         setFieldErrors({});
         fetchResidents(); // refresh list
       } else {
@@ -265,13 +286,13 @@ export default function AdminDataWizard() {
         body: JSON.stringify({
           nik: wargaForm.nik,
           nama: wargaForm.nama,
-          jenisKelamin: wargaForm.jenisKelamin,
+          jenisKelamin: (wargaForm.jenisKelamin === 'Perempuan' || wargaForm.jenisKelamin === 'P') ? 'P' : 'L',
           tglLahir: wargaForm.tglLahir,
-          statusHidup: wargaForm.statusHidup,
+          statusHidup: wargaForm.statusHidup || 'Hidup',
           noHp: wargaForm.noHp,
           umur: parseInt(wargaForm.umur),
-          fammilyId: familyId,
-          houseId: houseId,
+          family_id: familyId,
+          house_id: houseId,
         }),
       });
       const data = await res.json();
@@ -333,6 +354,8 @@ export default function AdminDataWizard() {
     if (!oneStepForm.blok.trim()) errs.blok = 'Blok wajib diisi';
     if (!oneStepForm.nomor || isNaN(oneStepForm.nomor) || parseInt(oneStepForm.nomor) <= 0) errs.nomor = 'Nomor harus angka positif';
     if (!oneStepForm.alamat.trim()) errs.alamat = 'Alamat wajib diisi';
+    const allowedStatus = ['Milik Sendiri', 'Kontrak', 'Sewa', 'Kos', 'Dinas'];
+    if (!allowedStatus.includes(oneStepForm.statusRumah)) errs.statusRumah = 'Status rumah tidak valid';
     if (!oneStepForm.noKK.trim() || oneStepForm.noKK.trim().length < 5) errs.noKK = 'No KK minimal 5 karakter';
     if (!oneStepForm.namaKepalaKeluarga.trim()) errs.namaKepalaKeluarga = 'Nama Kepala Keluarga wajib diisi';
     if (!oneStepForm.nikKepalaKeluarga.trim()) errs.nikKepalaKeluarga = 'NIK Kepala Keluarga wajib diisi';
@@ -352,9 +375,9 @@ export default function AdminDataWizard() {
       const payload = {
         house: {
           blok: oneStepForm.blok.trim(),
-          nomor: String(oneStepForm.nomor).trim(),
+          nomor: String(oneStepForm.nomor),
           alamat: oneStepForm.alamat.trim(),
-          status: 'tetap'
+          status: oneStepForm.statusRumah.toLowerCase().includes('tetap') || oneStepForm.statusRumah.toLowerCase().includes('milik') ? 'tetap' : 'kontrak'
         },
         family: {
           noKK: oneStepForm.noKK.trim()
@@ -362,7 +385,7 @@ export default function AdminDataWizard() {
         kepalaKeluarga: {
           nik: oneStepForm.nikKepalaKeluarga.trim(),
           nama: oneStepForm.namaKepalaKeluarga.trim(),
-          jenisKelamin: oneStepForm.jenisKelaminKepalaKeluarga === 'Laki-laki' ? 'L' : 'P',
+          jenisKelamin: (oneStepForm.jenisKelaminKepalaKeluarga === 'Perempuan' || oneStepForm.jenisKelaminKepalaKeluarga === 'P') ? 'P' : 'L',
           tglLahir: oneStepForm.tglLahirKepalaKeluarga,
           statusHidup: 'Hidup',
           noHp: oneStepForm.noHpKepalaKeluarga.trim(),
@@ -421,9 +444,43 @@ export default function AdminDataWizard() {
         });
 
         if (account.username) {
+          const un = account.username;
+          const pw = account.temporaryPassword || 'password123';
           setCreatedAccount({
-            username: account.username,
-            temporaryPassword: account.temporaryPassword
+            username: un,
+            temporaryPassword: pw
+          });
+
+          window.copyUsernameText = un;
+          window.copyPasswordText = pw;
+
+          Swal.fire({
+            title: '<strong style="font-size: 18px;">Pendaftaran Keluarga Berhasil! 🎉</strong>',
+            icon: 'success',
+            html: `
+              <div style="text-align: left; background: #f8fafc; padding: 16px; border-radius: 16px; margin-top: 10px; border: 1px solid #e2e8f0; font-family: sans-serif;">
+                <p style="font-size: 12px; color: #475569; margin-bottom: 12px;">Registrasi 1-Step keluarga telah tersimpan di server. Berikut akun login warga:</p>
+                
+                <div style="margin-bottom: 12px;">
+                  <span style="font-size: 10px; font-weight: 800; color: #059669; text-transform: uppercase; letter-spacing: 0.5px;">Username Login:</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                    <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${un}</strong>
+                    <button onclick="window.copyTextToClipboard(window.copyUsernameText, 'Username')" style="background: #059669; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer;">📋 Copy Username</button>
+                  </div>
+                </div>
+
+                <div>
+                  <span style="font-size: 10px; font-weight: 800; color: #0d9488; text-transform: uppercase; letter-spacing: 0.5px;">Temporary Password:</span>
+                  <div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 8px 12px; border-radius: 12px; border: 1px solid #cbd5e1; margin-top: 4px;">
+                    <strong style="font-family: monospace; font-size: 14px; color: #0f172a;">${pw}</strong>
+                    <button onclick="window.copyTextToClipboard(window.copyPasswordText, 'Password')" style="background: #0d9488; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer;">📋 Copy Password</button>
+                  </div>
+                </div>
+              </div>
+            `,
+            confirmButtonText: 'Selesai & Lanjutkan',
+            confirmButtonColor: '#10b981',
+            allowOutsideClick: false
           });
         }
 
@@ -723,7 +780,7 @@ export default function AdminDataWizard() {
                 Pendaftaran Berhasil Disimpan!
               </h2>
               <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto">
-                Seluruh data rumah, Kartu Keluarga, dan warga telah terhubung di database backend.
+                Seluruh data rumah, Kartu Keluarga, dan warga telah terhubung di database.
               </p>
             </div>
           </div>
@@ -917,7 +974,7 @@ export default function AdminDataWizard() {
                     {fieldErrors.nomor && <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.nomor}</p>}
                   </div>
                 </div>
-                <div>
+                 <div>
                   <label className={labelClass}>Alamat Lengkap Rumah <span className="text-red-400">*</span></label>
                   <input
                     required
@@ -928,6 +985,27 @@ export default function AdminDataWizard() {
                     className={inputClass('alamat')}
                   />
                   {fieldErrors.alamat && <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.alamat}</p>}
+                </div>
+
+                <div>
+                  <label className={labelClass}>Status Kepemilikan Rumah <span className="text-red-400">*</span></label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Pribadi', 'Kontrak'].map(opt => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setOneStepForm({ ...oneStepForm, statusRumah: opt })}
+                        className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
+                          ${oneStepForm.statusRumah === opt
+                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
+                          }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  {fieldErrors.statusRumah && <p className="text-red-550 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.statusRumah}</p>}
                 </div>
               </div>
             </div>
@@ -1021,7 +1099,11 @@ export default function AdminDataWizard() {
                     <DateInput
                       required
                       value={oneStepForm.tglLahirKepalaKeluarga}
-                      onChange={e => setOneStepForm({ ...oneStepForm, tglLahirKepalaKeluarga: e.target.value })}
+                      onChange={e => {
+                        const birthDate = e.target.value;
+                        const calculatedAge = calculateAge(birthDate);
+                        setOneStepForm({ ...oneStepForm, tglLahirKepalaKeluarga: birthDate, umurKepalaKeluarga: calculatedAge });
+                      }}
                       className={inputClass('tglLahirKepalaKeluarga')}
                     />
                     {fieldErrors.tglLahirKepalaKeluarga && <p className="text-red-550 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.tglLahirKepalaKeluarga}</p>}
@@ -1115,7 +1197,7 @@ export default function AdminDataWizard() {
                 Daftar Satu Langkah
               </h4>
               <p className="text-[11px] text-slate-450 dark:text-slate-500 leading-relaxed font-medium">
-                Pendaftaran mode Satu Langkah secara otomatis mengamankan database dari rumah duplikat dan KK ganda dengan mengeksekusi validasi transaksional di server backend.
+                Pendaftaran mode Satu Langkah secara otomatis mengamankan database dari rumah duplikat dan KK ganda dengan mengeksekusi validasi transaksional di server.
               </p>
               <button
                 type="submit"
@@ -1319,19 +1401,19 @@ export default function AdminDataWizard() {
 
                       <div>
                         <label className={labelClass}>Status Kepemilikan <span className="text-red-400">*</span></label>
-                        <div className="flex gap-3">
-                          {['pribadi', 'kontrak'].map(opt => (
+                        <div className="flex flex-wrap gap-2">
+                          {['Pribadi', 'Kontrak'].map(opt => (
                             <button
                               key={opt}
                               type="button"
                               onClick={() => setHouseForm({ ...houseForm, status: opt })}
-                              className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all duration-200 cursor-pointer capitalize
+                              className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
                                 ${houseForm.status === opt
                                   ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
                                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
                                 }`}
                             >
-                              {opt === 'pribadi' ? '🏠 Pribadi' : '🔑 Kontrak'}
+                              {opt}
                             </button>
                           ))}
                         </div>
@@ -1442,7 +1524,11 @@ export default function AdminDataWizard() {
                           <DateInput
                             required
                             value={wargaForm.tglLahir}
-                            onChange={e => setWargaForm({ ...wargaForm, tglLahir: e.target.value })}
+                            onChange={e => {
+                              const birthDate = e.target.value;
+                              const calculatedAge = calculateAge(birthDate);
+                              setWargaForm({ ...wargaForm, tglLahir: birthDate, umur: calculatedAge });
+                            }}
                             className={inputClass('tglLahir')}
                           />
                           {fieldErrors.tglLahir && <p className="text-red-550 text-[11px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.tglLahir}</p>}

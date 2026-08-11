@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Sun, Moon, Menu, X, Landmark } from 'lucide-react';
-import logoGSP from '../assets/logoGSP.jpg';
+import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
+import logoGSP from '../assets/logoDepok.jpeg';
 
 const menuItems = [
   { id: 'beranda', label: 'Beranda' },
@@ -19,6 +19,14 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
   const handleNavClick = (id) => {
     setIsOpen(false);
     setCurrentPage(id);
+    const forceScroll = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    forceScroll();
+    setTimeout(forceScroll, 10);
+    setTimeout(forceScroll, 100);
   };
 
   return (
@@ -33,7 +41,9 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             <div className="p-2 bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] rounded-sm shadow-xs flex items-center">
               <Landmark className="w-4 h-4" />
             </div>
-            <img src={logoGSP} alt="Logo GSP" className="w-9 h-9 object-cover rounded-full border border-[var(--color-hairline)] shadow-xs" />
+            <div className="rounded-full p-0.5 bg-[var(--color-primary-wf)]">
+              <img src={logoGSP} alt="Logo GSP" className="w-8 h-8 object-cover rounded-full border border-[var(--color-hairline)] shadow-xs" />
+            </div>
             <div className="leading-tight">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-[var(--color-ink)] block">
                 Sawangan Green Park
@@ -76,7 +86,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             </button>
 
             {/* Auth Controls */}
-            {currentUser ? (
+            {currentUser && (
               <div className="flex items-center gap-3 ml-2 border-l border-[var(--color-hairline)] pl-3">
                 <span className="text-xs font-bold text-[var(--color-body-text)]">
                   Hi, {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
@@ -93,13 +103,6 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                   Keluar
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => handleNavClick('beranda')}
-                className="ml-3 px-4 py-1.5 bg-[var(--color-primary-wf)] hover:opacity-90 text-[var(--color-on-primary-wf)] font-bold text-xs rounded-sm shadow-xs cursor-pointer transition-all"
-              >
-                Login Portal
-              </button>
             )}
           </div>
 
@@ -152,7 +155,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
             ))}
 
           {/* Auth Controls for Mobile */}
-          {currentUser ? (
+          {currentUser && (
             <div className="pt-3 mt-3 border-t border-[var(--color-hairline)] px-4 space-y-3">
               <div className="text-xs font-bold text-[var(--color-ink)]">
                 Nama Sesi: {currentUser.name}
@@ -170,20 +173,67 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                 Keluar Portal
               </button>
             </div>
-          ) : (
-            <div className="pt-3 mt-3 border-t border-[var(--color-hairline)] px-4">
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  handleNavClick('beranda');
-                }}
-                className="w-full py-2.5 bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"
-              >
-                Login Portal
-              </button>
-            </div>
           )}
         </div>
+      </div>
+
+      {/* Interactive Mobile Bottom Floating Dock Bar (Portrait Mode Optimized) */}
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-lg text-white px-3 py-2 rounded-full border border-emerald-500/30 shadow-2xl flex items-center gap-1.5 max-w-[94vw] overflow-x-auto no-scrollbar font-sans">
+        <button
+          onClick={() => handleNavClick('beranda')}
+          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+            currentPage === 'beranda' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <Landmark className="w-3.5 h-3.5" />
+          <span>Beranda</span>
+        </button>
+
+        {currentUser && (
+          <button
+            onClick={() => handleNavClick('profil-saya')}
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'profil-saya' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Profil</span>
+          </button>
+        )}
+
+        {currentUser && (
+          <button
+            onClick={() => handleNavClick('layanan')}
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'layanan' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Surat</span>
+          </button>
+        )}
+
+        {currentUser && (
+          <button
+            onClick={() => handleNavClick('kas')}
+            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+              currentPage === 'kas' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            }`}
+          >
+            <Wallet className="w-3.5 h-3.5" />
+            <span>Kas RT</span>
+          </button>
+        )}
+
+        <button
+          onClick={() => handleNavClick('kontak')}
+          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
+            currentPage === 'kontak' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+          }`}
+        >
+          <PhoneCall className="w-3.5 h-3.5" />
+          <span>Kontak</span>
+        </button>
       </div>
     </nav>
   );

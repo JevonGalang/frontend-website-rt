@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import { 
   Users, Calendar, Wallet, CheckCircle2, BarChart2, BookOpen, Layers, 
-  Lock, User, LogIn, ShieldAlert, ArrowRight, ChevronRight, Eye, EyeOff, Loader2,
+  Lock, User, LogIn, ShieldAlert, Eye, EyeOff, Loader2,
   MapPin, Phone, Mail, Home, TrendingUp, TrendingDown, PieChart, Activity,
-  Clock, AlertTriangle, Shield, Building2
+  Clock, AlertTriangle, Shield, Building2, Megaphone
 } from 'lucide-react';
 
 export default function Hero({ 
@@ -23,7 +24,6 @@ export default function Hero({
 }) {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'chart' | 'ledger'
   const [activeMainTab, setActiveMainTab] = useState(currentUser ? 'info' : 'login'); // 'login' | 'info'
-  const [activeRoadmapTab, setActiveRoadmapTab] = useState('warga'); // 'warga' | 'rt' | 'sekretaris' | 'bendahara'
 
   // Login form states
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -32,18 +32,74 @@ export default function Hero({
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [revealPassword, setRevealPassword] = useState(false);
 
+  // Modal dialog for Emergency Call
+  const handleEmergencyClick = (emg) => {
+    Swal.fire({
+      title: `📞 ${emg.title}`,
+      html: `
+        <div class="space-y-3 text-left font-sans text-xs pt-2">
+          <p class="text-slate-500 font-medium">${emg.subtitle}</p>
+          <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
+            <span class="block text-slate-400 text-[10px] font-bold uppercase tracking-wider">Nomor Siaga Utama</span>
+            <span class="text-lg font-black font-mono text-emerald-600">${emg.phone}</span>
+            <span class="block text-[10px] text-slate-400 font-medium mt-1">${emg.altPhone}</span>
+          </div>
+          <p class="text-[10px] text-slate-400 italic text-center">Tekan 'Panggil Sekarang' untuk menghubungi kontak darurat secara langsung.</p>
+        </div>
+      `,
+      icon: 'info',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: '📞 Panggil Sekarang',
+      cancelButtonText: 'Tutup'
+    }).then((res) => {
+      if (res.isConfirmed && typeof window !== 'undefined') {
+        window.open(`tel:${emg.phone.replace(/[^0-9+]/g, '')}`, '_self');
+      }
+    });
+  };
+
+  // Modal dialog for Service Requirement Guide
+  const handleShowGuideModal = (srv) => {
+    const reqList = srv.requirements.map(r => `<li class="flex items-center gap-2 text-slate-700 font-semibold py-1 border-b border-slate-100"><span class="text-emerald-500 font-bold">✓</span> ${r}</li>`).join('');
+    Swal.fire({
+      title: `📋 ${srv.title}`,
+      html: `
+        <div class="space-y-3 text-left font-sans text-xs pt-2">
+          <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            <span class="font-bold text-emerald-600 uppercase text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-md">${srv.category}</span>
+            <span class="text-slate-500 font-bold text-[10px]">⏱️ Estimasi: ${srv.estimate}</span>
+          </div>
+          <div>
+            <span class="block text-slate-400 font-extrabold uppercase text-[10px] tracking-wider mb-2">Dokumen Persyaratan Wajib:</span>
+            <ul class="space-y-1">
+              ${reqList}
+            </ul>
+          </div>
+          <p class="text-[10px] text-slate-400 italic text-center pt-2">Setelah dokumen siap, Anda dapat mengajukan permohonan secara mandiri di portal layanan warga.</p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#94a3b8',
+      confirmButtonText: '📑 Ajukan Surat Pengantar',
+      cancelButtonText: 'Tutup'
+    }).then((res) => {
+      if (res.isConfirmed) {
+        if (setCurrentPage) setCurrentPage('layanan');
+      }
+    });
+  };
+
   // Sync main tab toggle if auth state changes
   useEffect(() => {
-    if (currentUser) {
-      setActiveMainTab('info');
-    } else {
-      setActiveMainTab('login');
-    }
+    const timer = setTimeout(() => {
+      setActiveMainTab(currentUser ? 'info' : 'login');
+    }, 0);
+    return () => clearTimeout(timer);
   }, [currentUser]);
-
-  const navigateToProfil = () => {
-    if (setCurrentPage) setCurrentPage('profil');
-  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('id-ID', {
@@ -80,7 +136,7 @@ export default function Hero({
         name: user.name || user.username,
         role: user.role || 'warga',
         loginTime: new Date().toISOString(),
-        ipAddress: '172.20.32.62',
+        ipAddress: '172.20.32.31',
         userAgent: navigator.userAgent.includes('Chrome') ? 'Google Chrome (Windows)' : 'Mozilla Firefox (Windows)',
         status: 'Aktif'
       };
@@ -114,7 +170,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/post/login', {
+      const response = await fetch('http://172.20.32.31:3333/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -158,44 +214,16 @@ export default function Hero({
           if (setCurrentPage) setCurrentPage('profil-saya');
         }
       }, 1000);
-    } catch (err) {
+    } catch {
       setError('Gagal terhubung ke server. Periksa jaringan Anda.');
       setIsLoggingIn(false);
     }
   };
 
-  // Interactive user flows roadmap structure
-  const roadmapSteps = {
-    warga: [
-      { title: 'Masuk Portal Warga', desc: 'Gunakan tab "Portal Login" di kanan atas halaman utama. Ketik NIK atau Username dan Kata Sandi.', badge: 'Langkah 1' },
-      { title: 'Lengkapi Data Keluarga', desc: 'Akses menu "Keluarga Saya" untuk mengedit data keluarga, mengunggah KK, KTP, KIA, dan Akta kelahiran Anda.', badge: 'Langkah 2' },
-      { title: 'Bayar Iuran & IPL', desc: 'Buka menu "Bayar Iuran" untuk menyetor IPL tetap bulanan secara rapel 1 tahun, atau setoran kas insidental.', badge: 'Langkah 3' },
-      { title: 'Pelayanan Mandiri', desc: 'Ajukan permohonan surat pengantar (SKCK, SKTM, Domisili) dan pantau status persetujuan pengurus secara online.', badge: 'Langkah 4' },
-    ],
-    rt: [
-      { title: 'Masuk Administrator', desc: 'Gunakan Portal Login utama dengan akun Ketua RT/Super Admin. Sistem akan membuka dashboard manajemen.', badge: 'Langkah 1' },
-      { title: 'Verifikasi Berkas Warga', desc: 'Lihat pengajuan data keluarga dan unduh langsung berkas KTP/KK yang diupload mandiri oleh warga.', badge: 'Langkah 2' },
-      { title: 'Atur Kebijakan Keuangan', desc: 'Konfigurasi Saldo Awal kepengurusan, tetapkan nominal iuran bulanan, serta pantau keseluruhan mutasi.', badge: 'Langkah 3' },
-      { title: 'Kirim Notifikasi Tagihan', desc: 'Kirim pengingat tagihan iuran berkala langsung ke kotak pesan warga via saluran resmi Email & Telegram.', badge: 'Langkah 4' },
-    ],
-    sekretaris: [
-      { title: 'Akses Sekretariat', desc: 'Gunakan Portal Login menggunakan akun Sekretaris. Panel kerja disaring khusus untuk administrasi surat.', badge: 'Langkah 1' },
-      { title: 'Tanggapi Aspirasi', desc: 'Terima dan tindaklanjuti laporan pengaduan fasilitas umum atau keluhan dari warga secara real-time.', badge: 'Langkah 2' },
-      { title: 'Proses Persuratan', desc: 'Buka daftar antrean pengajuan surat pengantar warga, lalu klik "Setujui" atau "Tolak".', badge: 'Langkah 3' },
-      { title: 'Cetak & Terbitkan', desc: 'Terbitkan dokumen surat resmi secara instan dengan klik tombol cetak setelah disetujui.', badge: 'Langkah 4' },
-    ],
-    bendahara: [
-      { title: 'Akses Kas & Keuangan', desc: 'Gunakan Portal Login dengan akun Bendahara. Menu disaring khusus untuk pengelolaan kas lingkungan.', badge: 'Langkah 1' },
-      { title: 'Konfirmasi Bukti Transfer', desc: 'Periksa lampiran struk transfer bank dari laporan IPL/Kas warga, klik "Setujui" untuk memutakhirkan saldo.', badge: 'Langkah 2' },
-      { title: 'Catat Pengeluaran RT', desc: 'Masukkan rincian pengeluaran incidental (kerja bakti, sampah, santunan) untuk transparansi publik.', badge: 'Langkah 3' },
-      { title: 'Kunci Saldo Awal', desc: 'Sesuaikan dan kunci catatan Saldo Awal RT agar komparasi surplus/minus buku kas presisi.', badge: 'Langkah 4' },
-    ],
-  };
-
   return (
     <section
       id="beranda"
-      className="relative min-h-screen pt-24 pb-16 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
+      className="relative min-h-screen pt-4 sm:pt-6 pb-16 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col justify-center font-sans">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -209,53 +237,38 @@ export default function Hero({
             
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
               Portal Resmi <br className="hidden sm:inline" />
-              <span className="text-[var(--color-accent-purple)]">
+              <span className="text-[var(--color-accent-green)]">
                 Rukun Tetangga RT 05 <br/> RW 06
               </span>
             </h1>
             
-            <p className="text-sm sm:text-base text-[var(--color-body-text)] max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+            <p className="text-xs sm:text-base text-[var(--color-body-text)] max-w-2xl mx-auto lg:mx-0 leading-relaxed">
               Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 05 secara instan dan terbuka.
             </p>
-            
-            <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-              <button
-                onClick={() => setCurrentPage && setCurrentPage('layanan')}
-                className="inline-flex items-center justify-center px-5 py-3 bg-[var(--color-primary-wf)] hover:opacity-90 text-[var(--color-on-primary-wf)] font-semibold rounded-sm transition-all cursor-pointer text-xs uppercase tracking-wider"
-              >
-                Ajukan Surat Pengantar
-              </button>
-              <button
-                onClick={navigateToProfil}
-                className="inline-flex items-center justify-center px-5 py-3 bg-[var(--color-canvas)] text-[var(--color-ink)] border border-[var(--color-hairline)] hover:bg-slate-50 dark:hover:bg-slate-900 font-semibold rounded-sm transition-all cursor-pointer text-xs uppercase tracking-wider"
-              >
-                Kenali Pengurus RT
-              </button>
-            </div>
 
             {/* Quick trust badges */}
-            <div className="pt-2 flex items-center justify-center lg:justify-start gap-6 text-[var(--color-body-mid)] text-xs font-semibold">
+            <div className="pt-1 flex flex-wrap items-center justify-center lg:justify-start gap-3 sm:gap-6 text-[var(--color-body-mid)] text-[11px] sm:text-xs font-semibold">
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[var(--color-accent-green)]" />
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
                 <span>Pelayanan Cepat</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[var(--color-accent-green)]" />
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
                 <span>Kas Transparan</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[var(--color-accent-green)]" />
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
                 <span>Upload Mandiri</span>
               </div>
             </div>
           </div>
           
           {/* Summary / Access Portal Column (Right Side) */}
-          <div className="lg:col-span-5 flex justify-center">
+          <div className="lg:col-span-5 flex justify-center w-full">
             <div className="w-full max-w-md">
               
               {/* Core Feature Card (rounded-md with hairline border) */}
-              <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-md p-6 sm:p-8 space-y-6 shadow-md">
+              <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-xl sm:rounded-md p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 shadow-md w-full">
                 
                 {/* Main Access Tabs (Only shown if guest) */}
                 {!currentUser ? (
@@ -562,81 +575,282 @@ export default function Hero({
           
         </div>
 
-        {/* Peta Panduan Alur Layanan Digital RT 05 */}
-        <div className="mt-20 pt-16 border-t border-[var(--color-hairline)] w-full font-sans">
-          <div className="text-center max-w-3xl mx-auto space-y-3 mb-12">
-            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase">
-              📖 Petunjuk Navigasi Portal
+                {/* ═══════════════════════════════════════════════════════════════════
+            QUICK ACCESS PORTAL & INFORMASI DASHBOARD
+            ═══════════════════════════════════════════════════════════════════ */}
+        <div className="mt-16 pt-12 border-t border-[var(--color-hairline)] w-full font-sans space-y-10 sm:space-y-12">
+          
+          {/* Section Header */}
+          <div className="text-center max-w-3xl mx-auto space-y-3">
+            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center justify-center gap-1.5 w-fit mx-auto">
+              <Megaphone className="w-3.5 h-3.5 text-emerald-500" /> Akses Cepat & Pusat Informasi RT
             </span>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
-              Peta Alur Layanan Digital RT 05
+            <h2 className="text-2xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
+              Quick Access Portal & Informasi Dashboard
             </h2>
             <p className="text-xs sm:text-sm text-[var(--color-body-mid)] leading-relaxed max-w-2xl mx-auto">
-              Silakan pilih kategori portal Anda untuk memahami rute penggunaan layanan digital baik di HP maupun komputer tanpa bingung mencari menu.
+              Akses portal operasional pengurus, pengumuman terbaru lingkungan, agenda kegiatan RT, dan log aktivitas sistem dalam satu tampilan terpadu.
             </p>
           </div>
 
-          {/* Role Switcher Tab Buttons */}
-          <div className="flex flex-wrap justify-center gap-3 mb-8 font-sans">
-            {[
-              { id: 'warga', label: 'Portal Warga', desc: 'Layanan Warga Mandiri', color: 'purple' },
-              { id: 'rt', label: 'Portal Ketua RT', desc: 'Super Administrator', color: 'blue' },
-              { id: 'sekretaris', label: 'Portal Sekretaris', desc: 'Pelayanan Surat & Keluhan', color: 'cyan' },
-              { id: 'bendahara', label: 'Portal Bendahara', desc: 'Keuangan & Saldo Kas', color: 'orange' },
-            ].map((role) => (
-              <button
-                key={role.id}
-                type="button"
-                onClick={() => setActiveRoadmapTab(role.id)}
-                className={`px-5 py-3 rounded-sm text-left transition-all cursor-pointer border flex flex-col min-w-[170px] sm:min-w-[210px] ${
-                  activeRoadmapTab === role.id
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border-transparent shadow-xs'
-                    : 'bg-[var(--color-canvas)] text-[var(--color-ink)] border-[var(--color-hairline)] hover:bg-slate-50 dark:hover:bg-slate-900'
-                }`}
-              >
-                <span className={`text-[8px] font-bold uppercase tracking-wider ${activeRoadmapTab === role.id ? 'text-[var(--color-mute-soft)]' : 'text-[var(--color-mute)]'}`}>
-                  {role.desc}
+          {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
+            
+            {/* 1. Total Warga */}
+            <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <Users className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.total_warga || (wargaList.length > 0 ? wargaList.length : 128)}
                 </span>
-                <span className="text-xs sm:text-sm font-semibold mt-0.5">{role.label}</span>
-              </button>
-            ))}
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
+              </div>
+            </div>
+
+            {/* 2. Total Kartu Keluarga */}
+            <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {totalKK || publicStats?.total_kk || 48}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
+              </div>
+            </div>
+
+            {/* 3. Total Rumah */}
+            <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
+                <Home className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.total_rumah || 52}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
+              </div>
+            </div>
+
+            {/* 4. IPL Sudah Lunas */}
+            <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
+              </div>
+            </div>
+
+            {/* 5. IPL Belum Lunas */}
+            <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
+              </div>
+            </div>
+
+            {/* 6. Surat Masuk */}
+            <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+                <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.surat_masuk || 18}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
+              </div>
+            </div>
+
+            {/* 7. Surat Keluar */}
+            <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
+                <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.surat_keluar || 34}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
+              </div>
+            </div>
+
+            {/* 8. Pengaduan Aktif */}
+            <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
+                <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                  {publicStats?.pengaduan_aktif || 3}
+                </span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
+              </div>
+            </div>
+
           </div>
 
-          {/* Steps Render Block */}
-          <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-md p-6 sm:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative z-10">
-              {/* Connector line for desktop */}
-              <div className="hidden md:block absolute top-[28px] left-[10%] right-[10%] h-0.5 bg-[var(--color-hairline)] -z-20"></div>
+          {/* ═══════════════════════════════════════════════════════════════════
+              MODUL 1: PUSAT KONTAK DARURAT (HARMONIZED COLOR PALETTE)
+              ═══════════════════════════════════════════════════════════════════ */}
+          <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 border border-emerald-500/25 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs space-y-4 sm:space-y-6">
+            
+            {/* Unified Header for Emergency Contacts Rumpun */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-emerald-500/20 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                  <Phone className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    Pusat Kontak Bantuan & Direktori Darurat RT 05
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Satu rumpun kontak siaga darurat 24 jam untuk keamanan, pertolongan medis, kepolisian, dan pengurus RT.
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit whitespace-nowrap">
+                🚨 Layanan Siaga 24 Jam
+              </span>
+            </div>
 
-              {roadmapSteps[activeRoadmapTab].map((step, idx) => (
-                <div key={idx} className="flex flex-col items-center md:items-start text-center md:text-left space-y-4 relative group">
-                  {/* Step Bubble */}
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-full bg-[var(--color-canvas)] border-2 border-[var(--color-hairline)] flex items-center justify-center text-[var(--color-ink)] font-extrabold text-lg shadow-xs transition-all duration-300 group-hover:border-[var(--color-accent-purple)] group-hover:text-[var(--color-accent-purple)]">
-                      {idx + 1}
+            {/* 4 Emergency Contact Items Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {[
+                { id: 'emg-1', title: 'Pos Keamanan RT 05', subtitle: 'Keamanan 24 Jam Satpam', phone: '0812-9988-7711', altPhone: 'Ext. Pos Satpam Utama', badge: 'Keamanan', color: 'emerald' },
+                { id: 'emg-2', title: 'Ketua RT 05 Sawangan', subtitle: 'Bpk. Achmad Mulyono', phone: '0812-3456-7890', altPhone: 'Rumah Blok B3 No. 12', badge: 'Pengurus RT', color: 'emerald' },
+                { id: 'emg-3', title: 'Ambulans & Medis Depok', subtitle: 'Layanan Medis Darurat', phone: '119 / (021) 777-8899', altPhone: 'RSUD Depok Sawangan', badge: 'Kesehatan', color: 'emerald' },
+                { id: 'emg-4', title: 'Polsek Sawangan Depok', subtitle: 'Kepolisian Sektor', phone: '(021) 778-5544', altPhone: 'Layanan Pengaduan 110', badge: 'Kepolisian', color: 'emerald' },
+              ].map((emg) => (
+                <div
+                  key={emg.id}
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.open(`tel:${emg.phone.replace(/[^0-9+]/g, '')}`, '_self');
+                    }
+                  }}
+                  className="bg-white/90 dark:bg-slate-950/80 backdrop-blur-xs border border-slate-200/80 dark:border-slate-800/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="p-2 rounded-xl text-white shadow-xs bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20">
+                        <Phone className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                        {emg.badge}
+                      </span>
                     </div>
-                    {/* Step line for mobile */}
-                    {idx < 3 && (
-                      <div className="md:hidden absolute top-14 left-7 w-0.5 h-8 bg-[var(--color-hairline)] -z-10"></div>
-                    )}
+
+                    <div>
+                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        {emg.title}
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-medium">{emg.subtitle}</p>
+                    </div>
+
+                    <div className="p-2 bg-slate-50 dark:bg-slate-900/90 border border-slate-200/60 dark:border-slate-800 rounded-lg">
+                      <span className="block text-xs font-black font-mono text-slate-900 dark:text-white">{emg.phone}</span>
+                      <span className="block text-[9px] text-slate-400 font-medium truncate">{emg.altPhone}</span>
+                    </div>
                   </div>
 
-                  {/* Step Info */}
-                  <div className="space-y-1.5 md:pr-2">
-                    <h4 className="text-xs sm:text-sm font-bold text-[var(--color-ink)]">
-                      {step.title}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEmergencyClick(emg);
+                    }}
+                    className="mt-3.5 w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <Phone className="w-3.5 h-3.5" />
+                    <span>Hubungi Sekarang</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════════════════
+              MODUL 2: PANDUAN SYARAT PERSURATAN PUBLIK (CHECKLIST)
+              ═══════════════════════════════════════════════════════════════════ */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-emerald-500" /> Panduan Syarat Persuratan Publik
+                </h3>
+                <p className="text-xs text-slate-400">Daftar dokumen persyaratan yang wajib disiapkan sebelum mengajukan permohonan surat pengantar.</p>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 w-fit">
+                📋 Bebas Akses Tanpa Login
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {[
+                { id: 'srv-1', category: 'KTP & KK', estimate: '1 Hari Kerja', title: 'Pengantar KTP & KK Baru', requirements: ['Fotokopi KK Lama / Surat Pindah', 'Fotokopi KTP Pemohon', 'Pas Foto 3x4 (2 lembar)'] },
+                { id: 'srv-2', category: 'Domisili', estimate: '1 Hari Kerja', title: 'Surat Keterangan Domisili', requirements: ['Fotokopi KTP Warga', 'Fotokopi Kartu Keluarga', 'Surat Sewa Rumah (Jika Kontrak)'] },
+                { id: 'srv-3', category: 'Kepolisian', estimate: '1 Hari Kerja', title: 'Pengantar SKCK', requirements: ['Fotokopi KTP Aktif', 'Fotokopi Kartu Keluarga', 'Fotokopi Akta Kelahiran / Ijazah'] },
+                { id: 'srv-4', category: 'Bantuan Sosial', estimate: '1 Hari Kerja', title: 'Keterangan Tidak Mampu (SKTM)', requirements: ['Fotokopi KTP & KK', 'Surat Pernyataan Penghasilan', 'Foto Kondisi Rumah'] },
+              ].map((srv) => (
+                <div
+                  key={srv.id}
+                  onClick={() => handleShowGuideModal(srv)}
+                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-extrabold uppercase">
+                        {srv.category}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">⏱️ {srv.estimate}</span>
+                    </div>
+
+                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      {srv.title}
                     </h4>
-                    <p className="text-[10px] sm:text-xs text-[var(--color-body-text)] leading-relaxed font-medium">
-                      {step.desc}
-                    </p>
-                    <span className="inline-block text-[8px] font-bold uppercase text-[var(--color-accent-purple)] bg-[var(--color-accent-purple)]/10 px-2.5 py-0.5 rounded-sm mt-2">
-                      {step.badge}
-                    </span>
+
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Persyaratan Utama:</span>
+                      {srv.requirements.map((req, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                          <span className="text-emerald-500 text-xs">✓</span>
+                          <span className="line-clamp-1">{req}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleShowGuideModal(srv);
+                    }}
+                    className="mt-4 w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs rounded-xl border border-emerald-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>Lihat Panduan Lengkap</span>
+                  </button>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════

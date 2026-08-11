@@ -68,7 +68,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
     }
   };
 
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
     
@@ -86,7 +86,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       return;
     }
 
-    // Check if username already exists
+    // Check if username already exists locally
     const usernameExists = wargaList.some(
       (w) => w.username.toLowerCase() === registerData.username.toLowerCase() || w.username.toLowerCase() === 'admin'
     );
@@ -95,11 +95,34 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       return;
     }
 
-    // Check if NIK already exists
+    // Check if NIK already exists locally
     const nikExists = wargaList.some((w) => w.nik === registerData.nik);
     if (nikExists) {
       setError('NIK sudah terdaftar dalam sistem.');
       return;
+    }
+
+    const emailToSend = registerData.email || `${registerData.username.toLowerCase()}@example.com`;
+
+    // Send register request to backend
+    try {
+      const res = await fetch('http://172.20.32.31:3333/post/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: registerData.username,
+          password: registerData.password,
+          email: emailToSend,
+          role: 'warga'
+        })
+      });
+      const resData = await res.json();
+      if (!res.ok && resData.message && !resData.message.includes('berhasil')) {
+        setError(resData.message || 'Gagal mendaftar ke server.');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend register offline or notice:', err.message);
     }
 
     // Create new citizen
@@ -108,6 +131,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       name: registerData.name,
       username: registerData.username,
       password: registerData.password,
+      email: emailToSend,
       nik: registerData.nik,
       noKk: registerData.noKk,
       alamat: registerData.alamat,
@@ -138,6 +162,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         name: '',
         username: '',
         password: '',
+        email: '',
         nik: '',
         noKk: '',
         alamat: '',

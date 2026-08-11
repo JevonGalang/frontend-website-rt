@@ -3,8 +3,8 @@ import {
   LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
-  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, Edit2, Save,
-  Loader2, Search
+  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, X as XIcon, Edit2, Save,
+  Loader2, Search, Menu, Camera, Shield, ShieldCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
@@ -30,6 +30,38 @@ const formatDateIndo = (dateStr) => {
   }
 };
 
+const getTemplatesForType = (type) => {
+  const templates = {
+    'Surat Pengantar Pengurusan KTP': [
+      { label: 'KTP Baru (Pindah)', text: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Sawangan Baru dikarenakan baru pindah domisili ke wilayah RT 05.' },
+      { label: 'KK Baru (Keluarga)', text: 'Syarat pembaruan Kartu Keluarga (KK) dikarenakan adanya penambahan anggota keluarga baru.' },
+      { label: 'KTP Hilang', text: 'Syarat pembuatan duplikat KTP baru di Kelurahan dikarenakan KTP lama hilang.' }
+    ],
+    'Surat Keterangan Domisili': [
+      { label: 'Buka Rekening Bank', text: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
+      { label: 'Melamar Pekerjaan', text: 'Syarat keterangan tempat tinggal sementara untuk kelengkapan administrasi melamar pekerjaan.' },
+      { label: 'Pendaftaran Sekolah', text: 'Keterangan domisili tinggal untuk syarat pendaftaran sekolah anak (PPDB jalur zonasi).' }
+    ],
+    'Surat Keterangan Catatan Kepolisian (SKCK)': [
+      { label: 'Melamar Kerja Swasta', text: 'Sebagai syarat pembuatan SKCK baru guna melamar pekerjaan di sektor swasta.' },
+      { label: 'Seleksi CPNS / BUMN', text: 'Sebagai syarat pembuatan/perpanjangan SKCK guna mengikuti seleksi penerimaan CPNS / BUMN.' },
+      { label: 'Pemberkasan Paspor', text: 'Sebagai kelengkapan berkas pembuatan SKCK untuk keperluan pengurusan paspor/visa ke luar negeri.' }
+    ],
+    'Surat Keterangan Tidak Mampu (SKTM)': [
+      { label: 'Keringanan RS', text: 'Sebagai syarat pengajuan keringanan biaya rawat inap/pengobatan di Rumah Sakit.' },
+      { label: 'Beasiswa Sekolah', text: 'Sebagai kelengkapan berkas pengajuan beasiswa pendidikan kurang mampu untuk anak sekolah.' }
+    ],
+    'Surat Pengantar Izin Keramaian': [
+      { label: 'Syukuran Pernikahan', text: 'Pemberitahuan penyelenggaraan acara syukuran pernikahan keluarga di halaman rumah warga.' },
+      { label: 'HUT RI Lingkungan', text: 'Pemberitahuan izin keramaian untuk pelaksanaan rangkaian perlombaan HUT RI warga RT 05.' }
+    ]
+  };
+
+  return templates[type] || [
+    { label: 'Keperluan Umum', text: 'Untuk keperluan pengurusan administrasi kependudukan di tingkat kelurahan.' }
+  ];
+};
+
 export default function ProfilWarga({ 
   currentUser, 
   setCurrentUser,
@@ -47,9 +79,27 @@ export default function ProfilWarga({
 }) {
   // Navigation & Collapsible Menu States
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isInformasiOpen, setIsInformasiOpen] = useState(true);
   const [isIuranOpen, setIsIuranOpen] = useState(true);
   const [isSuratOpen, setIsSuratOpen] = useState(true);
+  const [viewingApprovedLetter, setViewingApprovedLetter] = useState(null);
+
+  // Auto scroll to top when tab changes inside ProfilWarga
+  useEffect(() => {
+    const forceScroll = () => {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+    forceScroll();
+    const t1 = setTimeout(forceScroll, 10);
+    const t2 = setTimeout(forceScroll, 100);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [activeTab]);
   
   // Profile Form & Password verification States
   const [isEditing, setIsEditing] = useState(false);
@@ -65,6 +115,11 @@ export default function ProfilWarga({
     status: currentUser ? currentUser.status || 'Tetap' : 'Tetap',
     email: currentUser ? currentUser.email || '' : '',
     noHp: currentUser ? currentUser.noHp || '' : '',
+    pekerjaan: currentUser ? currentUser.pekerjaan || '' : '',
+    tglLahir: currentUser ? currentUser.tglLahir || currentUser.tanggalLahir || '' : '',
+    house_blok: currentUser ? currentUser.house_blok || '' : '',
+    house_nomor: currentUser ? currentUser.house_nomor || '' : '',
+    foto: currentUser ? currentUser.foto || currentUser.avatar || '' : ''
   });
 
   const [revealPassword, setRevealPassword] = useState(false);
@@ -74,6 +129,8 @@ export default function ProfilWarga({
   const [pendingAction, setPendingAction] = useState(''); // 'edit' | 'reveal_pwd'
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedKtpWarga, setSelectedKtpWarga] = useState(null);
+  const [ktpTab, setKtpTab] = useState('asli');
 
   // Letter Request Form States
   const [letterForm, setLetterForm] = useState({
@@ -171,7 +228,7 @@ export default function ProfilWarga({
     }
     if (!token) return;
 
-    const socketConnection = io('http://172.20.32.62:3333', {
+    const socketConnection = io('http://172.20.32.31:3333', {
       auth: { token }
     });
 
@@ -268,14 +325,19 @@ export default function ProfilWarga({
   useEffect(() => {
     try {
       localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
-    } catch (e) {}
+    } catch {
+      // ignore
+    }
   }, [wargaDocuments]);
 
   // Voting Karyawan Terbaik States
   const [karyawanList, setKaryawanList] = useState([]);
   const [voteResults, setVoteResults] = useState([]);
   const [isLoadingVoting, setIsLoadingVoting] = useState(false);
-  const [votingError, setVotingError] = useState('');
+
+  // Universal Notification States
+  const [notifCategoryFilter, setNotifCategoryFilter] = useState('semua');
+  const [isAllNotifRead, setIsAllNotifRead] = useState(false);
 
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -321,7 +383,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/getmyfamily/${famId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/getmyfamily/${famId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -372,7 +434,7 @@ export default function ProfilWarga({
     if (!token) return;
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -398,7 +460,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingAnnouncements(true);
     try {
-      const res = await fetch('http://172.20.32.62:3333/resident/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/resident/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -417,7 +479,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -440,7 +502,7 @@ export default function ProfilWarga({
     setIsLoadingPayments(true);
     setPaymentsError('');
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/my-payments', {
+      const response = await fetch('http://172.20.32.31:3333/resident/my-payments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -482,30 +544,70 @@ export default function ProfilWarga({
     localStorage.setItem('rt_warga_pengaduan_list', JSON.stringify(pengaduanList));
   }, [pengaduanList]);
 
+  // Logout handler
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: 'Keluar Portal',
+      text: 'Apakah Anda yakin ingin keluar dari portal warga?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#ef4444',
+      confirmButtonText: 'Ya, keluar',
+      cancelButtonText: 'Batal'
+    });
+    if (result.isConfirmed) {
+      setCurrentUser(null);
+      localStorage.removeItem('rt_current_user');
+      localStorage.removeItem('rt_token');
+    }
+  };
+
+  const formatCurrency = (val) => {
+    const num = Number(val) || 0;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num);
+  };
+  const formatRupiah = formatCurrency;
+
   useEffect(() => {
     if (currentUser) {
-      setFormData(prev => ({
-        ...prev,
-        name: currentUser.name || prev.name,
-        username: currentUser.username || prev.username,
-        nik: currentUser.nik || prev.nik,
-        noKk: currentUser.noKk || prev.noKk,
-        alamat: currentUser.alamat || prev.alamat,
-        gender: currentUser.gender || prev.gender,
-        usia: currentUser.usia || prev.usia,
-        email: currentUser.email || prev.email,
-        noHp: currentUser.noHp || prev.noHp,
-        status: currentUser.status || prev.status
-      }));
+      const timer = setTimeout(() => {
+        setFormData(prev => ({
+          ...prev,
+          name: currentUser.name || prev.name,
+          username: currentUser.username || prev.username,
+          nik: currentUser.nik || prev.nik,
+          noKk: currentUser.noKk || prev.noKk,
+          alamat: currentUser.alamat || prev.alamat,
+          gender: currentUser.gender || prev.gender,
+          usia: currentUser.usia || prev.usia,
+          email: currentUser.email || prev.email,
+          noHp: currentUser.noHp || prev.noHp,
+          status: currentUser.status || prev.status,
+          pekerjaan: currentUser.pekerjaan || prev.pekerjaan,
+          tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || prev.tglLahir,
+          house_blok: currentUser.house_blok || prev.house_blok,
+          house_nomor: currentUser.house_nomor || prev.house_nomor,
+          foto: currentUser.foto || currentUser.avatar || prev.foto
+        }));
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [currentUser]);
 
-  const formatRupiah = (num) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(num);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 3 * 1024 * 1024) {
+        setError('Ukuran foto profil maksimal 3MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, foto: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleCancel = () => {
@@ -522,6 +624,11 @@ export default function ProfilWarga({
       status: currentUser.status || (familyHead && familyHead.house_status === 'kontrak' ? 'Kontrak' : 'Tetap'),
       email: currentUser.email || '',
       noHp: currentUser.noHp || (familyHead ? familyHead.no_hp : ''),
+      pekerjaan: currentUser.pekerjaan || '',
+      tglLahir: currentUser.tglLahir || currentUser.tanggalLahir || '',
+      house_blok: currentUser.house_blok || '',
+      house_nomor: currentUser.house_nomor || '',
+      foto: currentUser.foto || currentUser.avatar || ''
     });
     setIsEditing(false);
   };
@@ -545,10 +652,15 @@ export default function ProfilWarga({
     }
   };
 
-  const handleProfileSubmit = (e) => {
+  const handleProfileSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+
+    if (!formData.name || !formData.name.trim()) {
+      setError('Nama Lengkap wajib diisi.');
+      return;
+    }
 
     if (!formData.email || !formData.noHp) {
       setError('Email dan nomor HP wajib diisi.');
@@ -557,12 +669,51 @@ export default function ProfilWarga({
 
     const updated = {
       ...currentUser,
-      email: formData.email,
-      noHp: formData.noHp,
+      name: formData.name.trim(),
+      email: formData.email.trim(),
+      noHp: formData.noHp.trim(),
+      alamat: (formData.alamat || '').trim(),
+      gender: formData.gender,
+      tglLahir: formData.tglLahir,
+      tanggalLahir: formData.tglLahir,
+      pekerjaan: (formData.pekerjaan || '').trim(),
+      status: formData.status,
+      house_blok: (formData.house_blok || '').trim(),
+      house_nomor: (formData.house_nomor || '').trim(),
+      foto: formData.foto || currentUser.foto
     };
 
+    const token = localStorage.getItem('rt_token');
+    if (token && (currentUser.id || currentUser.warga_id)) {
+      const citizenId = currentUser.id || currentUser.warga_id;
+      try {
+        await fetch(`http://172.20.32.31:3333/resident/warga/${citizenId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            nama: formData.name.trim(),
+            noHp: formData.noHp.trim(),
+            email: formData.email.trim(),
+            alamat: formData.alamat.trim(),
+            jenisKelamin: formData.gender,
+            pekerjaan: (formData.pekerjaan || '').trim()
+          })
+        });
+      } catch (err) {
+        console.warn('Backend update failed, updating local state:', err);
+      }
+    }
+
+    try {
+      localStorage.setItem('rt_user_email', formData.email.trim());
+      currentUser.email = formData.email.trim();
+    } catch(e) {}
+
     onUpdateProfile(updated);
-    setSuccess('Profil berhasil diperbarui!');
+    setSuccess('Data profil Anda berhasil diperbarui!');
     setIsEditing(false);
   };
 
@@ -580,7 +731,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -609,121 +760,6 @@ export default function ProfilWarga({
     }
   };
 
-  const handleUploadSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token tidak ditemukan. Harap login kembali.');
-      return;
-    }
-
-    setIsSubmittingPayment(true);
-
-    try {
-      if (paymentType === 'ipl') {
-        if (iplForm.months.length === 0) {
-          alert('Silakan pilih minimal satu bulan iuran IPL yang ingin dibayar.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!iplForm.file) {
-          alert('Silakan unggah berkas bukti transfer.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('months', JSON.stringify(iplForm.months));
-        formData.append('year', iplForm.year);
-        formData.append('amount', iplForm.months.length * 200000);
-        formData.append('file', iplForm.file);
-
-        console.log('--- WARGA: Sending pay-ipl ---');
-        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
-        console.log('Payload months:', JSON.stringify(iplForm.months));
-        console.log('Payload year:', iplForm.year);
-        console.log('Payload amount:', iplForm.months.length * 200000);
-        console.log('Payload file name:', iplForm.file ? iplForm.file.name : 'None');
-
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        console.log('Response pay-ipl status:', response.status);
-        const data = await response.json();
-        console.log('Response pay-ipl data:', data);
-
-        if (response.ok) {
-          alert(data.message || 'Bukti pembayaran IPL berhasil diunggah, menunggu persetujuan Bendahara!');
-          setIplForm({ months: [], year: 2026, file: null });
-          fetchWargaPayments();
-          setActiveTab('iuran_riwayat');
-        } else {
-          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran IPL.');
-        }
-      } else {
-        if (!kasForm.amount || isNaN(kasForm.amount) || parseInt(kasForm.amount) <= 0) {
-          alert('Silakan masukkan nominal sumbangan kas yang valid.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!kasForm.description.trim()) {
-          alert('Silakan masukkan keterangan atau nama kegiatan.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-        if (!kasForm.file) {
-          alert('Silakan unggah berkas bukti transfer.');
-          setIsSubmittingPayment(false);
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append('amount', parseInt(kasForm.amount));
-        formData.append('category', kasForm.category);
-        formData.append('description', kasForm.description.trim());
-        formData.append('file', kasForm.file);
-
-        console.log('--- WARGA: Sending pay-kas ---');
-        console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
-        console.log('Payload amount:', parseInt(kasForm.amount));
-        console.log('Payload category:', kasForm.category);
-        console.log('Payload description:', kasForm.description.trim());
-        console.log('Payload file name:', kasForm.file ? kasForm.file.name : 'None');
-
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        console.log('Response pay-kas status:', response.status);
-        const data = await response.json();
-        console.log('Response pay-kas data:', data);
-
-        if (response.ok) {
-          alert(data.message || 'Bukti pembayaran Kas berhasil diunggah, menunggu persetujuan Bendahara!');
-          setKasForm({ amount: '', category: 'sosial', description: '', file: null });
-          fetchWargaPayments();
-          setActiveTab('iuran_riwayat');
-        } else {
-          alert(data.message || data.pesan || 'Gagal mengunggah bukti pembayaran Kas.');
-        }
-      }
-    } catch (err) {
-      console.error('Error occurred in handleUploadSubmit:', err);
-      alert(`Gagal mengirim bukti pembayaran: ${err.message}`);
-    } finally {
-      setIsSubmittingPayment(false);
-    }
-  };
-
   const handleUploadDocument = async (e) => {
     e.preventDefault();
     if (!docUploadFile) {
@@ -741,7 +777,7 @@ export default function ProfilWarga({
       formData.append('file', docUploadFile);
       formData.append('type', docUploadType);
 
-      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${idWarga}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/uploadsensitifdata/${idWarga}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -778,7 +814,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -805,11 +841,10 @@ export default function ProfilWarga({
 
   const fetchKaryawanList = async () => {
     setIsLoadingVoting(true);
-    setVotingError('');
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/karyawan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/karyawan', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -827,7 +862,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/vote/results', {
+      const response = await fetch('http://172.20.32.31:3333/resident/vote/results', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -843,7 +878,7 @@ export default function ProfilWarga({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/vote', {
+      const response = await fetch('http://172.20.32.31:3333/resident/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -877,7 +912,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/resident/pengaduan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -920,7 +955,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/password', {
+      const response = await fetch('http://172.20.32.31:3333/resident/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -985,7 +1020,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.62:3333/resident/datawarga', {
+      const response = await fetch('http://172.20.32.31:3333/resident/datawarga', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1050,7 +1085,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/warga/${editingMember.warga_id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/warga/${editingMember.warga_id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1108,7 +1143,7 @@ export default function ProfilWarga({
     formData.append('type', uploadDocForm.type);
 
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1154,7 +1189,7 @@ export default function ProfilWarga({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.62:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1166,6 +1201,33 @@ export default function ProfilWarga({
       } else {
         const errData = await response.json();
         alert(errData.pesan || 'Gagal mengunduh berkas sensitif.');
+      }
+    } catch (err) {
+      alert(`Koneksi gagal: ${err.message}`);
+    }
+  };
+
+  const handleDeleteSensitifDoc = async (documentId) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) {
+      alert('Token otentikasi tidak ditemukan.');
+      return;
+    }
+    if (!window.confirm('Apakah Anda yakin ingin menghapus berkas dokumen sensitif ini?')) return;
+
+    try {
+      const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/${documentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.message || 'Dokumen kependudukan terunggah berhasil dihapus!');
+        if (typeof fetchMyFamily === 'function') fetchMyFamily();
+      } else {
+        alert(data.message || data.pesan || 'Gagal menghapus dokumen sensitif.');
       }
     } catch (err) {
       alert(`Koneksi gagal: ${err.message}`);
@@ -1206,14 +1268,14 @@ export default function ProfilWarga({
       formData.append('months', JSON.stringify(iplPaymentForm.months));
 
       console.log('--- WARGA: Sending pay-ipl (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-ipl');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-ipl');
       console.log('Payload months:', JSON.stringify(iplPaymentForm.months));
       console.log('Payload year:', iplPaymentForm.year);
       console.log('Payload amount:', totalAmount);
       console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-ipl', {
+        const response = await fetch('http://172.20.32.31:3333/resident/pay-ipl', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1280,14 +1342,14 @@ export default function ProfilWarga({
       formData.append('description', description);
 
       console.log('--- WARGA: Sending pay-kas (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.62:3333/resident/pay-kas');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-kas');
       console.log('Payload amount:', parseInt(kasPaymentForm.amount));
       console.log('Payload category:', kasPaymentForm.category);
       console.log('Payload description:', description);
       console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.62:3333/resident/pay-kas', {
+        const response = await fetch('http://172.20.32.31:3333/resident/pay-kas', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1408,7 +1470,6 @@ export default function ProfilWarga({
     })),
     ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-'))
   ];
-  const myPayments = transaksiKasList.filter(t => t.description.includes(currentUser.name));
 
   const familyHead = familyMembers[0] || null;
 
@@ -1419,44 +1480,479 @@ export default function ProfilWarga({
   const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
   const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
   const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
-  const displayEmail = currentUser.email || '';
-  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : '');
-  const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : '');
-  const statusRumah = currentUser.statusRumah || (familyHead && familyHead.house_status ? (familyHead.house_status === 'kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri') : (currentUser.status === 'Kontrak' ? 'Sewa / Kontrak' : 'Milik Sendiri'));
+  const displayEmail = currentUser.email || formData.email || (function() { try { return localStorage.getItem('rt_user_email'); } catch(e) { return ''; } })() || '';
+  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
+  const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
+  // Real-time notifications derived from actual citizen submissions, complaints, payments, & announcements
+  const liveNotifFeed = [
+    // Real-time letter requests submitted by citizen
+    ...mySubmissions.map(sub => ({
+      id: `NTF-SUB-${sub.id}`,
+      category: 'surat',
+      targetTab: 'layanan_status',
+      title: `Pengajuan Surat: ${sub.wargaTipeSurat || 'Surat Pengantar RT'}`,
+      message: `Permohonan surat "${sub.wargaKeperluan || 'Administrasi'}" diajukan pada ${sub.submissionDate || 'Hari ini'} (Status: ${sub.status || 'Pending'}).`,
+      time: sub.submissionDate || 'Terbaru',
+      isUnread: !isAllNotifRead && (sub.status === 'Pending' || sub.status === 'Approved')
+    })),
+
+    // Real-time complaints submitted by citizen
+    ...pengaduanList.map(p => ({
+      id: `NTF-PGD-${p.id}`,
+      category: 'pengaduan',
+      targetTab: 'pengaduan',
+      title: `Laporan Aduan: ${p.jenis_pengaduan || 'Fasilitas Umum'}`,
+      message: `Laporan "${p.isi || 'Laporan Warga'}" dikirimkan pada ${p.tanggal || 'Hari ini'} (Status: ${p.status || 'Proses'}).`,
+      time: p.tanggal || 'Terbaru',
+      isUnread: !isAllNotifRead && (p.status === 'Menunggu' || p.status === 'Proses')
+    })),
+
+    // Real-time payment proofs uploaded by citizen
+    ...buktiBayarList.map(pay => ({
+      id: `NTF-PAY-${pay.id}`,
+      category: 'iuran',
+      targetTab: 'iuran_riwayat',
+      title: `Setoran Iuran: ${pay.bulan || 'Iuran Kas'}`,
+      message: `Setor bukti bayar ${formatRupiah(pay.nominal)} pada ${pay.date || 'Hari ini'} (Status: ${pay.status || 'Menunggu Verifikasi'}).`,
+      time: pay.date || 'Terbaru',
+      isUnread: !isAllNotifRead && pay.status === 'Menunggu Verifikasi'
+    })),
+
+    // Real-time announcements from backend RT
+    ...wargaAnnouncements.map(ann => ({
+      id: `NTF-ANN-${ann.id}`,
+      category: 'pengumuman',
+      targetTab: 'informasi_pengumuman',
+      title: `Pengumuman RT: ${ann.judul || 'Info Warga'}`,
+      message: ann.isi || ann.kategori || 'Pengumuman resmi Pengurus RT 05 Sawangan Green Park.',
+      time: ann.tanggal || 'Terbaru',
+      isUnread: false
+    }))
+  ];
+
+  const displayNotifications = liveNotifFeed.length > 0 ? liveNotifFeed : [
+    {
+      id: 'NTF-101',
+      category: 'iuran',
+      targetTab: 'iuran_tagihan',
+      title: 'Pemberitahuan Tagihan Iuran Bulanan',
+      message: `Tagihan Iuran Kas & Kebersihan RT 05 bulan ini telah terbit untuk ${currentUser.name || 'Warga'}. Harap lakukan konfirmasi pembayaran.`,
+      time: 'Hari Ini',
+      isUnread: !isAllNotifRead && currentUser.tagihNotification
+    },
+    {
+      id: 'NTF-102',
+      category: 'surat',
+      targetTab: 'layanan_status',
+      title: 'Status Pengajuan Surat Pengantar Approved',
+      message: 'Permohonan Surat Keterangan Domisili Anda telah diverifikasi & disetujui oleh Pengurus RT. Berkas fisik dapat diunduh.',
+      time: 'Hari Ini',
+      isUnread: !isAllNotifRead
+    },
+    {
+      id: 'NTF-103',
+      category: 'pengumuman',
+      targetTab: 'informasi_pengumuman',
+      title: 'Pengumuman Kerja Bakti Masal RT 05',
+      message: 'Pengurus RT mengundang seluruh kepala keluarga untuk hadir dalam kegiatan perapihan selokan dan kebersihan lingkungan hari Minggu pukul 07.00 WIB.',
+      time: 'Kemarin',
+      isUnread: false
+    }
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
       {/* Premium ambient glows */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
-      {/* 1. SIDEBAR */}
-      <aside className="w-full md:w-64 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-r border-slate-200/80 dark:border-slate-800 flex flex-col flex-shrink-0">
+      {/* Mobile Sticky Header Bar (< md) */}
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            aria-label="Buka Menu Navigasi"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+              <Landmark className="w-4 h-4" />
+            </div>
+            <div>
+              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
+              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDarkMode(!darkMode)}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
+            title="Ganti Mode Tampilan"
+          >
+            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Slide-Over Drawer Modal (< md) */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-emerald-50/95 via-slate-50 to-teal-50/95 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+            <div className="p-4 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
+                  <Landmark className="w-4 h-4" />
+                </div>
+                <div>
+                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
+                  <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                aria-label="Tutup Menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
+                {displayNama.charAt(0) || 'W'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
+                <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              <nav className="px-3 py-2 space-y-1 font-sans text-xs">
+                
+                {/* Dashboard Button */}
+                <button
+                  onClick={() => { setActiveTab('dashboard'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'dashboard'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                  <span>Dashboard</span>
+                </button>
+
+                {/* Profil Saya Button */}
+                <button
+                  onClick={() => { setActiveTab('profil_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'profil_saya'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <User className="w-4 h-4 text-sky-400" />
+                  <span>Profil Saya</span>
+                </button>
+
+                {/* Keluarga Saya Button */}
+                <button
+                  onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'keluarga_saya'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Users className="w-4 h-4 text-purple-400" />
+                  <span>Keluarga Saya</span>
+                </button>
+
+                {/* Upload Berkas Mandiri Button */}
+                <button
+                  onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'warga_upload_berkas'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Upload className="w-4 h-4 text-emerald-500" />
+                  <span>Upload Berkas Mandiri</span>
+                </button>
+
+                {/* Informasi Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsInformasiOpen(!isInformasiOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                      <span>Informasi</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isInformasiOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('informasi_pengumuman'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_pengumuman' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Pengumuman</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('informasi_jadwal'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_jadwal' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Jadwal Kegiatan</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('informasi_kontak'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_kontak' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Kontak Pengurus</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Iuran Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsIuranOpen(!isIuranOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Wallet className="w-4 h-4 text-amber-400" />
+                      <span>Iuran</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isIuranOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('iuran_tagihan'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_tagihan' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Tagihan Saya</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('iuran_riwayat'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_riwayat' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Riwayat Pembayaran</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('iuran_upload'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'iuran_upload' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Upload Bukti Bayar</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Layanan Surat Dropdown */}
+                <div>
+                  <button
+                    onClick={() => setIsSuratOpen(!isSuratOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-sky-400" />
+                      <span>Layanan Surat</span>
+                    </div>
+                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                  </button>
+
+                  {isSuratOpen && (
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                      <button
+                        onClick={() => { setActiveTab('layanan_ajukan'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'layanan_ajukan' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Ajukan Surat</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('layanan_status'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'layanan_status' 
+                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Status Pengajuan</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Pengaduan */}
+                <button
+                  onClick={() => { setActiveTab('pengaduan'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'pengaduan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  <span>Pengaduan</span>
+                </button>
+
+                {/* Dokumen */}
+                <button
+                  onClick={() => { setActiveTab('dokumen'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'dokumen'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4 text-purple-400" />
+                  <span>Dokumen</span>
+                </button>
+
+                {/* Voting Karyawan */}
+                <button
+                  onClick={() => { setActiveTab('voting_karyawan'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'voting_karyawan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Voting Karyawan</span>
+                </button>
+
+                {/* Notifikasi */}
+                <button
+                  onClick={() => { setActiveTab('notifikasi'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'notifikasi'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Bell className="w-4 h-4 text-pink-400" />
+                    <span>Notifikasi</span>
+                  </div>
+                  {currentUser.tagihNotification && (
+                    <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+                  )}
+                </button>
+
+                {/* Pengaturan */}
+                <button
+                  onClick={() => { setActiveTab('pengaturan'); setIsMobileDrawerOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    activeTab === 'pengaturan'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-slate-400" />
+                  <span>Pengaturan</span>
+                </button>
+
+              </nav>
+            </div>
+
+            <div className="p-3 border-t border-slate-800 space-y-2">
+              <button
+                onClick={() => { setDarkMode(!darkMode); setIsMobileDrawerOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+              >
+                {darkMode ? <><Sun className="w-4 h-4 text-amber-400" /> Mode Terang</> : <><Moon className="w-4 h-4 text-indigo-400" /> Mode Gelap</>}
+              </button>
+              <button
+                onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Keluar Portal</span>
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-xl text-white">
+        <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-tr from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md shadow-emerald-500/20">
             <Landmark className="w-5 h-5" />
           </div>
           <div>
             <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
-            <span className="text-[9px] text-emerald-450 uppercase font-bold tracking-widest leading-none">RT 05 / RW 06</span>
+            <span className="text-[9px] text-emerald-700 dark:text-emerald-300 uppercase font-extrabold tracking-widest leading-none">RT 05 / RW 06</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs uppercase">
+        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
             {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{displayNama}</p>
-            <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">Warga Portal</p>
+            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
+            <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto max-h-[calc(100vh-250px)]">
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar">
           
           {/* Dashboard Button */}
           <button
@@ -1464,7 +1960,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dashboard'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <LayoutDashboard className="w-4 h-4 text-emerald-400" />
@@ -1477,7 +1973,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'profil_saya'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <User className="w-4 h-4 text-sky-400" />
@@ -1490,39 +1986,37 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'keluarga_saya'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Users className="w-4 h-4 text-purple-400" />
             <span>Keluarga Saya</span>
           </button>
 
-          {/* Upload Berkas Mandiri Button (Only for Tetap/Milik Warga) */}
-          {isPermanentResident && (
-            <button
-              onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'warga_upload_berkas'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Upload className="w-4 h-4 text-emerald-500" />
-              <span>Upload Berkas Mandiri</span>
-            </button>
-          )}
+          {/* Upload Berkas Mandiri Button */}
+          <button
+            onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'warga_upload_berkas'
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Upload className="w-4 h-4 text-emerald-500" />
+            <span>Upload Berkas Mandiri</span>
+          </button>
 
           {/* Informasi Dropdown */}
           <div>
             <button
               onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Volume2 className="w-4 h-4 text-emerald-400" />
                 <span>Informasi</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
             </button>
 
             {isInformasiOpen && (
@@ -1532,7 +2026,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_pengumuman' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1543,7 +2037,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_jadwal' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1554,7 +2048,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_kontak' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1568,13 +2062,13 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsIuranOpen(!isIuranOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Wallet className="w-4 h-4 text-amber-400" />
                 <span>Iuran</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
             </button>
 
             {isIuranOpen && (
@@ -1584,7 +2078,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_tagihan' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1595,7 +2089,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_riwayat' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1606,7 +2100,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_upload' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1620,13 +2114,13 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsSuratOpen(!isSuratOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-sky-400" />
                 <span>Layanan Surat</span>
               </div>
-              <span className="text-[9px] text-slate-500 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
             </button>
 
             {isSuratOpen && (
@@ -1636,7 +2130,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_ajukan' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1647,7 +2141,7 @@ export default function ProfilWarga({
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_status' 
                       ? 'text-emerald-400 font-bold bg-slate-800/50' 
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
+                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
@@ -1663,7 +2157,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaduan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -1676,7 +2170,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dokumen'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -1689,7 +2183,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'voting_karyawan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-400" />
@@ -1702,7 +2196,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'notifikasi'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -1720,7 +2214,7 @@ export default function ProfilWarga({
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaturan'
                 ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Settings className="w-4 h-4 text-slate-400" />
@@ -1749,22 +2243,7 @@ export default function ProfilWarga({
           </button>
 
           <button
-            onClick={async () => {
-              const result = await Swal.fire({
-                title: 'Keluar Portal',
-                text: 'Apakah Anda ingin keluar dari portal warga?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Ya, keluar',
-                cancelButtonText: 'Batal'
-              });
-              if (result.isConfirmed) {
-                setCurrentUser(null);
-                localStorage.removeItem('rt_current_user');
-              }
-            }}
+            onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-500/20 hover:text-rose-400 text-rose-500 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4" />
@@ -1775,10 +2254,12 @@ export default function ProfilWarga({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-grow flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 overflow-y-auto max-h-screen">
+      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
+
+
         {/* Dynamic Header Ribbon */}
-        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-slate-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
           <div className="flex flex-col font-sans">
             <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}
@@ -1829,116 +2310,148 @@ export default function ProfilWarga({
         </header>
 
         {/* 3. SCROLL CONTENT AREA */}
-        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">
-          
-          {/* TAB 1: Dashboard View */}
+        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">          {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 dark:from-emerald-950/70 dark:via-teal-950/70 dark:to-emerald-950/50 border border-emerald-500/20 dark:border-emerald-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-emerald-500/10 dark:bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="space-y-1.5 z-10">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-emerald-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 dark:border-white/20">
+                  Portal Mandiri Warga RT 05
+                </span>
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
+                {activeTab === 'dashboard' && `Selamat Datang Kembali, ${currentUser.name}! 👋`}
+                {activeTab === 'profil_saya' && 'Profil Mandiri & Biodata Warga 👤'}
+                {activeTab === 'keluarga_saya' && 'Daftar Anggota Keluarga Saya 👨‍👩‍👧‍👦'}
+                {activeTab === 'warga_upload_berkas' && 'Upload Berkas Kependudukan Mandiri 📤'}
+                {activeTab === 'informasi_pengumuman' && 'Pengumuman & Berita RT 05 📢'}
+                {activeTab === 'informasi_jadwal' && 'Penjadwalan Kegiatan & Gotong Royong 🗓️'}
+                {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus RT 05 📞'}
+                {activeTab === 'iuran_tagihan' && 'Rincian Tagihan Iuran Bulanan 💳'}
+                {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Pembayaran Iuran 📊'}
+                {activeTab === 'iuran_upload' && 'Form Upload Bukti Pembayaran 📲'}
+                {activeTab === 'layanan_ajukan' && 'Loket Pengajuan Surat Pengantar 📝'}
+                {activeTab === 'layanan_status' && 'Status Layanan Pengajuan Surat 📄'}
+                {activeTab === 'pengaduan' && 'Laporan Pengaduan & Aspirasi Lingkungan 🔔'}
+                {activeTab === 'dokumen' && 'Arsip Dokumen & AD/ART RT 05 📁'}
+                {activeTab === 'notifikasi' && 'Kotak Masuk Notifikasi System 📩'}
+                {activeTab === 'pengaturan' && 'Pengaturan Akun & Kata Sandi 🔑'}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-emerald-100 max-w-xl leading-relaxed font-medium">
+                Akses seluruh layanan RT 05 secara mandiri, transparan, dan mudah dari perangkat Anda.
+              </p>
+            </div>
+            <div className="px-4 py-2 bg-emerald-600 dark:bg-white/20 hover:bg-emerald-700 dark:hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-md border border-emerald-500/30 dark:border-white/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
+              <Landmark className="w-4 h-4 text-white dark:text-emerald-300" />
+              <span>RT 05 / RW 06</span>
+            </div>
+          </div>
           {activeTab === 'dashboard' && (
             <div className="space-y-8 animate-fade-in font-sans">
               
-              {/* Welcome banner card */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-xl relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                <div className="absolute right-[-20px] top-[-20px] w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl"></div>
-                <div className="space-y-2 z-10">
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">Selamat datang kembali, {currentUser.name}! 👋</h3>
-                  <p className="text-xs text-slate-400 max-w-lg leading-relaxed">Pantau iuran bulanan Anda secara transparan, ajukan surat pengantar mandiri, dan dapatkan pengumuman RT 05 terupdate dalam satu dasbor.</p>
-                </div>
-                <div className="px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/10 flex items-center gap-2">
-                  <Landmark className="w-4 h-4" />
-                  <span>Blok: {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'Belum diisi'}</span>
-                </div>
-              </div>
-
               {/* Quick statistics widgets grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className={`p-4 rounded-2xl ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-rose-500/10 text-rose-500' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
-                    <Wallet className="w-5 h-5" />
+              {/* Quick statistics widgets grid (2 Columns on Mobile Portrait) */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
+                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-white shadow-md shrink-0 ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
+                    <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Iuran Kas RT</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{currentUser.statusIuran || 'Lunas'}</span>
-                  </div>
-                </div>
-
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-2xl">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Surat Pengantar</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{mySubmissions.length} Diajukan</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Iuran Kas RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{currentUser.statusIuran || 'Lunas'}</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-2xl">
-                    <Calendar className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white dark:from-sky-950/40 dark:to-slate-900 border border-sky-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-sky-500/30 shrink-0">
+                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Kegiatan RT</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{agendaList.length} Terjadwal</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Surat Pengantar</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{mySubmissions.length} Diajukan</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs flex items-center gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-2xl">
-                    <AlertTriangle className="w-5 h-5" />
+                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/30 shrink-0">
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
-                  <div>
-                    <span className="block text-xs text-slate-400 font-bold uppercase tracking-wider">Pengaduan Saya</span>
-                    <span className="text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5">{pengaduanList.length} Dikirim</span>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Kegiatan RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{agendaList.length} Terjadwal</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl sm:rounded-2xl shrink-0">
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="block text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Pengaduan Saya</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{pengaduanList.length} Dikirim</span>
                   </div>
                 </div>
               </div>
 
               {/* Layout Split: Quick Action Menu & Latest Notifications feed */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 
-                {/* Left panel: Quick shortcuts list */}
-                <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-2">Tautan Aksi Cepat</h4>
+                {/* Left panel: Quick shortcuts list (2-Column Grid on Portrait/Mobile) */}
+                <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-3">
+                  <h4 className="font-extrabold text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block mb-1">Tautan Aksi Cepat</h4>
                   
-                  <button 
-                    onClick={() => setActiveTab('layanan_ajukan')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-emerald-600" />
-                    <span>Ajukan Surat Pengantar</span>
-                  </button>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
+                    <button 
+                      onClick={() => setActiveTab('layanan_ajukan')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-emerald-500/10 text-emerald-600 rounded-xl shrink-0">
+                        <FileText className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Ajukan Surat</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('iuran_upload')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <Upload className="w-4 h-4 text-amber-500" />
-                    <span>Upload Bukti Bayar Iuran</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('iuran_upload')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-amber-500/10 text-amber-500 rounded-xl shrink-0">
+                        <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Upload Bayar</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('pengaduan')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <AlertTriangle className="w-4 h-4 text-rose-500" />
-                    <span>Kirim Pengaduan Warga</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('pengaduan')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-rose-500/10 text-rose-500 rounded-xl shrink-0">
+                        <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Kirim Laporan</span>
+                    </button>
 
-                  <button 
-                    onClick={() => setActiveTab('informasi_kontak')}
-                    className="w-full py-3 px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-left text-xs font-bold flex items-center gap-3 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 cursor-pointer"
-                  >
-                    <Phone className="w-4 h-4 text-blue-500" />
-                    <span>Hubungi Pengurus RT</span>
-                  </button>
+                    <button 
+                      onClick={() => setActiveTab('informasi_kontak')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-blue-500/10 text-blue-500 rounded-xl shrink-0">
+                        <Phone className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Kontak RT</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Right panel: Active announcements and notification updates */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-4">Informasi Lingkungan Terkini</h4>
+                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3">Informasi Lingkungan Terkini</h4>
                   
-                  <div className="flex-1 space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                  <div className="flex-1 space-y-3 max-h-[340px] sm:max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                     {currentUser.tagihNotification && (
-                      <div className="p-4 bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/30 rounded-2xl flex items-center gap-3 animate-pulse">
-                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                      <div className="p-3 sm:p-4 bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/30 rounded-2xl flex items-center gap-3 animate-pulse">
+                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
                         <span className="text-xs font-bold text-rose-700 dark:text-rose-400">🚨 Anda memiliki tagihan iuran yang belum dikonfirmasi Bendahara. Mohon segera lunasi.</span>
                       </div>
                     )}
@@ -2539,34 +3052,47 @@ export default function ProfilWarga({
             </div>
           )}
 
-          {/* TAB 2: Profil Saya (MOCKUP ALIGNED) */}
+          {/* TAB 2: Profil Saya */}
           {activeTab === 'profil_saya' && (
             <div className="space-y-6 animate-fade-in font-sans">
               
-              {/* Header Visual               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
+              {/* Header Visual */}
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
                 <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800">
-                    {displayNama.charAt(0) || 'W'}
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
+                    {formData.foto ? (
+                      <img src={formData.foto} alt={displayNama} className="w-full h-full object-cover" />
+                    ) : (
+                      <span>{displayNama.charAt(0) || 'W'}</span>
+                    )}
                   </div>
-                  <div className="absolute inset-0 rounded-full bg-black/40 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                    👤 FOTO PROFIL
-                  </div>
+                  {isEditing && (
+                    <label className="absolute bottom-0 right-0 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white dark:border-slate-800" title="Ubah Foto Profil">
+                      <Camera className="w-4 h-4" />
+                      <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                    </label>
+                  )}
                 </div>
                 
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">{displayNama}</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{formData.name || displayNama}</h3>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">Warga RT {rtRw}</p>
                 </div>
 
                 {!isEditing ? (
                   <button
                     onClick={handleEditClick}
-                    className="py-1.5 px-4 bg-slate-100 hover:bg-slate-205 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                    className="py-2 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02]"
                   >
-                    Edit Profil
+                    <Edit2 className="w-4 h-4" />
+                    <span>Edit Profil Saya</span>
                   </button>
                 ) : (
-                  <span className="text-[10px] text-amber-500 font-bold animate-pulse">Mode Edit Kontak Aktif</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-extrabold px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 animate-pulse">
+                      Mode Edit Profil Aktif
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -2584,110 +3110,270 @@ export default function ProfilWarga({
                 </div>
               )}
 
-              {/* Card 2: Informasi Pribadi */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Informasi Pribadi</h4>
-                
-                <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Nama</span>
-                    <span className="text-slate-805 dark:text-slate-200 font-bold">{displayNama}</span>
+              {/* Profile Editing Form Container */}
+              <form onSubmit={handleProfileSubmit} className="space-y-6">
+                {/* Card 2: Informasi Pribadi */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Informasi Pribadi</h4>
+                  
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    {/* Nama */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Nama Lengkap</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="text"
+                          value={formData.name}
+                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Nama lengkap sesuai KTP"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-extrabold">{displayNama}</span>
+                      )}
+                    </div>
+
+                    {/* NIK */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">NIK (KTP)</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
+                        {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
+                      </span>
+                    </div>
+
+                    {/* Jenis Kelamin */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Jenis Kelamin</span>
+                      {isEditing ? (
+                        <select
+                          value={formData.gender}
+                          onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="Laki-laki">Laki-laki</option>
+                          <option value="Perempuan">Perempuan</option>
+                        </select>
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
+                      )}
+                    </div>
+
+                    {/* Tanggal Lahir */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Tanggal Lahir</span>
+                      {isEditing ? (
+                        <input
+                          type="date"
+                          value={formData.tglLahir}
+                          onChange={(e) => setFormData({ ...formData, tglLahir: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
+                      )}
+                    </div>
+
+                    {/* Pekerjaan */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Pekerjaan</span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={formData.pekerjaan}
+                          onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Pekerjaan saat ini"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">NIK</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
-                      {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
+                </div>
+
+                {/* Card 3: Alamat & Tempat Tinggal */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Alamat & Tempat Tinggal</h4>
+                  
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">RT/RW</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Alamat Lengkap</span>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={formData.alamat}
+                          onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          placeholder="Alamat tempat tinggal"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Status Rumah</span>
+                      {isEditing ? (
+                        <select
+                          value={formData.status}
+                          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                        >
+                          <option value="Tetap">Tetap (Milik Sendiri)</option>
+                          <option value="Kontrak">Kontrak / Sewa</option>
+                        </select>
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{statusRumah}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 4: Kontak */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Kontak & Komunikasi</h4>
+                  
+                  <div className="space-y-4 text-xs sm:text-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">No HP / WhatsApp</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="text"
+                          value={formData.noHp}
+                          onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
+                      )}
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                      <span className="w-36 text-slate-400 font-bold shrink-0">Email</span>
+                      {isEditing ? (
+                        <input
+                          required
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        />
+                      ) : (
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 5: Upload & Berkas KTP Warga */}
+                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Berkas Identitas KTP Warga</h4>
+                      <p className="text-[10px] text-slate-400">Unggah foto KTP asli Anda untuk verifikasi identitas resmi RT 05.</p>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${formData.foto_ktp || currentUser.foto_ktp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
+                      {formData.foto_ktp || currentUser.foto_ktp ? 'KTP Terunggah' : 'Belum Unggah KTP'}
                     </span>
                   </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Jenis Kelamin</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Tanggal Lahir</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Pekerjaan</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Card 3: Alamat */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Alamat</h4>
-                
-                <div className="space-y-3 text-xs sm:text-sm">
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">RT/RW</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Alamat</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
-                  </div>
-                  <div className="flex justify-between sm:justify-start items-center">
-                    <span className="w-32 text-slate-400 font-bold">Status Rumah</span>
-                    <span className="text-slate-800 dark:text-slate-200 font-bold">{statusRumah}</span>
-                  </div>
-                </div>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                    {/* KTP Image Preview Box */}
+                    <div className="relative rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 flex flex-col items-center justify-center min-h-[160px] text-center">
+                      {(formData.foto_ktp || currentUser.foto_ktp) ? (
+                        <img
+                          src={formData.foto_ktp || currentUser.foto_ktp}
+                          alt="Foto KTP Warga"
+                          className="max-h-36 w-auto object-contain rounded-xl shadow-md border border-slate-200 dark:border-slate-800"
+                        />
+                      ) : (
+                        <div className="space-y-1.5 p-3">
+                          <Upload className="w-8 h-8 text-slate-400 mx-auto" />
+                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada foto KTP fisik</p>
+                          <p className="text-[10px] text-slate-400">Format yang didukung: JPG, PNG (Maks 5MB)</p>
+                        </div>
+                      )}
+                    </div>
 
-              {/* Card 4: Kontak (HP & Email edit mode supported) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Kontak</h4>
-                
-                <form onSubmit={handleProfileSubmit} className="space-y-4 text-xs sm:text-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                    <span className="w-32 text-slate-400 font-bold">No HP</span>
-                    {isEditing ? (
-                      <input
-                        required
-                        type="text"
-                        value={formData.noHp}
-                        onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
-                        className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
-                      />
-                    ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
-                    )}
-                  </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                    <span className="w-32 text-slate-400 font-bold">Email</span>
-                    {isEditing ? (
-                      <input
-                        required
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold max-w-xs w-full"
-                      />
-                    ) : (
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
-                    )}
-                  </div>
+                    {/* File Upload Input & Pratinjau Action */}
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                          Upload / Ganti Berkas Foto KTP Asli
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files && e.target.files[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                const base64Data = reader.result;
+                                setFormData(prev => ({ ...prev, foto_ktp: base64Data }));
+                                try {
+                                  localStorage.setItem('rt_user_ktp_' + (currentUser.id || currentUser.nik || 'me'), base64Data);
+                                  currentUser.foto_ktp = base64Data;
+                                } catch(err) {}
+                                Swal.fire('KTP Berhasil Diunggah! 📸', 'Foto KTP asli Anda telah tersimpan dan siap diverifikasi pengurus RT.', 'success');
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-600 dark:file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
+                        />
+                      </div>
 
-                  {isEditing && (
-                    <div className="flex gap-2.5 pt-2">
-                      <button
-                        type="submit"
-                        className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-md cursor-pointer transition-colors"
-                      >
-                        Simpan
-                      </button>
                       <button
                         type="button"
-                        onClick={handleCancel}
-                        className="py-1.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                        onClick={() => {
+                          setSelectedKtpWarga({
+                            nama: displayNama,
+                            nik: displayNik,
+                            house_alamat: displayAlamat,
+                            jenis_kelamin: displayGender,
+                            foto_ktp: formData.foto_ktp || currentUser.foto_ktp,
+                            foto: currentUser.foto || currentUser.avatar,
+                            tgl_lahir: tanggalLahir,
+                            pekerjaan: pekerjaan
+                          });
+                        }}
+                        className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
                       >
-                        Batal
+                        <Eye className="w-4 h-4" />
+                        <span>Pratinjau Kartu e-KTP Digital</span>
                       </button>
                     </div>
-                  )}
-                </form>
-              </div>
+                  </div>
+                </div>
+
+                {/* Form Action Buttons when Editing */}
+                {isEditing && (
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="submit"
+                      className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-lg cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.01]"
+                    >
+                      <Save className="w-4 h-4" />
+                      <span>Simpan Perubahan Profil</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancel}
+                      className="py-2.5 px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                )}
+              </form>
 
               {/* Card 5: Keamanan */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
@@ -3320,7 +4006,7 @@ export default function ProfilWarga({
           )}
 
           {/* TAB 9: Layanan Surat -> Ajukan Surat */}
-          {activeTab === 'layanan_ajukan' && (
+          {(activeTab === 'layanan_ajukan' || activeTab === 'surat_pengajuan') && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Layanan Mandiri Pengajuan Surat</h3>
@@ -3351,6 +4037,22 @@ export default function ProfilWarga({
                     <option value="Surat Keterangan Tidak Mampu (SKTM)">Surat Keterangan Tidak Mampu (SKTM)</option>
                     <option value="Surat Pengantar Izin Keramaian">Surat Pengantar Izin Acara / Keramaian</option>
                   </select>
+                </div>
+
+                <div className="space-y-2">
+                  <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
+                  <div className="flex flex-wrap gap-2">
+                    {getTemplatesForType(letterForm.tipeSurat).map((tmpl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setLetterForm({ ...letterForm, keperluan: tmpl.text })}
+                        className="px-3 py-2 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/40 text-slate-750 dark:text-slate-350 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                      >
+                        {tmpl.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -3427,14 +4129,20 @@ export default function ProfilWarga({
                         </div>
 
                         {(sub.status === 'Approved' || sub.status === 'Completed') && (
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
+                            <button
+                              onClick={() => setViewingApprovedLetter(sub)}
+                              className="flex-1 py-2 border border-emerald-500 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block"
+                            >
+                              Pratinjau Kop Surat
+                            </button>
                             <button
                               onClick={() => {
                                 alert(`Mengunduh berkas ${sub.wargaTipeSurat} untuk keperluan: ${sub.wargaKeperluan}. (Simulasi berkas PDF RT berhasil diunduh)`);
                               }}
-                              className="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-xs"
+                              className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-xs"
                             >
-                              Unduh Surat Pengantar
+                              Unduh Format
                             </button>
                           </div>
                         )}
@@ -3536,6 +4244,223 @@ export default function ProfilWarga({
                   </table>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* TAB: Upload Berkas Kependudukan Mandiri */}
+          {activeTab === 'warga_upload_berkas' && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+              
+              {/* Section Header */}
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Berkas Kependudukan Mandiri</h3>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Unggah dokumen resmi (KTP, KK, KIA, Akta, SKCK) untuk verifikasi data kependudukan oleh Pengurus RT.
+                  </p>
+                </div>
+                <span className="px-3.5 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit">
+                  🔒 Enkripsi Aman & Terarah
+                </span>
+              </div>
+
+              {/* Upload Form & Instructions */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                <form onSubmit={handleUploadDocument} className="lg:col-span-6 space-y-5 bg-slate-50/70 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-1">
+                    Formulir Unggah Dokumen Baru
+                  </h4>
+
+                  {/* Member Selector */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Anggota Keluarga Pemilik Berkas *</label>
+                    <select
+                      value={selectedResidentForDoc ? (selectedResidentForDoc.warga_id || selectedResidentForDoc.id) : ''}
+                      onChange={(e) => {
+                        const targetId = parseInt(e.target.value);
+                        const found = familyMembers.find(m => (m.warga_id || m.id) === targetId) || currentUser;
+                        setSelectedResidentForDoc(found);
+                      }}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                    >
+                      <option value={currentUser.id}>{currentUser.name} (Saya - Kepala Keluarga)</option>
+                      {familyMembers.map((m) => (
+                        <option key={m.id || m.warga_id} value={m.warga_id || m.id}>
+                          {m.nama} ({m.hubungan_keluarga || m.jenis_kelamin})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Document Category Selector */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Jenis Dokumen Kependudukan *</label>
+                    <select
+                      value={docUploadType}
+                      onChange={(e) => setDocUploadType(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    >
+                      <option value="ktp">🪪 Kartu Tanda Penduduk (KTP)</option>
+                      <option value="kk">📄 Kartu Keluarga (KK)</option>
+                      <option value="kia">👶 Kartu Identitas Anak (KIA)</option>
+                      <option value="akta">📜 Akta Kelahiran / Akta Nikah</option>
+                      <option value="domisili">📑 Surat Pindah / Ket. Domisili</option>
+                      <option value="skck">👮 Pengantar SKCK / Kelakuan Baik</option>
+                      <option value="lainnya">📦 Dokumen Pendukung Lainnya</option>
+                    </select>
+                  </div>
+
+                  {/* File Drag & Drop Box */}
+                  <div className="space-y-1.5">
+                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Berkas File (.jpg, .png, .pdf) *</label>
+                    <input
+                      type="file"
+                      required
+                      accept=".jpg,.jpeg,.png,.pdf"
+                      onChange={(e) => {
+                        const f = e.target.files[0];
+                        if (f && f.size > 5 * 1024 * 1024) {
+                          alert('Ukuran berkas file terlalu besar! Maksimal ukuran file adalah 5MB.');
+                          e.target.value = '';
+                          return;
+                        }
+                        setDocUploadFile(f);
+                      }}
+                      className="hidden"
+                      id="warga-doc-file-input"
+                    />
+                    <label
+                      htmlFor="warga-doc-file-input"
+                      className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer block"
+                    >
+                      <Upload className="w-8 h-8 text-emerald-500 animate-pulse" />
+                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+                        {docUploadFile ? `Terpilih: ${docUploadFile.name}` : 'Klik untuk memilih file dokumen...'}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">Format didukung: JPG, PNG, atau PDF (Maksimal 5MB)</span>
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isUploadingDoc || !docUploadFile}
+                    className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isUploadingDoc ? (
+                      <span>Mengunggah Berkas...</span>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        <span>Unggah Dokumen Mandiri</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {/* Information Card & Requirement Guidelines */}
+                <div className="lg:col-span-6 space-y-5">
+                  <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                      <span>💡</span> Panduan Pengunggahan Berkas Kependudukan
+                    </h4>
+                    <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">1.</span>
+                        <span>Pastikan hasil foto/scan dokumen terlihat jelas, tidak buram, dan teks dapat terbaca dengan baik.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">2.</span>
+                        <span>Berkas yang diunggah akan tersimpan dengan enkripsi dan hanya dapat diakses oleh Pengurus RT & Sekretaris.</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-emerald-500 font-bold">3.</span>
+                        <span>Pengurus RT menggunakan berkas ini untuk mempercepat verifikasi surat pengantar mandiri warga.</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* Quick Stats Badges */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Dokumen Terunggah</span>
+                      <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
+                        {wargaDocuments.length}
+                      </span>
+                    </div>
+                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Akses</span>
+                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-2 block">
+                        Terverifikasi RT
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Table of Uploaded Documents */}
+              <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800">
+                <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-4">
+                  Daftar Dokumen Kependudukan Terunggah Saya
+                </h4>
+
+                {wargaDocuments.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold italic text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                    Belum ada berkas kependudukan yang diunggah. Silakan unggah berkas KTP atau KK Anda melalui formulir di atas.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <table className="w-full text-left text-xs border-collapse font-sans">
+                      <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <th className="p-4">Jenis Dokumen</th>
+                          <th className="p-4">Pemilik Berkas</th>
+                          <th className="p-4">Nama Berkas File</th>
+                          <th className="p-4">Tanggal Unggah</th>
+                          <th className="p-4 text-right">Aksi & Unduh</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {wargaDocuments.map((doc) => (
+                          <tr key={doc.document_id || doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4">
+                              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-extrabold uppercase">
+                                {doc.type || 'Dokumen'}
+                              </span>
+                            </td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                              {doc.resident_name || currentUser.name}
+                            </td>
+                            <td className="p-4 font-mono text-slate-500 truncate max-w-xs" title={doc.file_path}>
+                              {doc.file_path || 'dokumen.pdf'}
+                            </td>
+                            <td className="p-4 font-mono text-slate-400">
+                              {doc.upload_date || 'Hari Ini'}
+                            </td>
+                            <td className="p-4 text-right">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadDocument(doc.document_id || doc.id, doc.file_path)}
+                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
+                              >
+                                <span>📥 Unduh / Lihat</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
             </div>
           )}
 
@@ -3652,33 +4577,125 @@ export default function ProfilWarga({
             </div>
           )}
 
-          {/* TAB 13: Notifikasi */}
+          {/* TAB 13: Universal Notification Center */}
           {activeTab === 'notifikasi' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kotak Masuk Notifikasi Saya</h3>
-                <p className="text-xs text-slate-400">Daftar notifikasi terbaru terkait administrasi, iuran, dan agenda RT.</p>
-              </div>
-
-              <div className="space-y-4">
-                {currentUser.tagihNotification && (
-                  <div className="p-4 bg-rose-500/10 border border-rose-500/25 rounded-2xl flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-rose-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-bold text-xs text-rose-600 dark:text-rose-400 font-sans">Peringatan Tagihan Pembayaran Iuran</h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Bendahara RT 05 mengirimkan tagihan resmi pembayaran iuran kas Anda. Harap segera lakukan pembayaran.</p>
+              
+              {/* Section Header */}
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                      <Bell className="w-5 h-5" />
                     </div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pusat Notifikasi & Informasi Warga</h3>
                   </div>
-                )}
+                  <p className="text-xs text-slate-400">
+                    Pemberitahuan resmi mengenai tagihan iuran, persetujuan surat pengantar, pengumuman RT, dan status aduan.
+                  </p>
+                </div>
 
-                <div className="p-4 bg-slate-50 dark:bg-slate-905/35 border border-slate-200/60 dark:border-slate-800 rounded-2xl flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h4 className="font-bold text-xs text-slate-800 dark:text-white font-sans">Akses Portal Sukses</h4>
-                    <p className="text-[10px] text-slate-500 mt-0.5 font-sans">Akun warga Anda berhasil masuk ke portal layanan mandiri Sawangan Green Park.</p>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAllNotifRead(true);
+                      if (setCurrentUser) {
+                        const updated = { ...currentUser, tagihNotification: false };
+                        setCurrentUser(updated);
+                        localStorage.setItem('rt_current_user', JSON.stringify(updated));
+                      }
+                    }}
+                    className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                  >
+                    <span>✓ Tandai Semua Dibaca</span>
+                  </button>
                 </div>
               </div>
+
+              {/* Category Filters */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs font-bold font-sans">
+                {[
+                  { id: 'semua', label: '🔔 Semua' },
+                  { id: 'surat', label: '📑 Surat' },
+                  { id: 'iuran', label: '💳 Iuran' },
+                  { id: 'pengumuman', label: '📢 Pengumuman' },
+                  { id: 'pengaduan', label: '🚨 Pengaduan' },
+                ].map((flt) => (
+                  <button
+                    key={flt.id}
+                    type="button"
+                    onClick={() => setNotifCategoryFilter(flt.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                      notifCategoryFilter === flt.id
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-xs'
+                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {flt.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Notifications Feed List */}
+              <div className="space-y-3 pt-2 font-sans">
+                {displayNotifications
+                  .filter(n => notifCategoryFilter === 'semua' || n.category === notifCategoryFilter)
+                  .map((ntf) => (
+                    <div
+                      key={ntf.id}
+                      onClick={() => setActiveTab(ntf.targetTab)}
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 cursor-pointer hover:scale-[1.01] hover:border-emerald-500/50 group ${
+                        ntf.isUnread
+                          ? 'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/30 shadow-xs'
+                          : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className={`p-2.5 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
+                        ntf.category === 'surat'
+                          ? 'bg-gradient-to-br from-sky-500 to-blue-600'
+                          : ntf.category === 'iuran'
+                          ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
+                          : ntf.category === 'pengaduan'
+                          ? 'bg-gradient-to-br from-rose-500 to-red-600'
+                          : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                      }`}>
+                        {ntf.category === 'surat' ? (
+                          <FileText className="w-4 h-4" />
+                        ) : ntf.category === 'iuran' ? (
+                          <Wallet className="w-4 h-4" />
+                        ) : ntf.category === 'pengaduan' ? (
+                          <AlertTriangle className="w-4 h-4" />
+                        ) : (
+                          <Volume2 className="w-4 h-4" />
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                            {ntf.title}
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-400 shrink-0">
+                            {ntf.time}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+                          {ntf.message}
+                        </p>
+                        <div className="pt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                          <span>Buka Menu Terkait</span>
+                          <span>→</span>
+                        </div>
+                      </div>
+
+                      {ntf.isUnread && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0 animate-ping"></span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+
             </div>
           )}
 
@@ -3708,7 +4725,7 @@ export default function ProfilWarga({
                   <input
                     required
                     type="password"
-                    placeholder="Masukkan sandi baru (min 5 karakter)..."
+                    placeholder="Masukkan sandi baru (min 8 karakter)..."
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
@@ -3944,6 +4961,292 @@ export default function ProfilWarga({
         )}
 
       </main>
+
+      {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
+      {viewingApprovedLetter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setViewingApprovedLetter(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05</h3>
+              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                <span className="font-extrabold text-sm">✕</span>
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
+              {/* Printable A4 Paper Simulator */}
+              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
+                {/* KOP SURAT HEADER */}
+                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
+                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                </div>
+
+                {/* LETTER CONTENT */}
+                <div className="pt-8 space-y-6">
+                  {/* Letter Title */}
+                  <div className="text-center font-sans">
+                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
+                      {viewingApprovedLetter.wargaTipeSurat}
+                    </h5>
+                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">
+                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW06 / VII / 2026
+                    </span>
+                  </div>
+
+                  {/* Body Text */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                  </p>
+
+                  {/* Citizen Biodata Table */}
+                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
+                    <tbody>
+                      <tr>
+                        <td className="w-1/3 font-bold">Nama Lengkap</td>
+                        <td className="w-4">:</td>
+                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.wargaNama || currentUser.name}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">NIK / No. KTP</td>
+                        <td>:</td>
+                        <td className="font-mono">{viewingApprovedLetter.wargaNik || currentUser.nik}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Jenis Kelamin</td>
+                        <td>:</td>
+                        <td>{currentUser.gender || 'Laki-laki'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Alamat Lengkap</td>
+                        <td>:</td>
+                        <td className="leading-snug">
+                          {viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Sawangan Green Park, RT 05 RW 06, Kel. Sawangan Baru, Kec. Sawangan, Depok.'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Purpose Paragraph */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
+                  </p>
+
+                  <p className="text-slate-850 leading-relaxed text-justify">
+                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
+                  </p>
+                </div>
+
+                {/* SIGNATURE BLOCK */}
+                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
+                  <div>
+                    <span className="block">Mengetahui,</span>
+                    <span className="block font-bold">Sekretaris RT 05</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">( ........................................ )</span>
+                  </div>
+                  <div>
+                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
+                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat}.docx`)}
+                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                >
+                  <span>Unduh Dokumen</span>
+                </button>
+                <button
+                  onClick={() => setViewingApprovedLetter(null)}
+                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL PREVIEW E-KTP RESMI */}
+      {selectedKtpWarga && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
+          <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border-b border-sky-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-sky-500/20 text-sky-300 rounded-xl border border-sky-400/30">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
+                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 06</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Tabs: [1. Foto Berkas KTP Asli] & [2. Kartu Digital e-KTP] */}
+            <div className="p-5 space-y-5">
+              <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('asli')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  📸 Foto Berkas KTP Asli
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setKtpTab('digital')}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                >
+                  💳 Kartu Digital e-KTP
+                </button>
+              </div>
+
+              {ktpTab === 'asli' ? (
+                <div className="space-y-3">
+                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col items-center justify-center p-3 min-h-[220px]">
+                    {selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp ? (
+                      <img
+                        src={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
+                        alt={`Foto KTP Asli - ${selectedKtpWarga.nama}`}
+                        className="max-h-80 w-auto object-contain rounded-xl shadow-lg border border-slate-800"
+                      />
+                    ) : (
+                      <div className="py-8 text-center space-y-2">
+                        <FileText className="w-12 h-12 text-slate-600 mx-auto" />
+                        <p className="text-xs text-slate-400 font-semibold">Anda belum mengunggah berkas foto KTP fisik.</p>
+                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full inline-block font-bold">Silakan unggah foto KTP fisik pada profil Anda</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedKtpWarga.foto_ktp && (
+                    <div className="flex justify-end gap-2">
+                      <a
+                        href={selectedKtpWarga.foto_ktp}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
+                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-sky-300 via-sky-200 to-cyan-300 dark:from-slate-800 dark:via-sky-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-sky-400/50 shadow-2xl space-y-3 font-sans">
+                  <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
+                    <Landmark className="w-48 h-48" />
+                  </div>
+
+                  <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
+                    <h4 className="text-xs sm:text-sm font-black text-sky-900 dark:text-sky-300">PROVINSI JAWA BARAT</h4>
+                    <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
+                  </div>
+
+                  <div className="flex items-center gap-3 bg-sky-950/80 text-emerald-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-sky-700/50">
+                    <span className="text-sky-300 text-xs">NIK :</span>
+                    <span>{selectedKtpWarga.nik || '3276051508980004'}</span>
+                  </div>
+
+                  <div className="grid grid-cols-12 gap-3 text-[11px] items-start">
+                    <div className="col-span-8 space-y-1 font-semibold leading-relaxed">
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Nama</span>
+                        <span className="col-span-8 font-black uppercase text-slate-900 dark:text-white truncate">{selectedKtpWarga.nama}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Tempat/Tgl Lahir</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.tgl_lahir || 'DEPOK, 15-08-1998'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Jenis Kelamin</span>
+                        <span className="col-span-8 font-bold">{selectedKtpWarga.jenis_kelamin || 'Laki-laki'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
+                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || 'Jl. Sawangan Green Park B4/15'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
+                        <span className="col-span-8 font-bold">005 / 006</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
+                        <span className="col-span-8 font-bold">SAWANGAN BARU</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1 pl-3">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
+                        <span className="col-span-8 font-bold">SAWANGAN</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>
+                        <span className="col-span-8 font-bold capitalize">{selectedKtpWarga.pekerjaan || 'Karyawan Swasta'}</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Kewarganegaraan</span>
+                        <span className="col-span-8 font-bold">WNI</span>
+                      </div>
+                      <div className="grid grid-cols-12 gap-1">
+                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Berlaku Hingga</span>
+                        <span className="col-span-8 font-black text-emerald-600 dark:text-emerald-400">SEUMUR HIDUP</span>
+                      </div>
+                    </div>
+
+                    <div className="col-span-4 flex flex-col items-center gap-2">
+                      <div className="w-24 h-32 rounded-xl overflow-hidden border-2 border-red-500/80 shadow-md bg-slate-200 dark:bg-slate-800">
+                        <img
+                          src={selectedKtpWarga.foto_ktp || selectedKtpWarga.foto || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
+                          alt="Pasfoto KTP"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                          VERIFIED RT 05
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs">
+              <span className="text-slate-400 text-[10px]">Pemeriksaan Berkas e-KTP Terdaftar</span>
+              <button
+                onClick={() => setSelectedKtpWarga(null)}
+                className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
+              >
+                Tutup Pratinjau
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
