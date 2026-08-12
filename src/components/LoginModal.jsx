@@ -249,8 +249,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
               onClick={() => { setActiveTab('login'); setError(''); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
                 activeTab === 'login'
-                  ? 'bg-white dark:bg-slate-705 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-505 dark:text-slate-400 hover:text-slate-700'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               <LogIn className="w-4 h-4" />
@@ -260,8 +260,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
               onClick={() => { setActiveTab('register'); setError(''); }}
               className={`flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all ${
                 activeTab === 'register'
-                  ? 'bg-white dark:bg-slate-705 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-505 dark:text-slate-400 hover:text-slate-700'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
               <UserPlus className="w-4 h-4" />
@@ -411,10 +411,10 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <select
                     value={registerData.gender}
                     onChange={(e) => setRegisterData({ ...registerData, gender: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all cursor-pointer"
                   >
-                    <option value="Laki-laki">Laki-laki</option>
-                    <option value="Perempuan">Perempuan</option>
+                    <option value="Laki-laki" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Laki-laki</option>
+                    <option value="Perempuan" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Perempuan</option>
                   </select>
                 </div>
 
@@ -439,10 +439,10 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <select
                     value={registerData.status}
                     onChange={(e) => setRegisterData({ ...registerData, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all cursor-pointer"
                   >
-                    <option value="Tetap">Tetap</option>
-                    <option value="Kontrak">Kontrak</option>
+                    <option value="Tetap" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Tetap</option>
+                    <option value="Kontrak" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Kontrak</option>
                   </select>
                 </div>
 

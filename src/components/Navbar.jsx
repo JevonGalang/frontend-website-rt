@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
-import logoGSP from '../assets/logoDepok.jpeg';
+import logoGSP from '../assets/logoGSP.png';
 
 const menuItems = [
   { id: 'beranda', label: 'Beranda' },
@@ -38,11 +38,8 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           
           {/* Logo / Brand Name */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavClick('beranda')}>
-            <div className="p-2 bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] rounded-sm shadow-xs flex items-center">
-              <Landmark className="w-4 h-4" />
-            </div>
-            <div className="rounded-full p-0.5 bg-[var(--color-primary-wf)]">
-              <img src={logoGSP} alt="Logo GSP" className="w-8 h-8 object-cover rounded-full border border-[var(--color-hairline)] shadow-xs" />
+            <div className="flex items-center justify-center py-1">
+              <img src={logoGSP} alt="Logo Sawangan Green Park" className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" />
             </div>
             <div className="leading-tight">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-[var(--color-ink)] block">

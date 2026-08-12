@@ -81,6 +81,31 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     'Surat Pengantar Nikah',
   ];
 
+  const [serverSubmissions, setServerSubmissions] = useState([]);
+
+  const fetchResidentSubmissions = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const res = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setServerSubmissions(data);
+      }
+    } catch (err) {
+      console.warn('Fetch resident submissions error:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'warga') {
+      fetchResidentSubmissions();
+    }
+  }, [currentUser]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -89,12 +114,59 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Simulate submission delay
-    setTimeout(() => {
+    const token = localStorage.getItem('rt_token');
+
+    if (token) {
+      try {
+        const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            jenis: formData.wargaTipeSurat,
+            keperluan: formData.wargaKeperluan
+          })
+        });
+
+        const resData = await response.json();
+        if (!response.ok) {
+          throw new Error(resData.message || resData.pesan || 'Gagal mengirim pengajuan surat ke server.');
+        }
+
+        const newSubmission = {
+          id: resData.insertId || resData.output?.insertId || ('SRT-' + Math.floor(Math.random() * 90000 + 10000)),
+          wargaNama: formData.wargaNama,
+          wargaNik: currentUser && currentUser.role === 'warga' ? currentUser.nik : formData.wargaNik,
+          wargaNoKk: currentUser && currentUser.role === 'warga' ? currentUser.noKk : formData.wargaNoKk,
+          wargaAlamat: formData.wargaAlamat,
+          wargaTipeSurat: formData.wargaTipeSurat,
+          wargaKeperluan: formData.wargaKeperluan,
+          status: 'Pending',
+          submissionDate: formatDateIndo(new Date()),
+        };
+
+        const updatedSubmissions = [...submissionsList, newSubmission];
+        setSubmissionsList(updatedSubmissions);
+        localStorage.setItem('rt_submissions', JSON.stringify(updatedSubmissions));
+
+        setSubmittedData(newSubmission);
+        fetchResidentSubmissions();
+      } catch (err) {
+        alert(`Gagal mengirim pengajuan: ${err.message}`);
+      } finally {
+        setIsSubmitting(false);
+        setFormData((prev) => ({
+          ...prev,
+          wargaKeperluan: '',
+        }));
+      }
+    } else {
       const newSubmission = {
         id: 'SRT-' + Math.floor(Math.random() * 90000 + 10000),
         wargaNama: formData.wargaNama,
@@ -104,7 +176,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         wargaTipeSurat: formData.wargaTipeSurat,
         wargaKeperluan: formData.wargaKeperluan,
         status: 'Pending',
-        submissionDate: new Date().toISOString().split('T')[0],
+        submissionDate: formatDateIndo(new Date()),
       };
 
       const updatedSubmissions = [...submissionsList, newSubmission];
@@ -113,13 +185,11 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
       setSubmittedData(newSubmission);
       setIsSubmitting(false);
-      
-      // Clear form keperluan
       setFormData((prev) => ({
         ...prev,
         wargaKeperluan: '',
       }));
-    }, 1200);
+    }
   };
 
   const handlePrint = () => {
@@ -427,58 +497,84 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-150 dark:divide-slate-700 text-slate-700 dark:text-slate-200">
-                  {submissionsList.filter(s => s.wargaNik === currentUser.nik).length === 0 ? (
-                    <tr>
-                      <td colSpan="5" className="p-8 text-center text-slate-400 dark:text-slate-500 font-bold">
-                        Belum ada riwayat pengajuan surat pengantar.
-                      </td>
-                    </tr>
-                  ) : (
-                    submissionsList
-                      .filter(s => s.wargaNik === currentUser.nik)
-                      .slice().reverse()
-                      .map((sub) => (
-                        <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors">
-                          <td className="p-4 font-mono">
-                            <span className="font-bold block">{sub.id}</span>
-                            <span className="text-[10px] text-slate-450">{sub.submissionDate}</span>
-                          </td>
-                          <td className="p-4 font-bold text-emerald-600 dark:text-emerald-450">{sub.wargaTipeSurat}</td>
-                          <td className="p-4 italic max-w-[200px] truncate" title={sub.wargaKeperluan}>
-                            "{sub.wargaKeperluan}"
-                          </td>
-                          <td className="p-4 text-center">
-                            <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg inline-block ${
-                              sub.status === 'Approved'
-                                ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
-                                : sub.status === 'Rejected'
-                                ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
-                                : sub.status === 'Completed'
-                                ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
-                                : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 animate-pulse'
-                            }`}>
-                              {sub.status || 'Pending'}
-                            </span>
-                          </td>
-                          <td className="p-4 text-right flex gap-1.5 justify-end">
-                            {(sub.status === 'Approved' || sub.status === 'Completed') && (
-                              <button
-                                onClick={() => setViewingApprovedLetter(sub)}
-                                className="px-3.5 py-1.5 border border-emerald-500 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold text-[10px] rounded-xl transition-colors cursor-pointer"
-                              >
-                                Pratinjau Surat
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setSubmittedData(sub)}
-                              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-750 text-white font-bold text-[10px] rounded-xl transition-colors cursor-pointer"
-                            >
-                              Lihat Bukti
-                            </button>
+                  {(() => {
+                    const combinedList = [
+                      ...serverSubmissions.map(sub => {
+                        const rawDate = sub.created_at || sub.createdAt || sub.tgl_pengajuan || sub.tanggal || sub.date;
+                        return {
+                          id: sub.id,
+                          wargaNama: currentUser?.name || 'Warga',
+                          wargaNik: currentUser?.nik || '',
+                          wargaNoKk: currentUser?.noKk || '',
+                          wargaAlamat: currentUser?.alamat || '',
+                          wargaTipeSurat: sub.jenis,
+                          wargaKeperluan: sub.keperluan,
+                          status: (sub.status === 'selesai' || sub.status === 'Completed' || sub.status === 'Selesai') 
+                            ? 'Completed' 
+                            : ((sub.status === 'disetujui' || sub.status === 'Approved') 
+                              ? 'Approved' 
+                              : ((sub.status === 'ditolak' || sub.status === 'Rejected') 
+                                ? 'Rejected' 
+                                : 'Pending')),
+                          submissionDate: rawDate ? formatDateIndo(rawDate) : formatDateIndo(new Date()),
+                          isFromServer: true
+                        };
+                      }),
+                      ...submissionsList.filter(s => s.wargaNik === currentUser?.nik)
+                    ];
+
+                    if (combinedList.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan="5" className="p-8 text-center text-slate-400 dark:text-slate-500 font-bold">
+                            Belum ada riwayat pengajuan surat pengantar.
                           </td>
                         </tr>
-                      ))
-                  )}
+                      );
+                    }
+
+                    return combinedList.map((sub) => (
+                      <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors">
+                        <td className="p-4 font-mono">
+                          <span className="font-bold block">#{sub.id}</span>
+                          <span className="text-[10px] text-slate-450">{sub.submissionDate}</span>
+                        </td>
+                        <td className="p-4 font-bold text-emerald-600 dark:text-emerald-450">{sub.wargaTipeSurat}</td>
+                        <td className="p-4 italic max-w-[200px] truncate" title={sub.wargaKeperluan}>
+                          "{sub.wargaKeperluan}"
+                        </td>
+                        <td className="p-4 text-center">
+                          <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg inline-block ${
+                            sub.status === 'Approved'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
+                              : sub.status === 'Rejected'
+                              ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
+                              : sub.status === 'Completed'
+                              ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
+                              : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 animate-pulse'
+                          }`}>
+                            {sub.status || 'Pending'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right flex gap-1.5 justify-end">
+                          {(sub.status === 'Approved' || sub.status === 'Completed') && (
+                            <button
+                              onClick={() => setViewingApprovedLetter(sub)}
+                              className="px-3.5 py-1.5 border border-emerald-500 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-bold text-[10px] rounded-xl transition-colors cursor-pointer"
+                            >
+                              Pratinjau Surat
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSubmittedData(sub)}
+                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-750 text-white font-bold text-[10px] rounded-xl transition-colors cursor-pointer"
+                          >
+                            Lihat Bukti
+                          </button>
+                        </td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>

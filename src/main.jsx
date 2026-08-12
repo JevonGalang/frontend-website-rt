@@ -59,6 +59,16 @@ window.fetch = async (...args) => {
 
 // Global Input Character Limit Interceptor (Max 200 characters for non-numeric/non-date inputs and textareas)
 const shouldExcludeFromLimit = (target) => {
+  if (!target) return true;
+  
+  // Exclude all SweetAlert elements
+  if (target.closest && (target.closest('.swal2-container') || target.closest('.swal2-popup') || target.closest('.swal2-modal'))) {
+    return true;
+  }
+  if (target.classList && (target.classList.contains('swal2-input') || target.classList.contains('swal2-textarea') || target.classList.contains('swal2-select'))) {
+    return true;
+  }
+
   const name = (target.name || '').toLowerCase();
   const id = (target.id || '').toLowerCase();
   const placeholder = (target.placeholder || '').toLowerCase();
@@ -75,10 +85,11 @@ const shouldExcludeFromLimit = (target) => {
     return true;
   }
   
-  // Exclude numbers and critical numeric/phone/identity fields (NIK, KK, Phone, Amount, etc.)
+  // Exclude numbers and critical numeric/phone/identity/OTP fields (NIK, KK, Phone, OTP, Amount, etc.)
   const numKeywords = [
     'nik', 'kk', 'nokk', 'kartu keluarga', 
     'phone', 'hp', 'telepon', 'telp', 'mobile',
+    'otp', 'kode', 'digit', 'verifikasi', 'swal', 'alert', 'exit', 'keluar',
     'amount', 'nominal', 'harga', 'saldo', 'balance', 'jumlah', 'setor', 'uang', 'rupiah', 'rp',
     'usia', 'umur', 'tahun', 'year', 'month', 'bulan', 'no. kk', 'no kk', 'no.kk'
   ];
@@ -104,10 +115,11 @@ const shouldShowLimitWarning = (target) => {
   const grandParentText = grandParent ? grandParent.textContent.toLowerCase() : '';
   const fullTextContext = `${name} ${id} ${placeholder} ${parentText} ${grandParentText}`;
   
-  // Exclude all search bars, search inputs, login inputs, email inputs, titles, and headers
+  // Exclude all search bars, search inputs, login inputs, OTP inputs, email inputs, titles, and headers
   const excludeWarningKeywords = [
     'search', 'cari', 'find', 'filter', // search/filter bars
     'username', 'password', 'email', 'login', 'pass', 'token', 'kredensial', // login
+    'otp', 'kode', 'digit', 'verifikasi', 'swal', 'alert', 'exit', 'keluar', // OTP verification & alerts
     'judul pengumuman', 'judul', 'title', 'subject', 'tema', // announcement title / agenda title / etc.
     'nama lengkap kepala keluarga', 'kepala keluarga', 'nama kepala', // name of head of family
     'nomor kk', 'no kk', 'no. kk', 'nokk', // kk
@@ -128,6 +140,9 @@ const shouldShowLimitWarning = (target) => {
 
 // Helper to inject warning labels under matching inputs
 const addLimitWarnings = () => {
+  // Clean up any warnings inside SweetAlert modals
+  document.querySelectorAll('.swal2-container .char-limit-warn, .swal2-popup .char-limit-warn').forEach(el => el.remove());
+
   const inputs = document.querySelectorAll('input, textarea');
   inputs.forEach(target => {
     const textTypes = ['text', 'search', 'email', 'password', 'url', 'tel'];

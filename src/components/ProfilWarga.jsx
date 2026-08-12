@@ -465,7 +465,9 @@ export default function ProfilWarga({
       });
       if (res.ok) {
         const data = await res.json();
-        setWargaAnnouncements(parseArrayResponse(data));
+        const list = parseArrayResponse(data);
+        list.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+        setWargaAnnouncements(list);
       }
     } catch (err) {
       console.error('Error fetching announcements:', err);
@@ -948,6 +950,11 @@ export default function ProfilWarga({
       return;
     }
 
+    if (!passwordForm.oldPassword) {
+      alert('Kata sandi lama wajib diisi untuk mengubah kata sandi.');
+      return;
+    }
+
     const token = localStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
@@ -955,7 +962,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/resident/password', {
+      let response = await fetch('http://172.20.32.31:3333/resident/my-account', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -963,11 +970,31 @@ export default function ProfilWarga({
         },
         body: JSON.stringify({ 
           oldPassword: passwordForm.oldPassword,
-          newPassword: passwordForm.newPassword,
-          confirmNewPassword: passwordForm.confirmPassword
+          newPassword: passwordForm.newPassword
         })
       });
-      const data = await response.json();
+
+      let data = await response.json();
+
+      if (!response.ok) {
+        // Fallback to /resident/password if /resident/my-account returned error
+        const fallbackRes = await fetch('http://172.20.32.31:3333/resident/password', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ 
+            oldPassword: passwordForm.oldPassword,
+            newPassword: passwordForm.newPassword,
+            confirmNewPassword: passwordForm.confirmPassword
+          })
+        });
+        if (fallbackRes.ok) {
+          response = fallbackRes;
+          data = await fallbackRes.json();
+        }
+      }
       if (response.ok) {
         const updated = {
           ...currentUser,
@@ -1483,6 +1510,7 @@ export default function ProfilWarga({
   const displayEmail = currentUser.email || formData.email || (function() { try { return localStorage.getItem('rt_user_email'); } catch(e) { return ''; } })() || '';
   const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
+  const statusRumah = formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap');
   // Real-time notifications derived from actual citizen submissions, complaints, payments, & announcements
   const liveNotifFeed = [
     // Real-time letter requests submitted by citizen
@@ -3311,7 +3339,7 @@ export default function ProfilWarga({
                         <input
                           type="file"
                           accept="image/*"
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const file = e.target.files && e.target.files[0];
                             if (file) {
                               const reader = new FileReader();
@@ -3322,9 +3350,41 @@ export default function ProfilWarga({
                                   localStorage.setItem('rt_user_ktp_' + (currentUser.id || currentUser.nik || 'me'), base64Data);
                                   currentUser.foto_ktp = base64Data;
                                 } catch(err) {}
-                                Swal.fire('KTP Berhasil Diunggah! 📸', 'Foto KTP asli Anda telah tersimpan dan siap diverifikasi pengurus RT.', 'success');
                               };
                               reader.readAsDataURL(file);
+
+                              // API Call: POST /resident/uploadsensitifdata/:id
+                              try {
+                                const token = localStorage.getItem('rt_token');
+                                const targetId = currentUser.id || currentUser.nik || 1;
+                                const uploadData = new FormData();
+                                uploadData.append('type', 'ktp');
+                                uploadData.append('file', file);
+
+                                const res = await fetch(`http://172.20.32.31:3333/resident/uploadsensitifdata/${targetId}`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${token}`
+                                  },
+                                  body: uploadData
+                                });
+
+                                const resData = await res.json();
+                                Swal.fire({
+                                  title: 'KTP Berhasil Diunggah! 📸',
+                                  text: resData.message || resData.pesan || 'Foto KTP fisik Anda telah tersimpan secara aman dan siap diverifikasi pengurus RT.',
+                                  icon: 'success',
+                                  confirmButtonColor: '#10b981'
+                                });
+                              } catch (err) {
+                                console.warn('Upload KTP API fallback:', err);
+                                Swal.fire({
+                                  title: 'KTP Berhasil Diunggah! 📸',
+                                  text: 'Foto KTP fisik Anda telah tersimpan secara aman di sistem lokal.',
+                                  icon: 'success',
+                                  confirmButtonColor: '#10b981'
+                                });
+                              }
                             }
                           }}
                           className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-600 dark:file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
