@@ -14,28 +14,6 @@ export default function LoginPage({
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const recordAccessLog = (user) => {
-    try {
-      const logsData = localStorage.getItem('rt_access_logs');
-      const logs = logsData ? JSON.parse(logsData) : [];
-      
-      const newLog = {
-        id: 'LOG-' + Math.floor(Math.random() * 90000 + 10000),
-        username: user.username,
-        name: user.name || user.username,
-        role: user.role || 'warga',
-        loginTime: new Date().toISOString(),
-        ipAddress: '172.20.32.31',
-        userAgent: navigator.userAgent.includes('Chrome') ? 'Google Chrome (Windows)' : 'Mozilla Firefox (Windows)',
-        status: 'Aktif'
-      };
-      
-      logs.unshift(newLog);
-      localStorage.setItem('rt_access_logs', JSON.stringify(logs.slice(0, 100)));
-    } catch (e) {
-      console.error('Gagal mencatat log akses:', e);
-    }
-  };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -96,7 +74,6 @@ export default function LoginPage({
         name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
       };
 
-      recordAccessLog(userSession);
       setTimeout(() => {
         setCurrentUser(userSession);
         try {

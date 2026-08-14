@@ -139,34 +139,16 @@ export default function ProfilWarga({
   });
 
   // Arrears Payment Form States
-  const [buktiBayarList, setBuktiBayarList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rt_warga_bukti_bayar');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return [];
-    }
-  });
+  const [buktiBayarList, setBuktiBayarList] = useState([]);
   const [paymentType, setPaymentType] = useState('ipl'); // 'ipl' | 'kas'
   const [iplForm, setIplForm] = useState({ months: [], year: 2026, file: null });
   const [kasForm, setKasForm] = useState({ amount: '', category: 'sosial', description: '', file: null });
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
 
   // Complaint States
-  const [pengaduanList, setPengaduanList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rt_warga_pengaduan_list');
-      return saved ? JSON.parse(saved) : [
-        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
-      ];
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return [
-        { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
-      ];
-    }
-  });
+  const [pengaduanList, setPengaduanList] = useState([
+    { id: 'COM-101', date: '2026-07-01', category: 'Keamanan', description: 'Lampu penerangan jalan dekat gapura padam, mohon ditinjau.', status: 'Selesai' }
+  ]);
   const [pengaduanForm, setPengaduanForm] = useState({
     category: 'Fasilitas Umum',
     description: ''
@@ -208,15 +190,7 @@ export default function ProfilWarga({
   const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [uploadDocError, setUploadDocError] = useState('');
   const [uploadDocSuccess, setUploadDocSuccess] = useState('');
-  const [uploadedDocsList, setUploadedDocsList] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rt_uploaded_docs');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return [];
-    }
-  });
+  const [uploadedDocsList, setUploadedDocsList] = useState([]);
 
   // Socket.IO for real-time updates
   useEffect(() => {
@@ -308,27 +282,13 @@ export default function ProfilWarga({
   const [paymentsError, setPaymentsError] = useState('');
 
   // Document Management States
-  const [wargaDocuments, setWargaDocuments] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rt_warga_documents');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return [];
-    }
-  });
+  const [wargaDocuments, setWargaDocuments] = useState([]);
   const [isDocModalOpen, setIsDocModalOpen] = useState(false);
   const [selectedResidentForDoc, setSelectedResidentForDoc] = useState(null);
   const [docUploadType, setDocUploadType] = useState('ktp');
   const [docUploadFile, setDocUploadFile] = useState(null);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('rt_warga_documents', JSON.stringify(wargaDocuments));
-    } catch {
-      // ignore
-    }
-  }, [wargaDocuments]);
+  // Removed rt_warga_documents sync effect
 
   // Voting Karyawan Terbaik States
   const [karyawanList, setKaryawanList] = useState([]);
@@ -538,13 +498,7 @@ export default function ProfilWarga({
   }, [activeTab]);
 
   // Save changes helper
-  useEffect(() => {
-    localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(buktiBayarList));
-  }, [buktiBayarList]);
-
-  useEffect(() => {
-    localStorage.setItem('rt_warga_pengaduan_list', JSON.stringify(pengaduanList));
-  }, [pengaduanList]);
+  // Removed sync effects for buktiBayarList and pengaduanList
 
   // Logout handler
   const handleLogout = async () => {
@@ -710,7 +664,6 @@ export default function ProfilWarga({
     }
 
     try {
-      localStorage.setItem('rt_user_email', formData.email.trim());
       currentUser.email = formData.email.trim();
     } catch(e) {}
 
@@ -1194,7 +1147,6 @@ export default function ProfilWarga({
         
         const updatedDocs = [newDoc, ...uploadedDocsList];
         setUploadedDocsList(updatedDocs);
-        localStorage.setItem('rt_uploaded_docs', JSON.stringify(updatedDocs));
         
         setUploadDocSuccess('Dokumen berhasil diunggah secara mandiri!');
         setUploadDocForm(prev => ({ ...prev, file: null }));
@@ -1332,7 +1284,6 @@ export default function ProfilWarga({
           };
           const newList = [newUpload, ...buktiBayarList];
           setBuktiBayarList(newList);
-          localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(newList));
         } else {
           setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran IPL.');
         }
@@ -1408,7 +1359,6 @@ export default function ProfilWarga({
           };
           const newList = [newUpload, ...buktiBayarList];
           setBuktiBayarList(newList);
-          localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(newList));
         } else {
           setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran Uang Kas.');
         }
@@ -1452,7 +1402,6 @@ export default function ProfilWarga({
         return isMatch ? { ...w, statusIuran: 'Lunas' } : w;
       });
       setWargaList(updatedW);
-      localStorage.setItem('rt_wargalist', JSON.stringify(updatedW));
     }
 
     const monthName = new Date().toLocaleDateString('id-ID', { month: 'long' });
@@ -1468,7 +1417,6 @@ export default function ProfilWarga({
     if (transaksiKasList && setTransaksiKasList) {
       const updatedKas = [newTx, ...transaksiKasList];
       setTransaksiKasList(updatedKas);
-      localStorage.setItem('rt_kaslist', JSON.stringify(updatedKas));
     }
 
     const newHistory = {
@@ -1507,7 +1455,7 @@ export default function ProfilWarga({
   const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
   const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
   const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
-  const displayEmail = currentUser.email || formData.email || (function() { try { return localStorage.getItem('rt_user_email'); } catch(e) { return ''; } })() || '';
+  const displayEmail = currentUser.email || formData.email || '';
   const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
   const statusRumah = formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap');
@@ -3347,7 +3295,6 @@ export default function ProfilWarga({
                                 const base64Data = reader.result;
                                 setFormData(prev => ({ ...prev, foto_ktp: base64Data }));
                                 try {
-                                  localStorage.setItem('rt_user_ktp_' + (currentUser.id || currentUser.nik || 'me'), base64Data);
                                   currentUser.foto_ktp = base64Data;
                                 } catch(err) {}
                               };

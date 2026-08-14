@@ -143,7 +143,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     const updatedWargaList = [...wargaList, newCitizen];
     setWargaList(updatedWargaList);
-    localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
+
 
     // Log them in automatically
     const citizenUser = {

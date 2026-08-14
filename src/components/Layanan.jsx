@@ -153,7 +153,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
         const updatedSubmissions = [...submissionsList, newSubmission];
         setSubmissionsList(updatedSubmissions);
-        localStorage.setItem('rt_submissions', JSON.stringify(updatedSubmissions));
+
 
         setSubmittedData(newSubmission);
         fetchResidentSubmissions();
@@ -181,7 +181,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
       const updatedSubmissions = [...submissionsList, newSubmission];
       setSubmissionsList(updatedSubmissions);
-      localStorage.setItem('rt_submissions', JSON.stringify(updatedSubmissions));
+
 
       setSubmittedData(newSubmission);
       setIsSubmitting(false);

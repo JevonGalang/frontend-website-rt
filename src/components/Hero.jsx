@@ -124,29 +124,6 @@ export default function Hero({
   // Ledger data from backend API
   const displayLedger = publicLedger.slice(0, 3);
 
-  // Access log helper
-  const recordAccessLog = (user) => {
-    try {
-      const logsData = localStorage.getItem('rt_access_logs');
-      const logs = logsData ? JSON.parse(logsData) : [];
-      
-      const newLog = {
-        id: 'LOG-' + Math.floor(Math.random() * 90000 + 10000),
-        username: user.username,
-        name: user.name || user.username,
-        role: user.role || 'warga',
-        loginTime: new Date().toISOString(),
-        ipAddress: '172.20.32.31',
-        userAgent: navigator.userAgent.includes('Chrome') ? 'Google Chrome (Windows)' : 'Mozilla Firefox (Windows)',
-        status: 'Aktif'
-      };
-      
-      logs.unshift(newLog);
-      localStorage.setItem('rt_access_logs', JSON.stringify(logs.slice(0, 100)));
-    } catch (e) {
-      console.error(e);
-    }
-  };
 
   // Direct login submit handler
   const handleLoginSubmit = async (e) => {
@@ -203,7 +180,6 @@ export default function Hero({
         name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
       };
 
-      recordAccessLog(userSession);
       setTimeout(() => {
         setIsLoggingIn(false);
         setCurrentUser(userSession);

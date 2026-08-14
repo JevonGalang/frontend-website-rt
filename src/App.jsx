@@ -34,75 +34,38 @@ export default function App() {
     }
   });
 
-  // State inisialisasi dari localStorage dengan fallback data demo
-  const [wargaList, setWargaList] = useState(() => {
-    try {
-      const data = localStorage.getItem('rt_wargalist');
-      if (data) {
-        const parsed = JSON.parse(data);
-        return parsed.map((w, idx) => ({
-          ...w,
-          noHp: w.noHp || `08123456789${idx}`
-        }));
-      }
-      localStorage.setItem('rt_wargalist', JSON.stringify(DEFAULT_WARGA));
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-    }
-    return DEFAULT_WARGA;
-  });
+  const [wargaList, setWargaList] = useState(DEFAULT_WARGA);
 
-  const [transaksiKasList, setTransaksiKasList] = useState(() => {
-    try {
-      const data = localStorage.getItem('rt_kaslist');
-      if (data) return JSON.parse(data);
-      localStorage.setItem('rt_kaslist', JSON.stringify(DEFAULT_KAS));
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-    }
-    return DEFAULT_KAS;
-  });
+  const [transaksiKasList, setTransaksiKasList] = useState(DEFAULT_KAS);
 
-  const [agendaList, setAgendaList] = useState(() => {
-    try {
-      const data = localStorage.getItem('rt_agendalist');
-      if (data) return JSON.parse(data);
-      localStorage.setItem('rt_agendalist', JSON.stringify(DEFAULT_AGENDA));
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-    }
-    return DEFAULT_AGENDA;
-  });
+  const [agendaList, setAgendaList] = useState(DEFAULT_AGENDA);
 
-  const [submissionsList, setSubmissionsList] = useState(() => {
-    try {
-      const data = localStorage.getItem('rt_submissions');
-      if (data) return JSON.parse(data);
-      localStorage.setItem('rt_submissions', JSON.stringify(DEFAULT_SUBMISSIONS));
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-    }
-    return DEFAULT_SUBMISSIONS;
-  });
+  const [submissionsList, setSubmissionsList] = useState(DEFAULT_SUBMISSIONS);
 
   const [publicStats, setPublicStats] = useState(null);
   const [publicLedger, setPublicLedger] = useState([]);
 
+  // One-time cleanup: hapus semua data localStorage lama yang sudah tidak dipakai
+  // agar tidak konflik dengan data dari database
   useEffect(() => {
-    const keysToReset = ['rt_wargalist', 'rt_kaslist', 'rt_agendalist', 'rt_submissions', 'rt_warga_bukti_bayar', 'rt_warga_documents', 'rt_uploaded_docs'];
-    if (!localStorage.getItem('rt_dummy_cleared_v3')) {
-      keysToReset.forEach(k => {
-        try {
-          localStorage.removeItem(k);
-        } catch (e) {}
+    if (!localStorage.getItem('rt_cleanup_v1')) {
+      const staleKeys = [
+        'rt_wargalist', 'rt_kaslist', 'rt_agendalist', 'rt_submissions',
+        'rt_access_logs', 'rt_created_accounts', 'rt_dummy_cleared_v3',
+        'rt_warga_bukti_bayar', 'rt_warga_pengaduan_list', 'rt_warga_documents',
+        'rt_uploaded_docs', 'rt_user_email', 'rt_surat_masuk_mock', 'rt_surat_keluar_mock'
+      ];
+      // Juga hapus key dinamis rt_user_ktp_*
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('rt_user_ktp_') || staleKeys.includes(key)) {
+          localStorage.removeItem(key);
+        }
       });
-      localStorage.setItem('rt_dummy_cleared_v3', 'true');
-      setWargaList([]);
-      setTransaksiKasList([]);
-      setAgendaList([]);
-      setSubmissionsList([]);
+      localStorage.setItem('rt_cleanup_v1', 'true');
+      console.log('✅ Stale localStorage data cleared');
     }
   }, []);
+
 
   // Sesi User login
   const [currentUser, setCurrentUser] = useState(() => {
@@ -175,9 +138,7 @@ export default function App() {
       return isMatch ? { ...w, ...updatedCitizen, id: w.id } : w;
     });
     setWargaList(newList);
-    try {
-      localStorage.setItem('rt_wargalist', JSON.stringify(newList));
-    } catch (e) {}
+
     
     const updatedUser = {
       ...currentUser,
@@ -223,10 +184,14 @@ export default function App() {
             location: a.tempat,
             isFromServer: true
           }));
+          mapped.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA && dateB && dateA !== dateB) return dateB.localeCompare(dateA);
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+          });
           setAgendaList(mapped);
-          try {
-            localStorage.setItem('rt_agendalist', JSON.stringify(mapped));
-          } catch (e) {}
+
         }
       }
     } catch (err) {
@@ -292,9 +257,7 @@ export default function App() {
             date: t.transaction_date ? t.transaction_date.substring(0, 10) : new Date().toISOString().split('T')[0]
           }));
           setTransaksiKasList(mapped);
-          try {
-            localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
-          } catch (e) {}
+
         }
       }
     } catch (err) {
