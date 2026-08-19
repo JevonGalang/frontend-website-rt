@@ -1,3 +1,4 @@
+import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { X, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldAlert } from 'lucide-react';
 

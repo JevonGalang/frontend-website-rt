@@ -3,8 +3,16 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Global Fetch Interceptor for Debugging (Requests and Responses)
+// Global Fetch Interceptor for API request and response diagnostics.
 const originalFetch = window.fetch;
+const redact = (value) => {
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+    key,
+    /password|token|authorization|otp/i.test(key) ? '[REDACTED]' : item,
+  ]));
+};
+
 window.fetch = async (...args) => {
   const [resource, config] = args;
   const url = typeof resource === 'string' ? resource : resource.url;
@@ -25,8 +33,8 @@ window.fetch = async (...args) => {
   console.log(`%c[API Request] ${method} ${url}`, 'color: #3b82f6; font-weight: bold; font-size: 11px;', {
     url,
     method,
-    headers: config?.headers,
-    body: requestBody
+    headers: redact(config?.headers),
+    body: redact(requestBody)
   });
 
   try {

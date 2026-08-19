@@ -7,8 +7,30 @@ import {
   Loader2, Search, Menu, Camera, Shield, ShieldCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { io } from 'socket.io-client';
+import { io } from '../utils/liveSocket';
 import DateInput from './DateInput';
+
+const extractArrayFromResponse = (payload) => {
+  if (!payload) return [];
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.output?.pesan)) return payload.output.pesan;
+  if (Array.isArray(payload?.output?.data)) return payload.output.data;
+  if (Array.isArray(payload?.output)) return payload.output;
+  if (Array.isArray(payload?.pesan)) return payload.pesan;
+  if (Array.isArray(payload?.data)) return payload.data;
+
+  if (payload?.output && typeof payload.output === 'object') {
+    const foundInOutput = Object.values(payload.output).find(Array.isArray);
+    if (foundInOutput) return foundInOutput;
+  }
+
+  if (typeof payload === 'object') {
+    const nestedArray = Object.values(payload).find(Array.isArray);
+    if (nestedArray) return nestedArray;
+  }
+
+  return [];
+};
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -216,10 +238,11 @@ export default function ProfilWarga({
     socketConnection.on('payment_status_updated', (data) => {
       console.log('Payment status updated via Socket.IO:', data);
       fetchWargaPayments();
+      fetchIplBills();
       Swal.fire({
         title: 'Pembaruan Pembayaran!',
-        text: `Bukti transfer iuran ${data.type === 'ipl' ? 'IPL' : 'Uang Kas'} Anda telah di-update menjadi: ${data.status === 'diterima' ? 'DISETUJUI' : 'DITOLAK'}.`,
-        icon: data.status === 'diterima' ? 'success' : 'error',
+        text: `Bukti transfer iuran ${data.type === 'ipl' ? 'IPL' : 'Uang Kas'} Anda telah di-update menjadi: ${data.status === 'diterima' || data.status === 'approved' ? 'DISETUJUI' : 'DITOLAK'}.`,
+        icon: (data.status === 'diterima' || data.status === 'approved') ? 'success' : 'error',
         confirmButtonColor: '#10b981'
       });
     });
@@ -228,6 +251,7 @@ export default function ProfilWarga({
       console.log(`⚡ Menerima request sinkronisasi di ProfilWarga untuk: ${data.type}`);
       if (data.type === 'finance') {
         fetchWargaPayments();
+        fetchIplBills();
       } else if (data.type === 'warga') {
         fetchFamilyMembers();
       } else if (data.type === 'pengaduan') {
@@ -259,11 +283,13 @@ export default function ProfilWarga({
     noHp: '',
     umur: ''
   });
-
   // Advanced Dues Payment Form State
+  const [iplBills, setIplBills] = useState([]);
+  const [isLoadingIplBills, setIsLoadingIplBills] = useState(false);
+  const [iplBillsError, setIplBillsError] = useState('');
+  const [selectedBillIds, setSelectedBillIds] = useState([]);
+
   const [iplPaymentForm, setIplPaymentForm] = useState({
-    year: new Date().getFullYear(),
-    months: [], // e.g. [7] for Juli
     file: null
   });
   const [kasPaymentForm, setKasPaymentForm] = useState({
@@ -298,6 +324,10 @@ export default function ProfilWarga({
   // Universal Notification States
   const [notifCategoryFilter, setNotifCategoryFilter] = useState('semua');
   const [isAllNotifRead, setIsAllNotifRead] = useState(false);
+  const [isNotifFlyoutOpen, setIsNotifFlyoutOpen] = useState(false);
+  const [serverNotifications, setServerNotifications] = useState([]);
+  const [serverUnreadCount, setServerUnreadCount] = useState(null);
+  const [dashboardNotifCat, setDashboardNotifCat] = useState("semua");
 
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -482,12 +512,156 @@ export default function ProfilWarga({
     }
   };
 
+  
+  const fetchServerNotifications = async (page = 1, limit = 20) => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        res = await fetch(`http://172.20.32.31:3333/resident/notifications?page=${page}&limit=${limit}&is_read=all`, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const rawList = data.output?.notifications || (Array.isArray(data.output) ? data.output : extractArrayFromResponse(data));
+        setServerNotifications(Array.isArray(rawList) ? rawList : []);
+        if (typeof data.output?.unread_count === 'number') {
+          setServerUnreadCount(data.output.unread_count);
+        }
+      }
+    } catch (err) {
+      console.info('[WARGA NOTIFS] Backend feed using live events:', err.message);
+    }
+
+    try {
+      let countRes = await fetch('http://172.20.32.31:3333/account/notifications/unread-count', {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!countRes.ok) {
+        countRes = await fetch('http://172.20.32.31:3333/resident/notifications/unread-count', {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+      if (countRes.ok) {
+        const cData = await countRes.json();
+        const count = cData.output?.unread_count ?? cData.unread_count ?? cData.data?.unread_count;
+        if (typeof count === 'number') {
+          setServerUnreadCount(count);
+        }
+      }
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const handleMarkNotifAsRead = async (id) => {
+    if (!id) return;
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      let res = await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        await fetch(`http://172.20.32.31:3333/resident/notifications/${id}/read`, {
+          method: 'PATCH',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Mark notif read failed:', err);
+    }
+    fetchServerNotifications();
+  };
+
+  const handleMarkAllNotifsAsRead = async () => {
+    setIsAllNotifRead(true);
+    setServerUnreadCount(0);
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      let res = await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
+        method: 'PATCH',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!res.ok) {
+        await fetch('http://172.20.32.31:3333/resident/notifications/read-all', {
+          method: 'PATCH',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Mark all read failed:', err);
+    }
+    fetchServerNotifications();
+  };
+
+  const fetchIplBills = async () => {
+    const token = localStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingIplBills(true);
+    setIplBillsError('');
+    console.log('%c[WARGA IPL] 🔄 GET http://172.20.32.31:3333/resident/ipl/bills', 'color: #06b6d4; font-weight: bold;');
+    try {
+      const response = await fetch('http://172.20.32.31:3333/resident/ipl/bills', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      console.log('%c[WARGA IPL] 📦 Response:', 'color: #06b6d4;', data);
+      if (response.ok) {
+        const list = extractArrayFromResponse(data);
+        console.log(`%c[WARGA IPL] ✅ Loaded ${list.length} bills:`, 'color: #10b981; font-weight: bold;', list);
+        setIplBills(list);
+      } else {
+        console.warn('%c[WARGA IPL] ⚠️ Fetch bills failed:', 'color: #f59e0b;', data);
+        if (data.pesan) {
+          setIplBillsError(data.pesan);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching IPL bills:', err);
+      setIplBillsError(err.message);
+    } finally {
+      setIsLoadingIplBills(false);
+    }
+  };
+
   useEffect(() => {
     fetchFamilyMembers();
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
     fetchCitizenSubmissions();
     fetchWargaPayments();
+    fetchIplBills();
     if (activeTab === 'voting_karyawan') {
       fetchKaryawanList();
       fetchVoteResults();
@@ -1204,7 +1378,7 @@ export default function ProfilWarga({
       const data = await response.json();
       if (response.ok) {
         alert(data.message || 'Dokumen kependudukan terunggah berhasil dihapus!');
-        if (typeof fetchMyFamily === 'function') fetchMyFamily();
+        fetchFamilyMembers();
       } else {
         alert(data.message || data.pesan || 'Gagal menghapus dokumen sensitif.');
       }
@@ -1229,32 +1403,34 @@ export default function ProfilWarga({
     const formData = new FormData();
 
     if (paymentType === 'ipl') {
-      if (iplPaymentForm.months.length === 0) {
-        setPaymentError('Silakan pilih minimal satu bulan iuran.');
+      if (!selectedBillIds || selectedBillIds.length === 0) {
+        setPaymentError('Silakan pilih minimal satu tagihan IPL yang ingin dibayar.');
         setIsSubmittingPayment(false);
         return;
       }
       if (!iplPaymentForm.file) {
-        setPaymentError('Silakan unggah bukti transfer pembayaran IPL.');
+        setPaymentError('Silakan unggah berkas bukti transfer pembayaran IPL.');
         setIsSubmittingPayment(false);
         return;
       }
       
-      const totalAmount = iplPaymentForm.months.length * 200000;
-      formData.append('file', iplPaymentForm.file);
-      formData.append('year', iplPaymentForm.year);
-      formData.append('amount', totalAmount);
-      formData.append('months', JSON.stringify(iplPaymentForm.months));
+      const selectedBills = iplBills.filter(b => selectedBillIds.includes(b.id));
+      const totalAmount = selectedBills.reduce((sum, b) => sum + Number(b.amount || 0), 0);
 
-      console.log('--- WARGA: Sending pay-ipl (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-ipl');
-      console.log('Payload months:', JSON.stringify(iplPaymentForm.months));
-      console.log('Payload year:', iplPaymentForm.year);
+      formData.append('file', iplPaymentForm.file);
+      formData.append('amount', totalAmount);
+      formData.append('channel', 'transfer');
+      formData.append('billIds', JSON.stringify(selectedBillIds));
+
+      console.log('--- WARGA: Sending /resident/ipl/pay ---');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/ipl/pay');
+      console.log('Payload billIds:', JSON.stringify(selectedBillIds));
       console.log('Payload amount:', totalAmount);
+      console.log('Payload channel: transfer');
       console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.31:3333/resident/pay-ipl', {
+        const response = await fetch('http://172.20.32.31:3333/resident/ipl/pay', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1264,26 +1440,13 @@ export default function ProfilWarga({
 
         const data = await response.json();
         if (response.ok) {
-          setPaymentSuccess('Pembayaran IPL berhasil dikirim! Tunggu verifikasi oleh Bendahara.');
-          setIplPaymentForm({
-            year: new Date().getFullYear(),
-            months: [],
-            file: null
-          });
+          setPaymentSuccess(data.message || data.output?.message || 'Bukti pembayaran IPL berhasil dikirim, menunggu verifikasi Bendahara.');
+          setSelectedBillIds([]);
+          setIplPaymentForm({ file: null });
           if (fileInputRef.current) fileInputRef.current.value = '';
           
-          const newUpload = {
-            id: 'PAY-IPL-' + Math.floor(Math.random() * 9000 + 1000),
-            date: new Date().toISOString().split('T')[0],
-            nominal: totalAmount,
-            bulan: 'Multi-Bulan',
-            catatan: `Pembayaran IPL Tahun ${iplPaymentForm.year}`,
-            status: 'Menunggu Verifikasi',
-            wargaId: currentUser.id,
-            wargaNama: currentUser.name || currentUser.username
-          };
-          const newList = [newUpload, ...buktiBayarList];
-          setBuktiBayarList(newList);
+          fetchIplBills();
+          fetchWargaPayments();
         } else {
           setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran IPL.');
         }
@@ -1319,15 +1482,15 @@ export default function ProfilWarga({
       formData.append('category', kasPaymentForm.category);
       formData.append('description', description);
 
-      console.log('--- WARGA: Sending pay-kas (Form) ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/pay-kas');
+      console.log('--- WARGA: Sending /resident/kas/contribute ---');
+      console.log('Target URL/Endpoint: POST http://172.20.32.31:3333/resident/kas/contribute');
       console.log('Payload amount:', parseInt(kasPaymentForm.amount));
       console.log('Payload category:', kasPaymentForm.category);
       console.log('Payload description:', description);
       console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.31:3333/resident/pay-kas', {
+        const response = await fetch('http://172.20.32.31:3333/resident/kas/contribute', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1337,7 +1500,7 @@ export default function ProfilWarga({
 
         const data = await response.json();
         if (response.ok) {
-          setPaymentSuccess('Pembayaran Uang Kas berhasil dikirim! Tunggu verifikasi oleh Bendahara.');
+          setPaymentSuccess(data.message || data.output?.message || 'Bukti pembayaran Uang Kas berhasil diunggah, menunggu verifikasi Bendahara.');
           setKasPaymentForm({
             amount: '',
             category: 'sosial',
@@ -1347,18 +1510,7 @@ export default function ProfilWarga({
           });
           if (fileInputRef.current) fileInputRef.current.value = '';
 
-          const newUpload = {
-            id: 'PAY-KAS-' + Math.floor(Math.random() * 9000 + 1000),
-            date: new Date().toISOString().split('T')[0],
-            nominal: parseInt(kasPaymentForm.amount),
-            bulan: 'Insidental',
-            catatan: `Kas ${kasPaymentForm.category.toUpperCase()}: ${description}`,
-            status: 'Menunggu Verifikasi',
-            wargaId: currentUser.id,
-            wargaNama: currentUser.name || currentUser.username
-          };
-          const newList = [newUpload, ...buktiBayarList];
-          setBuktiBayarList(newList);
+          fetchWargaPayments();
         } else {
           setPaymentError(data.pesan || data.message || 'Gagal mengirim pembayaran Uang Kas.');
         }
@@ -1459,54 +1611,163 @@ export default function ProfilWarga({
   const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
   const statusRumah = formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap');
-  // Real-time notifications derived from actual citizen submissions, complaints, payments, & announcements
+  // Safe 4-Category Real-time notifications (IPL, Kegiatan Warga, Jadwal, Kematian)
+  const safeWargaList = Array.isArray(wargaList) ? wargaList : [];
+  const safeDeceasedWarga = safeWargaList.filter(w => w.statusHidup === 'Meninggal');
+  const safeIplBills = Array.isArray(iplBills) ? iplBills : [];
+  const safeAnnouncements = Array.isArray(wargaAnnouncements) ? wargaAnnouncements : [];
+  const safeAgendas = Array.isArray(agendaList) ? agendaList : [];
+  const safeSubmissions = Array.isArray(mySubmissions) ? mySubmissions : [];
+  const safeComplaints = Array.isArray(pengaduanList) ? pengaduanList : [];
+
   const liveNotifFeed = [
-    // Real-time letter requests submitted by citizen
-    ...mySubmissions.map(sub => ({
+    // 1. 💳 IPL & KAS NOTIFICATIONS
+    ...safeIplBills.map(b => {
+      const s = String(b.latest_payment_status || b.status || '').toLowerCase();
+      const isRej = b.latest_payment_status === 'rejected' || s === 'rejected' || s === 'ditolak' || s === 'gagal' || Boolean(b.latest_reject_reason || b.reject_reason || b.rejection_reason);
+      const isPaid = s === 'paid' || s === 'lunas' || s === 'approved';
+      const isWaiting = s === 'waiting_verification' || s === 'menunggu_verifikasi' || s === 'pending';
+      const reason = b.latest_reject_reason || b.reject_reason || b.rejection_reason || b.rejectReason || b.alasan_penolakan || b.reason || 'Foto bukti transfer buram dan nominal tidak terbaca jelas';
+
+      if (isRej) {
+        return {
+          id: `NTF-BILL-REJ-${b.id}`,
+          category: 'ipl',
+          targetTab: 'iuran_riwayat',
+          title: `🚨 Bukti IPL Ditolak: ${b.period_title || 'IPL Bulanan'}`,
+          message: `Pembayaran IPL Anda untuk periode ${b.period_title || ''} (${formatRupiah(b.amount)}) ditolak oleh Bendahara. Alasan: "${reason}".`,
+          time: b.due_date ? formatDateIndo(b.due_date) : 'Terbaru',
+          isUnread: !isAllNotifRead,
+          isAlert: true
+        };
+      }
+      if (isWaiting) {
+        return {
+          id: `NTF-BILL-WAIT-${b.id}`,
+          category: 'ipl',
+          targetTab: 'iuran_riwayat',
+          title: `⏳ Verifikasi IPL Diproses: ${b.period_title || 'IPL Bulanan'}`,
+          message: `Bukti pembayaran ${formatRupiah(b.amount)} sedang diverifikasi oleh Bendahara RT.`,
+          time: 'Sedang Proses',
+          isUnread: false
+        };
+      }
+      if (!isPaid) {
+        return {
+          id: `NTF-BILL-NEW-${b.id}`,
+          category: 'ipl',
+          targetTab: 'iuran_tagihan',
+          title: `💳 Tagihan IPL Terbit: ${b.period_title || 'IPL Bulanan'}`,
+          message: `Tagihan iuran bulanan sebesar ${formatRupiah(b.amount)} telah diterbitkan. Harap lakukan pembayaran.`,
+          time: b.due_date ? formatDateIndo(b.due_date) : 'Aktif',
+          isUnread: !isAllNotifRead
+        };
+      }
+      return null;
+    }).filter(Boolean),
+
+    // 2. 📢 KEGIATAN WARGA (Pengumuman RT, Gotong Royong, Acara 17an)
+    ...safeAnnouncements.map(ann => ({
+      id: `NTF-KEG-${ann.id}`,
+      category: 'kegiatan',
+      targetTab: 'informasi_pengumuman',
+      title: `📢 Kegiatan Warga: ${ann.judul || 'Pengumuman RT'}`,
+      message: ann.isi || ann.kategori || 'Pengumuman resmi kegiatan warga dari Pengurus RT 05 Sawangan Green Park.',
+      time: ann.tanggal ? formatDateIndo(ann.tanggal) : 'Terbaru',
+      isUnread: false
+    })),
+
+    // 3. 📅 JADWAL & AGENDA (Ronda Malam / Siskamling, Pertemuan RT)
+    ...safeAgendas.map(ag => ({
+      id: `NTF-JAD-${ag.id}`,
+      category: 'jadwal',
+      targetTab: 'informasi_jadwal',
+      title: `🗓️ Jadwal & Agenda: ${ag.title || ag.judul || 'Agenda Lingkungan'}`,
+      message: `Kegiatan "${ag.title || ag.judul}" dijadwalkan pada ${ag.date ? formatDateIndo(ag.date) : 'Waktu tertera'} di ${ag.location || ag.tempat || 'Lingkungan RT 05'}.`,
+      time: ag.date ? formatDateIndo(ag.date) : 'Mendatang',
+      isUnread: false
+    })),
+
+    // 4. 🕊️ BERITA DUKA CITA & KEMATIAN
+    ...safeDeceasedWarga.map(dec => ({
+      id: `NTF-DUKA-${dec.id}`,
+      category: 'kematian',
+      targetTab: 'informasi_pengumuman',
+      title: `🕊️ Berita Duka Cita Warga RT 05`,
+      message: `Innalillahi wa inna ilaihi raji'un. Telah berpulang ke Rahmatullah, ${dec.gender === 'Perempuan' ? 'Ibu' : 'Bapak'} ${dec.name} (${dec.alamat ? `Warga ${dec.alamat}` : 'Warga RT 05'}). Semoga amal ibadah almarhum/ah diterima di sisi-Nya.`,
+      time: 'Berita Duka',
+      isUnread: !isAllNotifRead,
+      isAlert: true
+    })),
+
+    // 5. Layanan Pengajuan Surat Warga
+    ...safeSubmissions.map(sub => ({
       id: `NTF-SUB-${sub.id}`,
       category: 'surat',
       targetTab: 'layanan_status',
-      title: `Pengajuan Surat: ${sub.wargaTipeSurat || 'Surat Pengantar RT'}`,
-      message: `Permohonan surat "${sub.wargaKeperluan || 'Administrasi'}" diajukan pada ${sub.submissionDate || 'Hari ini'} (Status: ${sub.status || 'Pending'}).`,
+      title: `📄 Status Surat: ${sub.wargaTipeSurat || 'Surat Pengantar RT'}`,
+      message: `Permohonan surat "${sub.wargaKeperluan || 'Administrasi'}" status terkini: ${sub.status || 'Pending'}.`,
       time: sub.submissionDate || 'Terbaru',
       isUnread: !isAllNotifRead && (sub.status === 'Pending' || sub.status === 'Approved')
     })),
 
-    // Real-time complaints submitted by citizen
-    ...pengaduanList.map(p => ({
+    // 6. Laporan Aduan Warga
+    ...safeComplaints.map(p => ({
       id: `NTF-PGD-${p.id}`,
       category: 'pengaduan',
       targetTab: 'pengaduan',
-      title: `Laporan Aduan: ${p.jenis_pengaduan || 'Fasilitas Umum'}`,
-      message: `Laporan "${p.isi || 'Laporan Warga'}" dikirimkan pada ${p.tanggal || 'Hari ini'} (Status: ${p.status || 'Proses'}).`,
+      title: `🚨 Laporan Aduan: ${p.jenis_pengaduan || 'Fasilitas Umum'}`,
+      message: `Laporan "${p.isi || 'Laporan Warga'}" status: ${p.status || 'Proses'}.`,
       time: p.tanggal || 'Terbaru',
       isUnread: !isAllNotifRead && (p.status === 'Menunggu' || p.status === 'Proses')
-    })),
-
-    // Real-time payment proofs uploaded by citizen
-    ...buktiBayarList.map(pay => ({
-      id: `NTF-PAY-${pay.id}`,
-      category: 'iuran',
-      targetTab: 'iuran_riwayat',
-      title: `Setoran Iuran: ${pay.bulan || 'Iuran Kas'}`,
-      message: `Setor bukti bayar ${formatRupiah(pay.nominal)} pada ${pay.date || 'Hari ini'} (Status: ${pay.status || 'Menunggu Verifikasi'}).`,
-      time: pay.date || 'Terbaru',
-      isUnread: !isAllNotifRead && pay.status === 'Menunggu Verifikasi'
-    })),
-
-    // Real-time announcements from backend RT
-    ...wargaAnnouncements.map(ann => ({
-      id: `NTF-ANN-${ann.id}`,
-      category: 'pengumuman',
-      targetTab: 'informasi_pengumuman',
-      title: `Pengumuman RT: ${ann.judul || 'Info Warga'}`,
-      message: ann.isi || ann.kategori || 'Pengumuman resmi Pengurus RT 05 Sawangan Green Park.',
-      time: ann.tanggal || 'Terbaru',
-      isUnread: false
     }))
   ];
+  const formattedServerNotifs = (Array.isArray(serverNotifications) ? serverNotifications : []).map(s => {
+    const rawType = String(s.type || s.category || s.reference_type || '').toLowerCase();
+    let cat = 'ipl';
+    let target = 'iuran_riwayat';
+    if (rawType === 'kegiatan' || rawType.includes('announcement') || rawType.includes('pengumuman')) {
+      cat = 'kegiatan';
+      target = 'informasi_pengumuman';
+    } else if (rawType === 'jadwal' || rawType.includes('agenda') || rawType.includes('ronda')) {
+      cat = 'jadwal';
+      target = 'informasi_jadwal';
+    } else if (rawType === 'kematian' || rawType.includes('death') || rawType.includes('duka')) {
+      cat = 'kematian';
+      target = 'informasi_pengumuman';
+    } else if (rawType === 'surat' || rawType.includes('letter') || rawType.includes('submission')) {
+      cat = 'surat';
+      target = 'layanan_status';
+    } else if (rawType === 'pengaduan' || rawType.includes('report') || rawType.includes('complaint')) {
+      cat = 'pengaduan';
+      target = 'pengaduan';
+    } else if (rawType === 'ipl' || rawType === 'kas' || rawType === 'payment' || rawType === 'bill_period') {
+      cat = 'ipl';
+      target = s.title?.toLowerCase().includes('tagihan') ? 'iuran_tagihan' : 'iuran_riwayat';
+    }
 
-  const displayNotifications = liveNotifFeed.length > 0 ? liveNotifFeed : [
+    const isRej = rawType.includes('reject') || rawType.includes('tolak') || s.title?.toLowerCase().includes('ditolak');
+    const isDuka = cat === 'kematian' || s.title?.toLowerCase().includes('duka');
+
+    return {
+      id: s.id || `SRV-${Math.random()}`,
+      serverId: s.id,
+      category: cat,
+      targetTab: target,
+      title: s.title || (isRej ? '🚨 Bukti IPL Ditolak' : 'Notifikasi Sistem RT'),
+      message: s.message || s.content || s.deskripsi || '-',
+      time: s.created_at ? formatDateIndo(s.created_at) : 'Baru saja',
+      isUnread: s.is_read === false || s.is_read === 0 || s.is_read === '0' || !s.is_read,
+      isAlert: isRej || isDuka
+    };
+  });
+
+  const mergedNotifications = [
+    ...formattedServerNotifs,
+    ...liveNotifFeed.filter(l => !formattedServerNotifs.some(s => s.id === l.id || s.title === l.title))
+  ];
+
+  const displayNotifications = mergedNotifications.length > 0 ? mergedNotifications : [
     {
       id: 'NTF-101',
       category: 'iuran',
@@ -3595,422 +3856,705 @@ export default function ProfilWarga({
           )}
 
           {/* TAB 6: Iuran -> Tagihan Saya */}
-          {activeTab === 'iuran_tagihan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tagihan Iuran Kas Bulanan Saya</h3>
-                <p className="text-xs text-slate-400">Rincian status pembayaran iuran wajib bulanan komplek RT 05.</p>
-              </div>
+          {activeTab === 'iuran_tagihan' && (() => {
+            const payableBills = (iplBills || []).filter(b => {
+              const s = String(b.status || '').toLowerCase();
+              return s !== 'paid' && s !== 'lunas' && s !== 'waiting_verification' && s !== 'menunggu_verifikasi' && s !== 'exempt';
+            });
+            const totalUnpaidAmount = payableBills.reduce((acc, b) => acc + Number(b.amount || 0), 0);
 
-              {(currentUser.statusIuran?.includes('Menunggak') || currentUser.tagihNotification) ? (
-                <div className="p-6 bg-rose-500/10 border border-rose-500/25 rounded-3xl space-y-4">
-                   <div className="flex items-start gap-3">
-                    <div className="p-2.5 bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl flex-shrink-0">
-                      <AlertCircle className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Status Iuran: Menunggak</h4>
-                      <p className="text-[11px] text-slate-400 mt-1">Anda terdeteksi memiliki tunggakan iuran bulanan kas RT 05 sebesar <span className="font-black text-rose-500">{currentUser.statusIuran || 'Rp 50.000'}</span>.</p>
-                    </div>
-                  </div>
-                  
-                  <div className="p-4 bg-white dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-2xl text-[11px] grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">REKENING BANK MANDIRI RT</span>
-                      <p className="font-mono font-black text-slate-800 dark:text-slate-200">157-00-98234-04-1</p>
-                      <p className="text-[9px] text-slate-500 font-semibold">a.n. KAS RT 05 SAWANGAN GREEN PARK</p>
-                    </div>
-                    <div className="space-y-1 leading-relaxed">
-                      <span className="text-slate-400 font-bold block text-[9px] uppercase tracking-wider">PILIHAN PEMBAYARAN</span>
-                      <p className="text-slate-500 text-[10px]">Silakan pilih opsi pembayaran instan otomatis (Payment Gateway) di bawah ini, atau transfer secara manual ke rekening kas RT dan upload bukti transfer Anda.</p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      onClick={handleInitiatePg}
-                      className="py-2.5 px-5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/15 cursor-pointer flex items-center justify-center gap-2 hover:shadow-lg transition-all"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Bayar via Payment Gateway (Instan & Otomatis)</span>
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('iuran_upload')}
-                      className="py-2.5 px-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 text-slate-700 dark:text-slate-350 font-extrabold text-xs rounded-xl cursor-pointer transition-all"
-                    >
-                      Kirim Bukti Bayar Manual (Transfer Bank)
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="p-5 bg-emerald-500/10 border border-emerald-500/25 rounded-3xl flex items-center gap-3">
-                  <div className="p-3 bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                    <CheckCircle2 className="w-5 h-5" />
-                  </div>
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">Selamat! Dues Iuran Lunas</h4>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Anda tidak memiliki tunggakan iuran bulanan kas RT bulan ini. Terima kasih atas partisipasi Anda.</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tagihan IPL Wajib Keluarga 💳</h3>
+                    <p className="text-xs text-slate-400">Rincian status dan daftar tagihan Iuran Pengelolaan Lingkungan (IPL) bulanan.</p>
                   </div>
+                  <button
+                    onClick={fetchIplBills}
+                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer self-start sm:self-auto"
+                  >
+                    🔄 Segarkan Tagihan
+                  </button>
                 </div>
-              )}
-            </div>
-          )}
-          {/* TAB 7: Iuran -> Riwayat Pembayaran */}
-          {activeTab === 'iuran_riwayat' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
-                  <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran bulanan (IPL) dan kas sosial keluarga Anda.</p>
-                </div>
-                <button
-                  onClick={fetchWargaPayments}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
-                >
-                  🔄 Segarkan
-                </button>
-              </div>
 
-              {isLoadingPayments ? (
-                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
-                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs font-bold text-slate-500">Memuat riwayat pembayaran...</p>
-                </div>
-              ) : paymentsError ? (
-                <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
-                  {paymentsError}
-                </div>
-              ) : (
-                <div className="space-y-8">
-                  {/* IPL History Table */}
-                  <div>
-                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">1. Iuran Bulanan (IPL)</h4>
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                      <table className="w-full text-left text-xs border-collapse font-sans">
-                        <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                            <th className="p-4">Tahun / Bulan</th>
-                            <th className="p-4">Tanggal Pembayaran</th>
-                            <th className="p-4">Bukti Struk</th>
-                            <th className="p-4 text-center">Status</th>
-                            <th className="p-4 text-right">Jumlah Setor</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {wargaPayments.ipl && wargaPayments.ipl.map((t) => (
-                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                              <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
-                                Tahun {t.year} - Bulan {t.month}
-                              </td>
-                              <td className="p-4 text-slate-500 font-mono">{formatDateIndo(t.payment_date)}</td>
-                              <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
-                                {t.payment_proof || '-'}
-                              </td>
-                              <td className="p-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-450">
-                                  {t.status}
-                                </span>
-                              </td>
-                              <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">+{formatRupiah(t.amount)}</td>
-                            </tr>
-                          ))}
-                          {(!wargaPayments.ipl || wargaPayments.ipl.length === 0) && (
-                            <tr>
-                              <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">Belum ada riwayat pembayaran IPL.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-
-                  {/* KAS History Table */}
-                  <div>
-                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">2. Sumbangan & Kas Insidental</h4>
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                      <table className="w-full text-left text-xs border-collapse font-sans">
-                        <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                            <th className="p-4">Kategori / Keterangan</th>
-                            <th className="p-4">Tanggal Pembayaran</th>
-                            <th className="p-4">Bukti Struk</th>
-                            <th className="p-4 text-center">Status</th>
-                            <th className="p-4 text-right">Jumlah Setor</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                          {wargaPayments.kas && wargaPayments.kas.map((t) => (
-                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                              <td className="p-4 space-y-0.5">
-                                <span className="font-bold text-slate-850 dark:text-slate-200 block capitalize">{t.category}</span>
-                                <span className="text-[10px] text-slate-400 block italic">"{t.description}"</span>
-                              </td>
-                              <td className="p-4 text-slate-500 font-mono">{formatDateIndo(t.payment_date)}</td>
-                              <td className="p-4 max-w-xs truncate text-slate-400 font-mono" title={t.payment_proof}>
-                                {t.payment_proof || '-'}
-                              </td>
-                              <td className="p-4 text-center">
-                                <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-emerald-500/10 text-emerald-600 dark:text-emerald-450">
-                                  {t.status}
-                                </span>
-                              </td>
-                              <td className="p-4 text-right font-black text-emerald-600 dark:text-emerald-400 font-mono">+{formatRupiah(t.amount)}</td>
-                            </tr>
-                          ))}
-                          {(!wargaPayments.kas || wargaPayments.kas.length === 0) && (
-                            <tr>
-                              <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">Belum ada riwayat pembayaran Kas.</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 8: Iuran -> Upload Bukti Bayar */}
-          {activeTab === 'iuran_upload' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Transaksi Iuran / Kas</h3>
-                <p className="text-xs text-slate-400">Setor laporan pembayaran IPL bulanan atau iuran sosial/insidental warga Anda.</p>
-              </div>
-
-              {/* Type Switcher */}
-              <div className="flex gap-4 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl max-w-sm text-xs font-bold font-sans">
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('ipl')}
-                  className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                    paymentType === 'ipl' 
-                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  IPL (Iuran Bulanan)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentType('kas')}
-                  className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
-                    paymentType === 'kas' 
-                      ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Uang Kas (Insidental)
-                </button>
-              </div>
-
-              <form onSubmit={handleAdvancedPaymentSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
-                
-                {paymentType === 'ipl' ? (
-                  /* IPL FORM FIELDS */
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="font-bold text-slate-600 dark:text-slate-400">Tahun Dues *</label>
-                        <input
-                          required
-                          type="number"
-                          value={iplPaymentForm.year}
-                          onChange={(e) => setIplPaymentForm({ ...iplPaymentForm, year: parseInt(e.target.value) || new Date().getFullYear() })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
-                        />
+                {/* Top Alert Banner if any bill is rejected */}
+                {(() => {
+                  const rejectedBills = (iplBills || []).filter(b => 
+                    b.latest_payment_status === 'rejected' || b.status === 'rejected' || Boolean(b.latest_reject_reason || b.reject_reason)
+                  );
+                  if (rejectedBills.length === 0) return null;
+                  return (
+                    <div className="p-4 bg-rose-500/10 border-2 border-rose-500/30 rounded-2xl space-y-2.5 animate-fade-in text-xs font-sans">
+                      <div className="flex items-center gap-2 font-black text-rose-600 dark:text-rose-400">
+                        <AlertCircle className="w-5 h-5 shrink-0" />
+                        <span>Perhatian: Terdapat {rejectedBills.length} Bukti Pembayaran IPL yang Ditolak oleh Bendahara!</span>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="font-bold text-slate-600 dark:text-slate-400">Total Nominal Dues</label>
-                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-500 font-mono text-sm font-black flex items-center">
-                          Rp {new Intl.NumberFormat('id-ID').format(iplPaymentForm.months.length * 200000)}
-                        </div>
-                        <p className="text-[10px] text-slate-400">Akumulasi otomatis Rp 200.000 / bulan</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Bulan Yang Dibayar (Multi-select) *</label>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1.5">
-                        {[
-                          { val: 1, label: 'Januari' }, { val: 2, label: 'Februari' }, { val: 3, label: 'Maret' },
-                          { val: 4, label: 'April' }, { val: 5, label: 'Mei' }, { val: 6, label: 'Juni' },
-                          { val: 7, label: 'Juli' }, { val: 8, label: 'Agustus' }, { val: 9, label: 'September' },
-                          { val: 10, label: 'Oktober' }, { val: 11, label: 'November' }, { val: 12, label: 'Desember' }
-                        ].map((m) => {
-                          const isChecked = iplPaymentForm.months.includes(m.val);
+                      <div className="space-y-2">
+                        {rejectedBills.map(rb => {
+                          const rReason = rb.latest_reject_reason || rb.reject_reason || rb.rejection_reason || rb.reason || 'Foto bukti transfer buram / nominal kurang';
                           return (
-                            <button
-                              key={m.val}
-                              type="button"
-                              onClick={() => {
-                                const newMonths = isChecked
-                                  ? iplPaymentForm.months.filter(v => v !== m.val)
-                                  : [...iplPaymentForm.months, m.val].sort((a, b) => a - b);
-                                setIplPaymentForm({ ...iplPaymentForm, months: newMonths });
-                              }}
-                              className={`py-2 px-3 border rounded-xl font-bold text-[10px] sm:text-xs text-center transition-all cursor-pointer ${
-                                isChecked
-                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400'
-                                  : 'border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-850'
-                              }`}
-                            >
-                              {m.label}
-                            </button>
+                            <div key={rb.id} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+                              <div>
+                                <span className="font-extrabold text-slate-800 dark:text-slate-100">{rb.period_title || 'IPL Bulanan'}</span>
+                                <p className="text-rose-600 dark:text-rose-400 text-[11px] font-semibold mt-0.5">
+                                  💬 <strong>Alasan Penolakan:</strong> "{rReason}"
+                                </p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedBillIds([rb.id]);
+                                  setPaymentType('ipl');
+                                  setActiveTab('iuran_upload');
+                                }}
+                                className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shrink-0 self-end sm:self-auto"
+                              >
+                                Upload Ulang Bukti Bayar ↗
+                              </button>
+                            </div>
                           );
                         })}
                       </div>
-                      <div className="pt-2 flex justify-between">
-                        <button
-                          type="button"
-                          onClick={() => setIplPaymentForm({ ...iplPaymentForm, months: [1,2,3,4,5,6,7,8,9,10,11,12] })}
-                          className="text-[10px] text-emerald-500 hover:underline font-bold"
-                        >
-                          Pilih Semua Bulan (Rapel 1 Tahun)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setIplPaymentForm({ ...iplPaymentForm, months: [] })}
-                          className="text-[10px] text-slate-400 hover:underline font-bold"
-                        >
-                          Bersihkan Pilihan
-                        </button>
-                      </div>
                     </div>
+                  );
+                })()}
 
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-600 dark:text-slate-400">Bukti Transfer Bank (.jpg, .png, .pdf) *</label>
-                      <input
-                        type="file"
-                        required
-                        ref={fileInputRef}
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        onChange={(e) => setIplPaymentForm({ ...iplPaymentForm, file: e.target.files[0] })}
-                        className="hidden"
-                      />
-                      <div
-                        onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                        className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
-                      >
-                        <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
-                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
-                          {iplPaymentForm.file ? `Terpilih: ${iplPaymentForm.file.name}` : 'Pilih berkas struk pembayaran...'}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 3MB)</span>
-                      </div>
-                    </div>
+                
+{/* Banner Rekening Resmi Kas RT */}
+                <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Rekening Resmi Pembayaran IPL</span>
+                    <p className="font-mono text-base font-black text-slate-800 dark:text-slate-100">Bank Mandiri: 157-00-98234-04-1</p>
+                    <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 05 SAWANGAN GREEN PARK</p>
                   </div>
-                ) : (
-                  /* KAS FORM FIELDS */
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
-                        <select
-                          value={kasPaymentForm.category}
-                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, category: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                        >
-                          <option value="sosial">Kas Sosial / Santunan</option>
-                          <option value="kematian">Kas Kematian / Takziah</option>
-                          <option value="kegiatan">Iuran Kegiatan RT</option>
-                          <option value="lainnya">Kas Lainnya</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Transfer (Rp) *</label>
-                        <input
-                          required
-                          type="number"
-                          placeholder="Contoh: 50000"
-                          value={kasPaymentForm.amount}
-                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, amount: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono text-sm font-semibold"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Agenda / Kegiatan *</label>
-                        <select
-                          value={kasPaymentForm.activitySelect}
-                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, activitySelect: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                        >
-                          <option value="Santunan Warga Sakit / Wafat">Santunan Warga Sakit / Wafat</option>
-                          <option value="Iuran HUT RI 17 Agustus">Iuran HUT RI 17 Agustus</option>
-                          <option value="Kerja Bakti Musala / Masjid">Kerja Bakti Musala / Masjid</option>
-                          <option value="Donasi Pembangunan Lingkungan">Donasi Pembangunan Lingkungan</option>
-                          <option value="Lainnya (Input Manual)">Lainnya (Input Manual)</option>
-                        </select>
-                      </div>
-
-                      {kasPaymentForm.activitySelect === 'Lainnya (Input Manual)' && (
-                        <div className="space-y-1.5">
-                          <label className="font-bold text-slate-655 dark:text-slate-350">Tulis Nama Kegiatan Baru *</label>
-                          <input
-                            required
-                            type="text"
-                            placeholder="Contoh: Iuran Buka Bersama..."
-                            value={kasPaymentForm.customDescription}
-                            onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, customDescription: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="font-bold text-slate-605 dark:text-slate-400">Bukti Transfer Struk *</label>
-                      <input
-                        type="file"
-                        required
-                        ref={fileInputRef}
-                        accept=".jpg,.jpeg,.png,.pdf"
-                        onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, file: e.target.files[0] })}
-                        className="hidden"
-                      />
-                      <div
-                        onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                        className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
-                      >
-                        <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
-                        <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
-                          {kasPaymentForm.file ? `Terpilih: ${kasPaymentForm.file.name}` : 'Pilih berkas struk pembayaran...'}
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 3MB)</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {paymentError && (
-                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold">
-                    {paymentError}
-                  </div>
-                )}
-
-                {paymentSuccess && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
-                    {paymentSuccess}
-                  </div>
-                )}
-
-                <div className="pt-2">
                   <button
-                    type="submit"
-                    disabled={isSubmittingPayment}
-                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    onClick={() => {
+                      navigator.clipboard.writeText('1570098234041');
+                      Swal.fire({ title: 'Disalin!', text: 'Nomor rekening Bank Mandiri berhasil disalin ke clipboard.', icon: 'success', timer: 1500, showConfirmButton: false });
+                    }}
+                    className="py-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all"
                   >
-                    {isSubmittingPayment ? 'Mengirim Data...' : 'Kirim Bukti Pembayaran'}
+                    📋 Salin Rekening
                   </button>
                 </div>
-              </form>
-            </div>
-          )}
+
+                {/* Summary Stat Card */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Tagihan Belum Dibayar</span>
+                    <div className="text-xl font-black text-rose-500">{payableBills.length} Periode</div>
+                  </div>
+                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Nominal Yang Harus Disetor</span>
+                    <div className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">{formatRupiah(totalUnpaidAmount)}</div>
+                  </div>
+                </div>
+
+                {/* Quick Pay CTA Button */}
+                {payableBills.length > 0 && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                      ⚠️ Anda memiliki {payableBills.length} tagihan IPL yang belum lunas. Silakan lakukan pembayaran dan upload bukti transfer.
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedBillIds(payableBills.map(b => b.id));
+                        setPaymentType('ipl');
+                        setActiveTab('iuran_upload');
+                      }}
+                      className="py-2 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                    >
+                      <span>Bayar Sekarang (Upload Bukti)</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Bills Table */}
+                {isLoadingIplBills ? (
+                  <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
+                    <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-slate-400 font-bold">Memuat tagihan IPL keluarga...</p>
+                  </div>
+                ) : iplBillsError ? (
+                  <div className="p-6 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                    {iplBillsError}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Daftar Tagihan IPL Keluarga Anda</h4>
+                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 text-[10px] tracking-wider">
+                            <th className="p-3.5">Periode Tagihan</th>
+                            <th className="p-3.5">Jatuh Tempo</th>
+                            <th className="p-3.5">Nominal</th>
+                            <th className="p-3.5 text-center">Status</th>
+                            <th className="p-3.5 text-right">Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          {iplBills.map((b) => {
+                            const isPaid = b.status === 'paid';
+                            const isWaiting = b.status === 'waiting_verification';
+                            const isExempt = b.status === 'exempt';
+                            const isOverdue = b.status === 'overdue';
+
+                            return (
+                              <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                                <td className="p-3.5 font-bold text-slate-900 dark:text-white">
+                                  {b.period_title || `IPL Bulan ${b.period_month}/${b.period_year}`}
+                                </td>
+                                <td className="p-3.5 text-slate-500 font-mono">
+                                  {b.due_date ? formatDateIndo(b.due_date) : '-'}
+                                </td>
+                                <td className="p-3.5 font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                  {formatRupiah(b.amount)}
+                                </td>
+                                <td className="p-3.5 text-center">
+                                  <span className={`px-2.5 py-0.5 text-[9px] font-extrabold rounded-full uppercase ${
+                                    isPaid ? 'bg-emerald-500/10 text-emerald-600' :
+                                    isWaiting ? 'bg-amber-500/10 text-amber-600' :
+                                    isExempt ? 'bg-purple-500/10 text-purple-600' :
+                                    isOverdue ? 'bg-rose-500/10 text-rose-600' :
+                                    'bg-rose-500/10 text-rose-500'
+                                  }`}>
+                                    {b.status || 'unpaid'}
+                                  </span>
+                                </td>
+                                <td className="p-3.5 text-right">
+                                  {!isPaid && !isWaiting && !isExempt ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedBillIds([b.id]);
+                                        setPaymentType('ipl');
+                                        setActiveTab('iuran_upload');
+                                      }}
+                                      className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded-lg cursor-pointer transition-colors"
+                                    >
+                                      Bayar
+                                    </button>
+                                  ) : isWaiting ? (
+                                    <span className="text-[10px] text-amber-500 font-bold italic">Menunggu Verifikasi</span>
+                                  ) : isExempt ? (
+                                    <span className="text-[10px] text-purple-400 font-bold italic">Dibebaskan</span>
+                                  ) : (
+                                    <span className="text-[10px] text-emerald-500 font-bold">Lunas ✓</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          {iplBills.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="p-8 text-center text-slate-400 italic">
+                                Belum ada tagihan IPL yang diterbitkan untuk keluarga Anda.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* TAB 7: Iuran -> Riwayat Pembayaran */}
+          {activeTab === 'iuran_riwayat' && (() => {
+            const iplPaymentsList = (Array.isArray(wargaPayments?.ipl) && wargaPayments.ipl.length > 0)
+              ? wargaPayments.ipl
+              : (Array.isArray(iplBills) ? iplBills : []);
+            const kasPaymentsList = Array.isArray(wargaPayments?.kas) ? wargaPayments.kas : [];
+
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                
+                {/* Header */}
+                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
+                    <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran bulanan (IPL) dan kas sosial keluarga Anda.</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      fetchWargaPayments();
+                      fetchIplBills();
+                    }}
+                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  >
+                    🔄 Segarkan
+                  </button>
+                </div>
+
+                {isLoadingPayments ? (
+                  <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                    <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs font-bold text-slate-500">Memuat riwayat pembayaran...</p>
+                  </div>
+                ) : paymentsError ? (
+                  <div className="p-8 text-center text-xs text-rose-500 font-bold border border-rose-500/20 bg-rose-500/5 rounded-2xl">
+                    {paymentsError}
+                  </div>
+                ) : (
+                  <div className="space-y-8">
+                    
+                    {/* 1. IPL History Table */}
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">
+                        1. Tagihan & Pembayaran IPL
+                      </h4>
+                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                        <table className="w-full text-left text-xs border-collapse font-sans">
+                          <thead>
+                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                              <th className="p-4">Periode Tagihan</th>
+                              <th className="p-4">Tanggal / Jatuh Tempo</th>
+                              <th className="p-4 text-center">Status Pembayaran</th>
+                              <th className="p-4 text-right">Nominal</th>
+                              <th className="p-4 text-right">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {iplPaymentsList.map((t) => {
+                              const s = String(t.status || t.display_status || '').toLowerCase();
+                              const isRejected = t.latest_payment_status === 'rejected' || s === 'rejected' || s === 'ditolak' || s === 'gagal' || Boolean(t.latest_reject_reason || t.reject_reason);
+                              const isPaid = s === 'paid' || s === 'lunas' || s === 'approved' || s === 'diterima';
+                              const isPending = s === 'waiting_verification' || s === 'pending' || s === 'menunggu_verifikasi';
+                              const reasonText = t.latest_reject_reason || t.reject_reason || t.rejection_reason || t.rejectReason || t.reason || t.alasan_penolakan || t.notes || t.keterangan || 'Foto bukti transfer buram dan nominal tidak terbaca jelas';
+
+                              return (
+                                <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                  <td className="p-4">
+                                    <span className="font-bold text-slate-850 dark:text-white block text-xs">
+                                      {t.period_title || `IPL Bulan ${t.month || ''} ${t.year || ''}`}
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-slate-500 font-mono text-xs">
+                                    {t.due_date ? formatDateIndo(t.due_date) : (t.payment_date ? formatDateIndo(t.payment_date) : '-')}
+                                  </td>
+                                  <td className="p-4 text-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider border ${
+                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
+                                        isRejected ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40' :
+                                        isPending ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' :
+                                        'bg-slate-500/10 text-slate-500 border-slate-500/30'
+                                      }`}>
+                                        {isRejected ? 'Ditolak' : (isPaid ? 'Lunas' : (isPending ? 'Menunggu Verifikasi' : (t.display_status || t.status)))}
+                                      </span>
+                                      {isRejected && (
+                                        <span className="text-[10px] text-rose-500 font-medium italic max-w-[200px] text-center" title={reasonText}>
+                                          Alasan: "{reasonText}"
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className={`p-4 text-right font-black font-mono text-xs ${
+                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600 dark:text-emerald-400'
+                                  }`}>
+                                    {formatRupiah(t.amount)}
+                                  </td>
+                                  <td className="p-4 text-right font-sans">
+                                    {isRejected ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          if (t.bill_ids && t.bill_ids.length > 0) {
+                                            setSelectedBillIds(t.bill_ids);
+                                          } else if (t.bill_id) {
+                                            setSelectedBillIds([t.bill_id]);
+                                          } else if (t.id) {
+                                            setSelectedBillIds([t.id]);
+                                          }
+                                          setPaymentType('ipl');
+                                          setActiveTab('iuran_upload');
+                                        }}
+                                        className="py-1 px-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                      >
+                                        Bayar Ulang ↗
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {iplPaymentsList.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">
+                                  Belum ada riwayat pembayaran IPL.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* 2. KAS History Table */}
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">
+                        2. Sumbangan & Kas Insidental
+                      </h4>
+                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                        <table className="w-full text-left text-xs border-collapse font-sans">
+                          <thead>
+                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                              <th className="p-4">Kategori / Keterangan</th>
+                              <th className="p-4">Tanggal</th>
+                              <th className="p-4 text-center">Status Pembayaran</th>
+                              <th className="p-4 text-right">Jumlah Setor</th>
+                              <th className="p-4 text-right">Aksi</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {kasPaymentsList.map((t) => {
+                              const s = String(t.status || '').toLowerCase();
+                              const isRejected = s === 'rejected' || s === 'ditolak' || s === 'gagal';
+                              const isPaid = s === 'approved' || s === 'diterima' || s === 'paid' || s === 'lunas';
+                              const isPending = s === 'pending' || s === 'waiting_verification';
+                              const reasonText = t.reject_reason || t.rejection_reason || t.rejectReason || t.reason || t.alasan_penolakan || t.notes || t.keterangan || 'Bukti tidak valid';
+
+                              return (
+                                <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                  <td className="p-4 space-y-0.5">
+                                    <span className="font-bold text-slate-850 dark:text-slate-200 block capitalize text-xs">
+                                      {t.category}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 block italic">
+                                      "{t.description}"
+                                    </span>
+                                  </td>
+                                  <td className="p-4 text-slate-500 font-mono text-xs">
+                                    {t.created_at ? formatDateIndo(t.created_at) : (t.payment_date ? formatDateIndo(t.payment_date) : '-')}
+                                  </td>
+                                  <td className="p-4 text-center">
+                                    <div className="flex flex-col items-center gap-1">
+                                      <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider border ${
+                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border-emerald-500/30' :
+                                        isRejected ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40' :
+                                        'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                      }`}>
+                                        {isRejected ? 'Ditolak' : (isPaid ? 'Diterima' : 'Menunggu Verifikasi')}
+                                      </span>
+                                      {isRejected && (
+                                        <span className="text-[10px] text-rose-500 font-medium italic max-w-[200px] text-center" title={reasonText}>
+                                          Alasan: "{reasonText}"
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className={`p-4 text-right font-black font-mono text-xs ${
+                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600 dark:text-emerald-400'
+                                  }`}>
+                                    +{formatRupiah(t.amount)}
+                                  </td>
+                                  <td className="p-4 text-right font-sans">
+                                    {isRejected ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setPaymentType('kas');
+                                          setActiveTab('iuran_upload');
+                                        }}
+                                        className="py-1 px-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                      >
+                                        Setor Ulang ↗
+                                      </button>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-400">-</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {kasPaymentsList.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="p-8 text-center text-slate-400 font-bold italic">
+                                  Belum ada riwayat pembayaran Kas.
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+{/* TAB 8: Iuran -> Upload Bukti Bayar */}
+          {activeTab === 'iuran_upload' && (() => {
+            const payableBills = (iplBills || []).filter(b => {
+              const s = String(b.status || '').toLowerCase();
+              return s !== 'paid' && s !== 'lunas' && s !== 'waiting_verification' && s !== 'menunggu_verifikasi' && s !== 'exempt';
+            });
+            const selectedBills = (iplBills || []).filter(b => selectedBillIds.includes(b.id));
+            const calculatedAmount = selectedBills.reduce((acc, b) => acc + Number(b.amount || 0), 0);
+
+            return (
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Transaksi Iuran / Kas</h3>
+                  <p className="text-xs text-slate-400">Setor laporan pembayaran IPL bulanan (mendukung rapel) atau iuran kas insidental.</p>
+                </div>
+
+                {/* Type Switcher */}
+                <div className="flex gap-4 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl max-w-sm text-xs font-bold font-sans">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('ipl')}
+                    className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                      paymentType === 'ipl' 
+                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    IPL (Iuran Bulanan)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentType('kas')}
+                    className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
+                      paymentType === 'kas' 
+                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Uang Kas (Insidental)
+                  </button>
+                </div>
+
+                <form onSubmit={handleAdvancedPaymentSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
+                  
+                  {paymentType === 'ipl' ? (
+                    /* IPL FORM FIELDS (RAPEL SUPPORTED) */
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Tagihan IPL Yang Ingin Dibayar (Bisa Rapel) *</label>
+                          {payableBills.length > 0 && (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setSelectedBillIds(payableBills.map(b => b.id))}
+                                className="text-[10px] text-emerald-500 hover:underline font-bold"
+                              >
+                                Pilih Semua
+                              </button>
+                              <span className="text-slate-300">|</span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedBillIds([])}
+                                className="text-[10px] text-slate-400 hover:underline font-bold"
+                              >
+                                Batal Pilih
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {payableBills.length === 0 ? (
+                          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                            🎉 Tidak ada tagihan IPL yang belum dibayar saat ini. Semua tagihan sudah lunas atau sedang menunggu verifikasi Bendahara.
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-60 overflow-y-auto p-1">
+                            {payableBills.map((b) => {
+                              const isChecked = selectedBillIds.includes(b.id);
+                              return (
+                                <div
+                                  key={b.id}
+                                  onClick={() => {
+                                    if (isChecked) {
+                                      setSelectedBillIds(selectedBillIds.filter(id => id !== b.id));
+                                    } else {
+                                      setSelectedBillIds([...selectedBillIds, b.id]);
+                                    }
+                                  }}
+                                  className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
+                                    isChecked
+                                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {}}
+                                      className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                                    />
+                                    <div>
+                                      <p className="font-bold text-xs text-slate-900 dark:text-white">
+                                        {b.period_title || `IPL Bulan ${b.period_month}/${b.period_year}`}
+                                      </p>
+                                      <p className="text-[10px] text-slate-400">
+                                        Jatuh Tempo: {b.due_date ? formatDateIndo(b.due_date) : '-'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="text-right font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                    {formatRupiah(b.amount)}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-600 dark:text-slate-400">Total Nominal Pembayaran</label>
+                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm font-black flex items-center justify-between">
+                          <span>{formatRupiah(calculatedAmount)}</span>
+                          <span className="text-[10px] font-sans text-slate-400 font-normal">
+                            ({selectedBillIds.length} tagihan dipilih)
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400">Akumulasi otomatis sesuai tagihan yang dipilih di atas.</p>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-600 dark:text-slate-400">Berkas Bukti Transfer Bank (.jpg, .png, .pdf) *</label>
+                        <input
+                          type="file"
+                          required
+                          ref={fileInputRef}
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          onChange={(e) => setIplPaymentForm({ ...iplPaymentForm, file: e.target.files[0] })}
+                          className="hidden"
+                        />
+                        <div
+                          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                          className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                        >
+                          <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
+                          <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                            {iplPaymentForm.file ? `Terpilih: ${iplPaymentForm.file.name}` : 'Pilih berkas struk transfer pembayaran...'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-sans">Mendukung JPG, PNG, PDF (Maks 5MB)</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* KAS FORM FIELDS */
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
+                          <select
+                            value={kasPaymentForm.category}
+                            onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, category: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                          >
+                            <option value="sosial">Kas Sosial / Santunan</option>
+                            <option value="kematian">Kas Kematian / Takziah</option>
+                            <option value="kegiatan">Iuran Kegiatan RT</option>
+                            <option value="lainnya">Kas Lainnya</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Transfer (Rp) *</label>
+                          <input
+                            required
+                            type="number"
+                            placeholder="Contoh: 50000"
+                            value={kasPaymentForm.amount}
+                            onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, amount: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono text-sm font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Agenda / Kegiatan *</label>
+                          <select
+                            value={kasPaymentForm.activitySelect}
+                            onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, activitySelect: e.target.value })}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                          >
+                            <option value="Santunan Warga Sakit / Wafat">Santunan Warga Sakit / Wafat</option>
+                            <option value="Iuran HUT RI 17 Agustus">Iuran HUT RI 17 Agustus</option>
+                            <option value="Kerja Bakti Musala / Masjid">Kerja Bakti Musala / Masjid</option>
+                            <option value="Donasi Pembangunan Lingkungan">Donasi Pembangunan Lingkungan</option>
+                            <option value="Lainnya (Input Manual)">Lainnya (Input Manual)</option>
+                          </select>
+                        </div>
+
+                        {kasPaymentForm.activitySelect === 'Lainnya (Input Manual)' && (
+                          <div className="space-y-1.5">
+                            <label className="font-bold text-slate-655 dark:text-slate-350">Tulis Nama Kegiatan Baru *</label>
+                            <input
+                              required
+                              type="text"
+                              placeholder="Contoh: Iuran Buka Bersama..."
+                              value={kasPaymentForm.customDescription}
+                              onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, customDescription: e.target.value })}
+                              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-slate-605 dark:text-slate-400">Bukti Transfer Struk *</label>
+                        <input
+                          type="file"
+                          required
+                          ref={fileInputRef}
+                          accept=".jpg,.jpeg,.png,.pdf"
+                          onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, file: e.target.files[0] })}
+                          className="hidden"
+                        />
+                        <div
+                          onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                          className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                        >
+                          <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
+                          <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                            {kasPaymentForm.file ? `Terpilih: ${kasPaymentForm.file.name}` : 'Pilih berkas struk transfer pembayaran...'}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 5MB)</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentError && (
+                    <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs font-semibold">
+                      {paymentError}
+                    </div>
+                  )}
+
+                  {paymentSuccess && (
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
+                      {paymentSuccess}
+                    </div>
+                  )}
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={isSubmittingPayment || (paymentType === 'ipl' && selectedBillIds.length === 0)}
+                      className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                    >
+                      {isSubmittingPayment ? 'Mengirim Data...' : 'Kirim Bukti Pembayaran'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            );
+          })()}
 
           {/* TAB 9: Layanan Surat -> Ajukan Surat */}
           {(activeTab === 'layanan_ajukan' || activeTab === 'surat_pengajuan') && (

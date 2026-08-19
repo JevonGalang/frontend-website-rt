@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { io } from 'socket.io-client';
+import { io } from './utils/liveSocket';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -161,7 +161,7 @@ export default function App() {
     try {
       const user = currentUser || JSON.parse(localStorage.getItem('rt_current_user') || 'null');
       if (!user) return;
-      const isAdmin = ['admin', 'rt', 'sekertaris', 'bendahara'].includes(user.role);
+      const isAdmin = ['admin', 'rt', 'sekertaris'].includes(user.role);
       const endpoint = isAdmin ? '/admin/agenda' : '/resident/agenda';
       
       const url = query 
@@ -348,6 +348,7 @@ export default function App() {
         setDarkMode={setDarkMode}
         fetchAgendas={fetchAgendas}
         dashboardStats={dashboardStats}
+        fetchDashboardStats={fetchDashboardStats}
       />
     );
   }
