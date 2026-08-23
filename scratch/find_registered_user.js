@@ -1,5 +1,5 @@
 async function findUser() {
-  const loginUrl = 'http://172.20.32.31:3333/post/login';
+  const loginUrl = 'http://localhost:3333/post/login';
   
   // We registered a user with role 'admin' in test_roles.js.
   // The username format was: 'user_admin_' + random (0-999)

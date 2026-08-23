@@ -107,7 +107,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Send register request to backend
     try {
-      const res = await fetch('http://172.20.32.31:3333/post/register', {
+      const res = await fetch('http://localhost:3333/post/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,8 +118,9 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         })
       });
       const resData = await res.json();
-      if (!res.ok && resData.message && !resData.message.includes('berhasil')) {
-        setError(resData.message || 'Gagal mendaftar ke server.');
+      if (!res.ok) {
+        const errorMsg = resData.pesan || resData.message || resData.error || (resData.errors && resData.errors[0]?.message) || 'Gagal mendaftar ke server.';
+        setError(errorMsg);
         return;
       }
     } catch (err) {

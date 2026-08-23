@@ -33,7 +33,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/resident/password', {
+      const response = await fetch('http://localhost:3333/resident/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
