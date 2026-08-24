@@ -107,7 +107,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Send register request to backend
     try {
-      const res = await fetch('http://localhost:3333/post/register', {
+      const res = await fetch('http://172.20.32.31:3333/post/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

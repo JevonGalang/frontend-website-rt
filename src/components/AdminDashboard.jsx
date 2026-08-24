@@ -131,7 +131,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:3333/admin/finance/settings', {
+      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -158,7 +158,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch('http://localhost:3333/admin/finance/settings', {
+      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -202,7 +202,7 @@ export default function AdminDashboard({
 
     setIsAdminChangingPassword(true);
     try {
-      const res = await fetch('http://localhost:3333/admin/change-password', {
+      const res = await fetch('http://172.20.32.31:3333/admin/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -331,8 +331,8 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://localhost:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
-      const response = await fetch(`http://localhost:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
+      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
+      const response = await fetch(`http://172.20.32.31:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -354,7 +354,7 @@ export default function AdminDashboard({
         // Fallback to static direct url
         setSelectedProofModal(prev => prev ? ({
           ...prev,
-          fileUrl: `http://localhost:3333/admin/finance/proof/${rawFileName}`,
+          fileUrl: `http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`,
           isLoading: false,
           hasImgError: false
         }) : null);
@@ -399,10 +399,10 @@ export default function AdminDashboard({
       const cName = cleanNameStr(citizen?.name || citizen?.nama);
 
       // Find existing record to preserve data
-      const existingRecord = (cName && accounts[`name_${cName}`]) ||
+      const existingRecord = (citizenId && accounts[`citizen_${citizenId}`]) ||
                              (nik && accounts[`nik_${nik}`]) ||
-                             (citizenId && accounts[`citizen_${citizenId}`]) ||
-                             (familyId && accounts[`family_${familyId}`]);
+                             (cName && accounts[`name_${cName}`]) ||
+                             (!citizenId && familyId && accounts[`family_${familyId}`]);
 
       const now = new Date().toISOString();
       const record = {
@@ -414,10 +414,10 @@ export default function AdminDashboard({
           : (existingRecord?.passwordChangedAt || null)
       };
 
-      if (familyId) accounts[`family_${familyId}`] = record;
       if (citizenId) accounts[`citizen_${citizenId}`] = record;
       if (nik && String(nik).trim().length > 0) accounts[`nik_${nik}`] = record;
       if (cName && cName.length > 0) accounts[`name_${cName}`] = record;
+      if (familyId && !citizenId) accounts[`family_${familyId}`] = record;
 
       localStorage.setItem('rt_created_accounts', JSON.stringify(accounts));
     } catch (e) {}
@@ -427,83 +427,65 @@ export default function AdminDashboard({
   const checkWargaHasAccount = (w) => {
     if (!w) return false;
     if (w.username && String(w.username).trim().length > 0) return true;
+    if (w.account_username && String(w.account_username).trim().length > 0) return true;
     if (w.user?.username || w.account?.username || w.user_name) return true;
-    if (w.has_account === true || w.has_account === 1 || w.account_created === true || w.hasAccount === true || w.hasAccount === 1 || !!w.user_id || !!w.account_id || !!w.user || !!w.account) return true;
+    if (w.account_id !== null && w.account_id !== undefined && w.account_id !== '' && w.account_id !== 0) return true;
+    if (w.user_id !== null && w.user_id !== undefined && w.user_id !== '' && w.user_id !== 0) return true;
+    if (w.has_account === true || w.has_account === 1 || w.account_created === true || w.hasAccount === true || w.hasAccount === 1 || !!w.user || !!w.account) return true;
     
     const createdAccounts = getCreatedAccountsMap();
-    const famId = w.family_id || w.fammilyId || w.familyId;
     const citizenId = w.id || w.warga_id;
     const nik = w.nik;
     const cName = cleanNameStr(w.name || w.nama);
 
-    if (cName && createdAccounts[`name_${cName}`]) return true;
-    if (nik && createdAccounts[`nik_${nik}`]) return true;
     if (citizenId && createdAccounts[`citizen_${citizenId}`]) return true;
-    if (famId && createdAccounts[`family_${famId}`]) return true;
+    if (nik && createdAccounts[`nik_${nik}`]) return true;
+    if (cName && createdAccounts[`name_${cName}`]) return true;
 
-    if (famId && Array.isArray(wargaList)) {
-      const memberHasAcc = wargaList.some(item => {
-        const isSameFam = (item.family_id === famId || item.fammilyId === famId || item.familyId === famId);
-        const itemCleanName = cleanNameStr(item.name || item.nama);
-        const hasAcc = (item.username && String(item.username).trim().length > 0) || 
-                       item.has_account === true || item.has_account === 1 || item.account_created === true || item.hasAccount === true || item.hasAccount === 1 || !!item.user_id || !!item.account_id ||
-                       (famId && createdAccounts[`family_${famId}`]) || 
-                       (item.id && createdAccounts[`citizen_${item.id}`]) ||
-                       (item.nik && createdAccounts[`nik_${item.nik}`]) ||
-                       (itemCleanName && createdAccounts[`name_${itemCleanName}`]);
-        return isSameFam && hasAcc;
-      });
-      if (memberHasAcc) return true;
-    }
+    // Only for KK / Family entity where citizenId doesn't exist
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    if (!citizenId && famId && createdAccounts[`family_${famId}`]) return true;
+
     return false;
   };
 
   const getWargaUsername = (w) => {
     if (!w) return null;
     if (w.username && String(w.username).trim().length > 0) return w.username;
+    if (w.account_username && String(w.account_username).trim().length > 0) return w.account_username;
     if (w.user?.username) return w.user.username;
     if (w.account?.username) return w.account.username;
     if (w.user_name) return w.user_name;
 
     const createdAccounts = getCreatedAccountsMap();
-    const famId = w.family_id || w.fammilyId || w.familyId;
     const citizenId = w.id || w.warga_id;
     const nik = w.nik;
     const cName = cleanNameStr(w.name || w.nama);
 
-    if (cName && createdAccounts[`name_${cName}`]?.username) return createdAccounts[`name_${cName}`].username;
-    if (nik && createdAccounts[`nik_${nik}`]?.username) return createdAccounts[`nik_${nik}`].username;
     if (citizenId && createdAccounts[`citizen_${citizenId}`]?.username) return createdAccounts[`citizen_${citizenId}`].username;
-    if (famId && createdAccounts[`family_${famId}`]?.username) return createdAccounts[`family_${famId}`].username;
+    if (nik && createdAccounts[`nik_${nik}`]?.username) return createdAccounts[`nik_${nik}`].username;
+    if (cName && createdAccounts[`name_${cName}`]?.username) return createdAccounts[`name_${cName}`].username;
 
-    if (famId && Array.isArray(wargaList)) {
-      const famMember = wargaList.find(item => 
-        (item.family_id === famId || item.fammilyId === famId || item.familyId === famId) && 
-        (item.username && String(item.username).trim().length > 0)
-      );
-      if (famMember?.username) return famMember.username;
-    }
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    if (!citizenId && famId && createdAccounts[`family_${famId}`]?.username) return createdAccounts[`family_${famId}`].username;
 
-    if (checkWargaHasAccount(w)) {
-      return cName || (w.email ? w.email.split('@')[0] : null) || w.nik || 'warga';
-    }
-    
-    return w.nik || (w.email ? w.email.split('@')[0] : null) || null;
+    return null;
   };
 
   // Retrieve full saved account record (username, password, createdAt) for a warga
   const getWargaAccountRecord = (w) => {
     if (!w) return null;
     const createdAccounts = getCreatedAccountsMap();
-    const famId = w.family_id || w.fammilyId || w.familyId;
     const citizenId = w.id || w.warga_id;
     const nik = w.nik;
     const cName = cleanNameStr(w.name || w.nama);
 
-    if (cName && createdAccounts[`name_${cName}`]) return createdAccounts[`name_${cName}`];
-    if (nik && createdAccounts[`nik_${nik}`]) return createdAccounts[`nik_${nik}`];
     if (citizenId && createdAccounts[`citizen_${citizenId}`]) return createdAccounts[`citizen_${citizenId}`];
-    if (famId && createdAccounts[`family_${famId}`]) return createdAccounts[`family_${famId}`];
+    if (nik && createdAccounts[`nik_${nik}`]) return createdAccounts[`nik_${nik}`];
+    if (cName && createdAccounts[`name_${cName}`]) return createdAccounts[`name_${cName}`];
+
+    const famId = w.family_id || w.fammilyId || w.familyId;
+    if (!citizenId && famId && createdAccounts[`family_${famId}`]) return createdAccounts[`family_${famId}`];
 
     // Also check warga item password field directly
     if (w.password && String(w.password).trim().length > 0) {
@@ -613,7 +595,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://localhost:3333/admin/access-logs?limit=100', {
+      const response = await fetch('http://172.20.32.31:3333/admin/access-logs?limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -665,7 +647,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://localhost:3333/admin/pengaduan', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -706,7 +688,7 @@ export default function AdminDashboard({
     const payloadStatus = (status === 'Proses' || status === 'setujui' || status === 'Proses') ? 'disetujui' : status;
 
     try {
-      const response = await fetch(`http://localhost:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -751,7 +733,7 @@ export default function AdminDashboard({
     if (!result.isConfirmed) return;
 
     try {
-      const response = await fetch(`http://localhost:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -780,7 +762,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://localhost:3333/admin/create-staff-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-staff-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -817,7 +799,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://localhost:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -841,7 +823,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch(`http://localhost:3333/account/notifications/${id}/read`, {
+      await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -859,7 +841,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch('http://localhost:3333/account/notifications/read-all', {
+      await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -878,7 +860,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
-      const res = await fetch('http://localhost:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 403) {
@@ -908,7 +890,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch('http://localhost:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
@@ -954,7 +936,7 @@ export default function AdminDashboard({
     if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
     if (!Object.keys(body).length) return;
     try {
-      const res = await fetch(`http://localhost:3333/admin/announcement/${editingAnnouncementId}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${editingAnnouncementId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
@@ -1007,7 +989,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch(`http://localhost:3333/admin/announcement/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1054,7 +1036,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://localhost:3333/admin/pengajuan', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1141,7 +1123,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://localhost:3333/admin/pending-warga', {
+      const response = await fetch('http://172.20.32.31:3333/admin/pending-warga', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1176,7 +1158,7 @@ export default function AdminDashboard({
     const docId = w.ktp_document_id || w.warga_id || w.id;
     if (docId && token) {
       try {
-        const res = await fetch(`http://localhost:3333/admin/sensitifdata/file/${docId}`, {
+        const res = await fetch(`http://172.20.32.31:3333/admin/sensitifdata/file/${docId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -1227,7 +1209,7 @@ export default function AdminDashboard({
     const targetWarga = pendingWargaList.find(w => w.warga_id === targetId || w.id === targetId || String(w.warga_id) === String(targetId) || String(w.id) === String(targetId));
 
     try {
-      const response = await fetch(`http://localhost:3333/admin/pending-warga/${targetId}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/pending-warga/${targetId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1288,7 +1270,7 @@ export default function AdminDashboard({
     try {
       console.log('--- BENDAHARA: fetchPendingPayments started ---');
       console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
-      const response = await fetch('http://localhost:3333/admin/finance/pending', {
+      const response = await fetch('http://172.20.32.31:3333/admin/finance/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('HTTP Status Response:', response.status);
@@ -1419,8 +1401,8 @@ export default function AdminDashboard({
 
     try {
       const endpoint = type === 'ipl' 
-        ? `http://localhost:3333/admin/finance/ipl-payments/${paymentId}/verify`
-        : `http://localhost:3333/admin/finance/kas-contributions/${paymentId}/verify`;
+        ? `http://172.20.32.31:3333/admin/finance/ipl-payments/${paymentId}/verify`
+        : `http://172.20.32.31:3333/admin/finance/kas-contributions/${paymentId}/verify`;
 
       const reqBody = { decision };
       if (decision === 'rejected' && rejectReason) {
@@ -1472,9 +1454,9 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingBillPeriods(true);
-    console.log('%c[BILL PERIODS] 🔄 GET http://localhost:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
+    console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
     try {
-      const res = await fetch('http://localhost:3333/admin/finance/bill-periods', {
+      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1506,10 +1488,10 @@ export default function AdminDashboard({
       periodYear: parseInt(billPeriodForm.periodYear)
     };
 
-    console.log('%c[BILL PERIODS] 🚀 POST http://localhost:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
+    console.log('%c[BILL PERIODS] 🚀 POST http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
 
     try {
-      const res = await fetch('http://localhost:3333/admin/finance/bill-periods', {
+      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1568,10 +1550,10 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
 
-    console.log(`%c[BILL PERIODS] 📢 POST http://localhost:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
+    console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
 
     try {
-      const res = await fetch(`http://localhost:3333/admin/finance/bill-periods/${periodId}/publish`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1603,10 +1585,10 @@ export default function AdminDashboard({
     console.log(`%c[BILL PERIODS] 📊 GET Summary & Bills for period ID: ${periodId}`, 'color: #3b82f6; font-weight: bold;');
     try {
       const [summaryRes, billsRes] = await Promise.all([
-        fetch(`http://localhost:3333/admin/finance/bill-periods/${periodId}/summary`, {
+        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/summary`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://localhost:3333/admin/finance/bill-periods/${periodId}/bills`, {
+        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/bills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1652,7 +1634,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch(`http://localhost:3333/admin/finance/bills/${billId}/exempt`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bills/${billId}/exempt`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1696,7 +1678,7 @@ export default function AdminDashboard({
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
-      const res = await fetch(`http://localhost:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1749,7 +1731,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const res = await fetch('http://localhost:3333/admin/finance/manual-payment', {
+      const res = await fetch('http://172.20.32.31:3333/admin/finance/manual-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1796,10 +1778,10 @@ export default function AdminDashboard({
     setIsLoadingAudit(true);
     try {
       const [iplRes, kasRes] = await Promise.all([
-        fetch('http://localhost:3333/admin/finance/ipl-payments/audit', {
+        fetch('http://172.20.32.31:3333/admin/finance/ipl-payments/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:3333/admin/finance/kas-contributions/audit', {
+        fetch('http://172.20.32.31:3333/admin/finance/kas-contributions/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1836,7 +1818,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch(`http://localhost:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const response = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1918,7 +1900,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://localhost:3333/admin/resident', {
+      const response = await fetch('http://172.20.32.31:3333/admin/resident', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1977,7 +1959,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://localhost:3333/admin/kepala-keluarga/list', {
+      const response = await fetch('http://172.20.32.31:3333/admin/kepala-keluarga/list', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2030,7 +2012,7 @@ export default function AdminDashboard({
     setSuratMasukLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://localhost:3333/admin/surat-masuk', {
+      const response = await fetch('http://172.20.32.31:3333/admin/surat-masuk', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2076,7 +2058,7 @@ export default function AdminDashboard({
     setSuratKeluarLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://localhost:3333/admin/surat-keluar', {
+      const response = await fetch('http://172.20.32.31:3333/admin/surat-keluar', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2141,7 +2123,7 @@ export default function AdminDashboard({
     });
 
     try {
-      const response = await fetch('http://localhost:3333/admin/datawarga', {
+      const response = await fetch('http://172.20.32.31:3333/admin/datawarga', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2181,20 +2163,22 @@ export default function AdminDashboard({
           const nik = item.nik || '';
           const cName = cleanNameStr(item.nama || item.name);
 
-          const savedAcc = (famId && createdAccounts[`family_${famId}`]) || 
-                           (citizenId && createdAccounts[`citizen_${citizenId}`]) ||
+          const savedAcc = (citizenId && createdAccounts[`citizen_${citizenId}`]) ||
                            (nik && createdAccounts[`nik_${nik}`]) ||
                            (cName && createdAccounts[`name_${cName}`]);
 
-          const backendUsername = item.username || item.user?.username || item.account?.username || item.user_name || '';
+          const backendUsername = item.username || item.account_username || item.user?.username || item.account?.username || item.user_name || '';
           const username = backendUsername || savedAcc?.username || '';
           const hasAccount = !!username || 
+                             (item.account_id !== null && item.account_id !== undefined && item.account_id !== 0) ||
+                             (item.user_id !== null && item.user_id !== undefined && item.user_id !== 0) ||
                              item.has_account === true || item.has_account === 1 || 
                              item.account_created === true || item.hasAccount === true || 
-                             !!item.user_id || !!item.account_id || !!item.user || !!savedAcc;
+                             !!item.user || !!item.account || !!savedAcc;
 
           return {
             id: citizenId,
+            warga_id: citizenId,
             name: item.nama || item.name || '',
             nik: nik,
             noKk: item.family_nokk || item.no_kk || item.noKk || '',
@@ -2202,6 +2186,8 @@ export default function AdminDashboard({
             status: item.house_status || item.status || 'Tetap',
             statusHidup: item.status_hidup || item.statusHidup || 'Hidup',
             username: username,
+            account_username: username,
+            account_id: item.account_id || item.user_id || (savedAcc ? true : null),
             has_account: hasAccount,
             account_created: hasAccount,
             alamat: item.house_alamat || item.alamat || '',
@@ -2289,7 +2275,7 @@ export default function AdminDashboard({
 
     try {
       if (sudoActionType === 'reveal_warga') {
-        const res = await fetch(`http://localhost:3333/admin/reveal-warga/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-warga/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2305,7 +2291,7 @@ export default function AdminDashboard({
           setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
         }
       } else if (sudoActionType === 'reveal_resident') {
-        const res = await fetch(`http://localhost:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2322,7 +2308,7 @@ export default function AdminDashboard({
         }
       } else if (sudoActionType === 'patch_kk') {
         // verify password first by making a dry run reveal-resident call
-        const verifyRes = await fetch(`http://localhost:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const verifyRes = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2335,7 +2321,7 @@ export default function AdminDashboard({
           throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
         }
 
-        const response = await fetch(`http://localhost:3333/admin/resident/${sudoTargetId}`, {
+        const response = await fetch(`http://172.20.32.31:3333/admin/resident/${sudoTargetId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -2393,7 +2379,7 @@ export default function AdminDashboard({
 
   const fetchLedgerFromServer = async () => {
     try {
-      const response = await fetch('http://localhost:3333/post/dashboard-stats');
+      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200 && data.output?.ledger) {
@@ -2508,7 +2494,7 @@ export default function AdminDashboard({
       fetchKepalaKeluargaList();
     }
 
-    const socketConnection = io('http://localhost:3333', {
+    const socketConnection = io('http://172.20.32.31:3333', {
       transports: ['websocket'],
       auth: { token }
     });
@@ -2617,7 +2603,7 @@ export default function AdminDashboard({
     const targetUserId = parseInt(selectedCitizenForAccount?.id || selectedCitizenForAccount?.family_id || selectedCitizenForAccount?.familyId || 1);
 
     try {
-      const response = await fetch('http://localhost:3333/auth/request-otp', {
+      const response = await fetch('http://172.20.32.31:3333/auth/request-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -2773,7 +2759,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://localhost:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2824,18 +2810,24 @@ export default function AdminDashboard({
 
       showAccountCredentialsAlert(username, tempPassword, citizenName);
 
-      // Automatic State Update
+      // Automatic State Update for targeted citizen only
+      const targetCitizenId = citizen.id || citizen.warga_id;
+      const targetCitizenNik = citizen.nik;
+      const cleanSelectedName = cleanNameStr(citizen.name || citizen.nama);
+
       const updatedWargaList = wargaList.map(item => {
-        const isMatch = item.id === citizen.id || 
-                        (item.family_id && item.family_id === familyId) || 
-                        (item.fammilyId && item.fammilyId === familyId);
+        const isMatch = (targetCitizenId && (item.id === targetCitizenId || item.warga_id === targetCitizenId)) || 
+                        (targetCitizenNik && item.nik === targetCitizenNik) ||
+                        (!targetCitizenId && !targetCitizenNik && cleanSelectedName && cleanNameStr(item.name || item.nama) === cleanSelectedName);
         if (isMatch) {
           return {
             ...item,
             username: username,
+            account_username: username,
             password: tempPassword,
             has_account: true,
-            account_created: true
+            account_created: true,
+            account_id: output.account_id || output.id || item.account_id || true
           };
         }
         return item;
@@ -2976,18 +2968,20 @@ export default function AdminDashboard({
       // Update persistent local registry — pass empty password to preserve existing
       saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, newUsername, newPassword);
 
-      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name);
+      const targetCitizenId = selectedCitizenForAccount.id || selectedCitizenForAccount.warga_id;
+      const targetCitizenNik = selectedCitizenForAccount.nik;
+      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name || selectedCitizenForAccount.nama);
 
-      // Realtime state update
+      // Realtime state update for targeted citizen only
       const updatedWargaList = wargaList.map(item => {
-        const isMatch = (selectedCitizenForAccount.id && item.id === selectedCitizenForAccount.id) || 
-                        (targetFamilyId && (item.family_id === targetFamilyId || item.fammilyId === targetFamilyId || item.familyId === targetFamilyId)) ||
-                        (selectedCitizenForAccount.nik && item.nik === selectedCitizenForAccount.nik) ||
-                        (cleanSelectedName && cleanNameStr(item.name) === cleanSelectedName);
+        const isMatch = (targetCitizenId && (item.id === targetCitizenId || item.warga_id === targetCitizenId)) || 
+                        (targetCitizenNik && item.nik === targetCitizenNik) ||
+                        (!targetCitizenId && !targetCitizenNik && cleanSelectedName && cleanNameStr(item.name || item.nama) === cleanSelectedName);
         if (isMatch) {
           return {
             ...item,
             username: newUsername,
+            account_username: newUsername,
             password: newPassword || item.password || existingAccountPassword,
             has_account: true,
             account_created: true
@@ -3137,7 +3131,7 @@ export default function AdminDashboard({
     const targetUserId = parseInt(selectedCitizenForAccount?.id || selectedCitizenForAccount?.family_id || selectedCitizenForAccount?.familyId || 1);
 
     try {
-      const response = await fetch('http://localhost:3333/auth/verify-otp', {
+      const response = await fetch('http://172.20.32.31:3333/auth/verify-otp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -3179,7 +3173,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://localhost:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3256,21 +3250,24 @@ export default function AdminDashboard({
       // Save created account permanently to local storage registry so it never gets lost or overwritten
       saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, createdUsername, createdPassword);
 
-      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name);
+      const targetCitizenId = selectedCitizenForAccount.id || selectedCitizenForAccount.warga_id;
+      const targetCitizenNik = selectedCitizenForAccount.nik;
+      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name || selectedCitizenForAccount.nama);
 
-      // Update state without reload across all matching records
+      // Update state without reload ONLY for this citizen
       const updatedWargaList = wargaList.map(item => {
-        const isMatch = (selectedCitizenForAccount.id && item.id === selectedCitizenForAccount.id) || 
-                        (targetFamilyId && (item.family_id === targetFamilyId || item.fammilyId === targetFamilyId || item.familyId === targetFamilyId)) ||
-                        (selectedCitizenForAccount.nik && item.nik === selectedCitizenForAccount.nik) ||
-                        (cleanSelectedName && cleanNameStr(item.name) === cleanSelectedName);
+        const isMatch = (targetCitizenId && (item.id === targetCitizenId || item.warga_id === targetCitizenId)) || 
+                        (targetCitizenNik && item.nik === targetCitizenNik) ||
+                        (!targetCitizenId && !targetCitizenNik && cleanSelectedName && cleanNameStr(item.name || item.nama) === cleanSelectedName);
         if (isMatch) {
           return {
             ...item,
             username: createdUsername,
+            account_username: createdUsername,
             password: createdPassword,
             has_account: true,
-            account_created: true
+            account_created: true,
+            account_id: output.account_id || output.id || item.account_id || true
           };
         }
         return item;
@@ -3572,7 +3569,7 @@ export default function AdminDashboard({
         }
 
         try {
-          const response = await fetch(`http://localhost:3333/admin/agenda/${id}`, {
+          const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -3681,7 +3678,7 @@ export default function AdminDashboard({
           }
         };
 
-        const res = await fetch('http://localhost:3333/admin/register-resident-only', {
+        const res = await fetch('http://172.20.32.31:3333/admin/register-resident-only', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3736,7 +3733,7 @@ export default function AdminDashboard({
         const targetId = selectedItem?.id || selectedItem?.warga_id || selectedItem?.family_id;
 
         if (token && targetId) {
-          const response = await fetch(`http://localhost:3333/resident/warga/${targetId}`, {
+          const response = await fetch(`http://172.20.32.31:3333/resident/warga/${targetId}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -3807,8 +3804,8 @@ export default function AdminDashboard({
       try {
         const isIncome = kasForm.type === 'income';
         const url = isIncome 
-          ? 'http://localhost:3333/admin/finance/income' 
-          : 'http://localhost:3333/admin/finance/expense';
+          ? 'http://172.20.32.31:3333/admin/finance/income' 
+          : 'http://172.20.32.31:3333/admin/finance/expense';
         const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
 
         const res = await fetch(url, {
@@ -3883,7 +3880,7 @@ export default function AdminDashboard({
       };
 
       if (modalType === 'add_agenda') {
-        const response = await fetch('http://localhost:3333/admin/agenda', {
+        const response = await fetch('http://172.20.32.31:3333/admin/agenda', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3912,7 +3909,7 @@ export default function AdminDashboard({
           confirmButtonColor: '#10b981'
         });
       } else {
-        const response = await fetch(`http://localhost:3333/admin/agenda/${selectedItem.id}`, {
+        const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${selectedItem.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -3972,7 +3969,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://localhost:3333/admin/surat-masuk/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/surat-masuk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -4009,7 +4006,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://localhost:3333/admin/surat-keluar/${id}`, {
+      const res = await fetch(`http://172.20.32.31:3333/admin/surat-keluar/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -4054,8 +4051,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://localhost:3333/admin/surat-masuk/${suratMasukForm.id}`
-        : 'http://localhost:3333/admin/surat-masuk';
+        ? `http://172.20.32.31:3333/admin/surat-masuk/${suratMasukForm.id}`
+        : 'http://172.20.32.31:3333/admin/surat-masuk';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4125,8 +4122,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://localhost:3333/admin/surat-keluar/${suratKeluarForm.id}`
-        : 'http://localhost:3333/admin/surat-keluar';
+        ? `http://172.20.32.31:3333/admin/surat-keluar/${suratKeluarForm.id}`
+        : 'http://172.20.32.31:3333/admin/surat-keluar';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4209,7 +4206,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
-        await fetch(`http://localhost:3333/admin/pengajuan/${id}`, {
+        await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -7355,13 +7352,7 @@ export default function AdminDashboard({
                         })
                         .map((w) => {
                           const isAccountCreated = checkWargaHasAccount(w);
-                          const famId = w.family_id || w.fammilyId || w.familyId;
-                          const familyAccountHolder = famId ? wargaList.find(item => 
-                            (item.family_id === famId || item.fammilyId === famId || item.familyId === famId) && 
-                            (item.username && String(item.username).trim().length > 0)
-                          ) : null;
-                          const rawUsername = w.username || familyAccountHolder?.username;
-                          const displayUsername = rawUsername || (isAccountCreated ? (w.name ? w.name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'warga') : null);
+                          const displayUsername = getWargaUsername(w) || w.username || w.account_username || null;
 
                           return (
                             <tr key={w.id} className="hover:bg-emerald-50/40 dark:hover:bg-slate-800/40 transition-colors">
@@ -8865,7 +8856,7 @@ export default function AdminDashboard({
 
                   try {
                     const backendCategory = mapCategoryToBackend(pemasukanForm.category, 'income');
-                    const res = await fetch('http://localhost:3333/admin/finance/income', {
+                    const res = await fetch('http://172.20.32.31:3333/admin/finance/income', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -9004,7 +8995,7 @@ export default function AdminDashboard({
                       });
                     }
 
-                    const res = await fetch('http://localhost:3333/admin/finance/expense', {
+                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
                       method: 'POST',
                       headers,
                       body: bodyData

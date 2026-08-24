@@ -8,7 +8,7 @@ import {
 import DateInput from './DateInput';
 import Swal from 'sweetalert2';
 
-const API_BASE = 'http://localhost:3333';
+const API_BASE = 'http://172.20.32.31:3333';
 
 const calculateAge = (birthDateString) => {
   if (!birthDateString) return '';

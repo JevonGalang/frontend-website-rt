@@ -1,6 +1,6 @@
 async function testFinance() {
-  const registUrl = 'http://localhost:3333/post/debug-regist';
-  const loginUrl = 'http://localhost:3333/post/login';
+  const registUrl = 'http://172.20.32.31:3333/post/debug-regist';
+  const loginUrl = 'http://172.20.32.31:3333/post/login';
   
   const username = 'bendahara_' + Math.floor(Math.random() * 10000);
   const password = 'Password123!';
@@ -30,7 +30,7 @@ async function testFinance() {
 
     if (token) {
       // Test GET tracking
-      const trackRes = await fetch('http://localhost:3333/admin/finance/tracking?month=8&year=2026', {
+      const trackRes = await fetch('http://172.20.32.31:3333/admin/finance/tracking?month=8&year=2026', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('GET tracking status:', trackRes.status);
@@ -38,7 +38,7 @@ async function testFinance() {
       console.log('GET tracking data:', JSON.stringify(trackData, null, 2));
 
       // Test POST manual-payment for family_id 1
-      const manualRes = await fetch('http://localhost:3333/admin/finance/manual-payment', {
+      const manualRes = await fetch('http://172.20.32.31:3333/admin/finance/manual-payment', {
         method: 'POST',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -58,7 +58,7 @@ async function testFinance() {
       console.log('POST manual-payment response:', JSON.stringify(manualData, null, 2));
 
       // Test GET tracking again to see if family_id 1 is updated
-      const trackRes2 = await fetch('http://localhost:3333/admin/finance/tracking?month=8&year=2026', {
+      const trackRes2 = await fetch('http://172.20.32.31:3333/admin/finance/tracking?month=8&year=2026', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('GET tracking data after manual payment:', JSON.stringify(await trackRes2.json(), null, 2));
