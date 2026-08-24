@@ -1,8 +1,8 @@
 async function testEndpoints() {
   const urls = [
-    { name: 'GET resident', url: 'http://172.20.32.31:3333/admin/resident', method: 'GET' },
-    { name: 'GET house', url: 'http://172.20.32.31:3333/admin/house', method: 'GET' },
-    { name: 'GET datawarga', url: 'http://172.20.32.31:3333/admin/datawarga', method: 'GET' }
+    { name: 'GET resident', url: 'http://localhost:3333/admin/resident', method: 'GET' },
+    { name: 'GET house', url: 'http://localhost:3333/admin/house', method: 'GET' },
+    { name: 'GET datawarga', url: 'http://localhost:3333/admin/datawarga', method: 'GET' }
   ];
 
   for (const item of urls) {

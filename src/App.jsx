@@ -95,7 +95,7 @@ export default function App() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
+      const response = await fetch('http://localhost:3333/post/dashboard-stats');
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200) {
@@ -165,8 +165,8 @@ export default function App() {
       const endpoint = isAdmin ? '/admin/agenda' : '/resident/agenda';
       
       const url = query 
-        ? `http://172.20.32.31:3333${endpoint}?search=${encodeURIComponent(query)}`
-        : `http://172.20.32.31:3333${endpoint}`;
+        ? `http://localhost:3333${endpoint}?search=${encodeURIComponent(query)}`
+        : `http://localhost:3333${endpoint}`;
         
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -210,7 +210,7 @@ export default function App() {
     } catch (e) {}
     if (!token) return;
 
-    const socketConnection = io('http://172.20.32.31:3333', {
+    const socketConnection = io('http://localhost:3333', {
       transports: ['websocket'],
       auth: { token }
     });
@@ -241,7 +241,7 @@ export default function App() {
 
   const fetchPublicStats = async () => {
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
+      const response = await fetch('http://localhost:3333/post/dashboard-stats');
       const data = await response.json();
       if (response.ok) {
         setPublicStats(data.output?.stats || null);

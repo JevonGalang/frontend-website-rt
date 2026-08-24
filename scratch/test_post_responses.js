@@ -1,6 +1,6 @@
 async function testPostFlow() {
-  const registUrl = 'http://172.20.32.31:3333/post/regist';
-  const loginUrl = 'http://172.20.32.31:3333/post/login';
+  const registUrl = 'http://localhost:3333/post/regist';
+  const loginUrl = 'http://localhost:3333/post/login';
   
   const adminUser = {
     username: 'admin_test_flow_' + Math.floor(Math.random() * 1000),
@@ -38,7 +38,7 @@ async function testPostFlow() {
 
     // Step 1: POST /admin/house
     console.log('Sending Step 1: POST /admin/house...');
-    const houseRes = await fetch('http://172.20.32.31:3333/admin/house', {
+    const houseRes = await fetch('http://localhost:3333/admin/house', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -67,7 +67,7 @@ async function testPostFlow() {
 
     // Step 2: POST /admin/resident
     console.log('Sending Step 2: POST /admin/resident...');
-    const residentRes = await fetch('http://172.20.32.31:3333/admin/resident', {
+    const residentRes = await fetch('http://localhost:3333/admin/resident', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -1,7 +1,7 @@
 async function testRoles() {
-  const registUrl = 'http://172.20.32.31:3333/post/regist';
-  const loginUrl = 'http://172.20.32.31:3333/post/login';
-  const targetUrl = 'http://172.20.32.31:3333/admin/resident';
+  const registUrl = 'http://localhost:3333/post/regist';
+  const loginUrl = 'http://localhost:3333/post/login';
+  const targetUrl = 'http://localhost:3333/admin/resident';
 
   const roles = ['rt', 'RT', 'admin', 'ADMIN', 'warga', 'Warga'];
 

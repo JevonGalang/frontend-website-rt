@@ -87,7 +87,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
+      const res = await fetch('http://localhost:3333/resident/pengajuan', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return;
@@ -122,7 +122,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
     if (token) {
       try {
-        const response = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
+        const response = await fetch('http://localhost:3333/resident/pengajuan', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

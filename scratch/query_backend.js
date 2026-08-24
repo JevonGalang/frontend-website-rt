@@ -1,6 +1,6 @@
 async function queryBackend() {
-  const registUrl = 'http://172.20.32.31:3333/post/regist';
-  const loginUrl = 'http://172.20.32.31:3333/post/login';
+  const registUrl = 'http://localhost:3333/post/regist';
+  const loginUrl = 'http://localhost:3333/post/login';
   
   // Register an admin user
   const adminUser = {
@@ -35,9 +35,9 @@ async function queryBackend() {
     if (!token) return;
 
     const endpoints = [
-      { name: 'GET resident', url: 'http://172.20.32.31:3333/admin/resident' },
-      { name: 'GET house', url: 'http://172.20.32.31:3333/admin/house' },
-      { name: 'GET datawarga', url: 'http://172.20.32.31:3333/admin/datawarga' },
+      { name: 'GET resident', url: 'http://localhost:3333/admin/resident' },
+      { name: 'GET house', url: 'http://localhost:3333/admin/house' },
+      { name: 'GET datawarga', url: 'http://localhost:3333/admin/datawarga' },
     ];
 
     for (const ep of endpoints) {
