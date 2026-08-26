@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
+import OtpVerificationModal from './OtpVerificationModal';
 import Swal from 'sweetalert2';
 import { io } from '../utils/liveSocket';
 import logoGSP from '../assets/logoGSP.png';
@@ -2571,63 +2572,15 @@ export default function AdminDashboard({
     username: '', password: '', email: '', role: 'warga'
   });
 
-  // Email OTP Verification Modal States
+  // Email OTP Verification Modal States (Flow 1)
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpEmail, setOtpEmail] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
-  const [otpTimer, setOtpTimer] = useState(60);
-  const [otpError, setOtpError] = useState('');
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpTargetUserId, setOtpTargetUserId] = useState(null);
+  const [otpTargetEmail, setOtpTargetEmail] = useState('');
+  const [pendingAccountData, setPendingAccountData] = useState(null);
   const [emailFieldError, setEmailFieldError] = useState('');
 
   const isValidEmailFormat = (email) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test((email || '').trim());
-  };
-
-  useEffect(() => {
-    let timerInterval;
-    if (showOtpModal && otpTimer > 0) {
-      timerInterval = setInterval(() => {
-        setOtpTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(timerInterval);
-  }, [showOtpModal, otpTimer]);
-
-  const generateAndSendOtp = async (email) => {
-    setOtpDigits(['', '', '', '', '', '']);
-    setOtpTimer(60);
-    setOtpError('');
-    
-    const targetUserId = parseInt(selectedCitizenForAccount?.id || selectedCitizenForAccount?.family_id || selectedCitizenForAccount?.familyId || 1);
-
-    try {
-      const response = await fetch('http://172.20.32.31:3333/auth/request-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: targetUserId,
-          email: (email || '').trim(),
-          purpose: 'VERIFICATION'
-        })
-      });
-
-      const resData = await response.json();
-      if (!response.ok || resData.success === false) {
-        const errorMsg = resData.pesan || resData.message || resData.error || (resData.errors && resData.errors[0]?.message) || 'Gagal mengirimkan kode OTP ke email.';
-        setOtpError(errorMsg);
-        return { success: false, message: errorMsg };
-      }
-      return { success: true };
-    } catch (e) {
-      console.warn('Request OTP API error:', e);
-      const networkError = `Koneksi gagal: ${e.message}`;
-      setOtpError(networkError);
-      return { success: false, message: networkError };
-    }
   };
 
   // Global Copy Helper for SweetAlert2 HTML buttons
@@ -3060,113 +3013,8 @@ export default function AdminDashboard({
       return;
     }
 
-    // Pre-check & Request OTP (Cek email duplikat di backend sebelum buka modal OTP)
-    const cleanEmail = accountForm.email.trim();
-    setOtpEmail(cleanEmail);
-    const otpResult = await generateAndSendOtp(cleanEmail);
-
-    if (!otpResult || !otpResult.success) {
-      const errMsg = otpResult?.message || 'Gagal mengirimkan kode OTP.';
-      if (errMsg.toLowerCase().includes('email') || errMsg.toLowerCase().includes('terdaftar')) {
-        setEmailFieldError(errMsg);
-      } else {
-        setFormError(errMsg);
-      }
-      return;
-    }
-
-    // Buka pop-up modal OTP hanya jika request-otp berhasil
-    setModalType('');
-    setShowOtpModal(true);
-  };
-
-  const handleOtpInputChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = value.substring(value.length - 1);
-    setOtpDigits(newDigits);
-    setOtpError('');
-
-    if (value && index < 5) {
-      const nextInput = document.getElementById(`otp-input-${index + 1}`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      const prevInput = document.getElementById(`otp-input-${index - 1}`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const handleOtpPaste = (e) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').trim().replace(/\D/g, '');
-    if (pastedData.length > 0) {
-      const digits = pastedData.slice(0, 6).split('');
-      const newDigits = ['', '', '', '', '', ''];
-      digits.forEach((digit, i) => {
-        newDigits[i] = digit;
-      });
-      setOtpDigits(newDigits);
-      setOtpError('');
-      const lastIndex = Math.min(digits.length - 1, 5);
-      const lastInput = document.getElementById(`otp-input-${lastIndex}`);
-      if (lastInput) lastInput.focus();
-    }
-  };
-
-  const handleVerifyOtpSubmit = async (e) => {
-    if (e) e.preventDefault();
-    const enteredCode = otpDigits.join('');
-    if (enteredCode.length < 6) {
-      setOtpError('Harap masukkan 6 digit kode OTP secara lengkap.');
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-    setOtpError('');
-
-    const targetUserId = parseInt(selectedCitizenForAccount?.id || selectedCitizenForAccount?.family_id || selectedCitizenForAccount?.familyId || 1);
-
-    try {
-      const response = await fetch('http://172.20.32.31:3333/auth/verify-otp', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          userId: targetUserId,
-          otp: enteredCode,
-          purpose: 'VERIFICATION'
-        })
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok || resData.success === false) {
-        setOtpError(resData.pesan || resData.message || 'Kode OTP tidak valid atau sudah kedaluwarsa.');
-        setIsVerifyingOtp(false);
-        return;
-      }
-
-      // OTP Verification Success -> Perform final account registration
-      await performFinalAccountRegistration();
-
-    } catch (err) {
-      console.warn('Verify OTP API error:', err);
-      setOtpError('Gagal memverifikasi kode OTP ke server.');
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const performFinalAccountRegistration = async () => {
-    if (!selectedCitizenForAccount) return;
-
-    setIsVerifyingOtp(true);
     const targetFamilyId = selectedCitizenForAccount.family_id || selectedCitizenForAccount.fammilyId || selectedCitizenForAccount.familyId || selectedCitizenForAccount.id;
-    const citizenName = selectedCitizenForAccount.name || 'Warga';
+    const citizenName = selectedCitizenForAccount.name || selectedCitizenForAccount.nama || 'Warga';
 
     setIsCreatingAccount(true);
     setLoadingAccountId(selectedCitizenForAccount.id);
@@ -3183,7 +3031,7 @@ export default function AdminDashboard({
           familyId: parseInt(targetFamilyId),
           username: accountForm.username.trim(),
           password: accountForm.password,
-          email: accountForm.email ? accountForm.email.trim() : undefined
+          email: accountForm.email.trim()
         })
       });
 
@@ -3191,7 +3039,6 @@ export default function AdminDashboard({
 
       // 409 Conflict / Username Taken
       if (response.status === 409) {
-        setShowOtpModal(false);
         const conflictMsg = (resData.pesan || resData.message || resData.error || '').toLowerCase();
         if (conflictMsg.includes('username')) {
           setUsernameFieldError('Username sudah digunakan. Silakan pilih username lain.');
@@ -3213,10 +3060,9 @@ export default function AdminDashboard({
 
       // Other Server Errors
       if (!response.ok) {
-        setShowOtpModal(false);
         const errorText = resData.pesan || resData.message || resData.error || (resData.errors && resData.errors[0]?.message) || 'Terjadi kesalahan pada server.';
         Swal.fire({
-          title: 'Gagal Membuat Akun',
+          title: 'Gagal Mendaftarkan Akun',
           text: errorText,
           icon: 'error',
           confirmButtonColor: '#ef4444',
@@ -3228,59 +3074,28 @@ export default function AdminDashboard({
         return;
       }
 
-      // Success
+      // Extract userId from response
       const output = resData.output || resData;
-      const createdUsername = output.username || accountForm.username.trim();
-      const createdPassword = output.temporaryPassword || output.password || accountForm.password;
+      const createdUserId = resData.userId || output.userId || output.user?.id || output.id || resData.id || resData.user?.id;
+      const createdUsername = output.username || resData.username || accountForm.username.trim();
+      const createdPassword = output.temporaryPassword || output.password || resData.temporaryPassword || resData.password || accountForm.password;
 
-      setShowOtpModal(false);
+      // Save pending account details for credential display and state refresh AFTER OTP succeeds
+      setPendingAccountData({
+        citizen: selectedCitizenForAccount,
+        familyId: targetFamilyId,
+        username: createdUsername,
+        password: createdPassword,
+        citizenName
+      });
+
+      // Close registration form modal & open OTP verification popup with userId attached
       setModalType('');
+      setOtpTargetUserId(createdUserId);
+      setOtpTargetEmail(accountForm.email.trim());
+      setShowOtpModal(true);
 
-      Swal.fire({
-        title: 'Akun Berhasil Dibuat 🎉',
-        text: 'Akun berhasil dibuat. Silakan berikan informasi login kepada warga.',
-        icon: 'success',
-        confirmButtonColor: '#10b981',
-        customClass: {
-          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-          title: 'text-lg font-black text-slate-900 dark:text-white'
-        }
-      });
-
-      // Save created account permanently to local storage registry so it never gets lost or overwritten
-      saveCreatedAccount(selectedCitizenForAccount, targetFamilyId, createdUsername, createdPassword);
-
-      const targetCitizenId = selectedCitizenForAccount.id || selectedCitizenForAccount.warga_id;
-      const targetCitizenNik = selectedCitizenForAccount.nik;
-      const cleanSelectedName = cleanNameStr(selectedCitizenForAccount.name || selectedCitizenForAccount.nama);
-
-      // Update state without reload ONLY for this citizen
-      const updatedWargaList = wargaList.map(item => {
-        const isMatch = (targetCitizenId && (item.id === targetCitizenId || item.warga_id === targetCitizenId)) || 
-                        (targetCitizenNik && item.nik === targetCitizenNik) ||
-                        (!targetCitizenId && !targetCitizenNik && cleanSelectedName && cleanNameStr(item.name || item.nama) === cleanSelectedName);
-        if (isMatch) {
-          return {
-            ...item,
-            username: createdUsername,
-            account_username: createdUsername,
-            password: createdPassword,
-            has_account: true,
-            account_created: true,
-            account_id: output.account_id || output.id || item.account_id || true
-          };
-        }
-        return item;
-      });
-      setWargaList(updatedWargaList);
-      try {
-        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
-      } catch (e) {}
-
-      if (fetchResidentServerList) fetchResidentServerList();
-      if (fetchWargaListFromServer) fetchWargaListFromServer();
     } catch (err) {
-      setShowOtpModal(false);
       Swal.fire({
         title: 'Koneksi Gagal',
         text: `Gagal terhubung ke server: ${err.message}`,
@@ -3293,9 +3108,55 @@ export default function AdminDashboard({
       });
     } finally {
       setIsCreatingAccount(false);
-      setIsVerifyingOtp(false);
       setLoadingAccountId(null);
     }
+  };
+
+  const handleOtpVerificationSuccess = (verifyResData) => {
+    setShowOtpModal(false);
+
+    if (!pendingAccountData) return;
+
+    const { citizen, familyId, username, password, citizenName } = pendingAccountData;
+
+    // 1. Show Account Credentials Alert
+    showAccountCredentialsAlert(username, password, citizenName);
+
+    // 2. Persist to local created accounts registry AFTER OTP verified
+    saveCreatedAccount(citizen, familyId, username, password);
+
+    // 3. Refresh citizen state only after OTP is successfully verified
+    const targetCitizenId = citizen.id || citizen.warga_id;
+    const targetCitizenNik = citizen.nik;
+    const cleanSelectedName = cleanNameStr(citizen.name || citizen.nama);
+
+    const updatedWargaList = wargaList.map(item => {
+      const isMatch = (targetCitizenId && (item.id === targetCitizenId || item.warga_id === targetCitizenId)) || 
+                      (targetCitizenNik && item.nik === targetCitizenNik) ||
+                      (!targetCitizenId && !targetCitizenNik && cleanSelectedName && cleanNameStr(item.name || item.nama) === cleanSelectedName);
+      if (isMatch) {
+        return {
+          ...item,
+          username: username,
+          account_username: username,
+          password: password,
+          has_account: true,
+          account_created: true,
+          is_verified: 1
+        };
+      }
+      return item;
+    });
+
+    setWargaList(updatedWargaList);
+    try {
+      localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
+    } catch (e) {}
+
+    if (typeof fetchResidentServerList === 'function') fetchResidentServerList();
+    if (typeof fetchWargaListFromServer === 'function') fetchWargaListFromServer();
+
+    setPendingAccountData(null);
   };
 
   const [kasForm, setKasForm] = useState({
@@ -12159,129 +12020,20 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* 4. EMAIL OTP VERIFICATION POP-UP CARD */}
-      {showOtpModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div 
-            className="absolute inset-0 bg-slate-950/70 backdrop-blur-md transition-opacity animate-fade-in"
-            onClick={() => { setShowOtpModal(false); setModalType('register_account'); }}
-          ></div>
-
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-emerald-500/30 shadow-2xl overflow-hidden z-10 animate-scale-up p-6 sm:p-7 space-y-6">
-            {/* Top Accent Gradient Bar */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500"></div>
-
-            {/* Close Button */}
-            <button 
-              onClick={() => { setShowOtpModal(false); setModalType('register_account'); }}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-full cursor-pointer transition-all hover:scale-105 active:scale-95"
-              title="Tutup Modal OTP"
-            >
-              <XIcon className="w-4 h-4" />
-            </button>
-
-            {/* Header Info */}
-            <div className="text-center space-y-3 pt-2">
-              <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 border border-emerald-500/40 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/10">
-                <Mail className="w-7 h-7 text-emerald-600 dark:text-emerald-400 animate-pulse" />
-              </div>
-              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-                Verifikasi Kode OTP Email
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium px-2">
-                Masukkan 6 digit kode verifikasi OTP yang telah dikirimkan ke alamat email warga:
-              </p>
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-emerald-800 dark:text-emerald-300 font-mono font-bold text-xs">
-                <span>📧</span>
-                <span>{otpEmail}</span>
-              </div>
-            </div>
-
-            {/* OTP Form */}
-            <form onSubmit={handleVerifyOtpSubmit} className="space-y-5">
-              {/* 6 Digit Inputs */}
-              <div className="flex justify-center gap-1.5 sm:gap-2.5" onPaste={handleOtpPaste}>
-                {otpDigits.map((digit, index) => (
-                  <input
-                    key={index}
-                    id={`otp-input-${index}`}
-                    name={`otp-code-${index}`}
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    aria-label={`Digit OTP ke-${index + 1}`}
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpInputChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-mono font-black rounded-xl border-2 outline-none p-0 transition-all ${
-                      digit 
-                        ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/20' 
-                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
-                    }`}
-                    autoFocus={index === 0}
-                  />
-                ))}
-              </div>
-
-              {/* Error message */}
-              {otpError && (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{otpError}</span>
-                </div>
-              )}
-
-              {/* Resend Timer / Button */}
-              <div className="text-center pt-1">
-                {otpTimer > 0 ? (
-                  <p className="text-xs text-slate-400 font-semibold flex items-center justify-center gap-1.5">
-                    <span>Tidak menerima kode? Kirim ulang dalam</span>
-                    <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{otpTimer}s</span>
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => generateAndSendOtp(otpEmail)}
-                    className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center justify-center gap-1.5 mx-auto hover:underline cursor-pointer bg-emerald-500/10 px-3.5 py-1.5 rounded-xl transition-all active:scale-95"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>⚡ Kirim Ulang Kode OTP</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => { setShowOtpModal(false); setModalType('register_account'); }}
-                  className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={otpDigits.join('').length < 6 || isVerifyingOtp}
-                  className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-                >
-                  {isVerifyingOtp ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Memverifikasi...</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShieldCheck className="w-4 h-4" />
-                      <span>Verifikasi & Buat Akun</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 4. EMAIL OTP VERIFICATION POP-UP MODAL (FLOW 1) */}
+      <OtpVerificationModal
+        isOpen={showOtpModal}
+        onClose={() => {
+          setShowOtpModal(false);
+          setPendingAccountData(null);
+        }}
+        userId={otpTargetUserId}
+        email={otpTargetEmail}
+        flowType="admin_registration"
+        title={`Verifikasi Akun - ${pendingAccountData?.citizenName || 'Warga'}`}
+        subtitle={`Masukkan 6 digit kode OTP yang telah dikirimkan ke email (${otpTargetEmail || 'terdaftar'}) untuk memverifikasi akun:`}
+        onSuccess={handleOtpVerificationSuccess}
+      />
     </div>
   );
 }
