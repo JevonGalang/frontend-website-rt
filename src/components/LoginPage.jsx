@@ -4,6 +4,7 @@ import {
   Lock, User, LogIn, CheckCircle2, 
   ShieldAlert, Landmark, Sun, Moon
 } from 'lucide-react';
+import OtpVerificationModal from './OtpVerificationModal';
 
 export default function LoginPage({ 
   wargaList = [], 
@@ -14,10 +15,14 @@ export default function LoginPage({
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-
+  const [unverifiedOtpState, setUnverifiedOtpState] = useState({
+    isOpen: false,
+    userId: null,
+    email: ''
+  });
 
   const handleLoginSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     setError('');
     setSuccess('');
 
@@ -46,6 +51,22 @@ export default function LoginPage({
       });
 
       const resData = await response.json();
+
+      // FLOW 2: Check for unverified status
+      const isUnverified = (resData.status && String(resData.status).toLowerCase() === 'unverified') ||
+                           (resData.message && String(resData.message).toLowerCase().includes('unverified'));
+      const unverifiedUserId = resData.userId || resData.output?.userId || resData.user?.id || resData.id;
+
+      if (isUnverified && unverifiedUserId) {
+        setError('');
+        setUnverifiedOtpState({
+          isOpen: true,
+          userId: unverifiedUserId,
+          email: resData.email || resData.user?.email || ''
+        });
+        return;
+      }
+
       if (!response.ok) {
         setError(resData.message || resData.status || 'Username atau password salah.');
         return;
@@ -88,6 +109,32 @@ export default function LoginPage({
     } catch (err) {
       console.warn('API Login offline/error:', err);
       setError('Gagal menghubungkan ke server API.');
+    }
+  };
+
+  const handleOtpSuccess = () => {
+    setUnverifiedOtpState({ isOpen: false, userId: null, email: '' });
+
+    // Flow 2: Use in-memory state only. If credentials exist in React state, re-trigger login.
+    if (loginData.username && loginData.password) {
+      Swal.fire({
+        title: 'Verifikasi Berhasil! 🎉',
+        text: 'Akun Anda telah aktif. Melanjutkan proses login otomatis...',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      setTimeout(() => {
+        handleLoginSubmit();
+      }, 600);
+    } else {
+      Swal.fire({
+        title: 'Verifikasi Berhasil! 🎉',
+        text: 'Akun Anda telah berhasil diverifikasi. Silakan masukkan kata sandi Anda untuk masuk.',
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Masuk Sekarang'
+      });
     }
   };
 
@@ -242,6 +289,18 @@ export default function LoginPage({
           
         </div>
       </div>
+
+      {/* OTP Verification Modal for Unverified Citizen Login (Flow 2) */}
+      <OtpVerificationModal
+        isOpen={unverifiedOtpState.isOpen}
+        onClose={() => setUnverifiedOtpState({ isOpen: false, userId: null, email: '' })}
+        userId={unverifiedOtpState.userId}
+        email={unverifiedOtpState.email}
+        flowType="user_login"
+        title="Verifikasi Akun Warga"
+        subtitle="Akun Anda belum diverifikasi. Kode OTP baru telah otomatis dikirimkan ke email Anda. Masukkan 6 digit kode OTP untuk mengaktifkan akun:"
+        onSuccess={handleOtpSuccess}
+      />
     </div>
   );
 }

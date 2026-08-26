@@ -1,6 +1,7 @@
 import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { X, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldAlert } from 'lucide-react';
+import OtpVerificationModal from './OtpVerificationModal';
 
 export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -19,14 +20,19 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
   
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [unverifiedOtpState, setUnverifiedOtpState] = useState({
+    isOpen: false,
+    userId: null,
+    email: ''
+  });
 
   if (!isOpen) return null;
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
+  const handleLoginSubmit = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     setError('');
 
-    // Check for admin
+    // Check for admin local shortcut
     if (loginData.username.toLowerCase() === 'admin' && loginData.password === 'admin') {
       const adminUser = {
         id: 'ADM-001',
@@ -44,7 +50,66 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       return;
     }
 
-    // Check for warga in wargaList
+    // Call API Login to check credentials & verification status
+    try {
+      const response = await fetch('http://172.20.32.31:3333/post/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: loginData.username,
+          password: loginData.password
+        })
+      });
+
+      const resData = await response.json();
+
+      // FLOW 2: Check for unverified status
+      const isUnverified = (resData.status && String(resData.status).toLowerCase() === 'unverified') ||
+                           (resData.message && String(resData.message).toLowerCase().includes('unverified'));
+      const unverifiedUserId = resData.userId || resData.output?.userId || resData.user?.id || resData.id;
+
+      if (isUnverified && unverifiedUserId) {
+        setError('');
+        setUnverifiedOtpState({
+          isOpen: true,
+          userId: unverifiedUserId,
+          email: resData.email || resData.user?.email || ''
+        });
+        return;
+      }
+
+      if (response.ok && resData.token && resData.user) {
+        setSuccess('Login Berhasil! Mengalihkan...');
+        try {
+          localStorage.setItem('rt_token', resData.token);
+          localStorage.setItem('rt_token_time', new Date().getTime().toString());
+        } catch (e) {}
+
+        const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
+        const citizenUser = {
+          ...localCitizen,
+          id: resData.user.id,
+          username: resData.user.username,
+          email: resData.user.email,
+          role: resData.user.role,
+          familyId: resData.user.family_id,
+          must_change_password: resData.user.must_change_password,
+          name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
+        };
+
+        setCurrentUser(citizenUser);
+        localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
+        setTimeout(() => {
+          setSuccess('');
+          onClose();
+        }, 1000);
+        return;
+      }
+    } catch (err) {
+      console.warn('API Login check skipped or error:', err);
+    }
+
+    // Fallback check for warga in local wargaList
     const citizen = wargaList.find(
       (w) =>
         (w.username.toLowerCase() === loginData.username.toLowerCase() || w.nik === loginData.username) &&
@@ -66,6 +131,32 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       }, 1200);
     } else {
       setError('Username/NIK atau Password salah. Silakan coba lagi.');
+    }
+  };
+
+  const handleOtpSuccess = () => {
+    setUnverifiedOtpState({ isOpen: false, userId: null, email: '' });
+
+    // Flow 2: Use in-memory state only. If credentials exist in React state, re-trigger login.
+    if (loginData.username && loginData.password) {
+      Swal.fire({
+        title: 'Verifikasi Berhasil! 🎉',
+        text: 'Akun Anda telah aktif. Melanjutkan proses login otomatis...',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+      });
+      setTimeout(() => {
+        handleLoginSubmit();
+      }, 600);
+    } else {
+      Swal.fire({
+        title: 'Verifikasi Berhasil! 🎉',
+        text: 'Akun Anda telah berhasil diverifikasi. Silakan masukkan kata sandi Anda untuk masuk.',
+        icon: 'success',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Masuk Sekarang'
+      });
     }
   };
 
@@ -483,6 +574,18 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           )}
         </div>
       </div>
+
+      {/* OTP Verification Modal for Unverified Citizen Login (Flow 2) */}
+      <OtpVerificationModal
+        isOpen={unverifiedOtpState.isOpen}
+        onClose={() => setUnverifiedOtpState({ isOpen: false, userId: null, email: '' })}
+        userId={unverifiedOtpState.userId}
+        email={unverifiedOtpState.email}
+        flowType="user_login"
+        title="Verifikasi Akun Warga"
+        subtitle="Akun Anda belum diverifikasi. Kode OTP baru telah otomatis dikirimkan ke email Anda. Masukkan 6 digit kode OTP untuk mengaktifkan akun:"
+        onSuccess={handleOtpSuccess}
+      />
     </div>
   );
 }
