@@ -1,4 +1,4 @@
-async function testFinance() {
+﻿async function testFinance() {
   const registUrl = 'http://172.20.32.31:3333/post/debug-regist';
   const loginUrl = 'http://172.20.32.31:3333/post/login';
   

@@ -1,4 +1,4 @@
-async function testPatchResident() {
+﻿async function testPatchResident() {
   const registUrl = 'http://172.20.32.31:3333/post/regist';
   const loginUrl = 'http://172.20.32.31:3333/post/login';
   

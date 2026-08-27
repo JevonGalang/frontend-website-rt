@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Lock, KeyRound, AlertCircle, CheckCircle2, Loader2, Sun, Moon } from 'lucide-react';
 
 export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, darkMode, setDarkMode }) {

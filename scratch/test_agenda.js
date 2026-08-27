@@ -1,4 +1,4 @@
-const registUrl = 'http://172.20.32.31:3333/post/debug-regist';
+﻿const registUrl = 'http://172.20.32.31:3333/post/debug-regist';
 const loginUrl = 'http://172.20.32.31:3333/post/login';
 
 async function runTests() {

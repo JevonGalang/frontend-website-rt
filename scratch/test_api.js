@@ -1,4 +1,4 @@
-async function testEndpoints() {
+﻿async function testEndpoints() {
   const urls = [
     { name: 'GET resident', url: 'http://172.20.32.31:3333/admin/resident', method: 'GET' },
     { name: 'GET house', url: 'http://172.20.32.31:3333/admin/house', method: 'GET' },

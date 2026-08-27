@@ -1,4 +1,4 @@
-async function testAuth() {
+﻿async function testAuth() {
   const loginUrl = 'http://172.20.32.31:3333/post/login';
   const targetUrl = 'http://172.20.32.31:3333/admin/resident';
 

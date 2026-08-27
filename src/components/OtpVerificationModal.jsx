@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { Mail, RefreshCw, Loader2, ShieldCheck, AlertCircle, CheckCircle2, X as XIcon } from 'lucide-react';
 
 export default function OtpVerificationModal({
