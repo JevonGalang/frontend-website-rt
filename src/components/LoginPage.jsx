@@ -1,10 +1,12 @@
-﻿import Swal from 'sweetalert2';
+import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { 
   Lock, User, LogIn, CheckCircle2, 
   ShieldAlert, Landmark, Sun, Moon
 } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
+import logoRW11 from '../assets/logo_rw11.png';
+import logoDepok from '../assets/logo_depok.png';
 
 export default function LoginPage({ 
   wargaList = [], 
@@ -93,7 +95,7 @@ export default function LoginPage({
         role: resData.user.role,
         familyId: resData.user.family_id,
         must_change_password: resData.user.must_change_password,
-        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
+        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Moch. Taufik)' : resData.user.username)
       };
 
       setTimeout(() => {
@@ -132,7 +134,7 @@ export default function LoginPage({
         title: 'Verifikasi Berhasil! 🎉',
         text: 'Akun Anda telah berhasil diverifikasi. Silakan masukkan kata sandi Anda untuk masuk.',
         icon: 'success',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#f97316',
         confirmButtonText: 'Masuk Sekarang'
       });
     }
@@ -142,8 +144,8 @@ export default function LoginPage({
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/90 flex flex-col justify-center relative overflow-hidden font-sans">
       
       {/* Decorative background ambient blobs */}
-      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
-      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
 
       {/* Floating Theme Toggle (Top Right) */}
       <div className="absolute top-6 right-6 z-50">
@@ -162,22 +164,23 @@ export default function LoginPage({
           {/* Brand Left Column */}
           <div className="lg:col-span-6 space-y-6">
             <div className="flex items-center gap-3">
-              <div className="p-3 bg-gradient-to-tr from-emerald-600 to-teal-500 rounded-2xl shadow-lg shadow-emerald-500/10 text-white">
-                <Landmark className="w-8 h-8" />
+              <div className="flex items-center gap-1.5 py-1">
+                <img src={logoDepok} alt="Logo Kota Depok" className="h-9 sm:h-10 w-auto object-contain drop-shadow-xs" />
+                <img src={logoRW11} alt="Logo RW 11" className="h-10 sm:h-11 w-auto object-contain drop-shadow-xs" />
               </div>
               <div className="text-left">
-                <span className="block text-2xl font-black tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
-                  Sawangan Green Park
+                <span className="block text-2xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-amber-500 dark:from-orange-400 dark:to-amber-300 bg-clip-text text-transparent">
+                  Villa Mutiara Mas Cinere
                 </span>
                 <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">
-                  RUKUN TETANGGA 05 / RW 06
+                  RUKUN TETANGGA 05 / RW 11
                 </span>
               </div>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tight">
               Sistem Informasi & <br />
-              <span className="bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">Layanan Warga RT 05</span>
+              <span className="bg-gradient-to-r from-orange-600 to-amber-500 dark:from-orange-400 dark:to-amber-300 bg-clip-text text-transparent">Layanan Warga RT 05</span>
             </h1>
 
             <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
@@ -192,34 +195,27 @@ export default function LoginPage({
               <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 text-slate-600 dark:text-slate-350">
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Nama Wilayah</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">Sawangan Green Park</span>
+                  <span className="font-bold text-slate-850 dark:text-slate-200">Villa Mutiara Mas Cinere</span>
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Kecamatan</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">Sawangan</span>
+                  <span className="font-bold text-slate-850 dark:text-slate-200">Limo / Cinere</span>
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Kota</span>
                   <span className="font-bold text-slate-850 dark:text-slate-200">Depok, Jawa Barat</span>
                 </div>
                 <div>
-                  <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Luas Wilayah</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">± 12.500 m²</span>
+                  <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Cakupan Wilayah</span>
+                  <span className="font-bold text-slate-850 dark:text-slate-200">RT 05 / RW 11</span>
                 </div>
-              </div>
-              
-              <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
-                <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider mb-1">Batas-Batas Lingkungan</span>
-                <p className="text-slate-500 dark:text-slate-405 leading-relaxed text-[11px] font-medium">
-                  Utara: Perumahan BSI | Selatan: Jalan Raya Sawangan | Timur: Sungai Irigasi | Barat: RTH Komplek.
-                </p>
               </div>
             </div>
           </div>
 
           {/* Form Card Right Column */}
           <div className="lg:col-span-6 flex flex-col items-center">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xl shadow-slate-100/40 dark:shadow-none p-6 sm:p-8 space-y-6">
+            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xl shadow-orange-500/5 dark:shadow-none p-6 sm:p-8 space-y-6">
               
               {/* Form header */}
               <div className="text-center space-y-1.5">
@@ -243,7 +239,7 @@ export default function LoginPage({
 
               {/* Login Form */}
               <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs font-sans">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 text-left">
                   <label className="font-bold text-slate-500 dark:text-slate-400">Username atau NIK</label>
                   <div className="relative">
                     <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -253,12 +249,12 @@ export default function LoginPage({
                       placeholder="Masukkan username atau NIK"
                       value={loginData.username}
                       onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 text-left">
                   <label className="font-bold text-slate-500 dark:text-slate-400">Kata Sandi</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -268,17 +264,17 @@ export default function LoginPage({
                       placeholder="Masukkan kata sandi"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
                     />
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold rounded-xl cursor-pointer hover:shadow-lg hover:shadow-emerald-600/10 transition-all text-xs flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-[0.99] text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 hover:shadow-orange-500/30 transition-all cursor-pointer text-xs flex items-center justify-center gap-2"
                 >
                   <LogIn className="w-4 h-4" />
-                  <span>Masuk ke Portal</span>
+                  <span>MASUK SEKARANG</span>
                 </button>
               </form>
 

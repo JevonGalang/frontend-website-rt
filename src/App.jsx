@@ -1,4 +1,5 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import { Globe, Play, MessageCircle } from 'lucide-react';
 import { io } from './utils/liveSocket';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
@@ -474,15 +475,102 @@ export default function App() {
         {currentPage === 'kontak' && <Kontak />}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-slate-900 text-slate-400 py-12 border-t border-slate-800 text-center text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
-          <p className="font-semibold text-slate-300">
-            © {new Date().getFullYear()} RT 05 / RW 06 - Perumahan Sawangan Green Park. All Rights Reserved.
-          </p>
-          <p className="max-w-md mx-auto text-[10px] text-slate-500">
-            Website portal informasi ini dirancang khusus untuk mempermudah pelayanan administrasi warga klaster Sawangan Green Park secara mandiri, cepat, dan transparan.
-          </p>
+      {/* ═══════════════════════════════════════════════════════════════════
+          PREMIUM GOLDEN FOOTER (PENGURUS RW 011 VILA MUTIARA CINERE)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <footer className="relative bg-[#060c1d] dark:bg-[#030611] text-white pt-10 pb-20 lg:pb-10 border-t-2 border-[#d6a354]/40 font-sans overflow-hidden">
+        {/* Subtle background golden ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-24 bg-amber-500/5 blur-3xl pointer-events-none -z-0"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
+          
+          {/* Top Center Ornate Gold Plaque */}
+          <div className="flex justify-center">
+            <div className="relative inline-block group">
+              {/* Outer Golden Border & Shadow */}
+              <div className="relative px-8 sm:px-12 py-3 rounded-full bg-gradient-to-b from-[#eec98d] via-[#dfa55d] to-[#bf853b] border-2 border-[#fae8c8] shadow-xl shadow-black/50 text-center">
+                {/* Inner Decorative Stroke */}
+                <div className="absolute inset-1 rounded-full border border-[#8a5717]/40 pointer-events-none"></div>
+                
+                <span className="block font-black text-xs sm:text-sm md:text-base text-[#2c1a05] uppercase tracking-[0.18em] leading-tight drop-shadow-xs font-serif">
+                  PENGURUS RW 011
+                </span>
+                <span className="block text-[11px] sm:text-xs font-bold text-[#3d2407] tracking-wider mt-0.5 font-serif">
+                  Vila Mutiara Cinere
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Golden Horizontal Hairline Divider */}
+          <div className="w-full max-w-5xl mx-auto h-[1px] bg-gradient-to-r from-transparent via-[#d6a354]/40 to-transparent"></div>
+
+          {/* Social Media & Contact Links Row */}
+          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 md:gap-12 text-xs sm:text-sm font-semibold text-slate-200">
+            
+            {/* 1. Website */}
+            <a
+              href="https://s.id/erwesebelas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full border border-white/20 bg-white/5 group-hover:border-[#eec98d] group-hover:bg-amber-500/10 flex items-center justify-center text-white group-hover:text-[#eec98d] transition-all">
+                <Globe className="w-4 h-4" />
+              </div>
+              <span className="font-mono text-xs">https://s.id/erwesebelas</span>
+            </a>
+
+            {/* 2. YouTube */}
+            <a
+              href="https://www.youtube.com/@erwesebelaskita"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-white text-[#060c1d] group-hover:bg-[#eec98d] flex items-center justify-center transition-all shadow-sm">
+                <Play className="w-4 h-4 fill-current ml-0.5" />
+              </div>
+              <span className="text-xs">@erwesebelaskita</span>
+            </a>
+
+            {/* 3. TikTok */}
+            <a
+              href="https://tiktok.com/@erwesebelas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-white text-[#060c1d] group-hover:bg-[#eec98d] flex items-center justify-center transition-all shadow-sm">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                </svg>
+              </div>
+              <span className="text-xs">@erwesebelas</span>
+            </a>
+
+            {/* 4. WhatsApp */}
+            <a
+              href="https://wa.me/6285609090903"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full border border-white/20 bg-white/5 group-hover:border-[#eec98d] group-hover:bg-amber-500/10 flex items-center justify-center text-white group-hover:text-[#eec98d] transition-all">
+                <MessageCircle className="w-4 h-4" />
+              </div>
+              <span className="font-mono text-xs">+62 856-0909-0903</span>
+            </a>
+
+          </div>
+
+          {/* Copyright Sub-note */}
+          <div className="pt-4 text-center">
+            <p className="text-[10px] text-slate-500">
+              © {new Date().getFullYear()} RT 05 / RW 11 • Perumahan Villa Mutiara Mas Cinere, Depok.
+            </p>
+          </div>
+
         </div>
       </footer>
     </div>
