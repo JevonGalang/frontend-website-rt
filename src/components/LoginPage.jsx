@@ -5,6 +5,7 @@ import {
   ShieldAlert, Landmark, Sun, Moon
 } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
+import { setSession } from '../utils/authSession';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
 
@@ -76,14 +77,6 @@ export default function LoginPage({
 
       setSuccess('Login Berhasil! Mengalihkan...');
       
-      // Save token (JWT) to localStorage valid for 1 day
-      try {
-        localStorage.setItem('rt_token', resData.token);
-        localStorage.setItem('rt_token_time', new Date().getTime().toString());
-      } catch (e) {
-        console.warn('localStorage is blocked or unavailable:', e);
-      }
-
       // Merge local rich citizen data if exists
       const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
       
@@ -98,13 +91,10 @@ export default function LoginPage({
         name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Moch. Taufik)' : resData.user.username)
       };
 
+      setSession(userSession, resData.token);
+
       setTimeout(() => {
         setCurrentUser(userSession);
-        try {
-          localStorage.setItem('rt_current_user', JSON.stringify(userSession));
-        } catch (e) {
-          console.warn('localStorage is blocked or unavailable:', e);
-        }
       }, 1000);
       return;
 

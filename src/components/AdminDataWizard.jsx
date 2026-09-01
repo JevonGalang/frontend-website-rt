@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Home, Users, UserPlus, ChevronRight, Check, AlertCircle,
   Loader2, RotateCcw, ClipboardList, ChevronDown, ChevronUp,
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import DateInput from './DateInput';
 import Swal from 'sweetalert2';
+import { getSessionToken } from '../utils/authSession';
 
 const API_BASE = 'http://172.20.32.31:3333';
 
@@ -128,7 +129,7 @@ export default function AdminDataWizard() {
   // Fetch residents list
   const fetchResidents = async () => {
     setIsLoadingResidents(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/resident`, {
         headers: {
@@ -189,7 +190,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep1 = async () => {
     if (!validateStep1()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/house`, {
         method: 'POST',
@@ -232,7 +233,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep2 = async () => {
     if (!validateStep2()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/resident`, {
         method: 'POST',
@@ -275,7 +276,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep3 = async () => {
     if (!validateStep3()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/datawarga`, {
         method: 'POST',
@@ -317,7 +318,7 @@ export default function AdminDataWizard() {
   const handleCreateWargaAccount = async () => {
     if (!familyId) return;
     setIsCreatingAccount(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/create-account`, {
         method: 'POST',
@@ -370,7 +371,7 @@ export default function AdminDataWizard() {
     }
 
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const payload = {
         house: {

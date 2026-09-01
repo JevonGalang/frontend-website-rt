@@ -1,7 +1,8 @@
-﻿import Swal from 'sweetalert2';
+import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { X, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldAlert } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
+import { setSession } from '../utils/authSession';
 
 export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -40,8 +41,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         username: 'admin',
         role: 'admin',
       };
+      setSession(adminUser, 'dummy_admin_token');
       setCurrentUser(adminUser);
-      localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
       setSuccess('Login Admin Berhasil! Mengalihkan...');
       setTimeout(() => {
         setSuccess('');
@@ -80,10 +81,6 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
       if (response.ok && resData.token && resData.user) {
         setSuccess('Login Berhasil! Mengalihkan...');
-        try {
-          localStorage.setItem('rt_token', resData.token);
-          localStorage.setItem('rt_token_time', new Date().getTime().toString());
-        } catch (e) {}
 
         const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
         const citizenUser = {
@@ -97,8 +94,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
         };
 
+        setSession(citizenUser, resData.token);
         setCurrentUser(citizenUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
         setTimeout(() => {
           setSuccess('');
           onClose();
@@ -122,8 +119,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         ...citizen,
         role: 'warga',
       };
+      setSession(citizenUser, 'dummy_citizen_token');
       setCurrentUser(citizenUser);
-      localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
       setSuccess(`Selamat datang kembali, ${citizen.name}!`);
       setTimeout(() => {
         setSuccess('');
@@ -243,8 +240,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       ...newCitizen,
       role: 'warga',
     };
+    setSession(citizenUser, 'dummy_citizen_token');
     setCurrentUser(citizenUser);
-    localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
 
     setSuccess('Registrasi berhasil! Anda telah otomatis masuk.');
     setTimeout(() => {
@@ -277,8 +274,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           username: 'admin',
           role: 'admin',
         };
+        setSession(adminUser, 'dummy_admin_token');
         setCurrentUser(adminUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
         setSuccess('Login Admin Berhasil! Mengalihkan...');
         setTimeout(() => {
           setSuccess('');
@@ -291,8 +288,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         const citizen = wargaList.find((w) => w.username === 'warga');
         if (citizen) {
           const citizenUser = { ...citizen, role: 'warga' };
+          setSession(citizenUser, 'dummy_citizen_token');
           setCurrentUser(citizenUser);
-          localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
           setSuccess(`Selamat datang kembali, ${citizen.name}!`);
           setTimeout(() => {
             setSuccess('');

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Globe, Play, MessageCircle } from 'lucide-react';
 import { io } from './utils/liveSocket';
+import { getSession, getSessionToken, updateSessionUser, clearSession } from './utils/authSession';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -70,26 +71,7 @@ export default function App() {
 
   // Sesi User login
   const [currentUser, setCurrentUser] = useState(() => {
-    try {
-      const data = localStorage.getItem('rt_current_user');
-      const token = localStorage.getItem('rt_token');
-      const tokenTime = localStorage.getItem('rt_token_time');
-      
-      if (token && tokenTime) {
-        const now = new Date().getTime();
-        const oneDay = 24 * 60 * 60 * 1000; // 24 hours
-        if (now - parseInt(tokenTime) > oneDay) {
-          localStorage.removeItem('rt_current_user');
-          localStorage.removeItem('rt_token');
-          localStorage.removeItem('rt_token_time');
-          return null;
-        }
-      }
-      return data ? JSON.parse(data) : null;
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return null;
-    }
+    return getSession()?.user || null;
   });
 
   const [dashboardStats, setDashboardStats] = useState(null);
@@ -147,20 +129,15 @@ export default function App() {
       role: 'warga'
     };
     setCurrentUser(updatedUser);
-    try {
-      localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
-    } catch (e) {}
+    updateSessionUser(updatedUser);
   };
 
   const fetchAgendas = async (query = '') => {
-    let token = null;
-    try {
-      token = localStorage.getItem('rt_token');
-    } catch (e) {}
+    const token = getSessionToken();
     if (!token) return;
 
     try {
-      const user = currentUser || JSON.parse(localStorage.getItem('rt_current_user') || 'null');
+      const user = currentUser || getSession()?.user;
       if (!user) return;
       const isAdmin = ['admin', 'rt', 'sekertaris'].includes(user.role);
       const endpoint = isAdmin ? '/admin/agenda' : '/resident/agenda';
@@ -205,10 +182,7 @@ export default function App() {
 
     fetchAgendas();
 
-    let token = null;
-    try {
-      token = localStorage.getItem('rt_token');
-    } catch (e) {}
+    const token = getSessionToken();
     if (!token) return;
 
     const socketConnection = io('http://172.20.32.31:3333', {

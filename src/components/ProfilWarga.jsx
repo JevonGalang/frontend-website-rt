@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
@@ -188,6 +188,11 @@ export default function ProfilWarga({
   const [isLoadingFamily, setIsLoadingFamily] = useState(false);
   const [familyError, setFamilyError] = useState('');
 
+  // Profil Saya API state (/api/profil-saya)
+  const [profilSayaData, setProfilSayaData] = useState(null);
+  const [isLoadingProfilSaya, setIsLoadingProfilSaya] = useState(false);
+  const [profilSayaError, setProfilSayaError] = useState('');
+
   // Warga announcements state
   const [wargaAnnouncements, setWargaAnnouncements] = useState([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
@@ -218,9 +223,9 @@ export default function ProfilWarga({
   useEffect(() => {
     let token = null;
     try {
-      token = localStorage.getItem('rt_token');
+      token = sessionStorage.getItem('rt_token');
     } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
+      console.warn('sessionStorage is blocked or unavailable:', e);
     }
     if (!token) return;
 
@@ -252,7 +257,8 @@ export default function ProfilWarga({
       if (data.type === 'finance') {
         fetchWargaPayments();
         fetchIplBills();
-      } else if (data.type === 'warga') {
+      } else if (data.type === 'warga' || data.type === 'profile' || data.type === 'resident') {
+        fetchProfilSaya();
         fetchFamilyMembers();
       } else if (data.type === 'pengaduan') {
         fetchCitizenComplaints();
@@ -358,6 +364,102 @@ export default function ProfilWarga({
     return [];
   };
 
+  const fetchProfilSaya = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+
+    setIsLoadingProfilSaya(true);
+    setProfilSayaError('');
+
+    try {
+      let res = await fetch('http://172.20.32.31:3333/api/profil-saya', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        try {
+          const fallbackRes = await fetch('/api/profil-saya', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (fallbackRes.ok) {
+            res = fallbackRes;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        const p = json.output || json.data || json;
+        if (p && typeof p === 'object') {
+          setProfilSayaData(p);
+
+          const formattedStatus = (p.status_rumah === 'pribadi' || p.status_rumah === 'milik sendiri' || p.status_rumah === 'tetap')
+            ? 'Tetap'
+            : (p.status_rumah === 'kontrak' || p.status_rumah === 'sewa' ? 'Kontrak' : (p.status_rumah || 'Tetap'));
+
+          const formattedRtRw = (p.rt && p.rw) ? `${p.rt} / ${p.rw}` : (p.rt ? `RT ${p.rt}` : (p.rw ? `RW ${p.rw}` : (currentUser?.rtRw || '04 / 09')));
+
+          const updatedUser = {
+            ...currentUser,
+            username: p.username || currentUser?.username,
+            name: p.nama || currentUser?.name,
+            nik: p.nik || currentUser?.nik,
+            gender: p.jenis_kelamin || currentUser?.gender,
+            tglLahir: p.tgl_lahir || currentUser?.tglLahir,
+            tanggalLahir: p.tgl_lahir || currentUser?.tanggalLahir,
+            alamat: p.alamat || currentUser?.alamat,
+            house_blok: p.blok || currentUser?.house_blok,
+            house_nomor: p.nomor_rumah || currentUser?.house_nomor,
+            status: formattedStatus,
+            status_rumah: p.status_rumah || currentUser?.status_rumah,
+            noHp: p.no_hp || currentUser?.noHp,
+            email: p.email || currentUser?.email,
+            rtRw: formattedRtRw
+          };
+
+          setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+          try {
+            sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+          } catch (e) {}
+
+          setFormData(prev => ({
+            ...prev,
+            name: p.nama || prev.name,
+            username: p.username || prev.username,
+            nik: p.nik || prev.nik,
+            gender: p.jenis_kelamin || prev.gender,
+            tglLahir: p.tgl_lahir || prev.tglLahir,
+            alamat: p.alamat || prev.alamat,
+            house_blok: p.blok || prev.house_blok,
+            house_nomor: p.nomor_rumah || prev.house_nomor,
+            status: formattedStatus,
+            noHp: p.no_hp || prev.noHp,
+            email: p.email || prev.email
+          }));
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Fetch /api/profil-saya failed:', errData);
+        setProfilSayaError(errData.message || 'Gagal memuat profil saya.');
+      }
+    } catch (err) {
+      console.error('Error fetching /api/profil-saya:', err);
+      setProfilSayaError(err.message);
+    } finally {
+      setIsLoadingProfilSaya(false);
+    }
+  };
+
   const fetchFamilyMembers = async () => {
     const famId = currentUser.familyId || currentUser.family_id;
     if (!famId) return;
@@ -365,7 +467,7 @@ export default function ProfilWarga({
     setIsLoadingFamily(true);
     setFamilyError('');
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setFamilyError('Token tidak ditemukan. Harap login kembali.');
       setIsLoadingFamily(false);
@@ -409,7 +511,7 @@ export default function ProfilWarga({
           pekerjaan: selfMember.pekerjaan || currentUser.pekerjaan || ''
         };
         setCurrentUser(updatedUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
       }
     } catch (err) {
       console.error(err);
@@ -420,7 +522,7 @@ export default function ProfilWarga({
   };
 
   const fetchCitizenComplaints = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
     try {
@@ -446,7 +548,7 @@ export default function ProfilWarga({
   };
 
   const fetchWargaAnnouncements = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingAnnouncements(true);
     try {
@@ -467,7 +569,7 @@ export default function ProfilWarga({
   };
 
   const fetchCitizenSubmissions = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
@@ -489,7 +591,7 @@ export default function ProfilWarga({
   };
 
   const fetchWargaPayments = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingPayments(true);
     setPaymentsError('');
@@ -514,7 +616,7 @@ export default function ProfilWarga({
 
   
   const fetchServerNotifications = async (page = 1, limit = 20) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
@@ -572,7 +674,7 @@ export default function ProfilWarga({
 
   const handleMarkNotifAsRead = async (id) => {
     if (!id) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       let res = await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
@@ -600,7 +702,7 @@ export default function ProfilWarga({
   const handleMarkAllNotifsAsRead = async () => {
     setIsAllNotifRead(true);
     setServerUnreadCount(0);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       let res = await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
@@ -626,7 +728,7 @@ export default function ProfilWarga({
   };
 
   const fetchIplBills = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingIplBills(true);
     setIplBillsError('');
@@ -656,6 +758,7 @@ export default function ProfilWarga({
   };
 
   useEffect(() => {
+    fetchProfilSaya();
     fetchFamilyMembers();
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
@@ -688,8 +791,8 @@ export default function ProfilWarga({
     });
     if (result.isConfirmed) {
       setCurrentUser(null);
-      localStorage.removeItem('rt_current_user');
-      localStorage.removeItem('rt_token');
+      sessionStorage.removeItem('rt_current_user');
+      sessionStorage.removeItem('rt_token');
     }
   };
 
@@ -813,7 +916,7 @@ export default function ProfilWarga({
       foto: formData.foto || currentUser.foto
     };
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (token && (currentUser.id || currentUser.warga_id)) {
       const citizenId = currentUser.id || currentUser.warga_id;
       try {
@@ -853,7 +956,7 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
@@ -895,7 +998,7 @@ export default function ProfilWarga({
       alert('Silakan pilih file dokumen terlebih dahulu.');
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     
     setIsUploadingDoc(true);
@@ -940,7 +1043,7 @@ export default function ProfilWarga({
   };
 
   const handleDownloadDocument = async (documentId, fileName) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
       const response = await fetch(`http://172.20.32.31:3333/resident/sensitifdata/file/${documentId}`, {
@@ -970,7 +1073,7 @@ export default function ProfilWarga({
 
   const fetchKaryawanList = async () => {
     setIsLoadingVoting(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       const response = await fetch('http://172.20.32.31:3333/resident/karyawan', {
@@ -988,7 +1091,7 @@ export default function ProfilWarga({
   };
 
   const fetchVoteResults = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       const response = await fetch('http://172.20.32.31:3333/resident/vote/results', {
@@ -1004,7 +1107,7 @@ export default function ProfilWarga({
   };
 
   const handleCastVote = async (karyawanId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
       const response = await fetch('http://172.20.32.31:3333/resident/vote', {
@@ -1034,7 +1137,7 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
@@ -1082,7 +1185,7 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
@@ -1144,7 +1247,7 @@ export default function ProfilWarga({
     setAddMemberError('');
     setIsAddingMember(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setAddMemberError('Token tidak ditemukan. Harap login kembali.');
       setIsAddingMember(false);
@@ -1231,7 +1334,7 @@ export default function ProfilWarga({
     setIsEditingMember(true);
     setEditMemberError('');
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setEditMemberError('Token tidak ditemukan.');
       setIsEditingMember(false);
@@ -1273,7 +1376,7 @@ export default function ProfilWarga({
     setUploadDocSuccess('');
     setIsUploadingDoc(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setUploadDocError('Token tidak ditemukan. Harap login kembali.');
       setIsUploadingDoc(false);
@@ -1336,7 +1439,7 @@ export default function ProfilWarga({
   };
 
   const handleDownloadSensitifDoc = async (documentId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan.');
       return;
@@ -1361,7 +1464,7 @@ export default function ProfilWarga({
   };
 
   const handleDeleteSensitifDoc = async (documentId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan.');
       return;
@@ -1393,7 +1496,7 @@ export default function ProfilWarga({
     setPaymentSuccess('');
     setIsSubmittingPayment(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setPaymentError('Token tidak ditemukan. Harap login kembali.');
       setIsSubmittingPayment(false);
@@ -1544,7 +1647,7 @@ export default function ProfilWarga({
       statusIuran: 'Lunas'
     };
     setCurrentUser(updatedUser);
-    localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
 
     if (wargaList && setWargaList) {
       const updatedW = wargaList.map(w => {
@@ -1601,16 +1704,20 @@ export default function ProfilWarga({
   const familyHead = familyMembers[0] || null;
 
   // Resolved dynamic values for mock alignment
-  const rtRw = currentUser.rtRw || '04 / 09';
-  const displayNama = currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || 'Warga'));
-  const displayNik = currentUser.nik || (familyHead ? familyHead.nik : '');
-  const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
-  const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
-  const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
-  const displayEmail = currentUser.email || formData.email || '';
-  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
+  const rtRw = (profilSayaData?.rt && profilSayaData?.rw)
+    ? `${profilSayaData.rt} / ${profilSayaData.rw}`
+    : (currentUser.rtRw || '04 / 09');
+  const displayNama = profilSayaData?.nama || (currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || 'Warga')));
+  const displayNik = profilSayaData?.nik || currentUser.nik || (familyHead ? familyHead.nik : '');
+  const displayGender = profilSayaData?.jenis_kelamin || currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
+  const displayAlamat = profilSayaData?.alamat || currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
+  const displayNoHp = profilSayaData?.no_hp || currentUser.noHp || (familyHead ? familyHead.no_hp : '');
+  const displayEmail = profilSayaData?.email || currentUser.email || formData.email || '';
+  const tanggalLahir = profilSayaData?.tgl_lahir || currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
-  const statusRumah = formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap');
+  const statusRumah = profilSayaData?.status_rumah
+    ? (profilSayaData.status_rumah === 'pribadi' || profilSayaData.status_rumah === 'tetap' || profilSayaData.status_rumah === 'milik sendiri' ? 'Tetap' : (profilSayaData.status_rumah === 'kontrak' || profilSayaData.status_rumah === 'sewa' ? 'Kontrak' : profilSayaData.status_rumah))
+    : (formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap'));
   // Safe 4-Category Real-time notifications (IPL, Kegiatan Warga, Jadwal, Kematian)
   const safeWargaList = Array.isArray(wargaList) ? wargaList : [];
   const safeDeceasedWarga = safeWargaList.filter(w => w.statusHidup === 'Meninggal');
@@ -3375,7 +3482,7 @@ export default function ProfilWarga({
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">NIK (KTP)</span>
                       <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
-                        {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
+                        {displayNik ? (displayNik.includes('*') ? displayNik : `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}`) : '3276********1234'}
                       </span>
                     </div>
 
@@ -3410,22 +3517,6 @@ export default function ProfilWarga({
                         <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
                       )}
                     </div>
-
-                    {/* Pekerjaan */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                      <span className="w-36 text-slate-400 font-bold shrink-0">Pekerjaan</span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.pekerjaan}
-                          onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                          placeholder="Pekerjaan saat ini"
-                        />
-                      ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
-                      )}
-                    </div>
                   </div>
                 </div>
 
@@ -3438,6 +3529,34 @@ export default function ProfilWarga({
                       <span className="w-36 text-slate-400 font-bold shrink-0">RT/RW</span>
                       <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
                     </div>
+
+                    {(profilSayaData?.blok || profilSayaData?.nomor_rumah || formData.house_blok || formData.house_nomor) && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                        <span className="w-36 text-slate-400 font-bold shrink-0">Blok / No. Rumah</span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 w-full max-w-md">
+                            <input
+                              type="text"
+                              value={formData.house_blok}
+                              onChange={(e) => setFormData({ ...formData, house_blok: e.target.value })}
+                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              placeholder="Blok (misal: B)"
+                            />
+                            <input
+                              type="text"
+                              value={formData.house_nomor}
+                              onChange={(e) => setFormData({ ...formData, house_nomor: e.target.value })}
+                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              placeholder="Nomor (misal: 15)"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-slate-800 dark:text-slate-200 font-bold">
+                            {`Blok ${profilSayaData?.blok || formData.house_blok || '-'} No. ${profilSayaData?.nomor_rumah || formData.house_nomor || '-'}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">Alamat Lengkap</span>
@@ -3563,7 +3682,7 @@ export default function ProfilWarga({
 
                               // API Call: POST /resident/uploadsensitifdata/:id
                               try {
-                                const token = localStorage.getItem('rt_token');
+                                const token = sessionStorage.getItem('rt_token');
                                 const targetId = currentUser.id || currentUser.nik || 1;
                                 const uploadData = new FormData();
                                 uploadData.append('type', 'ktp');
@@ -3668,7 +3787,7 @@ export default function ProfilWarga({
                       });
                       if (result.isConfirmed) {
                         setCurrentUser(null);
-                        localStorage.removeItem('rt_current_user');
+                        sessionStorage.removeItem('rt_current_user');
                       }
                     }}
                     className="py-2 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-455 font-bold text-xs rounded-xl transition-all cursor-pointer"
@@ -5154,7 +5273,7 @@ export default function ProfilWarga({
                       if (setCurrentUser) {
                         const updated = { ...currentUser, tagihNotification: false };
                         setCurrentUser(updated);
-                        localStorage.setItem('rt_current_user', JSON.stringify(updated));
+                        sessionStorage.setItem('rt_current_user', JSON.stringify(updated));
                       }
                     }}
                     className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"

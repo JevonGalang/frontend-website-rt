@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X, X as XIcon, Landmark, 
@@ -129,7 +129,7 @@ export default function AdminDashboard({
   const [previousBalanceInput, setPreviousBalanceInput] = useState(0);
 
   const fetchFinanceSettings = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
@@ -156,7 +156,7 @@ export default function AdminDashboard({
 
   const handleUpdateIplSetting = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
       const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
@@ -198,7 +198,7 @@ export default function AdminDashboard({
       Swal.fire('Password Terlalu Pendek', 'Password minimal 8 karakter.', 'warning');
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
     setIsAdminChangingPassword(true);
@@ -330,7 +330,7 @@ export default function AdminDashboard({
       rotation: 0
     });
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     try {
       console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
       const response = await fetch(`http://172.20.32.31:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
@@ -586,14 +586,59 @@ export default function AdminDashboard({
     tanggalSurat: new Date().toISOString().split('T')[0],
     status: 'Draft'
   });
-  const [arsipForm, setArsipForm] = useState({ name: '', category: 'Dokumen', size: '1.5 MB', date: new Date().toISOString().split('T')[0] });
+  const [arsipForm, setArsipForm] = useState({ judul: '', kategori: 'Dokumentasi Umum', file: null });
+  const [isCustomKategori, setIsCustomKategori] = useState(false);
+  const PRESET_KATEGORI_ARSIP = [
+    'Dokumentasi Umum',
+    'Kegiatan Warga',
+    'Gotong Royong',
+    'HUT RI',
+    'Olahraga',
+    'Kesehatan',
+    'Sosial',
+    'Keagamaan'
+  ];
+  const [isArsipLoading, setIsArsipLoading] = useState(false);
+  const [isArsipUploading, setIsArsipUploading] = useState(false);
+
+  const fetchArsipMediaList = async () => {
+    try {
+      setIsArsipLoading(true);
+      const res = await fetch('http://172.20.32.31:3333/post/arsip-media?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        let rawItems = [];
+        if (Array.isArray(data)) {
+          rawItems = data;
+        } else if (Array.isArray(data.output?.pesan?.items)) {
+          rawItems = data.output.pesan.items;
+        } else if (Array.isArray(data.output?.pesan)) {
+          rawItems = data.output.pesan;
+        } else if (Array.isArray(data.output?.items)) {
+          rawItems = data.output.items;
+        } else if (Array.isArray(data.output?.data)) {
+          rawItems = data.output.data;
+        } else if (Array.isArray(data.output)) {
+          rawItems = data.output;
+        } else if (Array.isArray(data.items)) {
+          rawItems = data.items;
+        }
+        setArsipFileList(rawItems);
+      }
+    } catch (err) {
+      console.warn('Gagal mengambil daftar arsip media:', err.message);
+    } finally {
+      setIsArsipLoading(false);
+    }
+  };
+
   const [pendudukMasukForm, setPendudukMasukForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', origin: '', status: 'Tetap' });
   const [pendudukKeluarForm, setPendudukKeluarForm] = useState({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
   const [logsTrigger, setLogsTrigger] = useState(0);
   const [accessLogs, setAccessLogs] = useState([]);
 
   const fetchAccessLogsFromServer = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       const response = await fetch('http://172.20.32.31:3333/admin/access-logs?limit=100', {
@@ -631,6 +676,9 @@ export default function AdminDashboard({
     if (role === 'rt' || role === 'admin') {
       fetchAccessLogsFromServer();
     }
+    if (activeTab === 'sek_arsip') {
+      fetchArsipMediaList();
+    }
   }, [logsTrigger, activeTab]);
 
   const [serverComplaints, setServerComplaints] = useState([]);
@@ -640,7 +688,7 @@ export default function AdminDashboard({
   const fetchServerComplaints = async () => {
     setIsLoadingComplaints(true);
     setComplaintsError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setComplaintsError('Token tidak ditemukan. Harap login kembali.');
       setIsLoadingComplaints(false);
@@ -680,7 +728,7 @@ export default function AdminDashboard({
   };
 
   const handleUpdateComplaintStatus = async (id, status, catatan = '') => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire('Error', 'Token otentikasi tidak ditemukan.', 'error');
       return;
@@ -716,7 +764,7 @@ export default function AdminDashboard({
   };
 
   const handleDeleteComplaint = async (id) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire('Error', 'Token otentikasi tidak ditemukan.', 'error');
       return;
@@ -760,7 +808,7 @@ export default function AdminDashboard({
       alert('Harap isi semua input form staff.');
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
       const response = await fetch('http://172.20.32.31:3333/admin/create-staff-account', {
@@ -797,7 +845,7 @@ export default function AdminDashboard({
 
   
   const fetchAdminNotifications = async (page = 1, limit = 30) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
@@ -821,7 +869,7 @@ export default function AdminDashboard({
 
   const handleAdminMarkNotifAsRead = async (id) => {
     if (!id) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
@@ -839,7 +887,7 @@ export default function AdminDashboard({
 
   const handleAdminMarkAllNotifsRead = async () => {
     setAdminUnreadCount(0);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
@@ -858,7 +906,7 @@ export default function AdminDashboard({
   const fetchServerAnnouncements = async () => {
     setIsLoadingAnnouncements(true);
     setAnnouncementsError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
       const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
@@ -885,7 +933,7 @@ export default function AdminDashboard({
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();
     if (!announcementForm.judul.trim() || !announcementForm.isi.trim()) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire({ title: 'Gagal!', text: 'Token tidak ditemukan.', icon: 'error', confirmButtonColor: '#ef4444' });
       return;
@@ -927,7 +975,7 @@ export default function AdminDashboard({
   const handleUpdateAnnouncement = async (e) => {
     e.preventDefault();
     if (!editingAnnouncementId) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire({ title: 'Gagal!', text: 'Token tidak ditemukan.', icon: 'error', confirmButtonColor: '#ef4444' });
       return;
@@ -984,7 +1032,7 @@ export default function AdminDashboard({
     });
     if (!confirmResult.isConfirmed) return;
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire({ title: 'Gagal!', text: 'Token tidak ditemukan.', icon: 'error', confirmButtonColor: '#ef4444' });
       return;
@@ -1029,7 +1077,7 @@ export default function AdminDashboard({
   const fetchServerSubmissions = async () => {
     setIsLoadingSubmissions(true);
     setSubmissionsError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setSubmissionsError('Token tidak ditemukan. Harap login kembali.');
       setIsLoadingSubmissions(false);
@@ -1117,7 +1165,7 @@ export default function AdminDashboard({
   const fetchPendingWargaList = async () => {
     setIsLoadingPendingWarga(true);
     setPendingWargaError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setPendingWargaList([]);
       setIsLoadingPendingWarga(false);
@@ -1153,7 +1201,7 @@ export default function AdminDashboard({
   };
 
   const handleViewKtp = async (w) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     let ktpImage = w.foto_ktp || w.fotoKtp || w.ktp_url || null;
 
     const docId = w.ktp_document_id || w.warga_id || w.id;
@@ -1196,7 +1244,7 @@ export default function AdminDashboard({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       Swal.fire({
         title: 'Sesi Berakhir',
@@ -1262,7 +1310,7 @@ export default function AdminDashboard({
   const fetchPendingPayments = async () => {
     setIsLoadingPendingPayments(true);
     setPendingPaymentsError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setPendingPaymentsError('Token tidak ditemukan.');
       setIsLoadingPendingPayments(false);
@@ -1362,7 +1410,7 @@ export default function AdminDashboard({
   };
 
   const handleVerifyPendingPayment = async (type, paymentId, action) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
 
     let decision = 'approved';
@@ -1452,7 +1500,7 @@ export default function AdminDashboard({
   const [isPeriodDetailModalOpen, setIsPeriodDetailModalOpen] = useState(false);
 
   const fetchBillPeriods = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingBillPeriods(true);
     console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
@@ -1478,7 +1526,7 @@ export default function AdminDashboard({
 
   const handleCreateBillPeriod = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
     const payload = {
@@ -1548,7 +1596,7 @@ export default function AdminDashboard({
       cancelButtonText: 'Batal'
     });
     if (!confirm.isConfirmed) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
     console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
@@ -1579,7 +1627,7 @@ export default function AdminDashboard({
   };
 
   const handleViewPeriodSummary = async (periodId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingPeriodDetails(true);
     setIsPeriodDetailModalOpen(true);
@@ -1632,7 +1680,7 @@ export default function AdminDashboard({
       }
     });
     if (!reason) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
       const res = await fetch(`http://172.20.32.31:3333/admin/finance/bills/${billId}/exempt`, {
@@ -1675,7 +1723,7 @@ export default function AdminDashboard({
       setFamilyUnpaidBills([]);
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
@@ -1713,7 +1761,7 @@ export default function AdminDashboard({
       alert('Nominal pembayaran harus lebih besar dari 0.');
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
 
     const reqBody = {
@@ -1774,7 +1822,7 @@ export default function AdminDashboard({
   const [auditTab, setAuditTab] = useState('ipl'); // 'ipl' | 'kas' | 'ledger'
 
   const fetchFinanceAudit = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingAudit(true);
     try {
@@ -1812,7 +1860,7 @@ export default function AdminDashboard({
   const fetchFinanceTracking = async () => {
     setIsLoadingFinanceTracking(true);
     setFinanceTrackingError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setFinanceTrackingError('Token tidak ditemukan.');
       setIsLoadingFinanceTracking(false);
@@ -1893,7 +1941,7 @@ export default function AdminDashboard({
   const fetchResidentServerList = async () => {
     setIsLoadingResidents(true);
     setResidentError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setResidentError('Token otentikasi tidak ditemukan. Harap login kembali.');
       setIsLoadingResidents(false);
@@ -1909,9 +1957,9 @@ export default function AdminDashboard({
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('rt_token');
-        localStorage.removeItem('rt_current_user');
-        localStorage.removeItem('rt_token_time');
+        sessionStorage.removeItem('rt_token');
+        sessionStorage.removeItem('rt_current_user');
+        sessionStorage.removeItem('rt_token_time');
         if (setCurrentUser) setCurrentUser(null);
         Swal.fire({
           title: 'Sesi Login Kadaluarsa',
@@ -1950,7 +1998,7 @@ export default function AdminDashboard({
     setIsLoadingKepalaKeluarga(true);
     let token = null;
     try {
-      token = localStorage.getItem('rt_token');
+      token = sessionStorage.getItem('rt_token');
     } catch (e) {
       console.warn('localStorage is blocked or unavailable:', e);
     }
@@ -1968,9 +2016,9 @@ export default function AdminDashboard({
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('rt_token');
-        localStorage.removeItem('rt_current_user');
-        localStorage.removeItem('rt_token_time');
+        sessionStorage.removeItem('rt_token');
+        sessionStorage.removeItem('rt_current_user');
+        sessionStorage.removeItem('rt_token_time');
         if (setCurrentUser) setCurrentUser(null);
         return;
       }
@@ -2011,7 +2059,7 @@ export default function AdminDashboard({
 
   const fetchSuratMasuk = async () => {
     setSuratMasukLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     try {
       const response = await fetch('http://172.20.32.31:3333/admin/surat-masuk', {
         headers: {
@@ -2057,7 +2105,7 @@ export default function AdminDashboard({
 
   const fetchSuratKeluar = async () => {
     setSuratKeluarLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     try {
       const response = await fetch('http://172.20.32.31:3333/admin/surat-keluar', {
         headers: {
@@ -2104,7 +2152,7 @@ export default function AdminDashboard({
   const fetchWargaListFromServer = async () => {
     let token = null;
     try {
-      token = localStorage.getItem('rt_token');
+      token = sessionStorage.getItem('rt_token');
     } catch (e) {
       console.warn('localStorage is blocked or unavailable:', e);
     }
@@ -2132,9 +2180,9 @@ export default function AdminDashboard({
       });
 
       if (response.status === 401) {
-        localStorage.removeItem('rt_token');
-        localStorage.removeItem('rt_current_user');
-        localStorage.removeItem('rt_token_time');
+        sessionStorage.removeItem('rt_token');
+        sessionStorage.removeItem('rt_current_user');
+        sessionStorage.removeItem('rt_token_time');
         if (setCurrentUser) setCurrentUser(null);
         Swal.fire({
           title: 'Sesi Login Kadaluarsa',
@@ -2258,7 +2306,7 @@ export default function AdminDashboard({
   const handleSudoSubmit = async (e) => {
     e.preventDefault();
     setSudoPromptError('');
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setSudoPromptError('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
@@ -2456,7 +2504,7 @@ export default function AdminDashboard({
   useEffect(() => {
     let token = null;
     try {
-      token = localStorage.getItem('rt_token');
+      token = sessionStorage.getItem('rt_token');
     } catch (e) {
       console.warn('localStorage is blocked or unavailable:', e);
     }
@@ -2711,7 +2759,7 @@ export default function AdminDashboard({
     });
 
     try {
-      const token = localStorage.getItem('rt_token');
+      const token = sessionStorage.getItem('rt_token');
       const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
@@ -3020,7 +3068,7 @@ export default function AdminDashboard({
     setLoadingAccountId(selectedCitizenForAccount.id);
 
     try {
-      const token = localStorage.getItem('rt_token');
+      const token = sessionStorage.getItem('rt_token');
       const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
         method: 'POST',
         headers: {
@@ -3293,9 +3341,9 @@ export default function AdminDashboard({
   const handleLogout = () => {
     setCurrentUser(null);
     try {
-      localStorage.removeItem('rt_current_user');
-      localStorage.removeItem('rt_token');
-      localStorage.removeItem('rt_token_time');
+      sessionStorage.removeItem('rt_current_user');
+      sessionStorage.removeItem('rt_token');
+      sessionStorage.removeItem('rt_token_time');
     } catch (e) {}
   };
 
@@ -3421,7 +3469,7 @@ export default function AdminDashboard({
         saveKas(updated);
         Swal.fire({ title: 'Terhapus!', text: 'Data kas berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
       } else if (type === 'agenda') {
-        const token = localStorage.getItem('rt_token');
+        const token = sessionStorage.getItem('rt_token');
         if (!token || isNaN(id)) {
           const updated = agendaList.filter(a => a.id !== id);
           saveAgenda(updated);
@@ -3507,7 +3555,7 @@ export default function AdminDashboard({
           return;
         }
 
-        const token = localStorage.getItem('rt_token');
+        const token = sessionStorage.getItem('rt_token');
 
         if (!token) {
           setFormError('Token otentikasi tidak ditemukan. Harap login kembali.');
@@ -3590,7 +3638,7 @@ export default function AdminDashboard({
           return;
         }
 
-        const token = localStorage.getItem('rt_token');
+        const token = sessionStorage.getItem('rt_token');
         const targetId = selectedItem?.id || selectedItem?.warga_id || selectedItem?.family_id;
 
         if (token && targetId) {
@@ -3656,7 +3704,7 @@ export default function AdminDashboard({
     }
 
     if (modalType === 'add_kas') {
-      const token = localStorage.getItem('rt_token');
+      const token = sessionStorage.getItem('rt_token');
       if (!token) {
         setFormError('Sesi Anda telah berakhir atau Anda belum login.');
         return;
@@ -3714,7 +3762,7 @@ export default function AdminDashboard({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       if (modalType === 'add_agenda') {
         const newAgenda = {
@@ -3828,7 +3876,7 @@ export default function AdminDashboard({
 
     if (!confirm.isConfirmed) return;
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     try {
       const res = await fetch(`http://172.20.32.31:3333/admin/surat-masuk/${id}`, {
         method: 'DELETE',
@@ -3865,7 +3913,7 @@ export default function AdminDashboard({
 
     if (!confirm.isConfirmed) return;
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     try {
       const res = await fetch(`http://172.20.32.31:3333/admin/surat-keluar/${id}`, {
         method: 'DELETE',
@@ -3891,7 +3939,7 @@ export default function AdminDashboard({
   const handleSuratMasukSubmit = async (e) => {
     e.preventDefault();
     setSuratMasukSubmitLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     const isEdit = !!suratMasukForm.id;
 
     let uploadedFileName = suratMasukForm.fileUrl;
@@ -3968,7 +4016,7 @@ export default function AdminDashboard({
   const handleSuratKeluarSubmit = async (e) => {
     e.preventDefault();
     setSuratKeluarSubmitLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     const isEdit = !!suratKeluarForm.id;
 
     const payload = {
@@ -4064,7 +4112,7 @@ export default function AdminDashboard({
     // Update serverSubmissions state optimistically
     setServerSubmissions(prev => prev.map(s => (s.id === id || String(s.id) === String(id)) ? { ...s, status: apiStatus } : s));
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
         await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
@@ -6583,78 +6631,210 @@ export default function AdminDashboard({
             </div>
           )}
 
-          {/* SEKRETARIS: 10. ARSIP FILE */}
+          {/* SEKRETARIS: 10. ARSIP FILE & MEDIA */}
           {activeTab === 'sek_arsip' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!arsipForm.name) return;
-                  let uploadedUrl = arsipForm.fileUrl;
-                  let fileSizeStr = arsipForm.size || '1.5 MB';
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 dark:text-white">Arsip Media & Dokumentasi Kegiatan</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Unggah dokumentasi foto dan video lingkungan RT yang otomatis tampil di beranda publik.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={fetchArsipMediaList}
+                  disabled={isArsipLoading}
+                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isArsipLoading ? 'animate-spin' : ''}`} />
+                  <span>Segarkan</span>
+                </button>
+              </div>
 
-                  if (arsipForm.file) {
-                    uploadedUrl = URL.createObjectURL(arsipForm.file);
-                    const sizeMB = (arsipForm.file.size / (1024 * 1024)).toFixed(2);
-                    fileSizeStr = `${sizeMB} MB`;
+              {/* Form Upload Media */}
+              <form 
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!arsipForm.judul || !arsipForm.judul.trim()) {
+                    Swal.fire({
+                      icon: 'warning',
+                      title: 'Judul Wajib Diisi',
+                      text: 'Silahkan berikan judul dokumentasi terlebih dahulu.',
+                      confirmButtonColor: '#ea580c'
+                    });
+                    return;
                   }
 
-                  const newEntry = {
-                    id: 'ARC-' + Math.floor(Math.random() * 900 + 100),
-                    name: arsipForm.name,
-                    date: arsipForm.date,
-                    size: fileSizeStr,
-                    category: arsipForm.category,
-                    fileUrl: uploadedUrl
-                  };
-                  setArsipFileList([newEntry, ...arsipFileList]);
-                  setArsipForm({ name: '', category: 'Foto Dokumentasi', size: '1.5 MB', date: new Date().toISOString().split('T')[0], file: null, fileUrl: null });
-                  Swal.fire('Berhasil!', 'Berkas media/foto/video berhasil diarsipkan!', 'success');
+                  if (!arsipForm.file) {
+                    Swal.fire({
+                      icon: 'warning',
+                      title: 'Berkas Belum Dipilih',
+                      text: 'Silahkan pilih berkas foto atau video terlebih dahulu.',
+                      confirmButtonColor: '#ea580c'
+                    });
+                    return;
+                  }
+
+                  if (arsipForm.judul.length > 200) {
+                    Swal.fire('Peringatan', 'Judul maksimal 200 karakter!', 'warning');
+                    return;
+                  }
+
+                  if (arsipForm.kategori && arsipForm.kategori.length > 100) {
+                    Swal.fire('Peringatan', 'Kategori maksimal 100 karakter!', 'warning');
+                    return;
+                  }
+
+                  const file = arsipForm.file;
+                  const isVideo = file.type.startsWith('video') || /\.(mp4|webm|mov|mpeg)$/i.test(file.name);
+                  const isImage = file.type.startsWith('image') || /\.(jpe?g|png|webp|gif)$/i.test(file.name);
+
+                  if (!isImage && !isVideo) {
+                    Swal.fire('Format Tidak Didukung', 'Hanya file foto atau video yang diperbolehkan (JPG, PNG, WebP, GIF, MP4, WebM, MOV, MPEG).', 'error');
+                    return;
+                  }
+
+                  if (isImage && file.size > 10 * 1024 * 1024) {
+                    Swal.fire('Ukuran Terlalu Besar', 'Ukuran foto maksimal 10 MB.', 'warning');
+                    return;
+                  }
+                  if (isVideo && file.size > 100 * 1024 * 1024) {
+                    Swal.fire('Ukuran Terlalu Besar', 'Video terlalu besar. Ukuran maksimal arsip video adalah 100 MB.', 'warning');
+                    return;
+                  }
+
+                  const token = sessionStorage.getItem('rt_token');
+                  if (!token) {
+                    Swal.fire('Akses Ditolak', 'Token autentikasi tidak ditemukan. Harap login kembali.', 'error');
+                    return;
+                  }
+
+                  try {
+                    setIsArsipUploading(true);
+                    const formData = new FormData();
+                    formData.append('judul', arsipForm.judul.trim());
+                    formData.append('kategori', arsipForm.kategori || 'Dokumentasi Umum');
+                    formData.append('file', file);
+
+                    const res = await fetch('http://172.20.32.31:3333/admin/arsip-media', {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: formData
+                    });
+
+                    const resData = await res.json();
+                    if (res.ok && (resData.response === 201 || resData.response === 200 || resData.output)) {
+                      Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil Diunggah! 🎉',
+                        text: resData.message || 'Arsip foto/video berhasil diunggah dan siap dilihat publik.'
+                      });
+
+                      setArsipForm({ judul: '', kategori: 'Dokumentasi Umum', file: null });
+                      setIsCustomKategori(false);
+                      const fileInput = document.getElementById('arsip-file-input');
+                      if (fileInput) fileInput.value = '';
+                      fetchArsipMediaList();
+                    } else {
+                      throw new Error(resData.pesan || resData.message || 'Gagal mengunggah arsip foto/video.');
+                    }
+                  } catch (err) {
+                    Swal.fire('Gagal Unggah', err.message, 'error');
+                  } finally {
+                    setIsArsipUploading(false);
+                  }
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
+                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-2xl font-sans"
               >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Arsipkan Berkas & Dokumentasi Baru</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Unggah Dokumentasi Baru</h4>
+                  <span className="text-[10px] text-slate-500 font-semibold">
+                    📸 Foto &le; 10MB • 🎬 Video &le; 100MB
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Judul / Nama Dokumen File *</label>
+                    <label className="font-bold text-slate-500">Judul Dokumentasi *</label>
                     <input
                       required
                       type="text"
-                      value={arsipForm.name}
-                      onChange={(e) => setArsipForm({ ...arsipForm, name: e.target.value })}
-                      placeholder="Contoh: Foto_Kerja_Bakti_Agustus.jpg"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                      maxLength={200}
+                      value={arsipForm.judul || ''}
+                      onChange={(e) => setArsipForm({ ...arsipForm, judul: e.target.value })}
+                      placeholder="Ketik judul dokumentasi..."
+                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
                     />
                   </div>
+                  
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Kategori Arsip *</label>
-                    <select
-                      value={arsipForm.category}
-                      onChange={(e) => setArsipForm({ ...arsipForm, category: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs"
-                    >
-                      <option value="Foto Dokumentasi">Foto Dokumentasi Kegiatan</option>
-                      <option value="Video Kegiatan">Video Dokumentasi / CCTV</option>
-                      <option value="Laporan Keuangan">Laporan Keuangan & Struk</option>
-                      <option value="Notulen">Notulen Rapat RT</option>
-                      <option value="SK Pengurus">SK & Berkas Surat</option>
-                      <option value="Dokumen">Dokumen Umum</option>
-                    </select>
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-500">Kategori Arsip *</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsCustomKategori(!isCustomKategori);
+                          if (!isCustomKategori) {
+                            setArsipForm({ ...arsipForm, kategori: '' });
+                          } else {
+                            setArsipForm({ ...arsipForm, kategori: 'Dokumentasi Umum' });
+                          }
+                        }}
+                        className="text-[10px] text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
+                      >
+                        {isCustomKategori ? '← Pilih dari Daftar' : '+ Ketik Kategori Lain'}
+                      </button>
+                    </div>
+
+                    {isCustomKategori ? (
+                      <input
+                        required
+                        type="text"
+                        maxLength={100}
+                        value={arsipForm.kategori || ''}
+                        onChange={(e) => setArsipForm({ ...arsipForm, kategori: e.target.value })}
+                        placeholder="Ketik kategori kustom..."
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-orange-500/50 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                      />
+                    ) : (
+                      <select
+                        required
+                        value={arsipForm.kategori || 'Dokumentasi Umum'}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setIsCustomKategori(true);
+                            setArsipForm({ ...arsipForm, kategori: '' });
+                          } else {
+                            setArsipForm({ ...arsipForm, kategori: e.target.value });
+                          }
+                        }}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white cursor-pointer"
+                      >
+                        {PRESET_KATEGORI_ARSIP.map((kat) => (
+                          <option key={kat} value={kat}>{kat}</option>
+                        ))}
+                        <option value="__custom__">+ Ketik Kategori Sendiri...</option>
+                      </select>
+                    )}
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Unggah Berkas (Foto, Video, PDF) *</label>
+                  <label className="font-bold text-slate-500">Pilih Berkas (Foto / Video) *</label>
                   <input
+                    id="arsip-file-input"
+                    required
                     type="file"
-                    accept="image/*,video/*,application/pdf"
+                    accept="image/*,video/*"
                     onChange={(e) => {
                       if (e.target.files && e.target.files[0]) {
                         const file = e.target.files[0];
                         setArsipForm({
                           ...arsipForm,
-                          file,
-                          name: arsipForm.name || file.name
+                          file
                         });
                       }
                     }}
@@ -6662,48 +6842,145 @@ export default function AdminDashboard({
                   />
                 </div>
 
-                <button type="submit" className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm">
-                  Arsipkan File / Media
+                <button 
+                  type="submit" 
+                  disabled={isArsipUploading}
+                  className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer shadow-sm flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isArsipUploading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Mengunggah...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      <span>Unggah ke Galeri Publik</span>
+                    </>
+                  )}
                 </button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">No. Arsip</th>
-                      <th className="p-4">Nama Dokumen / Media</th>
-                      <th className="p-4">Kategori</th>
-                      <th className="p-4">Tanggal Arsip</th>
-                      <th className="p-4 text-right">Tindakan</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {arsipFileList.map((a) => (
-                      <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{a.id}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{a.name} ({a.size})</td>
-                        <td className="p-4 text-slate-600 dark:text-slate-400 font-medium">{a.category}</td>
-                        <td className="p-4 text-slate-500">{formatDateIndo(a.date)}</td>
-                        <td className="p-4 text-right font-sans">
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              if (a.fileUrl) {
-                                window.open(a.fileUrl, '_blank');
-                              } else {
-                                Swal.fire('Informasi', `Pratinjau/Unduh berkas ${a.name} (${a.size})`, 'info');
-                              }
-                            }} 
-                            className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg cursor-pointer transition-colors"
-                          >
-                            Unduh / Lihat File
-                          </button>
-                        </td>
+              {/* Tabel Arsip Media */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-500">
+                  <span>Daftar Arsip Media Terdaftar ({arsipFileList.length} item)</span>
+                  {isArsipLoading && <span className="text-orange-500 animate-pulse">Memuat data...</span>}
+                </div>
+
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse font-sans">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-4">ID</th>
+                        <th className="p-4">Judul & Nama File</th>
+                        <th className="p-4">Kategori</th>
+                        <th className="p-4">Tipe</th>
+                        <th className="p-4">Ukuran</th>
+                        <th className="p-4">Tanggal Unggah</th>
+                        <th className="p-4 text-right">Tindakan</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {arsipFileList.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
+                            {isArsipLoading ? 'Sedang memuat data arsip...' : 'Belum ada arsip media yang diunggah.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        arsipFileList.map((a) => {
+                          const isVid = a.media_type === 'video' || a.mime_type?.startsWith('video');
+                          const mediaUrl = a.media_url ? (a.media_url.startsWith('http') ? a.media_url : `http://172.20.32.31:3333${a.media_url}`) : `http://172.20.32.31:3333/post/arsip-media/${a.id}/file`;
+                          const sizeFormatted = a.file_size 
+                            ? (a.file_size > 1024 * 1024 ? `${(a.file_size / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(a.file_size / 1024)} KB`)
+                            : (a.size || '-');
+
+                          return (
+                            <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                              <td className="p-4 font-mono font-bold text-slate-500">#{a.id}</td>
+                              <td className="p-4">
+                                <div className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{a.judul || a.name}</div>
+                                {a.original_name && <div className="text-[10px] text-slate-400 font-mono">{a.original_name}</div>}
+                              </td>
+                              <td className="p-4">
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                                  {a.kategori || a.category || 'Umum'}
+                                </span>
+                              </td>
+                              <td className="p-4">
+                                <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] inline-flex items-center gap-1 ${
+                                  isVid 
+                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' 
+                                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                }`}>
+                                  {isVid ? '🎬 Video' : '📸 Foto'}
+                                </span>
+                              </td>
+                              <td className="p-4 text-slate-500 font-mono text-[11px]">{sizeFormatted}</td>
+                              <td className="p-4 text-slate-500">
+                                {a.created_at ? formatDateIndo(a.created_at.substring(0, 10)) : (a.date ? formatDateIndo(a.date) : '-')}
+                              </td>
+                              <td className="p-4 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <a
+                                    href={mediaUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    <ExternalLink className="w-3 h-3" />
+                                    <span>Lihat File</span>
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const result = await Swal.fire({
+                                        title: 'Hapus Arsip Media?',
+                                        text: `Yakin ingin menghapus arsip "${a.judul || a.name}"?`,
+                                        icon: 'warning',
+                                        showCancelButton: true,
+                                        confirmButtonColor: '#e11d48',
+                                        cancelButtonColor: '#64748b',
+                                        confirmButtonText: 'Ya, Hapus!',
+                                        cancelButtonText: 'Batal'
+                                      });
+
+                                      if (!result.isConfirmed) return;
+
+                                      const token = sessionStorage.getItem('rt_token');
+                                      if (!token) return;
+
+                                      try {
+                                        const res = await fetch(`http://172.20.32.31:3333/admin/arsip-media/${a.id}`, {
+                                          method: 'DELETE',
+                                          headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        const delData = await res.json();
+                                        if (res.ok) {
+                                          Swal.fire('Terhapus!', delData.message || 'Arsip media berhasil dihapus.', 'success');
+                                          fetchArsipMediaList();
+                                        } else {
+                                          throw new Error(delData.pesan || delData.message || 'Gagal menghapus arsip.');
+                                        }
+                                      } catch (err) {
+                                        Swal.fire('Gagal', err.message, 'error');
+                                      }
+                                    }}
+                                    className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg inline-flex items-center gap-1 cursor-pointer transition-colors"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Hapus</span>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -8709,7 +8986,7 @@ export default function AdminDashboard({
                     return;
                   }
 
-                  const token = localStorage.getItem('rt_token');
+                  const token = sessionStorage.getItem('rt_token');
                   if (!token) {
                     alert('Sesi Anda telah berakhir atau Anda belum login.');
                     return;
@@ -8829,7 +9106,7 @@ export default function AdminDashboard({
                     return;
                   }
 
-                  const token = localStorage.getItem('rt_token');
+                  const token = sessionStorage.getItem('rt_token');
                   if (!token) {
                     alert('Sesi Anda telah berakhir atau Anda belum login.');
                     return;

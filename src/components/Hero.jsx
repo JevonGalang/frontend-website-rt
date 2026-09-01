@@ -14,6 +14,7 @@ import dummyImg3 from '../assets/dummy/dummy_3.jpg';
 import dummyImg4 from '../assets/dummy/dummy_4.jpg';
 import dummyImg5 from '../assets/dummy/dummy_5.jpg';
 import OtpVerificationModal from './OtpVerificationModal';
+import { setSession } from '../utils/authSession';
 
 // ═════════════════════════════════════════════════════════════════════════
 // DUMMY CMS DATA TEMPLATE: Siap dihubungkan ke Endpoint API / Database CMS
@@ -113,17 +114,91 @@ export default function Hero({
     email: ''
   });
 
-  // Dummy Documentation / Gallery states (CMS Ready)
+  // Documentation / Gallery states (Pure API: GET /post/arsip-media)
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedMedia, setSelectedMedia] = useState(null);
+  const [serverArchives, setServerArchives] = useState([]);
+  const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+
+  const fetchPublicArchives = async () => {
+    try {
+      setIsLoadingArchives(true);
+      const res = await fetch('http://172.20.32.31:3333/post/arsip-media?limit=24');
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Extract array from backend response
+        let rawItems = [];
+        if (Array.isArray(data)) {
+          rawItems = data;
+        } else if (Array.isArray(data.output?.pesan?.items)) {
+          rawItems = data.output.pesan.items;
+        } else if (Array.isArray(data.output?.pesan)) {
+          rawItems = data.output.pesan;
+        } else if (Array.isArray(data.output?.items)) {
+          rawItems = data.output.items;
+        } else if (Array.isArray(data.output?.data)) {
+          rawItems = data.output.data;
+        } else if (Array.isArray(data.output)) {
+          rawItems = data.output;
+        } else if (Array.isArray(data.items)) {
+          rawItems = data.items;
+        }
+
+        if (rawItems.length > 0) {
+          const mapped = rawItems.map(item => {
+            const rawUrl = item.media_url || (item.id ? `/post/arsip-media/${item.id}/file` : '');
+            const fullUrl = rawUrl 
+              ? (rawUrl.startsWith('http') ? rawUrl : `http://172.20.32.31:3333${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
+              : `http://172.20.32.31:3333/post/arsip-media/${item.id}/file`;
+            
+            const isVideo = 
+              (item.media_type && item.media_type.toLowerCase().includes('video')) || 
+              (item.mime_type && item.mime_type.toLowerCase().includes('video')) ||
+              /\.(mp4|webm|mov|mkv|avi|mpeg)$/i.test(item.original_name || item.media_url || item.judul || item.name || '');
+
+            return {
+              id: item.id || `arc-${Math.random()}`,
+              title: item.judul || item.title || item.name || 'Dokumentasi Kegiatan',
+              category: item.kategori || item.category || 'Dokumentasi Umum',
+              type: isVideo ? 'video' : 'image',
+              mime_type: item.mime_type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+              date: item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Dokumentasi Lingkungan',
+              location: 'Lingkungan RT 05',
+              thumbnail: fullUrl,
+              media_url: fullUrl,
+              description: item.judul || item.description || 'Dokumentasi kegiatan warga RT 05.',
+              file_size: item.file_size
+            };
+          });
+          setServerArchives(mapped);
+          console.info('[Hero] Galeri arsip media berhasil dimuat dari API backend:', mapped.length, 'item');
+        } else {
+          setServerArchives([]);
+        }
+      } else {
+        console.warn(`[Hero] API /post/arsip-media respon status ${res.status}.`);
+      }
+    } catch (err) {
+      console.warn('[Hero] Gagal memuat arsip media dari API server:', err.message);
+    } finally {
+      setIsLoadingArchives(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublicArchives();
+  }, []);
+
+  const activeDokumentasiList = serverArchives.length > 0 ? serverArchives : DUMMY_DOKUMENTASI;
 
   const filteredDokumentasi = selectedCategory === 'all'
-    ? DUMMY_DOKUMENTASI
+    ? activeDokumentasiList
     : selectedCategory === 'image'
-    ? DUMMY_DOKUMENTASI.filter(d => d.type === 'image')
+    ? activeDokumentasiList.filter(d => d.type === 'image')
     : selectedCategory === 'video'
-    ? DUMMY_DOKUMENTASI.filter(d => d.type === 'video')
-    : DUMMY_DOKUMENTASI.filter(d => d.category.toLowerCase() === selectedCategory.toLowerCase());
+    ? activeDokumentasiList.filter(d => d.type === 'video')
+    : activeDokumentasiList.filter(d => (d.category || '').toLowerCase() === selectedCategory.toLowerCase());
 
   // Modal dialog for Emergency Call
   const handleEmergencyClick = (emg) => {
@@ -274,8 +349,6 @@ export default function Hero({
       }
 
       setSuccess('Login Berhasil! Mengalihkan...');
-      localStorage.setItem('rt_token', resData.token);
-      localStorage.setItem('rt_token_time', new Date().getTime().toString());
 
       const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
       
@@ -290,10 +363,11 @@ export default function Hero({
         name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Moch. Taufik)' : resData.user.username)
       };
 
+      setSession(userSession, resData.token);
+
       setTimeout(() => {
         setIsLoggingIn(false);
         setCurrentUser(userSession);
-        localStorage.setItem('rt_current_user', JSON.stringify(userSession));
         
         // Push user redirect
         if (userSession.role === 'warga') {
@@ -757,14 +831,46 @@ export default function Hero({
                   className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-xs hover:shadow-lg hover:border-orange-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between text-left"
                 >
                   {/* Thumbnail Container */}
-                  <div className="relative aspect-video w-full overflow-hidden bg-slate-100 dark:bg-slate-950">
-                    <img
-                      src={item.thumbnail}
-                      alt={item.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+                  <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+                    {item.type === 'video' ? (
+                      item.media_url ? (
+                        <div className="w-full h-full relative flex items-center justify-center bg-slate-950">
+                          <video
+                            src={`${item.media_url}#t=0.5`}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            crossOrigin="anonymous"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full relative">
+                          <img
+                            src={item.thumbnail || dummyImg3}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <img
+                          src={item.thumbnail || item.media_url}
+                          alt={item.title}
+                          crossOrigin="anonymous"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = dummyImg1;
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+                      </>
+                    )}
 
                     {/* Top Badges */}
                     <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
@@ -1760,20 +1866,41 @@ export default function Hero({
             </button>
 
             {/* Media Area */}
-            <div className="relative aspect-video w-full bg-black">
+            <div className="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden">
               {selectedMedia.type === 'video' ? (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-white space-y-3 p-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-orange-600 flex items-center justify-center shadow-lg">
-                    <Play className="w-8 h-8 fill-current ml-1" />
+                selectedMedia.media_url ? (
+                  <video
+                    key={selectedMedia.id || selectedMedia.media_url}
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-contain bg-black"
+                    src={selectedMedia.media_url}
+                  >
+                    <source src={selectedMedia.media_url} type={selectedMedia.mime_type || 'video/mp4'} />
+                    Browser Anda tidak mendukung pemutar video HTML5.
+                  </video>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-white space-y-3 p-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-orange-600 flex items-center justify-center shadow-lg">
+                      <Play className="w-8 h-8 fill-current ml-1" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-300">Video Dokumentasi Kegiatan ({selectedMedia.duration || 'HD'})</span>
+                    <p className="text-[11px] text-slate-500">Video siap diputar otomatis saat dihubungkan ke storage / media server backend</p>
                   </div>
-                  <span className="text-xs font-bold text-slate-300">Video Dokumentasi Kegiatan ({selectedMedia.duration || 'HD'})</span>
-                  <p className="text-[11px] text-slate-500">Video siap diputar otomatis saat dihubungkan ke storage / media server backend</p>
-                </div>
+                )
               ) : (
                 <img
-                  src={selectedMedia.thumbnail}
+                  src={selectedMedia.media_url || selectedMedia.thumbnail}
                   alt={selectedMedia.title}
-                  className="w-full h-full object-cover"
+                  crossOrigin="anonymous"
+                  className="w-full h-full object-contain bg-black"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = dummyImg1;
+                  }}
                 />
               )}
             </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
+import { clearSession } from '../utils/authSession';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
 
@@ -92,9 +93,8 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                 </span>
                 <button
                   onClick={() => {
+                    clearSession();
                     setCurrentUser(null);
-                    localStorage.removeItem('rt_current_user');
-                    localStorage.removeItem('rt_token');
                     setCurrentPage('beranda');
                   }}
                   className="px-3 py-1.5 bg-[var(--color-canvas)] hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-500 font-bold text-xs rounded-sm cursor-pointer transition-all"
@@ -162,9 +162,8 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
               <button
                 onClick={() => {
                   setIsOpen(false);
+                  clearSession();
                   setCurrentUser(null);
-                  localStorage.removeItem('rt_current_user');
-                  localStorage.removeItem('rt_token');
                   setCurrentPage('beranda');
                 }}
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"

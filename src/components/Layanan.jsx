@@ -1,5 +1,6 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
+import { getSessionToken } from '../utils/authSession';
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -84,7 +85,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
   const [serverSubmissions, setServerSubmissions] = useState([]);
 
   const fetchResidentSubmissions = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     if (!token) return;
     try {
       const res = await fetch('http://172.20.32.31:3333/resident/pengajuan', {
@@ -118,7 +119,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
 
     if (token) {
       try {

@@ -1,5 +1,6 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Lock, KeyRound, AlertCircle, CheckCircle2, Loader2, Sun, Moon } from 'lucide-react';
+import { getSessionToken, updateSessionUser } from '../utils/authSession';
 
 export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, darkMode, setDarkMode }) {
   const [newPassword, setNewPassword] = useState('');
@@ -24,7 +25,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
     }
 
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
 
     if (!token) {
       setError('Token autentikasi tidak ditemukan. Silakan login kembali.');
@@ -56,7 +57,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
           must_change_password: 0
         };
         setCurrentUser(updatedUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+        updateSessionUser(updatedUser);
       }, 2000);
 
     } catch (err) {
