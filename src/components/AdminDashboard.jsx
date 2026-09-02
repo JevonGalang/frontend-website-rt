@@ -14,7 +14,8 @@ import DateInput from './DateInput';
 import OtpVerificationModal from './OtpVerificationModal';
 import Swal from 'sweetalert2';
 import { io } from '../utils/liveSocket';
-import logoGSP from '../assets/logoGSP.png';
+import logoRW11 from '../assets/logo_rw11.png';
+import logoDepok from '../assets/logo_depok.png';
 
 // Backend endpoints may return an array directly or wrap it in an envelope.
 const extractArrayFromResponse = (payload) => {
@@ -93,7 +94,7 @@ const isTabAllowedForRole = (tab, role) => {
   const financeTabs = [
     'kas', 'iuran_jenis', 'iuran_pembayaran', 'iuran_riwayat', 'iuran_tunggakan', 'iuran_verifikasi',
     'laporan_bulanan', 'laporan_tahunan', 'laporan_rekap', 'laporan_export',
-    'keuangan_pemasukan', 'keuangan_pengeluaran', 'keuangan_kas', 'keuangan_qris'
+    'keuangan_qris'
   ];
   
   if (role === 'bendahara') {
@@ -132,7 +133,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
+      const res = await fetch('http://172.20.32.85:3333/admin/finance/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -159,7 +160,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
+      const res = await fetch('http://172.20.32.85:3333/admin/finance/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +204,7 @@ export default function AdminDashboard({
 
     setIsAdminChangingPassword(true);
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/change-password', {
+      const res = await fetch('http://172.20.32.85:3333/admin/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -233,7 +234,9 @@ export default function AdminDashboard({
   const handleCreateAccountForFamily = (fam) => {
     handleDirectCreateAccount(fam);
   }; // 'overview' | 'warga' | 'kas' | 'agenda' | 'layanan'
-  const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan'
+  const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan' | 'rekening_qris'
+  const [kasFilterType, setKasFilterType] = useState('all'); // 'all' | 'income' | 'expense'
+  const [kasFilterCategory, setKasFilterCategory] = useState('all');
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isNotifFlyoutOpen, setIsNotifFlyoutOpen] = useState(false);
   const [adminNotifCategory, setAdminNotifCategory] = useState("semua");
@@ -332,8 +335,8 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
-      const response = await fetch(`http://172.20.32.31:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
+      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.85:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
+      const response = await fetch(`http://172.20.32.85:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -355,7 +358,7 @@ export default function AdminDashboard({
         // Fallback to static direct url
         setSelectedProofModal(prev => prev ? ({
           ...prev,
-          fileUrl: `http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`,
+          fileUrl: `http://172.20.32.85:3333/admin/finance/proof/${rawFileName}`,
           isLoading: false,
           hasImgError: false
         }) : null);
@@ -604,7 +607,7 @@ export default function AdminDashboard({
   const fetchArsipMediaList = async () => {
     try {
       setIsArsipLoading(true);
-      const res = await fetch('http://172.20.32.31:3333/post/arsip-media?limit=50');
+      const res = await fetch('http://172.20.32.85:3333/post/arsip-media?limit=50');
       if (res.ok) {
         const data = await res.json();
         let rawItems = [];
@@ -641,7 +644,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/access-logs?limit=100', {
+      const response = await fetch('http://172.20.32.85:3333/admin/access-logs?limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -696,7 +699,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pengaduan', {
+      const response = await fetch('http://172.20.32.85:3333/admin/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -737,7 +740,7 @@ export default function AdminDashboard({
     const payloadStatus = (status === 'Proses' || status === 'setujui' || status === 'Proses') ? 'disetujui' : status;
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`http://172.20.32.85:3333/admin/pengaduan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -782,7 +785,7 @@ export default function AdminDashboard({
     if (!result.isConfirmed) return;
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`http://172.20.32.85:3333/admin/pengaduan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -811,7 +814,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/create-staff-account', {
+      const response = await fetch('http://172.20.32.85:3333/admin/create-staff-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -848,7 +851,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`http://172.20.32.85:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -872,7 +875,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
+      await fetch(`http://172.20.32.85:3333/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -890,7 +893,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
+      await fetch('http://172.20.32.85:3333/account/notifications/read-all', {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -909,7 +912,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.85:3333/admin/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 403) {
@@ -939,7 +942,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
+      const res = await fetch('http://172.20.32.85:3333/admin/announcement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
@@ -985,7 +988,7 @@ export default function AdminDashboard({
     if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
     if (!Object.keys(body).length) return;
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${editingAnnouncementId}`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/announcement/${editingAnnouncementId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
@@ -1038,7 +1041,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${id}`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/announcement/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1085,7 +1088,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pengajuan', {
+      const response = await fetch('http://172.20.32.85:3333/admin/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1131,7 +1134,7 @@ export default function AdminDashboard({
       umur: 28,
       house_blok: 'B4',
       house_nomor: '15',
-      house_alamat: 'Jl. Sawangan Green Park Blok B4 No. 15',
+      house_alamat: 'Jl. Villa Mutiara Mas Cinere Blok B4 No. 15',
       email: 'bagas.aditya@gmail.com',
       no_hp: '081298765432',
       status: 'Pending',
@@ -1149,7 +1152,7 @@ export default function AdminDashboard({
       umur: 25,
       house_blok: 'C2',
       house_nomor: '08',
-      house_alamat: 'Jl. Sawangan Green Park Blok C2 No. 08',
+      house_alamat: 'Jl. Villa Mutiara Mas Cinere Blok C2 No. 08',
       email: 'dewi.indahlestari@gmail.com',
       no_hp: '085712345678',
       status: 'Pending',
@@ -1172,7 +1175,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pending-warga', {
+      const response = await fetch('http://172.20.32.85:3333/admin/pending-warga', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1207,7 +1210,7 @@ export default function AdminDashboard({
     const docId = w.ktp_document_id || w.warga_id || w.id;
     if (docId && token) {
       try {
-        const res = await fetch(`http://172.20.32.31:3333/admin/sensitifdata/file/${docId}`, {
+        const res = await fetch(`http://172.20.32.85:3333/admin/sensitifdata/file/${docId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -1258,7 +1261,7 @@ export default function AdminDashboard({
     const targetWarga = pendingWargaList.find(w => w.warga_id === targetId || w.id === targetId || String(w.warga_id) === String(targetId) || String(w.id) === String(targetId));
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pending-warga/${targetId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/admin/pending-warga/${targetId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1319,7 +1322,7 @@ export default function AdminDashboard({
     try {
       console.log('--- BENDAHARA: fetchPendingPayments started ---');
       console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
-      const response = await fetch('http://172.20.32.31:3333/admin/finance/pending', {
+      const response = await fetch('http://172.20.32.85:3333/admin/finance/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('HTTP Status Response:', response.status);
@@ -1450,8 +1453,8 @@ export default function AdminDashboard({
 
     try {
       const endpoint = type === 'ipl' 
-        ? `http://172.20.32.31:3333/admin/finance/ipl-payments/${paymentId}/verify`
-        : `http://172.20.32.31:3333/admin/finance/kas-contributions/${paymentId}/verify`;
+        ? `http://172.20.32.85:3333/admin/finance/ipl-payments/${paymentId}/verify`
+        : `http://172.20.32.85:3333/admin/finance/kas-contributions/${paymentId}/verify`;
 
       const reqBody = { decision };
       if (decision === 'rejected' && rejectReason) {
@@ -1503,9 +1506,9 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingBillPeriods(true);
-    console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
+    console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.85:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
+      const res = await fetch('http://172.20.32.85:3333/admin/finance/bill-periods', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1537,10 +1540,10 @@ export default function AdminDashboard({
       periodYear: parseInt(billPeriodForm.periodYear)
     };
 
-    console.log('%c[BILL PERIODS] 🚀 POST http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
+    console.log('%c[BILL PERIODS] 🚀 POST http://172.20.32.85:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
 
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
+      const res = await fetch('http://172.20.32.85:3333/admin/finance/bill-periods', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1599,10 +1602,10 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
-    console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
+    console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
 
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1634,10 +1637,10 @@ export default function AdminDashboard({
     console.log(`%c[BILL PERIODS] 📊 GET Summary & Bills for period ID: ${periodId}`, 'color: #3b82f6; font-weight: bold;');
     try {
       const [summaryRes, billsRes] = await Promise.all([
-        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/summary`, {
+        fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/summary`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/bills`, {
+        fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/bills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1683,7 +1686,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bills/${billId}/exempt`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/finance/bills/${billId}/exempt`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1727,7 +1730,7 @@ export default function AdminDashboard({
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1780,7 +1783,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/manual-payment', {
+      const res = await fetch('http://172.20.32.85:3333/admin/finance/manual-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1827,10 +1830,10 @@ export default function AdminDashboard({
     setIsLoadingAudit(true);
     try {
       const [iplRes, kasRes] = await Promise.all([
-        fetch('http://172.20.32.31:3333/admin/finance/ipl-payments/audit', {
+        fetch('http://172.20.32.85:3333/admin/finance/ipl-payments/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://172.20.32.31:3333/admin/finance/kas-contributions/audit', {
+        fetch('http://172.20.32.85:3333/admin/finance/kas-contributions/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1867,7 +1870,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const response = await fetch(`http://172.20.32.85:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1949,7 +1952,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/resident', {
+      const response = await fetch('http://172.20.32.85:3333/admin/resident', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2008,7 +2011,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/kepala-keluarga/list', {
+      const response = await fetch('http://172.20.32.85:3333/admin/kepala-keluarga/list', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2061,7 +2064,7 @@ export default function AdminDashboard({
     setSuratMasukLoading(true);
     const token = sessionStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/surat-masuk', {
+      const response = await fetch('http://172.20.32.85:3333/admin/surat-masuk', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2091,9 +2094,9 @@ export default function AdminDashboard({
         setSuratMasukList(JSON.parse(saved));
       } else {
         const mock = [
-          { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Sawangan Baru', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
-          { id: '2', nomorSurat: '120/KEC-SWG/2026', asalSurat: 'Kecamatan Sawangan', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
-          { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Sawangan', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
+          { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Cinere', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
+          { id: '2', nomorSurat: '120/KEC-CNR/2026', asalSurat: 'Kecamatan Cinere', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
+          { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Cinere', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
         ];
         setSuratMasukList(mock);
         localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(mock));
@@ -2107,7 +2110,7 @@ export default function AdminDashboard({
     setSuratKeluarLoading(true);
     const token = sessionStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/surat-keluar', {
+      const response = await fetch('http://172.20.32.85:3333/admin/surat-keluar', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2137,9 +2140,9 @@ export default function AdminDashboard({
         setSuratKeluarList(JSON.parse(saved));
       } else {
         const mock = [
-          { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Sawangan Baru (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
-          { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Sawangan (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
-          { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Sawangan', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
+          { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Cinere (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
+          { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Cinere (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
+          { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Cinere', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
         ];
         setSuratKeluarList(mock);
         localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(mock));
@@ -2172,7 +2175,7 @@ export default function AdminDashboard({
     });
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/datawarga', {
+      const response = await fetch('http://172.20.32.85:3333/admin/datawarga', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2324,7 +2327,7 @@ export default function AdminDashboard({
 
     try {
       if (sudoActionType === 'reveal_warga') {
-        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-warga/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.85:3333/admin/reveal-warga/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2340,7 +2343,7 @@ export default function AdminDashboard({
           setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
         }
       } else if (sudoActionType === 'reveal_resident') {
-        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const res = await fetch(`http://172.20.32.85:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2357,7 +2360,7 @@ export default function AdminDashboard({
         }
       } else if (sudoActionType === 'patch_kk') {
         // verify password first by making a dry run reveal-resident call
-        const verifyRes = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const verifyRes = await fetch(`http://172.20.32.85:3333/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2370,7 +2373,7 @@ export default function AdminDashboard({
           throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
         }
 
-        const response = await fetch(`http://172.20.32.31:3333/admin/resident/${sudoTargetId}`, {
+        const response = await fetch(`http://172.20.32.85:3333/admin/resident/${sudoTargetId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -2428,7 +2431,7 @@ export default function AdminDashboard({
 
   const fetchLedgerFromServer = async () => {
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
+      const response = await fetch('http://172.20.32.85:3333/post/dashboard-stats');
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200 && data.output?.ledger) {
@@ -2543,7 +2546,7 @@ export default function AdminDashboard({
       fetchKepalaKeluargaList();
     }
 
-    const socketConnection = io('http://172.20.32.31:3333', {
+    const socketConnection = io('http://172.20.32.85:3333', {
       transports: ['websocket'],
       auth: { token }
     });
@@ -2760,7 +2763,7 @@ export default function AdminDashboard({
 
     try {
       const token = sessionStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.85:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3069,7 +3072,7 @@ export default function AdminDashboard({
 
     try {
       const token = sessionStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
+      const response = await fetch('http://172.20.32.85:3333/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3252,7 +3255,7 @@ export default function AdminDashboard({
     printWindow.document.write(`
       <html>
         <head>
-          <title>Laporan Keuangan Kas RT 05 Sawangan Green Park</title>
+          <title>Laporan Keuangan Kas RT 05 Villa Mutiara Mas Cinere</title>
           <style>
             body { font-family: sans-serif; padding: 30px; color: #333; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -3264,8 +3267,8 @@ export default function AdminDashboard({
         </head>
         <body>
           <div class="header">
-            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 05 / RW 06</h2>
-            <h3>Perumahan Sawangan Green Park</h3>
+            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 05 / RW 11</h2>
+            <h3>Perumahan Villa Mutiara Mas Cinere</h3>
             <p>Dicetak pada: ${formatDateIndo(new Date())}</p>
           </div>
           <table>
@@ -3326,7 +3329,7 @@ export default function AdminDashboard({
         wargaNama: w ? w.name : `Keluarga #${sub.family_id}`,
         wargaNik: w ? w.nik : 'Sensor',
         wargaNoKk: sub.no_kk,
-        wargaAlamat: w ? w.alamat : 'Sawangan Green Park',
+        wargaAlamat: w ? w.alamat : 'Villa Mutiara Mas Cinere',
         wargaTipeSurat: sub.jenis,
         wargaKeperluan: sub.keperluan,
         status: (sub.status === 'selesai' || sub.status === 'Completed' || sub.status === 'Selesai') ? 'Completed' : ((sub.status === 'disetujui' || sub.status === 'Approved') ? 'Approved' : ((sub.status === 'ditolak' || sub.status === 'Rejected') ? 'Rejected' : 'Pending')),
@@ -3433,9 +3436,15 @@ export default function AdminDashboard({
         email: '', role: 'warga', blok: '', nomor: '', tglLahir: '', noHp: ''
       });
       setModalType('add_warga');
-    } else if (type === 'kas') {
+    } else if (type === 'kas' || type === 'kas_income' || type === 'kas_expense') {
+      const transactionType = type === 'kas_expense' ? 'expense' : 'income';
+      const defaultCategory = transactionType === 'expense' ? 'Keamanan' : 'Iuran Warga';
       setKasForm({
-        description: '', amount: '', date: new Date().toISOString().split('T')[0], type: 'income', category: 'Iuran Warga'
+        description: '', 
+        amount: '', 
+        date: new Date().toISOString().split('T')[0], 
+        type: transactionType, 
+        category: defaultCategory
       });
       setModalType('add_kas');
     } else if (type === 'agenda') {
@@ -3478,7 +3487,7 @@ export default function AdminDashboard({
         }
 
         try {
-          const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${id}`, {
+          const response = await fetch(`http://172.20.32.85:3333/admin/agenda/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -3587,7 +3596,7 @@ export default function AdminDashboard({
           }
         };
 
-        const res = await fetch('http://172.20.32.31:3333/admin/register-resident-only', {
+        const res = await fetch('http://172.20.32.85:3333/admin/register-resident-only', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3642,7 +3651,7 @@ export default function AdminDashboard({
         const targetId = selectedItem?.id || selectedItem?.warga_id || selectedItem?.family_id;
 
         if (token && targetId) {
-          const response = await fetch(`http://172.20.32.31:3333/resident/warga/${targetId}`, {
+          const response = await fetch(`http://172.20.32.85:3333/resident/warga/${targetId}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -3713,8 +3722,8 @@ export default function AdminDashboard({
       try {
         const isIncome = kasForm.type === 'income';
         const url = isIncome 
-          ? 'http://172.20.32.31:3333/admin/finance/income' 
-          : 'http://172.20.32.31:3333/admin/finance/expense';
+          ? 'http://172.20.32.85:3333/admin/finance/income' 
+          : 'http://172.20.32.85:3333/admin/finance/expense';
         const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
 
         const res = await fetch(url, {
@@ -3789,7 +3798,7 @@ export default function AdminDashboard({
       };
 
       if (modalType === 'add_agenda') {
-        const response = await fetch('http://172.20.32.31:3333/admin/agenda', {
+        const response = await fetch('http://172.20.32.85:3333/admin/agenda', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3818,7 +3827,7 @@ export default function AdminDashboard({
           confirmButtonColor: '#10b981'
         });
       } else {
-        const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${selectedItem.id}`, {
+        const response = await fetch(`http://172.20.32.85:3333/admin/agenda/${selectedItem.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -3878,7 +3887,7 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/surat-masuk/${id}`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/surat-masuk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3915,7 +3924,7 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/surat-keluar/${id}`, {
+      const res = await fetch(`http://172.20.32.85:3333/admin/surat-keluar/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3960,8 +3969,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.31:3333/admin/surat-masuk/${suratMasukForm.id}`
-        : 'http://172.20.32.31:3333/admin/surat-masuk';
+        ? `http://172.20.32.85:3333/admin/surat-masuk/${suratMasukForm.id}`
+        : 'http://172.20.32.85:3333/admin/surat-masuk';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4031,8 +4040,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.31:3333/admin/surat-keluar/${suratKeluarForm.id}`
-        : 'http://172.20.32.31:3333/admin/surat-keluar';
+        ? `http://172.20.32.85:3333/admin/surat-keluar/${suratKeluarForm.id}`
+        : 'http://172.20.32.85:3333/admin/surat-keluar';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4115,7 +4124,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
-        await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
+        await fetch(`http://172.20.32.85:3333/admin/pengajuan/${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -4209,24 +4218,27 @@ export default function AdminDashboard({
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
       {/* Premium ambient glows */}
-      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-[var(--color-primary-wf)]/5 dark:bg-[var(--color-primary-wf)]/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 dark:bg-orange-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* Mobile Sticky Header Bar (< md) */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-orange-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             aria-label="Buka Menu Navigasi"
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <img src={logoGSP} alt="Logo Sawangan Green Park" className="h-7 w-auto object-contain drop-shadow-xs" />
+            <div className="flex items-center gap-1">
+              <img src={logoDepok} alt="Logo Kota Depok" className="h-7 w-auto object-contain drop-shadow-xs" />
+              <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
+            </div>
             <div>
-              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Admin Sawangan Green Park</h1>
-              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas Cinere</h1>
+              <span className="text-[9px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">RT 05 / RW 11</span>
             </div>
           </div>
         </div>
@@ -4248,13 +4260,16 @@ export default function AdminDashboard({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-emerald-50/95 via-slate-50 to-teal-50/95 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
-            <div className="p-4 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-between">
+          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-orange-50/95 via-slate-50 to-amber-50/95 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+            <div className="p-4 border-b border-orange-200/80 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <img src={logoGSP} alt="Logo Sawangan Green Park" className="h-8 w-auto object-contain drop-shadow-xs" />
+                <div className="flex items-center gap-1">
+                  <img src={logoDepok} alt="Logo Depok" className="h-7 w-auto object-contain drop-shadow-xs" />
+                  <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
+                </div>
                 <div>
-                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Sawangan Green Park</h1>
-                  <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">Admin Portal • RT 05</span>
+                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas</h1>
+                  <span className="text-[8px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Admin Portal • RT 05 / RW 11</span>
                 </div>
               </div>
               <button
@@ -4266,13 +4281,13 @@ export default function AdminDashboard({
               </button>
             </div>
 
-            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs shadow-md shadow-emerald-500/20">
+            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-slate-800/80 rounded-2xl border border-orange-200/80 dark:border-slate-700/60 shadow-xs flex items-center gap-3 backdrop-blur-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs shadow-md shadow-orange-500/20">
                 AD
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-                <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">
+                <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">
                   {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
                 </p>
               </div>
@@ -4285,11 +4300,11 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'overview'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <LayoutDashboard className="w-4 h-4 text-emerald-500" />
+                  <LayoutDashboard className="w-4 h-4 text-orange-500" />
                   <span>Dashboard Overview</span>
                 </button>
                 {currentUser.role !== 'bendahara' && (
@@ -4298,7 +4313,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         activeTab === 'warga'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
@@ -4309,12 +4324,12 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         activeTab === 'sek_warga_masuk'
-                          ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                           : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <UserCheck className="w-4 h-4 text-emerald-500" />
+                        <UserCheck className="w-4 h-4 text-orange-500" />
                         <span>Verifikasi Registrasi Warga</span>
                       </div>
                       {pendingWargaList.length > 0 && (
@@ -4329,7 +4344,7 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'kas'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -4340,7 +4355,7 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'agenda'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -4351,18 +4366,18 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'layanan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
-                  <FileText className="w-4 h-4 text-emerald-400" />
+                  <FileText className="w-4 h-4 text-orange-500" />
                   <span>Persuratan & Layanan</span>
                 </button>
                 <button
                   onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaturan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
@@ -4392,24 +4407,27 @@ export default function AdminDashboard({
       )}
 
       {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         {/* Brand/Logo Header */}
-        <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
-          <img src={logoGSP} alt="Logo Sawangan Green Park" className="h-10 w-auto object-contain drop-shadow-md" />
+        <div className="p-6 border-b border-orange-200/50 dark:border-slate-800 flex items-center gap-3">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <img src={logoDepok} alt="Logo Kota Depok" className="h-9 w-auto object-contain drop-shadow-md" />
+            <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-md" />
+          </div>
           <div>
-            <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Sawangan Green Park</h1>
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 uppercase font-extrabold tracking-widest leading-none block mt-0.5">Admin Portal • RT 05</span>
+            <h1 className="font-extrabold text-xs text-slate-900 dark:text-white tracking-tight leading-tight">Villa Mutiara Mas</h1>
+            <span className="text-[9px] text-orange-600 dark:text-orange-400 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Admin Portal • RT 05 / RW 11</span>
           </div>
         </div>
 
         {/* Admin Info */}
-        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-sm shadow-md shadow-emerald-500/20">
+        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-slate-900/60 rounded-2xl border border-orange-200/60 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-sm shadow-md shadow-orange-500/20">
             AD
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-            <p className="text-[10px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">
+            <p className="text-[10px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">
               {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
             </p>
           </div>
@@ -4423,24 +4441,24 @@ export default function AdminDashboard({
               <button
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                        activeTab === 'overview'
-                      ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                  activeTab === 'overview'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                <LayoutDashboard className="w-4 h-4 text-orange-500" />
                 <span>Dashboard</span>
               </button>
 
-              {/* Iuran Header */}
+              {/* Iuran & Kas RT Header */}
               <div>
                 <button
                   onClick={() => setIsIuranOpen(!isIuranOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
-                    <Wallet className="w-4 h-4 text-amber-400" />
-                    <span>Iuran</span>
+                    <Wallet className="w-4 h-4 text-amber-500" />
+                    <span>Iuran & Kas RT</span>
                   </div>
                   <span className="text-[9px] text-slate-500 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
                 </button>
@@ -4451,130 +4469,78 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'kas' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'kas' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Monitoring Keuangan</span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'kas' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span>Monitoring & Transparansi Kas</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_jenis' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-650'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Jenis Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Catat Bayaran Warga</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_riwayat' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Riwayat</span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span>Riwayat Pembayaran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_tunggakan' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Tunggakan</span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span>Tunggakan Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_verifikasi' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold' 
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Verifikasi Transfer</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Keuangan Header */}
-              <div>
-                <button
-                  onClick={() => setIsKeuanganOpen(!isKeuanganOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <Wallet className="w-4 h-4 text-[var(--color-primary-wf)]" />
-                    <span>Keuangan</span>
-                  </div>
-                  <span className="text-[9px] text-slate-500 font-extrabold">{isKeuanganOpen ? '▼' : '▶'}</span>
-                </button>
-
-                {isKeuanganOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
-                    <button
-                      onClick={() => { setActiveTab('keuangan_pemasukan'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'keuangan_pemasukan' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pemasukan' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Pemasukan</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('keuangan_pengeluaran'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'keuangan_pengeluaran' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold bg-[var(--color-primary-wf)]/10'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_pengeluaran' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Pengeluaran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('keuangan_kas'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'keuangan_kas' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_kas' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Kas RT</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('keuangan_qris'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_qris' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
-                      <span>Transfer Bank / QRIS</span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
+                      <span>Rekening & QRIS RT</span>
                     </button>
                   </div>
                 )}
@@ -4599,44 +4565,44 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('laporan_bulanan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'laporan_bulanan' 
-                            ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                            ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                             : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Laporan Bulanan</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_tahunan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_tahunan' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Laporan Tahunan</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_rekap'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_rekap' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Rekap Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('laporan_export'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'laporan_export' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-300 dark:bg-slate-655'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
                       <span>Export Excel/PDF</span>
                     </button>
                   </div>
@@ -4651,11 +4617,11 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                <LayoutDashboard className="w-4 h-4 text-orange-500" />
                 <span>Dashboard</span>
               </button>
 
@@ -4678,34 +4644,34 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'warga' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold' 
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data Penduduk</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data KK</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Verifikasi Warga Baru</span>
                       </div>
                       {pendingWargaList.length > 0 && (
@@ -4737,22 +4703,22 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'layanan' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Pengajuan Surat</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_surat_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_surat_masuk' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_masuk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Surat Masuk</span>
                     </button>
 
@@ -4760,11 +4726,11 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_surat_template'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_surat_template' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold' 
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_template' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_template' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Template Surat</span>
                     </button>
                   </div>
@@ -4777,8 +4743,8 @@ export default function AdminDashboard({
                   onClick={() => setIsInformasiOpen(!isInformasiOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                 >
-                    <div className="flex items-center gap-3">
-                    <Volume2 className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                  <div className="flex items-center gap-3">
+                    <Volume2 className="w-4 h-4 text-orange-500" />
                     <span>Informasi</span>
                   </div>
                   <span className="text-[9px] text-slate-500 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
@@ -4790,33 +4756,33 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_info_pengumuman' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_pengumuman' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Pengumuman</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'agenda' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'agenda' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'agenda' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Agenda RT</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_info_notulen'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_info_notulen' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold' 
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_notulen' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_notulen' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Notulen Rapat</span>
                     </button>
                   </div>
@@ -4828,8 +4794,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_pengaduan'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -4841,8 +4807,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_arsip'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -4854,8 +4820,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_laporan'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -4867,8 +4833,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_akun_manage'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <User className="w-4 h-4 text-slate-400" />
@@ -4880,8 +4846,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'pengaturan'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Settings className="w-4 h-4 text-slate-500" />
@@ -4896,11 +4862,11 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <LayoutDashboard className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                <LayoutDashboard className="w-4 h-4 text-orange-500" />
                 <span>Dashboard</span>
               </button>
 
@@ -4923,34 +4889,34 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'warga' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data Penduduk</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Data KK</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_masuk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Verifikasi Warga Baru</span>
                       </div>
                       {pendingWargaList.length > 0 && (
@@ -4968,12 +4934,12 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'layanan'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <FileCheck className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                  <FileCheck className="w-4 h-4 text-orange-500" />
                   <span>Persetujuan Surat</span>
                 </div>
                 {pendingSubmissionsCount > 0 && (
@@ -4989,8 +4955,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_info_pengumuman'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Volume2 className="w-4 h-4 text-sky-400" />
@@ -5002,11 +4968,11 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'agenda'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <Calendar className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                <Calendar className="w-4 h-4 text-orange-500" />
                 <span>Agenda RT</span>
               </button>
 
@@ -5015,8 +4981,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_pengaduan'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -5028,8 +4994,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_arsip'
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] border border-[var(--color-hairline)] shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -5041,8 +5007,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_laporan'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -5068,55 +5034,55 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_jenis' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Jenis Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Catat Bayaran Warga</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_riwayat' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-[var(--color-primary-wf)] scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Riwayat Setoran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_tunggakan' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] font-bold'
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Tunggakan Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_verifikasi' 
-                          ? 'text-emerald-600 dark:text-emerald-455 font-bold bg-slate-855/50' 
+                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-emerald-455 scale-125' : 'bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_verifikasi' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Verifikasi Transfer</span>
                     </button>
                   </div>
@@ -5128,8 +5094,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_akun_manage'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <User className="w-4 h-4 text-slate-400" />
@@ -5141,8 +5107,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('rt_statistik'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'rt_statistik'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <TrendingUp className="w-4 h-4 text-teal-400" />
@@ -5154,8 +5120,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'pengaturan'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Settings className="w-4 h-4 text-slate-500" />
@@ -5197,12 +5163,12 @@ export default function AdminDashboard({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
         {/* Header Ribbon */}
-        <header className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-orange-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
+            <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest font-mono">
               {activeTab === 'overview' && 'KONTROL PANEL'}
               {activeTab === 'warga' && 'ADMINISTRASI PENDUDUK'}
               {activeTab === 'kas' && 'MONITORING KEUANGAN'}
@@ -5217,7 +5183,7 @@ export default function AdminDashboard({
             <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
               {activeTab === 'overview' && 'Ringkasan Portal Admin'}
               {activeTab === 'warga' && 'Daftar Warga & Keluarga'}
-              {activeTab === 'kas' && 'Buku Kas & Transaksi'}
+              {activeTab === 'kas' && 'Monitoring & Transparansi Kas RT'}
               {activeTab === 'agenda' && 'Kegiatan & Rapat RT'}
               {activeTab === 'layanan' && 'Layanan Pengajuan Surat'}
               {activeTab === 'logs' && 'Log Akses Masuk Portal'}
@@ -5225,10 +5191,8 @@ export default function AdminDashboard({
               {activeTab === 'iuran_pembayaran' && 'Form Pencatatan Pembayaran'}
               {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Iuran'}
               {activeTab === 'iuran_tunggakan' && 'Daftar Warga Menunggak'}
-              {activeTab === 'keuangan_pemasukan' && 'Form Pemasukan Kas'}
-              {activeTab === 'keuangan_pengeluaran' && 'Form Pengeluaran Kas'}
-              {activeTab === 'keuangan_kas' && 'Buku Kas Umum RT'}
-              {activeTab === 'keuangan_qris' && 'Metode Transfer & QRIS'}
+              {activeTab === 'iuran_verifikasi' && 'Verifikasi Bukti Transfer Warga'}
+              {activeTab === 'keuangan_qris' && 'Metode Transfer & QRIS RT 05'}
               {activeTab === 'laporan_bulanan' && 'Laporan Keuangan Bulanan'}
               {activeTab === 'laporan_tahunan' && 'Laporan Keuangan Tahunan'}
               {activeTab === 'laporan_rekap' && 'Tabel Rekapitulasi Iuran'}
@@ -5242,7 +5206,7 @@ export default function AdminDashboard({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
               Live Sync
             </span>
-            <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold items-center gap-1.5">
+            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg text-xs font-bold items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Sesi Aktif
             </span>
@@ -5270,18 +5234,19 @@ export default function AdminDashboard({
           ) : (
             <>
               {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
-              <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 dark:from-emerald-950/70 dark:via-teal-950/70 dark:to-emerald-950/50 border border-emerald-500/20 dark:border-emerald-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
-                <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-emerald-500/10 dark:bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/5 dark:from-orange-950/70 dark:via-amber-950/70 dark:to-slate-950/50 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+                <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 dark:bg-orange-400/20 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="space-y-1.5 z-10">
                   <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-emerald-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 dark:border-white/20">
-                      RT 05 / RW 06 Portal Admin
+                    <span className="px-2.5 py-0.5 bg-orange-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 dark:text-orange-200 border border-orange-500/20 dark:border-white/20">
+                      Villa Mutiara Mas Cinere • RT 05 / RW 11
                     </span>
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">● Live Sync</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
                     {activeTab === 'overview' && 'Dasbor Kontrol Pengurus RT 05 👋'}
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
+                    {activeTab === 'kas' && 'Monitoring Keuangan & Transparansi Kas RT 💰'}
                     {activeTab === 'sek_warga_kk' && 'Kelola Data Kartu Keluarga (KK) 📄'}
                     {activeTab === 'sek_warga_masuk' && 'Verifikasi Registrasi Warga Baru ✨'}
                     {activeTab === 'data_wizard' && 'Pendaftaran Rumah, KK & Warga ⚡'}
@@ -5293,9 +5258,6 @@ export default function AdminDashboard({
                     {activeTab === 'iuran_riwayat' && 'Riwayat & Log Setoran Pembayaran Iuran 📊'}
                     {activeTab === 'iuran_tunggakan' && 'Daftar Tunggakan Iuran Bulanan Warga ⚠️'}
                     {activeTab === 'iuran_verifikasi' && 'Verifikasi Setoran Transfer & Bukti Warga 🔍'}
-                    {activeTab === 'keuangan_pemasukan' && 'Form Catat Pemasukan Kas RT Non-Iuran 📥'}
-                    {activeTab === 'keuangan_pengeluaran' && 'Form Catat Pengeluaran Belanja RT 📤'}
-                    {activeTab === 'keuangan_kas' && 'Buku Kas Umum & Transaksi 💰'}
                     {activeTab === 'keuangan_qris' && 'Pengaturan Rekening RT & Kode QRIS 📲'}
                     {activeTab === 'laporan_bulanan' && 'Laporan Rekapitulasi Kas RT Bulanan 📅'}
                     {activeTab === 'laporan_tahunan' && 'Laporan Audit Kas RT Tahunan 📈'}
@@ -5311,12 +5273,12 @@ export default function AdminDashboard({
                     {activeTab === 'logs' && 'Log Audit Akses Pengurus 🛡️'}
                     {activeTab === 'pengaturan' && 'Pengaturan Keuangan & Kata Sandi ⚙️'}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-emerald-100 max-w-2xl leading-relaxed font-medium">
-                    Sistem Portal Manajemen RT 05 untuk kelancaran administrasi dan pelayanan warga.
+                  <p className="text-xs text-slate-600 dark:text-orange-100 max-w-2xl leading-relaxed font-medium">
+                    Sistem Portal Manajemen RT 05 Villa Mutiara Mas Cinere untuk kelancaran administrasi dan pelayanan warga.
                   </p>
                 </div>
-                <div className="px-4 py-2 bg-emerald-600 dark:bg-white/20 hover:bg-emerald-700 dark:hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-md border border-emerald-500/30 dark:border-white/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
-                  <Sparkles className="w-4 h-4 text-white dark:text-emerald-300" />
+                <div className="px-4 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
+                  <Sparkles className="w-4 h-4 text-white" />
                   <span>RT 05 Modern System</span>
                 </div>
               </div>
@@ -5326,14 +5288,14 @@ export default function AdminDashboard({
             <div className="space-y-8 animate-fade-in">
               
               {/* Welcome Banner Card */}
-              <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-900 text-white rounded-3xl p-6 sm:p-8 border border-emerald-500/30 shadow-xl shadow-emerald-500/10 relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 text-white rounded-3xl p-6 sm:p-8 border border-orange-400/30 shadow-xl shadow-orange-500/20 relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="space-y-2 z-10">
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">Dasbor Kontrol Pengurus RT 05 👋</h3>
-                  <p className="text-xs text-emerald-100 max-w-xl leading-relaxed">Kelola kependudukan, pengajuan surat warga, pembukuan kas RT, dan verifikasi iuran bulanan dalam satu panel kontrol terpadu.</p>
+                  <p className="text-xs text-orange-100 max-w-xl leading-relaxed">Kelola kependudukan, pengajuan surat warga, pembukuan kas RT, dan verifikasi iuran bulanan dalam satu panel kontrol terpadu.</p>
                 </div>
                 <div className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-lg border border-white/30 flex items-center gap-2 transition-all z-10">
-                  <Sparkles className="w-4 h-4 text-emerald-300" />
+                  <Sparkles className="w-4 h-4 text-amber-200" />
                   <span>Status System: Real-Time Sync</span>
                 </div>
               </div>
@@ -5342,8 +5304,8 @@ export default function AdminDashboard({
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                 
                 {/* 1. Total Warga */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                     <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <span className="hidden" aria-hidden="true">{logsTrigger}</span>
@@ -6317,9 +6279,9 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { name: 'Surat Pengantar KTP / KK', desc: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Sawangan Baru dikarenakan baru pindah domisili ke wilayah RT 05.' },
+                  { name: 'Surat Pengantar KTP / KK', desc: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Cinere dikarenakan baru pindah domisili ke wilayah RT 05.' },
                   { name: 'Surat Keterangan Domisili Warga', desc: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
-                  { name: 'Surat Pengantar Nikah', desc: 'Memberikan pengantar persetujuan pernikahan bagi warga yang bersangkutan di kantor urusan agama Kelurahan Sawangan Baru.' },
+                  { name: 'Surat Pengantar Nikah', desc: 'Memberikan pengantar persetujuan pernikahan bagi warga yang bersangkutan di kantor urusan agama Kelurahan Cinere.' },
                   { name: 'Surat Izin Keramaian', desc: 'Format permohonan izin menyelenggarakan acara / keramaian di lingkungan perumahan.' }
                 ].map((t, idx) => (
                   <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
@@ -6717,7 +6679,7 @@ export default function AdminDashboard({
                     formData.append('kategori', arsipForm.kategori || 'Dokumentasi Umum');
                     formData.append('file', file);
 
-                    const res = await fetch('http://172.20.32.31:3333/admin/arsip-media', {
+                    const res = await fetch('http://172.20.32.85:3333/admin/arsip-media', {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${token}`
@@ -6891,7 +6853,7 @@ export default function AdminDashboard({
                       ) : (
                         arsipFileList.map((a) => {
                           const isVid = a.media_type === 'video' || a.mime_type?.startsWith('video');
-                          const mediaUrl = a.media_url ? (a.media_url.startsWith('http') ? a.media_url : `http://172.20.32.31:3333${a.media_url}`) : `http://172.20.32.31:3333/post/arsip-media/${a.id}/file`;
+                          const mediaUrl = a.media_url ? (a.media_url.startsWith('http') ? a.media_url : `http://172.20.32.85:3333${a.media_url}`) : `http://172.20.32.85:3333/post/arsip-media/${a.id}/file`;
                           const sizeFormatted = a.file_size 
                             ? (a.file_size > 1024 * 1024 ? `${(a.file_size / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(a.file_size / 1024)} KB`)
                             : (a.size || '-');
@@ -6952,7 +6914,7 @@ export default function AdminDashboard({
                                       if (!token) return;
 
                                       try {
-                                        const res = await fetch(`http://172.20.32.31:3333/admin/arsip-media/${a.id}`, {
+                                        const res = await fetch(`http://172.20.32.85:3333/admin/arsip-media/${a.id}`, {
                                           method: 'DELETE',
                                           headers: { 'Authorization': `Bearer ${token}` }
                                         });
@@ -7645,108 +7607,258 @@ export default function AdminDashboard({
           );
         })()}
 
-          {/* TAB 3: KAS RT */}
+          {/* TAB 3: MONITORING & TRANSPARANSI KAS RT */}
           {activeTab === 'kas' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
-              {/* Financial mini dashboard */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div className="p-4 bg-emerald-500/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/25 rounded-2xl">
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-xs mb-1.5">
+              {/* Header Title & Subtitle */}
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 rounded-lg text-[10px] font-extrabold uppercase tracking-wider">
+                      Transparansi Kas RT 05 / RW 11
+                    </span>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                      Real-Time Live Sync
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                    Buku Kas & Monitoring Keuangan RT
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Pusat transparansi pencatatan kas masuk & keluar, rekapitulasi saldo, serta mutasi keuangan terverifikasi Villa Mutiara Mas Cinere.
+                  </p>
+                </div>
+
+                {/* Quick CTA Actions */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => openAddModal('kas_income')}
+                    className="py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                  >
                     <TrendingUp className="w-4 h-4" />
-                    <span>Total Pemasukan</span>
-                  </div>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPemasukan)}</span>
-                </div>
-                <div className="p-4 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/10 dark:border-rose-500/25 rounded-2xl">
-                  <div className="flex items-center gap-2 text-rose-600 dark:text-rose-455 font-bold text-xs mb-1.5">
+                    <span>+ Catat Pemasukan</span>
+                  </button>
+                  <button
+                    onClick={() => openAddModal('kas_expense')}
+                    className="py-2.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                  >
                     <TrendingDown className="w-4 h-4" />
-                    <span>Total Pengeluaran</span>
-                  </div>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPengeluaran)}</span>
-                </div>
-                <div className="p-4 bg-teal-500/5 dark:bg-teal-500/10 border border-teal-500/10 dark:border-teal-500/25 rounded-2xl">
-                  <div className="flex items-center gap-2 text-teal-600 dark:text-teal-400 font-bold text-xs mb-1.5">
-                    <Wallet className="w-4 h-4" />
-                    <span>Saldo Akhir Kas</span>
-                  </div>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(sisaKas)}</span>
+                    <span>- Catat Pengeluaran</span>
+                  </button>
+                  <button
+                    onClick={handlePrintKasReport}
+                    className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer"
+                    title="Cetak Laporan Transparansi Kas"
+                  >
+                    <FileText className="w-4 h-4 text-slate-500" />
+                    <span>Cetak Laporan</span>
+                  </button>
                 </div>
               </div>
 
-              {/* sub-tabs */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800">
+              {/* Financial mini dashboard / Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+                <div className="p-5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <TrendingUp className="w-4 h-4" />
+                      Total Pemasukan Kas
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold rounded-full">
+                      {transaksiKasList.filter(t => t.type === 'income').length} Transaksi
+                    </span>
+                  </div>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(totalPemasukan)}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Akumulasi iuran bulanan warga, donasi, subsidi & sumbangan.</p>
+                </div>
+
+                <div className="p-5 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                      <TrendingDown className="w-4 h-4" />
+                      Total Pengeluaran Kas
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-700 dark:text-rose-300 font-bold rounded-full">
+                      {transaksiKasList.filter(t => t.type === 'expense').length} Transaksi
+                    </span>
+                  </div>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(totalPengeluaran)}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Belanja operasional keamanan, kebersihan, ATK & kegiatan RT.</p>
+                </div>
+
+                <div className="p-5 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                      <Wallet className="w-4 h-4" />
+                      Saldo Akhir Kas RT
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 bg-orange-500/20 text-orange-700 dark:text-orange-300 font-bold rounded-full">
+                      Kas Tersedia
+                    </span>
+                  </div>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(sisaKas)}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
+                </div>
+              </div>
+
+              {/* Sub-tabs Navigation */}
+              <div className="flex border-b border-slate-100 dark:border-slate-800 gap-2">
                 <button
                   onClick={() => { setKasSubTab('transaksi'); setSearchQuery(''); }}
-                  className={`py-3 px-6 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                  className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     kasSubTab === 'transaksi'
-                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-450'
+                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
                       : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
                 >
-                  Buku Kas Umum
+                  <FileText className="w-4 h-4" />
+                  <span>Buku Kas & Transparansi Mutasi</span>
                 </button>
                 <button
                   onClick={() => { setKasSubTab('tunggakan'); setSearchQuery(''); }}
-                  className={`py-3 px-6 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                  className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     kasSubTab === 'tunggakan'
-                      ? 'border-emerald-500 text-emerald-600 dark:text-emerald-450'
+                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
                       : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
                   }`}
                 >
-                  Status & Tunggakan Iuran Warga
+                  <Users className="w-4 h-4" />
+                  <span>Status & Rekap Tunggakan Warga</span>
+                </button>
+                <button
+                  onClick={() => { setKasSubTab('rekening_qris'); setSearchQuery(''); }}
+                  className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+                    kasSubTab === 'rekening_qris'
+                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <Wallet className="w-4 h-4" />
+                  <span>Rekening Transfer & QRIS RT 05</span>
                 </button>
               </div>
 
-              {kasSubTab === 'transaksi' ? (
-                <>
-                  {/* Toolbar */}
-                  <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
-                    <div className="relative flex-1 max-w-md">
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        placeholder="Cari transaksi..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
-                      />
+              {/* SUBTAB 1: BUKU KAS & TRANSPARANSI MUTASI */}
+              {kasSubTab === 'transaksi' && (
+                <div className="space-y-4 animate-fade-in">
+                  {/* Filter Toolbar */}
+                  <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center bg-slate-50/70 dark:bg-slate-950/40 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                    <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                      {/* Search Bar */}
+                      <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Cari transaksi, ID, kategori..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-sans"
+                        />
+                      </div>
+
+                      {/* Type Filter Pills */}
+                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => setKasFilterType('all')}
+                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                            kasFilterType === 'all'
+                              ? 'bg-orange-500 text-white shadow-xs'
+                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                          }`}
+                        >
+                          Semua ({transaksiKasList.length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setKasFilterType('income')}
+                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                            kasFilterType === 'income'
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                          }`}
+                        >
+                          Masuk ({transaksiKasList.filter(t => t.type === 'income').length})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setKasFilterType('expense')}
+                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                            kasFilterType === 'expense'
+                              ? 'bg-rose-600 text-white shadow-xs'
+                              : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                          }`}
+                        >
+                          Keluar ({transaksiKasList.filter(t => t.type === 'expense').length})
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <button
-                        onClick={handlePrintKasReport}
-                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-750 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer border border-slate-250/20 dark:border-slate-800"
+                    {/* Category Filter Dropdown */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">Kategori:</span>
+                      <select
+                        value={kasFilterCategory}
+                        onChange={(e) => setKasFilterCategory(e.target.value)}
+                        className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
                       >
-                        <span>Cetak Laporan</span>
-                      </button>
-                      <button
-                        onClick={() => openAddModal('kas')}
-                        className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
-                      >
-                        <Plus className="w-4 h-4" />
-                        <span>Catat Transaksi</span>
-                      </button>
+                        <option value="all">Semua Kategori</option>
+                        <option value="Iuran Warga">Iuran Warga</option>
+                        <option value="Donasi">Donasi / Sumbangan</option>
+                        <option value="Keamanan">Keamanan Lingkungan</option>
+                        <option value="Kebersihan">Kebersihan & Sampah</option>
+                        <option value="Sosial / Santunan">Sosial / Santunan</option>
+                        <option value="Pembangunan">Pembangunan / Fasum</option>
+                        <option value="Lain-lain">Lain-lain</option>
+                      </select>
                     </div>
                   </div>
 
-                  {/* Table */}
+                  {/* Mutasi Transparansi Table */}
                   <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Tanggal / ID</th>
-                          <th className="p-4">Deskripsi Transaksi</th>
-                          <th className="p-4">Kategori</th>
-                          <th className="p-4 text-center">Tipe</th>
-                          <th className="p-4 text-right">Jumlah Uang</th>
+                          <th className="p-4">Deskripsi / Keperluan</th>
+                          <th className="p-4">Kategori Kas</th>
+                          <th className="p-4 text-center">Tipe Mutasi</th>
+                          <th className="p-4 text-right">Nominal Uang</th>
+                          <th className="p-4 text-center">Status Transparansi</th>
                           <th className="p-4 text-right">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {transaksiKasList
-                          .filter(t => t.description.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
-                          .map((t) => (
+                        {(() => {
+                          const q = searchQuery.toLowerCase();
+                          const filtered = transaksiKasList.filter((t) => {
+                            const matchesQuery = !searchQuery || 
+                              (t.description || '').toLowerCase().includes(q) || 
+                              (t.category || '').toLowerCase().includes(q) ||
+                              (t.id || '').toLowerCase().includes(q) ||
+                              (t.date || '').toLowerCase().includes(q);
+                            const matchesType = kasFilterType === 'all' || t.type === kasFilterType;
+                            const matchesCategory = kasFilterCategory === 'all' || t.category === kasFilterCategory;
+                            return matchesQuery && matchesType && matchesCategory;
+                          });
+
+                          if (filtered.length === 0) {
+                            return (
+                              <tr>
+                                <td colSpan={7} className="p-8 text-center text-slate-400">
+                                  <div className="flex flex-col items-center justify-center gap-2">
+                                    <FileText className="w-8 h-8 opacity-40" />
+                                    <p className="font-bold text-xs">Tidak ada data transaksi kas yang sesuai filter.</p>
+                                    <p className="text-[11px]">Silakan sesuaikan kata kunci pencarian atau kategori.</p>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          }
+
+                          return filtered.map((t) => (
                             <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 space-y-1 font-mono">
                                 <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
@@ -7756,15 +7868,18 @@ export default function AdminDashboard({
                                 {t.description}
                               </td>
                               <td className="p-4 font-semibold text-slate-500 dark:text-slate-450">
-                                {t.category}
+                                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-bold text-[10px]">
+                                  {t.category}
+                                </span>
                               </td>
                               <td className="p-4 text-center">
-                                <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] inline-block ${
+                                <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] inline-flex items-center gap-1 ${
                                   t.type === 'income'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-455'
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-455 border border-rose-500/20'
                                 }`}>
-                                  {t.type === 'income' ? 'Masuk' : 'Keluar'}
+                                  {t.type === 'income' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                                  <span>{t.type === 'income' ? 'Masuk' : 'Keluar'}</span>
                                 </span>
                               </td>
                               <td className={`p-4 text-right font-bold text-sm font-mono ${
@@ -7772,14 +7887,20 @@ export default function AdminDashboard({
                               }`}>
                                 {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
                               </td>
+                              <td className="p-4 text-center">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[10px] font-bold border border-emerald-500/20">
+                                  <CheckCircle className="w-3 h-3" />
+                                  <span>Terverifikasi</span>
+                                </span>
+                              </td>
                               <td className="p-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => openEditModal('kas', t)}
-                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-orange-500 dark:hover:border-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
                                     title="Edit Transaksi"
                                   >
-                                    <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
+                                    <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-orange-500" />
                                   </button>
                                   <button
                                     onClick={() => handleDelete('kas', t.id)}
@@ -7791,27 +7912,28 @@ export default function AdminDashboard({
                                 </div>
                               </td>
                             </tr>
-                          ))}
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>
-                </>
-              ) : (
-                /* DAFTAR TUNGGAKAN IURAN WARGA */
+                </div>
+              )}
+
+              {/* SUBTAB 2: DAFTAR TUNGGAKAN IURAN WARGA */}
+              {kasSubTab === 'tunggakan' && (
                 <div className="space-y-6 animate-fade-in">
-                  {/* Search bar */}
                   <div className="relative max-w-md">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Cari nama warga..."
+                      placeholder="Cari nama warga atau alamat..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                     />
                   </div>
 
-                  {/* Tunggakan table */}
                   <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
@@ -7824,7 +7946,7 @@ export default function AdminDashboard({
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {wargaList
-                          .filter(w => w.statusHidup === 'Hidup' && (w.name || '').toLowerCase().includes(searchQuery.toLowerCase()))
+                          .filter(w => w.statusHidup === 'Hidup' && ((w.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (w.alamat || '').toLowerCase().includes(searchQuery.toLowerCase())))
                           .map((w) => (
                             <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 font-bold text-slate-900 dark:text-white">
@@ -7847,7 +7969,7 @@ export default function AdminDashboard({
                                 {w.statusIuran?.includes('Menunggak') ? (
                                   <button
                                     onClick={() => handleUpdateIuranStatus(w.id, 'Lunas')}
-                                    className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                    className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer shadow-xs"
                                   >
                                     Konfirmasi Lunas
                                   </button>
@@ -7876,6 +7998,51 @@ export default function AdminDashboard({
                 </div>
               )}
 
+              {/* SUBTAB 3: REKENING & QRIS RESMI RT 05 */}
+              {kasSubTab === 'rekening_qris' && (
+                <div className="space-y-6 animate-fade-in font-sans">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                    {/* Bank account details card */}
+                    <div className="p-6 bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
+                      <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-orange-500/10 rounded-full blur-2xl"></div>
+                      <div className="flex justify-between items-center">
+                        <span className="font-extrabold text-xs text-orange-400 uppercase tracking-widest">KARTU DEBIT KAS RT 05</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">BANK MANDIRI</span>
+                      </div>
+                      <div className="space-y-1.5 pt-4 font-sans">
+                        <span className="text-slate-400 text-[10px] font-bold uppercase tracking-wider block">Nomor Rekening Kas Resmi</span>
+                        <p className="text-2xl font-black font-mono tracking-widest text-slate-100">157-00-98234-04-1</p>
+                      </div>
+                      <div className="flex justify-between items-end pt-4 border-t border-slate-800">
+                        <div className="space-y-0.5">
+                          <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
+                          <p className="text-xs font-black text-slate-200">KAS RT 05 VILLA MUTIARA MAS CINERE</p>
+                        </div>
+                        <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
+                      </div>
+                    </div>
+
+                    {/* Stylized QRIS Placeholder */}
+                    <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                      <div className="p-1.5 bg-white rounded-2xl border-4 border-orange-500 shadow-lg">
+                        <div className="w-40 h-40 bg-slate-100 flex flex-col items-center justify-center p-2 relative overflow-hidden select-none">
+                          <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-slate-900"></div>
+                          <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-slate-900"></div>
+                          <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-slate-900"></div>
+                          <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-slate-900"></div>
+                          <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT05</span>
+                          <div className="mt-2 w-14 h-14 border border-dashed border-slate-450 rounded-md animate-pulse"></div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 11</h5>
+                        <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -7891,7 +8058,7 @@ export default function AdminDashboard({
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Jenis Iuran Warga</h3>
-                    <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 05 Sawangan Green Park.</p>
+                    <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 05 Villa Mutiara Mas Cinere.</p>
                   </div>
 
                   {(currentUser.role === 'bendahara' || currentUser.role === 'admin' || currentUser.role === 'rt') && (
@@ -8965,328 +9132,6 @@ export default function AdminDashboard({
               )}
             </div>
           )}
-          
-          {activeTab === 'keuangan_pemasukan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Catat Pemasukan Kas RT (Luar Iuran)</h3>
-                <p className="text-xs text-slate-400">Input transaksi dana masuk non-iuran seperti sumbangan, donasi, subsidi, dll.</p>
-              </div>
-
-              <form 
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!pemasukanForm.description || !pemasukanForm.amount) {
-                    alert('Silakan isi seluruh formulir.');
-                    return;
-                  }
-
-                  if (parseInt(pemasukanForm.amount) <= 0 || isNaN(parseInt(pemasukanForm.amount))) {
-                    alert('Nominal pemasukan harus bernilai positif dan lebih besar dari 0!');
-                    return;
-                  }
-
-                  const token = sessionStorage.getItem('rt_token');
-                  if (!token) {
-                    alert('Sesi Anda telah berakhir atau Anda belum login.');
-                    return;
-                  }
-
-                  try {
-                    const backendCategory = mapCategoryToBackend(pemasukanForm.category, 'income');
-                    const res = await fetch('http://172.20.32.31:3333/admin/finance/income', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({
-                        amount: parseInt(pemasukanForm.amount),
-                        sourceType: backendCategory,
-                        description: pemasukanForm.description.trim()
-                      })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                      throw new Error(data.message || data.pesan || 'Gagal menyimpan pemasukan di server.');
-                    }
-                    alert('Transaksi pemasukan kas berhasil dicatat di server database!');
-                    await fetchLedgerFromServer(); // Sync from server
-                    setPemasukanForm({
-                      description: '',
-                      amount: '',
-                      date: new Date().toISOString().split('T')[0],
-                      category: 'Donasi'
-                    });
-                  } catch (err) {
-                    alert(`Gagal menyimpan ke server: ${err.message}`);
-                  }
-                }}
-                className="max-w-xl space-y-4 text-xs sm:text-sm"
-              >
-                <div className="space-y-1.5">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Keterangan/Deskripsi Pemasukan *</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="Contoh: Donasi fogging warga Blok B"
-                    value={pemasukanForm.description}
-                    onChange={(e) => setPemasukanForm({ ...pemasukanForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Kategori *</label>
-                    <select
-                      value={pemasukanForm.category}
-                      onChange={(e) => setPemasukanForm({ ...pemasukanForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
-                    >
-                      <option value="Donasi">Donasi / Sukarela</option>
-                      <option value="Subsidi">Subsidi / Dana Desa</option>
-                      <option value="Bunga Bank">Bunga Rekening RT</option>
-                      <option value="Lainnya">Lain-lain</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Uang (Rp) *</label>
-                    <input
-                      required
-                      type="number"
-                      value={pemasukanForm.amount}
-                      onChange={(e) => setPemasukanForm({ ...pemasukanForm, amount: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 max-w-xs">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Masuk *</label>
-                  <DateInput
-                    required
-                    value={pemasukanForm.date}
-                    onChange={(e) => setPemasukanForm({ ...pemasukanForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
-
-                <div className="pt-3">
-                  <button
-                    type="submit"
-                    className="py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
-                  >
-                    Simpan Pemasukan
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* KEUANGAN: 2. Pengeluaran */}
-          {activeTab === 'keuangan_pengeluaran' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Catat Pengeluaran Kas RT</h3>
-                <p className="text-xs text-slate-400">Input transaksi dana keluar untuk belanja operasional RT, perbaikan fasum, CCTV, kegiatan, dll.</p>
-              </div>
-
-              <form 
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!pengeluaranForm.description || !pengeluaranForm.amount) {
-                    alert('Silakan isi seluruh formulir.');
-                    return;
-                  }
-
-                  if (parseInt(pengeluaranForm.amount) <= 0 || isNaN(parseInt(pengeluaranForm.amount))) {
-                    alert('Nominal pengeluaran harus bernilai positif dan lebih besar dari 0!');
-                    return;
-                  }
-
-                  const token = sessionStorage.getItem('rt_token');
-                  if (!token) {
-                    alert('Sesi Anda telah berakhir atau Anda belum login.');
-                    return;
-                  }
-
-                  try {
-                    const backendCategory = mapCategoryToBackend(pengeluaranForm.category, 'expense');
-                    let headers = { 'Authorization': `Bearer ${token}` };
-                    let bodyData;
-
-                    if (pengeluaranForm.file) {
-                      const formData = new FormData();
-                      formData.append('amount', parseInt(pengeluaranForm.amount));
-                      formData.append('sourceType', backendCategory);
-                      formData.append('description', pengeluaranForm.description.trim());
-                      formData.append('file', pengeluaranForm.file);
-                      bodyData = formData;
-                    } else {
-                      headers['Content-Type'] = 'application/json';
-                      bodyData = JSON.stringify({
-                        amount: parseInt(pengeluaranForm.amount),
-                        sourceType: backendCategory,
-                        description: pengeluaranForm.description.trim()
-                      });
-                    }
-
-                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
-                      method: 'POST',
-                      headers,
-                      body: bodyData
-                    });
-                    const data = await res.json();
-                    if (!res.ok) {
-                      throw new Error(data.message || data.pesan || 'Gagal menyimpan pengeluaran di server.');
-                    }
-                    alert('Transaksi pengeluaran kas berhasil dicatat di server database!');
-                    await fetchLedgerFromServer(); // Sync from server
-                    setPengeluaranForm({
-                      description: '',
-                      amount: '',
-                      date: new Date().toISOString().split('T')[0],
-                      category: 'Kebersihan',
-                      file: null
-                    });
-                  } catch (err) {
-                    alert(`Gagal menyimpan ke server: ${err.message}`);
-                  }
-                }}
-                className="max-w-xl space-y-4 text-xs sm:text-sm"
-              >
-                <div className="space-y-1.5">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Keterangan/Keperluan Belanja *</label>
-                  <input
-                    required
-                    type="text"
-                    placeholder="Contoh: Honor petugas satpam Juli"
-                    value={pengeluaranForm.description}
-                    onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Kategori Belanja *</label>
-                    <select
-                      value={pengeluaranForm.category}
-                      onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, category: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
-                    >
-                      <option value="Kebersihan">Operasional Kebersihan</option>
-                      <option value="Keamanan">Operasional Keamanan</option>
-                      <option value="Sosial">Kegiatan Warga / Sosial</option>
-                      <option value="Alat Kantor">ATK & Surat Menyurat</option>
-                      <option value="Lainnya">Pengeluaran Lainnya</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Belanja (Rp) *</label>
-                    <input
-                      required
-                      type="number"
-                      value={pengeluaranForm.amount}
-                      onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, amount: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 max-w-xs">
-                  <label className="font-bold text-slate-600 dark:text-slate-400">Tanggal Belanja *</label>
-                  <DateInput
-                    required
-                    value={pengeluaranForm.date}
-                    onChange={(e) => setPengeluaranForm({ ...pengeluaranForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                  />
-                </div>
-
-                <div className="pt-3">
-                  <button
-                    type="submit"
-                    className="py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
-                  >
-                    Simpan Pengeluaran
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* KEUANGAN: 3. Kas RT Summary */}
-          {activeTab === 'keuangan_kas' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Buku Kas & Saldo RT</h3>
-                <p className="text-xs text-slate-400">Status keuangan kas RT 05 Sawangan Green Park secara keseluruhan.</p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-5 bg-emerald-550/5 dark:bg-emerald-500/10 border border-emerald-500/10 dark:border-emerald-500/20 rounded-2xl shadow-xs">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Total Pemasukan</span>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPemasukan)}</span>
-                </div>
-                <div className="p-5 bg-rose-550/5 dark:bg-rose-500/10 border border-rose-500/10 dark:border-rose-500/20 rounded-2xl shadow-xs">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Total Pengeluaran</span>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(totalPengeluaran)}</span>
-                </div>
-                <div className="p-5 bg-teal-550/5 dark:bg-teal-500/10 border border-teal-500/10 dark:border-teal-500/20 rounded-2xl shadow-xs">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider block mb-1">Saldo Akhir Kas</span>
-                  <span className="block text-xl font-black text-slate-900 dark:text-white">{formatRupiah(sisaKas)}</span>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl mt-6">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal / ID</th>
-                      <th className="p-4">Deskripsi Transaksi</th>
-                      <th className="p-4">Kategori</th>
-                      <th className="p-4 text-center">Tipe</th>
-                      <th className="p-4 text-right">Jumlah Uang</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {transaksiKasList.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                        <td className="p-4 font-mono space-y-1">
-                          <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
-                          <div className="text-[10px] text-slate-400">{t.id}</div>
-                        </td>
-                        <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words font-sans">
-                          {t.description}
-                        </td>
-                        <td className="p-4 font-semibold text-slate-500 dark:text-slate-450 font-sans">
-                          {t.category}
-                        </td>
-                        <td className="p-4 text-center">
-                          <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] inline-block ${
-                            t.type === 'income'
-                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-rose-500/10 text-rose-600 dark:text-rose-455'
-                          }`}>
-                            {t.type === 'income' ? 'Masuk' : 'Keluar'}
-                          </span>
-                        </td>
-                        <td className={`p-4 text-right font-bold text-sm font-mono ${
-                          t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-455'
-                        }`}>
-                          {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* KEUANGAN: 4. Transfer Bank / QRIS */}
           {activeTab === 'keuangan_qris' && (
@@ -9311,7 +9156,7 @@ export default function AdminDashboard({
                   <div className="flex justify-between items-end pt-4 border-t border-slate-800">
                     <div className="space-y-0.5">
                       <span className="text-slate-500 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
-                      <p className="text-xs font-black text-slate-200">KAS RT 05 SAWANGAN GREEN PARK</p>
+                      <p className="text-xs font-black text-slate-200">KAS RT 05 VILLA MUTIARA MAS CINERE</p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
                   </div>
@@ -9326,12 +9171,12 @@ export default function AdminDashboard({
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-slate-900"></div>
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-slate-900"></div>
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-slate-900"></div>
-                      <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT04</span>
+                      <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT05</span>
                       <div className="mt-2 w-14 h-14 border border-dashed border-slate-450 rounded-md animate-pulse"></div>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 06</h5>
+                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 11</h5>
                     <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                   </div>
                 </div>
@@ -9426,7 +9271,7 @@ export default function AdminDashboard({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
-                <p className="text-xs text-slate-400">Daftar status lunas warga RT 05 Sawangan Green Park per bulan.</p>
+                <p className="text-xs text-slate-400">Daftar status lunas warga RT 05 Villa Mutiara Mas Cinere per bulan.</p>
               </div>
 
               <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
@@ -9807,19 +9652,19 @@ export default function AdminDashboard({
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Warga</span>
-                        <p className="font-bold text-slate-900 dark:text-white">RW 06</p>
+                        <p className="font-bold text-slate-900 dark:text-white">RW 11</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kelurahan</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Pasir Putih</p>
+                        <p className="font-bold text-slate-900 dark:text-white">Cinere</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kecamatan</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Sawangan</p>
+                        <p className="font-bold text-slate-900 dark:text-white">Cinere</p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Perumahan / Lokasi</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Sawangan Green Park Blok C-D</p>
+                        <p className="font-bold text-slate-900 dark:text-white">Villa Mutiara Mas Cinere</p>
                       </div>
                     </div>
 
@@ -10604,7 +10449,7 @@ export default function AdminDashboard({
                     <textarea
                       required
                       rows={2}
-                      placeholder="Sawangan Green Park Blok X No Y"
+                      placeholder="Villa Mutiara Mas Cinere Blok X No Y"
                       value={wargaForm.alamat}
                       onChange={(e) => setWargaForm({ ...wargaForm, alamat: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none"
@@ -11117,7 +10962,7 @@ export default function AdminDashboard({
                     type="text"
                     value={suratMasukForm.asalSurat}
                     onChange={(e) => setSuratMasukForm({ ...suratMasukForm, asalSurat: e.target.value })}
-                    placeholder="Contoh: Kelurahan Sawangan"
+                    placeholder="Contoh: Kelurahan Cinere"
                     className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
                   />
                 </div>
@@ -11311,7 +11156,7 @@ export default function AdminDashboard({
                   type="text"
                   value={suratKeluarForm.tujuan}
                   onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tujuan: e.target.value })}
-                  placeholder="Contoh: Kelurahan Sawangan (Pengurusan E-KTP)"
+                  placeholder="Contoh: Kelurahan Cinere (Pengurusan E-KTP)"
                   className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
                 />
               </div>
@@ -11760,7 +11605,7 @@ export default function AdminDashboard({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setPreviewingTemplate(null)}></div>
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500"></div>
             
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
               <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Kop Surat Resmi RT 05</h3>
@@ -11774,12 +11619,12 @@ export default function AdminDashboard({
               <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
                 {/* KOP SURAT HEADER */}
                 <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
                   <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
                   </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05cinere@gmail.com | Kontak: +62 812-3456-7890</p>
                 </div>
 
                 {/* LETTER CONTENT */}
@@ -11789,12 +11634,12 @@ export default function AdminDashboard({
                     <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
                       {previewingTemplate.name}
                     </h5>
-                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">No. 042 / RT05-RW06 / VII / 2026</span>
+                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">No. 042 / RT05-RW11 / VII / 2026</span>
                   </div>
 
                   {/* Body Text */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
                   </p>
 
                   {/* Citizen Biodata Table */}
@@ -11829,7 +11674,7 @@ export default function AdminDashboard({
                         <td className="font-bold">Alamat Lengkap</td>
                         <td>:</td>
                         <td className="leading-snug">
-                          Sawangan Green Park Blok ......... No. ........., RT 05 RW 06 Kel. Sawangan Baru, Kec. Sawangan, Depok.
+                          Villa Mutiara Mas Cinere Blok ......... No. ........., RT 05 RW 11 Kel. Cinere, Kec. Cinere, Depok.
                         </td>
                       </tr>
                     </tbody>
@@ -11837,7 +11682,7 @@ export default function AdminDashboard({
 
                   {/* Purpose Paragraph */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{previewingTemplate.desc}"</span>.
+                    Adapun nama tersebut di atas adalah benar merupakan warga tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{previewingTemplate.desc}"</span>.
                   </p>
 
                   <p className="text-slate-850 leading-relaxed text-justify">
@@ -11855,7 +11700,7 @@ export default function AdminDashboard({
                   </div>
                   <div>
                     <span className="block">Depok, {formatDateIndo(new Date().toISOString())}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <span className="block font-bold">Ketua RT 05 RW 11</span>
                     <div className="h-16"></div>
                     <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
                   </div>
@@ -11868,7 +11713,7 @@ export default function AdminDashboard({
               <div className="flex gap-2">
                 <button
                   onClick={() => alert(`Mengunduh berkas template: ${previewingTemplate.name}.docx`)}
-                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                  className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Unduh Dokumen</span>
@@ -12143,7 +11988,7 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
-                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 06</p>
+                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 11</p>
                 </div>
               </div>
               <button
@@ -12236,19 +12081,19 @@ export default function AdminDashboard({
                       </div>
                       <div className="grid grid-cols-12 gap-1">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
-                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || selectedKtpWarga.alamat || 'Jl. Sawangan Green Park B4/15'}</span>
+                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || selectedKtpWarga.alamat || 'Villa Mutiara Mas Cinere'}</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
-                        <span className="col-span-8 font-bold">005 / 006</span>
+                        <span className="col-span-8 font-bold">005 / 011</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
-                        <span className="col-span-8 font-bold">SAWANGAN BARU</span>
+                        <span className="col-span-8 font-bold">CINERE</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
-                        <span className="col-span-8 font-bold">SAWANGAN</span>
+                        <span className="col-span-8 font-bold">CINERE</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>

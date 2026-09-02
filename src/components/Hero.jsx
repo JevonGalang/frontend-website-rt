@@ -123,7 +123,7 @@ export default function Hero({
   const fetchPublicArchives = async () => {
     try {
       setIsLoadingArchives(true);
-      const res = await fetch('http://172.20.32.31:3333/post/arsip-media?limit=24');
+      const res = await fetch('http://172.20.32.85:3333/post/arsip-media?limit=24');
       if (res.ok) {
         const data = await res.json();
         
@@ -149,8 +149,8 @@ export default function Hero({
           const mapped = rawItems.map(item => {
             const rawUrl = item.media_url || (item.id ? `/post/arsip-media/${item.id}/file` : '');
             const fullUrl = rawUrl 
-              ? (rawUrl.startsWith('http') ? rawUrl : `http://172.20.32.31:3333${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
-              : `http://172.20.32.31:3333/post/arsip-media/${item.id}/file`;
+              ? (rawUrl.startsWith('http') ? rawUrl : `http://172.20.32.85:3333${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
+              : `http://172.20.32.85:3333/post/arsip-media/${item.id}/file`;
             
             const isVideo = 
               (item.media_type && item.media_type.toLowerCase().includes('video')) || 
@@ -315,7 +315,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/login', {
+      const response = await fetch('http://172.20.32.85:3333/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1383,7 +1383,7 @@ export default function Hero({
                       <MapPin className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Alamat Lengkap</span>
-                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Villa Mutiara Mas Cinere, Kel. Sawangan Baru, Kec. Sawangan, Kota Depok, Jawa Barat 16511</span>
+                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Villa Mutiara Mas Cinere, Kel. Cinere, Kec. Cinere, Kota Depok, Jawa Barat 16514</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">

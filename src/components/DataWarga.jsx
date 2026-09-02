@@ -70,7 +70,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Kartu Keluarga</span>
                 <span className="block text-4xl font-black text-slate-900 dark:text-white">{totalKK}</span>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Terdaftar di wilayah Sawangan Green Park</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Terdaftar di wilayah Villa Mutiara Mas Cinere</p>
               </div>
               <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl">
                 <FileText className="w-6 h-6" />
@@ -229,7 +229,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
 
             {/* Info */}
             <div className="pt-4 border-t border-slate-200/50 dark:border-slate-800/50 text-[11px] text-slate-400 flex items-center gap-1.5">
-              <span>* Data dihimpun dari lampiran sensus KK RT Sawangan Green Park terakhir.</span>
+              <span>* Data dihimpun dari lampiran sensus KK RT Villa Mutiara Mas Cinere terakhir.</span>
             </div>
           </div>
 

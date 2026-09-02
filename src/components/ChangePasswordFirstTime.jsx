@@ -34,7 +34,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/resident/password', {
+      const response = await fetch('http://172.20.32.85:3333/resident/password', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -70,8 +70,8 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       {/* Background gradients */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-      <div className="absolute bottom-0 right-0 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+      <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+      <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
 
       {/* Floating Theme Toggle */}
       <button
@@ -83,8 +83,8 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
 
       <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center animate-pulse">
-            <Lock className="w-7 h-7" />
+          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 text-orange-500 rounded-2xl flex items-center justify-center animate-pulse border border-orange-500/30">
+            <Lock className="w-7 h-7 text-orange-600 dark:text-orange-400" />
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Ganti Kata Sandi</h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
@@ -120,7 +120,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
                 placeholder="Minimal 8 karakter..."
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all font-semibold"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-semibold"
               />
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
                 placeholder="Ketik ulang kata sandi baru..."
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all font-semibold"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-semibold"
               />
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
           <button
             type="submit"
             disabled={isLoading || !!success}
-            className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-500/10"
+            className="w-full py-3.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-orange-500/20"
           >
             {isLoading ? (
               <>
