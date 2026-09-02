@@ -1,6 +1,6 @@
 async function registerFixed() {
-  const registUrl = 'http://172.20.32.85:3333/post/regist';
-  const loginUrl = 'http://172.20.32.85:3333/post/login';
+  const registUrl = 'http://172.20.32.115:3333/post/regist';
+  const loginUrl = 'http://172.20.32.115:3333/post/login';
   
   const testUser = {
     username: 'fixed_admin_' + Math.floor(Math.random() * 1000),

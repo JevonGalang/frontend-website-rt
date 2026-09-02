@@ -15,6 +15,7 @@ import dummyImg4 from '../assets/dummy/dummy_4.jpg';
 import dummyImg5 from '../assets/dummy/dummy_5.jpg';
 import OtpVerificationModal from './OtpVerificationModal';
 import { setSession } from '../utils/authSession';
+import { API_BASE_URL } from '../config/api';
 
 // ═════════════════════════════════════════════════════════════════════════
 // DUMMY CMS DATA TEMPLATE: Siap dihubungkan ke Endpoint API / Database CMS
@@ -123,7 +124,7 @@ export default function Hero({
   const fetchPublicArchives = async () => {
     try {
       setIsLoadingArchives(true);
-      const res = await fetch('http://172.20.32.85:3333/post/arsip-media?limit=24');
+      const res = await fetch(`${API_BASE_URL}/post/arsip-media?limit=24`);
       if (res.ok) {
         const data = await res.json();
         
@@ -149,8 +150,8 @@ export default function Hero({
           const mapped = rawItems.map(item => {
             const rawUrl = item.media_url || (item.id ? `/post/arsip-media/${item.id}/file` : '');
             const fullUrl = rawUrl 
-              ? (rawUrl.startsWith('http') ? rawUrl : `http://172.20.32.85:3333${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
-              : `http://172.20.32.85:3333/post/arsip-media/${item.id}/file`;
+              ? (rawUrl.startsWith('http') ? rawUrl : `${API_BASE_URL}${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
+              : `${API_BASE_URL}/post/arsip-media/${item.id}/file`;
             
             const isVideo = 
               (item.media_type && item.media_type.toLowerCase().includes('video')) || 
@@ -315,7 +316,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/login', {
+      const response = await fetch(`${API_BASE_URL}/post/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -966,7 +967,7 @@ export default function Hero({
                     Struktur Organisasi
                   </span>
                   <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-                    Bagan Kepengurusan RT 05
+                    Bagan Pengurus RT 006  RW 011
                   </h3>
                 </div>
 
@@ -981,10 +982,10 @@ export default function Hero({
                       </div>
                       <div className="text-left space-y-0.5">
                         <span className="block text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
-                          Ketua RT 05
+                          Ketua RT 006 / RW 011
                         </span>
                         <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
-                          Moch. Taufik
+                          Wartono SE
                         </h4>
                       </div>
                     </div>
@@ -1009,25 +1010,14 @@ export default function Hero({
                           Sekretariat
                         </div>
 
-                        {/* Member 1: Chika Angraeni */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
-                            <User className="w-4 h-4" />
+                        {/* Member: Yulia Sutianti */}
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-5 h-5" />
                           </div>
                           <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris I</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Chika Angraeni</span>
-                          </div>
-                        </div>
-
-                        {/* Member 2: Ade Chandra */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris II</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Ade Chandra</span>
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Yulia Sutianti</span>
                           </div>
                         </div>
                       </div>
@@ -1039,25 +1029,14 @@ export default function Hero({
                           Bendahara / Keuangan
                         </div>
 
-                        {/* Member 1: Bpk. Mulyani R */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
-                            <User className="w-4 h-4" />
+                        {/* Member: Arief Kurniawan */}
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-5 h-5" />
                           </div>
                           <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara I</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Bpk. Mulyani R</span>
-                          </div>
-                        </div>
-
-                        {/* Member 2: Ibu Amaniari */}
-                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
-                            <User className="w-4 h-4" />
-                          </div>
-                          <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara II</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Ibu Amaniari</span>
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Arief Kurniawan</span>
                           </div>
                         </div>
                       </div>

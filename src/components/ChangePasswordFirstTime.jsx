@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Lock, KeyRound, AlertCircle, CheckCircle2, Loader2, Sun, Moon } from 'lucide-react';
 import { getSessionToken, updateSessionUser } from '../utils/authSession';
+import { API_BASE_URL } from '../config/api';
 
 export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, darkMode, setDarkMode }) {
   const [newPassword, setNewPassword] = useState('');
@@ -34,7 +35,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/password', {
+      const response = await fetch(`${API_BASE_URL}/resident/password`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

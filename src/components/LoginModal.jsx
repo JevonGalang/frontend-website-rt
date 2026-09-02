@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { X, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldAlert } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
 import { setSession } from '../utils/authSession';
+import { API_BASE_URL } from '../config/api';
 
 export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -53,7 +54,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Call API Login to check credentials & verification status
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/login', {
+      const response = await fetch(`${API_BASE_URL}/post/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,7 +196,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Send register request to backend
     try {
-      const res = await fetch('http://172.20.32.85:3333/post/register', {
+      const res = await fetch(`${API_BASE_URL}/post/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
 import { setSession } from '../utils/authSession';
+import { API_BASE_URL } from '../config/api';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
 
@@ -44,7 +45,7 @@ export default function LoginPage({
 
     // Call API Login
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/login', {
+      const response = await fetch(`${API_BASE_URL}/post/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -8,8 +8,7 @@ import {
 import DateInput from './DateInput';
 import Swal from 'sweetalert2';
 import { getSessionToken } from '../utils/authSession';
-
-const API_BASE = 'http://172.20.32.85:3333';
+import { API_BASE } from '../config/api';
 
 const calculateAge = (birthDateString) => {
   if (!birthDateString) return '';

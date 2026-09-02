@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
 import { getSessionToken } from '../utils/authSession';
+import { API_BASE_URL } from '../config/api';
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -88,7 +89,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     const token = getSessionToken();
     if (!token) return;
     try {
-      const res = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
+      const res = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return;
@@ -123,7 +124,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
     if (token) {
       try {
-        const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
+        const response = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mail, RefreshCw, Loader2, ShieldCheck, AlertCircle, CheckCircle2, X as XIcon } from 'lucide-react';
+import { API_BASE_URL } from '../config/api';
 
 export default function OtpVerificationModal({
   isOpen,
@@ -56,7 +57,7 @@ export default function OtpVerificationModal({
         setResendSuccess('');
 
         try {
-          const response = await fetch('http://172.20.32.85:3333/auth/request-otp', {
+          const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: parseInt(userId) })
@@ -150,7 +151,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/auth/request-otp', {
+      const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: parseInt(userId) })
@@ -194,7 +195,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/auth/verify-otp', {
+      const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Globe, Play, MessageCircle } from 'lucide-react';
 import { io } from './utils/liveSocket';
 import { getSession, getSessionToken, updateSessionUser, clearSession } from './utils/authSession';
+import { API_BASE_URL } from './config/api';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -78,7 +79,7 @@ export default function App() {
 
   const fetchDashboardStats = async () => {
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/dashboard-stats');
+      const response = await fetch(`${API_BASE_URL}/post/dashboard-stats`);
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200) {
@@ -143,8 +144,8 @@ export default function App() {
       const endpoint = isAdmin ? '/api/admin/agenda' : '/api/resident/agenda';
       
       const url = query 
-        ? `http://172.20.32.85:3333${endpoint}?search=${encodeURIComponent(query)}`
-        : `http://172.20.32.85:3333${endpoint}`;
+        ? `${API_BASE_URL}${endpoint}?search=${encodeURIComponent(query)}`
+        : `${API_BASE_URL}${endpoint}`;
         
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -185,7 +186,7 @@ export default function App() {
     const token = getSessionToken();
     if (!token) return;
 
-    const socketConnection = io('http://172.20.32.85:3333', {
+    const socketConnection = io(API_BASE_URL, {
       transports: ['websocket'],
       auth: { token }
     });
@@ -216,7 +217,7 @@ export default function App() {
 
   const fetchPublicStats = async () => {
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/dashboard-stats');
+      const response = await fetch(`${API_BASE_URL}/post/dashboard-stats`);
       const data = await response.json();
       if (response.ok) {
         setPublicStats(data.output?.stats || null);

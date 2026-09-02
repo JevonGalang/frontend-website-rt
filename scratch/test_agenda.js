@@ -1,5 +1,5 @@
-const registUrl = 'http://172.20.32.85:3333/post/debug-regist';
-const loginUrl = 'http://172.20.32.85:3333/post/login';
+const registUrl = 'http://172.20.32.115:3333/post/debug-regist';
+const loginUrl = 'http://172.20.32.115:3333/post/login';
 
 async function runTests() {
   try {
@@ -62,7 +62,7 @@ async function runTests() {
 
     // 5. Create Agenda (RT)
     console.log('\n--- 1. POST /admin/agenda (RT) ---');
-    res = await fetch('http://172.20.32.85:3333/admin/agenda', {
+    res = await fetch('http://172.20.32.115:3333/admin/agenda', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ async function runTests() {
     if (agendaId) {
       // 7. Update Agenda (RT)
       console.log('\n--- 4. PATCH /admin/agenda/:id (RT) ---');
-      res = await fetch(`http://172.20.32.85:3333/admin/agenda/${agendaId}`, {
+      res = await fetch(`http://172.20.32.115:3333/admin/agenda/${agendaId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -104,7 +104,7 @@ async function runTests() {
 
     // 8. List Agenda (Warga)
     console.log('\n--- 5. GET /resident/agenda (Warga) ---');
-    res = await fetch('http://172.20.32.85:3333/resident/agenda', {
+    res = await fetch('http://172.20.32.115:3333/resident/agenda', {
       headers: { 'Authorization': `Bearer ${wargaToken}` }
     });
     console.log(`Status: ${res.status}`);
@@ -113,7 +113,7 @@ async function runTests() {
     if (agendaId) {
       // 9. Delete Agenda (RT)
       console.log('\n--- 7. DELETE /admin/agenda/:id (RT) ---');
-      res = await fetch(`http://172.20.32.85:3333/admin/agenda/${agendaId}`, {
+      res = await fetch(`http://172.20.32.115:3333/admin/agenda/${agendaId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${rtToken}` }
       });

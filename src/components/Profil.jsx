@@ -7,22 +7,22 @@ export default function Profil() {
   const pengurusList = [
     {
       role: 'Ketua RT',
-      name: 'Pak Bambang Mulyono',
-      initials: 'BM',
+      name: 'Wartono SE',
+      initials: 'WS',
       gradient: 'from-orange-500 to-amber-500 shadow-orange-500/20',
       description: 'Penanggung jawab utama dan pengambil kebijakan tingkat RT.',
     },
     {
       role: 'Sekretaris',
-      name: 'Ibu Siti Aminah',
-      initials: 'SA',
+      name: 'Yulia Sutianti',
+      initials: 'YS',
       gradient: 'from-blue-500 to-indigo-500 shadow-blue-500/20',
       description: 'Mengelola administrasi, surat menyurat, dan arsip warga.',
     },
     {
       role: 'Bendahara',
-      name: 'Pak Hendra Wijaya',
-      initials: 'HW',
+      name: 'Arief Kurniawan',
+      initials: 'AK',
       gradient: 'from-amber-500 to-orange-500 shadow-amber-500/20',
       description: 'Mengelola laporan keuangan, iuran warga, dan kas RT.',
     },
@@ -163,7 +163,7 @@ export default function Profil() {
                   Villa Mutiara Mas Cinere merupakan klaster perumahan modern berasitektur minimalis asri yang terletak di kawasan Cinere, Depok. Didirikan untuk memadukan kenyamanan kehidupan suburban dengan kemudahan akses transportasi perkotaan.
                 </p>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Saat ini, kepengurusan RT di bawah pimpinan <strong>Pak Bambang Mulyono</strong> berkomitmen untuk mengadopsi teknologi digital demi melayani warganya dengan lebih responsif, transparan, dan inklusif.
+                  Saat ini, kepengurusan RT di bawah pimpinan <strong>Pak Wartono SE</strong> berkomitmen untuk mengadopsi teknologi digital demi melayani warganya dengan lebih responsif, transparan, dan inklusif.
                 </p>
               </div>
             )}

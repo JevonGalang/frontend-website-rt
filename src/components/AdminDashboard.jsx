@@ -13,6 +13,7 @@ import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
 import OtpVerificationModal from './OtpVerificationModal';
 import Swal from 'sweetalert2';
+import { API_BASE_URL } from '../config/api';
 import { io } from '../utils/liveSocket';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
@@ -133,7 +134,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/finance/settings', {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/settings`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -160,7 +161,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/finance/settings', {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/settings`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -204,7 +205,7 @@ export default function AdminDashboard({
 
     setIsAdminChangingPassword(true);
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/change-password', {
+      const res = await fetch(`${API_BASE_URL}/admin/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -237,6 +238,31 @@ export default function AdminDashboard({
   const [kasSubTab, setKasSubTab] = useState('transaksi'); // 'transaksi' | 'tunggakan' | 'rekening_qris'
   const [kasFilterType, setKasFilterType] = useState('all'); // 'all' | 'income' | 'expense'
   const [kasFilterCategory, setKasFilterCategory] = useState('all');
+  const [kasDateStart, setKasDateStart] = useState('');
+  const [kasDateEnd, setKasDateEnd] = useState('');
+  const [kasPage, setKasPage] = useState(1);
+  const [kasLimit, setKasLimit] = useState(50);
+  const [kasServerSummary, setKasServerSummary] = useState(null);
+  const [kategoriSaranList, setKategoriSaranList] = useState([
+    'Iuran Warga', 'Donasi', 'Kebersihan', 'Keamanan', 'Sosial / Santunan', 'Kas Masjid', 'Pembangunan', 'Lain-lain'
+  ]);
+  const [isLoadingKas, setIsLoadingKas] = useState(false);
+  const [isSubmittingKas, setIsSubmittingKas] = useState(false);
+
+  // Laporan states
+  const [laporanBulananMonth, setLaporanBulananMonth] = useState(new Date().getMonth() + 1);
+  const [laporanBulananYear, setLaporanBulananYear] = useState(new Date().getFullYear());
+  const [laporanBulananData, setLaporanBulananData] = useState(null);
+  const [isLoadingLaporanBulanan, setIsLoadingLaporanBulanan] = useState(false);
+
+  const [laporanTahunanYear, setLaporanTahunanYear] = useState(new Date().getFullYear());
+  const [laporanTahunanData, setLaporanTahunanData] = useState(null);
+  const [isLoadingLaporanTahunan, setIsLoadingLaporanTahunan] = useState(false);
+
+  const [laporanRekapMonth, setLaporanRekapMonth] = useState(new Date().getMonth() + 1);
+  const [laporanRekapYear, setLaporanRekapYear] = useState(new Date().getFullYear());
+  const [laporanRekapData, setLaporanRekapData] = useState(null);
+  const [isLoadingLaporanRekap, setIsLoadingLaporanRekap] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isNotifFlyoutOpen, setIsNotifFlyoutOpen] = useState(false);
   const [adminNotifCategory, setAdminNotifCategory] = useState("semua");
@@ -335,8 +361,8 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.85:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
-      const response = await fetch(`http://172.20.32.85:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
+      console.log(`%c[PROOF] 🔄 Fetching proof via GET ${API_BASE_URL}/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
+      const response = await fetch(`${API_BASE_URL}/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -358,7 +384,7 @@ export default function AdminDashboard({
         // Fallback to static direct url
         setSelectedProofModal(prev => prev ? ({
           ...prev,
-          fileUrl: `http://172.20.32.85:3333/admin/finance/proof/${rawFileName}`,
+          fileUrl: `${API_BASE_URL}/admin/finance/proof/${rawFileName}`,
           isLoading: false,
           hasImgError: false
         }) : null);
@@ -607,7 +633,7 @@ export default function AdminDashboard({
   const fetchArsipMediaList = async () => {
     try {
       setIsArsipLoading(true);
-      const res = await fetch('http://172.20.32.85:3333/post/arsip-media?limit=50');
+      const res = await fetch(`${API_BASE_URL}/post/arsip-media?limit=50`);
       if (res.ok) {
         const data = await res.json();
         let rawItems = [];
@@ -644,7 +670,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/access-logs?limit=100', {
+      const response = await fetch(`${API_BASE_URL}/admin/access-logs?limit=100`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -699,7 +725,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/pengaduan', {
+      const response = await fetch(`${API_BASE_URL}/admin/pengaduan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -740,7 +766,7 @@ export default function AdminDashboard({
     const payloadStatus = (status === 'Proses' || status === 'setujui' || status === 'Proses') ? 'disetujui' : status;
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/pengaduan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -785,7 +811,7 @@ export default function AdminDashboard({
     if (!result.isConfirmed) return;
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/pengaduan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -814,7 +840,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/create-staff-account', {
+      const response = await fetch(`${API_BASE_URL}/admin/create-staff-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -851,7 +877,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://172.20.32.85:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`${API_BASE_URL}/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -875,7 +901,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch(`http://172.20.32.85:3333/account/notifications/${id}/read`, {
+      await fetch(`${API_BASE_URL}/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -893,7 +919,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch('http://172.20.32.85:3333/account/notifications/read-all', {
+      await fetch(`${API_BASE_URL}/account/notifications/read-all`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -912,7 +938,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/announcement', {
+      const res = await fetch(`${API_BASE_URL}/admin/announcement`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 403) {
@@ -942,7 +968,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/announcement', {
+      const res = await fetch(`${API_BASE_URL}/admin/announcement`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
@@ -988,7 +1014,7 @@ export default function AdminDashboard({
     if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
     if (!Object.keys(body).length) return;
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/announcement/${editingAnnouncementId}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/announcement/${editingAnnouncementId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
@@ -1041,7 +1067,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/announcement/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/announcement/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1088,7 +1114,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/pengajuan', {
+      const response = await fetch(`${API_BASE_URL}/admin/pengajuan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1175,7 +1201,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/pending-warga', {
+      const response = await fetch(`${API_BASE_URL}/admin/pending-warga`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1210,7 +1236,7 @@ export default function AdminDashboard({
     const docId = w.ktp_document_id || w.warga_id || w.id;
     if (docId && token) {
       try {
-        const res = await fetch(`http://172.20.32.85:3333/admin/sensitifdata/file/${docId}`, {
+        const res = await fetch(`${API_BASE_URL}/admin/sensitifdata/file/${docId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -1261,7 +1287,7 @@ export default function AdminDashboard({
     const targetWarga = pendingWargaList.find(w => w.warga_id === targetId || w.id === targetId || String(w.warga_id) === String(targetId) || String(w.id) === String(targetId));
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/admin/pending-warga/${targetId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/pending-warga/${targetId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1322,7 +1348,7 @@ export default function AdminDashboard({
     try {
       console.log('--- BENDAHARA: fetchPendingPayments started ---');
       console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
-      const response = await fetch('http://172.20.32.85:3333/admin/finance/pending', {
+      const response = await fetch(`${API_BASE_URL}/admin/finance/pending`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('HTTP Status Response:', response.status);
@@ -1453,8 +1479,8 @@ export default function AdminDashboard({
 
     try {
       const endpoint = type === 'ipl' 
-        ? `http://172.20.32.85:3333/admin/finance/ipl-payments/${paymentId}/verify`
-        : `http://172.20.32.85:3333/admin/finance/kas-contributions/${paymentId}/verify`;
+        ? `${API_BASE_URL}/admin/finance/ipl-payments/${paymentId}/verify`
+        : `${API_BASE_URL}/admin/finance/kas-contributions/${paymentId}/verify`;
 
       const reqBody = { decision };
       if (decision === 'rejected' && rejectReason) {
@@ -1506,9 +1532,9 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingBillPeriods(true);
-    console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.85:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
+    console.log(`%c[BILL PERIODS] 🔄 GET ${API_BASE_URL}/admin/finance/bill-periods`, 'color: #06b6d4; font-weight: bold;');
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/finance/bill-periods', {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/bill-periods`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1540,10 +1566,10 @@ export default function AdminDashboard({
       periodYear: parseInt(billPeriodForm.periodYear)
     };
 
-    console.log('%c[BILL PERIODS] 🚀 POST http://172.20.32.85:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
+    console.log(`%c[BILL PERIODS] 🚀 POST ${API_BASE_URL}/admin/finance/bill-periods`, 'color: #8b5cf6; font-weight: bold;', payload);
 
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/finance/bill-periods', {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/bill-periods`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1602,10 +1628,10 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
-    console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
+    console.log(`%c[BILL PERIODS] 📢 POST ${API_BASE_URL}/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
 
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/publish`, {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/bill-periods/${periodId}/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1637,10 +1663,10 @@ export default function AdminDashboard({
     console.log(`%c[BILL PERIODS] 📊 GET Summary & Bills for period ID: ${periodId}`, 'color: #3b82f6; font-weight: bold;');
     try {
       const [summaryRes, billsRes] = await Promise.all([
-        fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/summary`, {
+        fetch(`${API_BASE_URL}/admin/finance/bill-periods/${periodId}/summary`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://172.20.32.85:3333/admin/finance/bill-periods/${periodId}/bills`, {
+        fetch(`${API_BASE_URL}/admin/finance/bill-periods/${periodId}/bills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1686,7 +1712,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/finance/bills/${billId}/exempt`, {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/bills/${billId}/exempt`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1730,7 +1756,7 @@ export default function AdminDashboard({
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1783,7 +1809,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const res = await fetch('http://172.20.32.85:3333/admin/finance/manual-payment', {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/manual-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1830,10 +1856,10 @@ export default function AdminDashboard({
     setIsLoadingAudit(true);
     try {
       const [iplRes, kasRes] = await Promise.all([
-        fetch('http://172.20.32.85:3333/admin/finance/ipl-payments/audit', {
+        fetch(`${API_BASE_URL}/admin/finance/ipl-payments/audit`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://172.20.32.85:3333/admin/finance/kas-contributions/audit', {
+        fetch(`${API_BASE_URL}/admin/finance/kas-contributions/audit`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1870,7 +1896,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.85:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1898,9 +1924,6 @@ export default function AdminDashboard({
 
   useEffect(() => {
     fetchBuktiBayarWarga();
-    if (activeTab === 'sek_surat_masuk') {
-      fetchSuratMasuk();
-    }
   }, [activeTab]);
 
   const handleVerifyManualReceipt = (receiptId, isApproved) => {
@@ -1952,7 +1975,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/resident', {
+      const response = await fetch(`${API_BASE_URL}/admin/resident`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2011,7 +2034,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/kepala-keluarga/list', {
+      const response = await fetch(`${API_BASE_URL}/admin/kepala-keluarga/list`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2064,7 +2087,7 @@ export default function AdminDashboard({
     setSuratMasukLoading(true);
     const token = sessionStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/surat-masuk', {
+      const response = await fetch(`${API_BASE_URL}/admin/surat-masuk`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2110,7 +2133,7 @@ export default function AdminDashboard({
     setSuratKeluarLoading(true);
     const token = sessionStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/surat-keluar', {
+      const response = await fetch(`${API_BASE_URL}/admin/surat-keluar`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2175,7 +2198,7 @@ export default function AdminDashboard({
     });
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/admin/datawarga', {
+      const response = await fetch(`${API_BASE_URL}/admin/datawarga`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2327,7 +2350,7 @@ export default function AdminDashboard({
 
     try {
       if (sudoActionType === 'reveal_warga') {
-        const res = await fetch(`http://172.20.32.85:3333/admin/reveal-warga/${sudoTargetId}`, {
+        const res = await fetch(`${API_BASE_URL}/admin/reveal-warga/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2343,7 +2366,7 @@ export default function AdminDashboard({
           setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
         }
       } else if (sudoActionType === 'reveal_resident') {
-        const res = await fetch(`http://172.20.32.85:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const res = await fetch(`${API_BASE_URL}/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2360,7 +2383,7 @@ export default function AdminDashboard({
         }
       } else if (sudoActionType === 'patch_kk') {
         // verify password first by making a dry run reveal-resident call
-        const verifyRes = await fetch(`http://172.20.32.85:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const verifyRes = await fetch(`${API_BASE_URL}/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2373,7 +2396,7 @@ export default function AdminDashboard({
           throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
         }
 
-        const response = await fetch(`http://172.20.32.85:3333/admin/resident/${sudoTargetId}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/resident/${sudoTargetId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -2429,26 +2452,331 @@ export default function AdminDashboard({
     }
   };
 
-  const fetchLedgerFromServer = async () => {
+  // ═══════════════════════════════════════════════════════════════════
+  // KAS RT & FINANCE API INTEGRATION (12 ENDPOINTS)
+  // ═══════════════════════════════════════════════════════════════════
+
+  // 3. GET /admin/finance/kas-transaksi
+  const fetchKasTransaksi = async (customParams = {}) => {
+    setIsLoadingKas(true);
+    const token = sessionStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.85:3333/post/dashboard-stats');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.response === 200 && data.output?.ledger) {
-          const mapped = data.output.ledger.map(t => ({
+      const q = customParams.searchQuery !== undefined ? customParams.searchQuery : searchQuery;
+      const type = customParams.kasFilterType !== undefined ? customParams.kasFilterType : kasFilterType;
+      const cat = customParams.kasFilterCategory !== undefined ? customParams.kasFilterCategory : kasFilterCategory;
+      const start = customParams.kasDateStart !== undefined ? customParams.kasDateStart : kasDateStart;
+      const end = customParams.kasDateEnd !== undefined ? customParams.kasDateEnd : kasDateEnd;
+      const page = customParams.kasPage !== undefined ? customParams.kasPage : kasPage;
+      const limit = customParams.kasLimit !== undefined ? customParams.kasLimit : kasLimit;
+
+      const queryParams = new URLSearchParams();
+      if (q) queryParams.set('keyword', q);
+      if (type && type !== 'all') {
+        queryParams.set('tipeMutasi', type === 'income' ? 'masuk' : (type === 'expense' ? 'keluar' : type));
+      }
+      if (cat && cat !== 'all') queryParams.set('kategoriKas', cat);
+      if (start) queryParams.set('tanggalMulai', start);
+      if (end) queryParams.set('tanggalSelesai', end);
+      queryParams.set('page', String(page));
+      queryParams.set('limit', String(limit));
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi?${queryParams.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawItems = data.output?.data || data.output?.transactions || data.output?.items || (Array.isArray(data.output) ? data.output : (Array.isArray(data.data) ? data.data : []));
+        const mapped = rawItems.map(t => {
+          const isIncome = (t.tipeMutasi === 'masuk' || t.tipe_mutasi === 'masuk' || t.type === 'income' || t.type === 'in' || t.tipe === 'masuk');
+          return {
             id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
-            type: t.type === 'in' ? 'income' : 'expense',
-            amount: t.amount,
-            category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
-            description: t.description,
-            date: t.transaction_date ? t.transaction_date.substring(0, 10) : new Date().toISOString().split('T')[0]
-          }));
-          setTransaksiKasList(mapped);
-          localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+            type: isIncome ? 'income' : 'expense',
+            amount: parseFloat(t.nominal || t.amount || 0),
+            category: t.kategoriKas || t.kategori_kas || t.kategori || t.category || 'Kas Umum',
+            description: t.deskripsi || t.keterangan || t.description || '',
+            date: t.tanggal ? String(t.tanggal).substring(0, 10) : (t.transaction_date ? String(t.transaction_date).substring(0, 10) : (t.date || new Date().toISOString().split('T')[0])),
+            statusTransparansi: t.statusTransparansi || t.status_transparansi || 'Publik',
+            raw: t
+          };
+        });
+        setTransaksiKasList(mapped);
+        localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+      } else {
+        throw new Error('Gagal memuat transaksi kas.');
+      }
+    } catch (err) {
+      console.warn('Fallback fetch kas transaksi via dashboard stats:', err.message);
+      try {
+        const res = await fetch(`${API_BASE_URL}/post/dashboard-stats`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.output?.ledger) {
+            const mapped = data.output.ledger.map(t => ({
+              id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
+              type: t.type === 'in' ? 'income' : 'expense',
+              amount: parseFloat(t.amount || 0),
+              category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
+              description: t.description || '',
+              date: t.transaction_date ? String(t.transaction_date).substring(0, 10) : new Date().toISOString().split('T')[0],
+              statusTransparansi: 'Publik'
+            }));
+            setTransaksiKasList(mapped);
+          }
+        }
+      } catch (e) {
+        console.warn('Local ledger fallback:', e.message);
+      }
+    } finally {
+      setIsLoadingKas(false);
+    }
+  };
+
+  const fetchLedgerFromServer = async () => {
+    await fetchKasTransaksi();
+    await fetchKasSummary();
+  };
+
+  // 4. GET /admin/finance/kas-transaksi/summary
+  const fetchKasSummary = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+      if (kasDateStart) queryParams.set('tanggalMulai', kasDateStart);
+      if (kasDateEnd) queryParams.set('tanggalSelesai', kasDateEnd);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/summary?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const sum = data.output?.summary || data.output || data.data || {};
+        setKasServerSummary({
+          totalPemasukan: sum.totalPemasukan ?? sum.total_pemasukan ?? sum.total_income ?? sum.totalIncome ?? null,
+          totalPengeluaran: sum.totalPengeluaran ?? sum.total_pengeluaran ?? sum.total_expense ?? sum.totalExpense ?? null,
+          saldoAkhir: sum.saldoAkhir ?? sum.saldo_akhir ?? sum.current_balance ?? sum.sisaKas ?? sum.balance ?? null,
+          jumlahTransaksi: sum.jumlahTransaksi ?? sum.jumlah_transaksi ?? sum.total_transactions ?? sum.count ?? null
+        });
+      }
+    } catch (err) {
+      console.warn('Gagal memuat summary kas:', err.message);
+    }
+  };
+
+  // 5. GET /admin/finance/kas-transaksi/kategori-saran
+  const fetchKasKategoriSaran = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/kategori-saran`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = data.output?.categories || data.output?.kategori || (Array.isArray(data.output) ? data.output : (Array.isArray(data.data) ? data.data : []));
+        if (Array.isArray(list) && list.length > 0) {
+          const names = list.map(k => typeof k === 'string' ? k : (k.nama || k.name || k.kategori || String(k)));
+          setKategoriSaranList(Array.from(new Set([...names, 'Iuran Warga', 'Donasi', 'Kebersihan', 'Keamanan', 'Sosial / Santunan', 'Kas Masjid', 'Pembangunan', 'Lain-lain'])));
         }
       }
     } catch (err) {
-      console.warn('Gagal memuat ledger dari server:', err.message);
+      console.warn('Gagal memuat kategori saran:', err.message);
+    }
+  };
+
+  // 6. GET /admin/finance/kas-transaksi/laporan/bulanan
+  const fetchLaporanBulanan = async (year = laporanBulananYear, month = laporanBulananMonth) => {
+    setIsLoadingLaporanBulanan(true);
+    const token = sessionStorage.getItem('rt_token');
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('tahun', String(year));
+      queryParams.set('bulan', String(month));
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/laporan/bulanan?${queryParams.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLaporanBulananData(data.output || data.data || data);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat laporan bulanan:', err.message);
+    } finally {
+      setIsLoadingLaporanBulanan(false);
+    }
+  };
+
+  // 7. GET /admin/finance/kas-transaksi/laporan/tahunan
+  const fetchLaporanTahunan = async (year = laporanTahunanYear) => {
+    setIsLoadingLaporanTahunan(true);
+    const token = sessionStorage.getItem('rt_token');
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('tahun', String(year));
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/laporan/tahunan?${queryParams.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLaporanTahunanData(data.output || data.data || data);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat laporan tahunan:', err.message);
+    } finally {
+      setIsLoadingLaporanTahunan(false);
+    }
+  };
+
+  // 8. GET /admin/finance/kas-transaksi/laporan/rekap
+  const fetchLaporanRekap = async (year = laporanRekapYear, month = laporanRekapMonth) => {
+    setIsLoadingLaporanRekap(true);
+    const token = sessionStorage.getItem('rt_token');
+    try {
+      const queryParams = new URLSearchParams();
+      queryParams.set('tahun', String(year));
+      queryParams.set('bulan', String(month));
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+      if (kasDateStart) queryParams.set('tanggalMulai', kasDateStart);
+      if (kasDateEnd) queryParams.set('tanggalSelesai', kasDateEnd);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/laporan/rekap?${queryParams.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLaporanRekapData(data.output || data.data || data);
+      }
+    } catch (err) {
+      console.warn('Gagal memuat laporan rekap:', err.message);
+    } finally {
+      setIsLoadingLaporanRekap(false);
+    }
+  };
+
+  // 9. GET /admin/finance/kas-transaksi/export
+  const handleExportKas = async (format = 'xlsx') => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      Swal.fire('Error', 'Token tidak ditemukan. Harap login kembali.', 'error');
+      return;
+    }
+
+    try {
+      Swal.fire({
+        title: 'Mempersiapkan File...',
+        text: `Sedang mengunduh dokumen laporan format ${format.toUpperCase()}...`,
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const queryParams = new URLSearchParams();
+      queryParams.set('format', format);
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+      if (kasDateStart) queryParams.set('tanggalMulai', kasDateStart);
+      if (kasDateEnd) queryParams.set('tanggalSelesai', kasDateEnd);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/export?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        throw new Error('Gagal mengunduh file ekspor dari server.');
+      }
+
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      const ext = format === 'pdf' ? 'pdf' : (format === 'excel' || format === 'xlsx' ? 'xlsx' : 'csv');
+      a.download = `Laporan_Kas_RT_${new Date().toISOString().split('T')[0]}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+
+      Swal.fire({
+        title: 'Berhasil Diunduh!',
+        text: `File laporan kas (${format.toUpperCase()}) telah berhasil diunduh.`,
+        icon: 'success',
+        confirmButtonColor: '#10b981'
+      });
+    } catch (err) {
+      Swal.fire('Gagal Ekspor', err.message, 'error');
+    }
+  };
+
+  // 10. GET /admin/finance/kas-transaksi/cetak
+  const handlePrintKasReport = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      Swal.fire('Error', 'Token tidak ditemukan.', 'error');
+      return;
+    }
+
+    try {
+      Swal.fire({
+        title: 'Menyiapkan Format Cetak...',
+        text: 'Mengambil dokumen PDF dari server...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.set('keyword', searchQuery);
+      if (kasFilterType && kasFilterType !== 'all') {
+        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      }
+      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
+      if (kasDateStart) queryParams.set('tanggalMulai', kasDateStart);
+      if (kasDateEnd) queryParams.set('tanggalSelesai', kasDateEnd);
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/cetak?${queryParams.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!res.ok) {
+        throw new Error('Gagal mengambil laporan PDF cetak dari server.');
+      }
+
+      const blob = await res.blob();
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const pdfUrl = window.URL.createObjectURL(pdfBlob);
+      Swal.close();
+      const win = window.open(pdfUrl, '_blank');
+      if (!win) {
+        const a = document.createElement('a');
+        a.href = pdfUrl;
+        a.download = `Cetak_Laporan_Kas_RT_${new Date().toISOString().split('T')[0]}.pdf`;
+        a.click();
+      }
+    } catch (err) {
+      Swal.fire('Gagal Cetak', err.message, 'error');
     }
   };
 
@@ -2499,8 +2827,19 @@ export default function AdminDashboard({
     if (activeTab === 'agenda' && !isBendahara) {
       if (fetchAgendas) fetchAgendas();
     }
-    if (activeTab === 'keuangan_kas' || activeTab === 'keuangan_pemasukan' || activeTab === 'keuangan_pengeluaran') {
-      fetchLedgerFromServer();
+    if (activeTab === 'kas' || activeTab === 'keuangan_kas' || activeTab === 'keuangan_pemasukan' || activeTab === 'keuangan_pengeluaran') {
+      fetchKasTransaksi();
+      fetchKasSummary();
+      fetchKasKategoriSaran();
+    }
+    if (activeTab === 'laporan_bulanan') {
+      fetchLaporanBulanan();
+    }
+    if (activeTab === 'laporan_tahunan') {
+      fetchLaporanTahunan();
+    }
+    if (activeTab === 'laporan_rekap') {
+      fetchLaporanRekap();
     }
   }, [activeTab, residentSubTab]);
 
@@ -2546,7 +2885,7 @@ export default function AdminDashboard({
       fetchKepalaKeluargaList();
     }
 
-    const socketConnection = io('http://172.20.32.85:3333', {
+    const socketConnection = io(API_BASE_URL, {
       transports: ['websocket'],
       auth: { token }
     });
@@ -2763,7 +3102,7 @@ export default function AdminDashboard({
 
     try {
       const token = sessionStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.85:3333/admin/create-account', {
+      const response = await fetch(`${API_BASE_URL}/admin/create-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3072,7 +3411,7 @@ export default function AdminDashboard({
 
     try {
       const token = sessionStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.85:3333/admin/create-account', {
+      const response = await fetch(`${API_BASE_URL}/admin/create-account`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3240,67 +3579,6 @@ export default function AdminDashboard({
     alert(`Pemberitahuan tagihan resmi (Email & Telegram Bot) berhasil dikirimkan ke warga: ${targetWarga.name}!`);
   };
 
-  const handlePrintKasReport = () => {
-    const printWindow = window.open('', '_blank');
-    const tableRows = transaksiKasList.map(t => `
-      <tr style="border-bottom: 1px solid #ddd;">
-        <td style="padding: 10px; font-family: monospace;">${formatDateIndo(t.date)}</td>
-        <td style="padding: 10px;">${t.description}</td>
-        <td style="padding: 10px;">${t.category}</td>
-        <td style="padding: 10px; text-align: center;">${t.type === 'income' ? 'PEMASUKAN' : 'PENGELUARAN'}</td>
-        <td style="padding: 10px; text-align: right; font-weight: bold; color: ${t.type === 'income' ? '#10b981' : '#ef4444'}">${formatRupiah(t.amount)}</td>
-      </tr>
-    `).join('');
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Laporan Keuangan Kas RT 05 Villa Mutiara Mas Cinere</title>
-          <style>
-            body { font-family: sans-serif; padding: 30px; color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #f3f4f6; padding: 12px 10px; text-align: left; }
-            td { border-bottom: 1px solid #eee; }
-            .header { text-align: center; border-bottom: 3px double #333; padding-bottom: 20px; }
-            .summary { margin-top: 30px; display: flex; justify-content: space-between; font-weight: bold; background-color: #f9fafb; padding: 15px; border-radius: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>LAPORAN TRANSAKSI KEUANGAN KAS RT 05 / RW 11</h2>
-            <h3>Perumahan Villa Mutiara Mas Cinere</h3>
-            <p>Dicetak pada: ${formatDateIndo(new Date())}</p>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Tanggal</th>
-                <th>Deskripsi</th>
-                <th>Kategori</th>
-                <th style="text-align: center;">Tipe</th>
-                <th style="text-align: right;">Jumlah</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${tableRows}
-            </tbody>
-          </table>
-          <div class="summary">
-            <div>TOTAL PEMASUKAN: ${formatRupiah(totalPemasukan)}</div>
-            <div>TOTAL PENGELUARAN: ${formatRupiah(totalPengeluaran)}</div>
-            <div style="color: #0d9488;">SALDO AKHIR KAS: ${formatRupiah(sisaKas)}</div>
-          </div>
-          <script>
-            window.onload = function() {
-              window.print();
-              window.onafterprint = function() { window.close(); };
-            }
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
 
   const saveKas = (updatedList) => {
     setTransaksiKasList(updatedList);
@@ -3368,15 +3646,21 @@ export default function AdminDashboard({
     ? dashboardStats.ipl_belum_lunas
     : Math.max(0, uniqueKKs - calcIplLunas);
 
-  const totalPemasukan = dashboardStats?.total_income || transaksiKasList
-    .filter(t => t.type === 'income')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPemasukan = kasServerSummary?.totalPemasukan ?? (
+    dashboardStats?.total_income || transaksiKasList
+      .filter(t => t.type === 'income')
+      .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0)
+  );
 
-  const totalPengeluaran = dashboardStats?.total_expense || transaksiKasList
-    .filter(t => t.type === 'expense')
-    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalPengeluaran = kasServerSummary?.totalPengeluaran ?? (
+    dashboardStats?.total_expense || transaksiKasList
+      .filter(t => t.type === 'expense')
+      .reduce((acc, curr) => acc + (parseFloat(curr.amount) || 0), 0)
+  );
 
-  const sisaKas = dashboardStats?.current_balance || (totalPemasukan - totalPengeluaran);
+  const sisaKas = kasServerSummary?.saldoAkhir ?? (
+    dashboardStats?.current_balance || (totalPemasukan - totalPengeluaran)
+  );
   const sisaKasRT = sisaKas;
 
   const totalAgendas = agendaList.length;
@@ -3384,11 +3668,12 @@ export default function AdminDashboard({
 
   // Format currency
   const formatRupiah = (num) => {
+    const val = typeof num === 'number' ? num : (parseFloat(num) || 0);
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
       currency: 'IDR',
       minimumFractionDigits: 0
-    }).format(num);
+    }).format(isNaN(val) ? 0 : val);
   };
 
   // Setup Form for Editing
@@ -3474,6 +3759,25 @@ export default function AdminDashboard({
         saveWarga(updated);
         Swal.fire({ title: 'Terhapus!', text: 'Data warga berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
       } else if (type === 'kas') {
+        const token = sessionStorage.getItem('rt_token');
+        if (token) {
+          try {
+            const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/${id}`, {
+              method: 'DELETE',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            if (!res.ok) {
+              throw new Error(data.message || data.pesan || 'Gagal menghapus transaksi di server.');
+            }
+            await fetchKasTransaksi();
+            await fetchKasSummary();
+            Swal.fire({ title: 'Terhapus!', text: 'Transaksi kas berhasil dihapus (soft-delete).', icon: 'success', confirmButtonColor: '#10b981' });
+            return;
+          } catch (err) {
+            console.warn('Server delete error, fallback local:', err.message);
+          }
+        }
         const updated = transaksiKasList.filter(t => t.id !== id);
         saveKas(updated);
         Swal.fire({ title: 'Terhapus!', text: 'Data kas berhasil dihapus.', icon: 'success', confirmButtonColor: '#10b981' });
@@ -3487,7 +3791,7 @@ export default function AdminDashboard({
         }
 
         try {
-          const response = await fetch(`http://172.20.32.85:3333/admin/agenda/${id}`, {
+          const response = await fetch(`${API_BASE_URL}/admin/agenda/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -3596,7 +3900,7 @@ export default function AdminDashboard({
           }
         };
 
-        const res = await fetch('http://172.20.32.85:3333/admin/register-resident-only', {
+        const res = await fetch(`${API_BASE_URL}/admin/register-resident-only`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3651,7 +3955,7 @@ export default function AdminDashboard({
         const targetId = selectedItem?.id || selectedItem?.warga_id || selectedItem?.family_id;
 
         if (token && targetId) {
-          const response = await fetch(`http://172.20.32.85:3333/resident/warga/${targetId}`, {
+          const response = await fetch(`${API_BASE_URL}/resident/warga/${targetId}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -3702,29 +4006,38 @@ export default function AdminDashboard({
     setFormError('');
 
     if (!kasForm.description || !kasForm.amount || !kasForm.date) {
-      setFormError('Semua kolom wajib diisi.');
+      setFormError('Semua kolom bertanda * wajib diisi.');
       return;
     }
 
     const amountNum = parseFloat(kasForm.amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setFormError('Jumlah uang harus angka positif.');
+      setFormError('Jumlah nominal uang harus berupa angka positif.');
       return;
     }
 
-    if (modalType === 'add_kas') {
-      const token = sessionStorage.getItem('rt_token');
-      if (!token) {
-        setFormError('Sesi Anda telah berakhir atau Anda belum login.');
-        return;
-      }
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      setFormError('Sesi Anda telah berakhir atau Anda belum login.');
+      return;
+    }
 
-      try {
-        const isIncome = kasForm.type === 'income';
+    setIsSubmittingKas(true);
+    try {
+      const isIncome = kasForm.type === 'income' || kasForm.type === 'masuk';
+
+      if (modalType === 'add_kas') {
+        // 1. POST /admin/finance/kas-transaksi/pemasukan OR 2. POST /admin/finance/kas-transaksi/pengeluaran
         const url = isIncome 
-          ? 'http://172.20.32.85:3333/admin/finance/income' 
-          : 'http://172.20.32.85:3333/admin/finance/expense';
-        const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
+          ? `${API_BASE_URL}/admin/finance/kas-transaksi/pemasukan` 
+          : `${API_BASE_URL}/admin/finance/kas-transaksi/pengeluaran`;
+
+        const payload = {
+          tanggal: kasForm.date,
+          deskripsi: kasForm.description.trim(),
+          kategoriKas: kasForm.category || (isIncome ? 'Iuran Warga' : 'Keamanan'),
+          nominal: amountNum
+        };
 
         const res = await fetch(url, {
           method: 'POST',
@@ -3732,33 +4045,65 @@ export default function AdminDashboard({
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({
-            amount: amountNum,
-            sourceType: backendCategory,
-            description: kasForm.description.trim()
-          })
+          body: JSON.stringify(payload)
         });
 
         const data = await res.json();
         if (!res.ok) {
-          throw new Error(data.message || data.pesan || 'Gagal menyimpan transaksi di server.');
+          throw new Error(data.message || data.pesan || 'Gagal mencatat transaksi kas di server.');
         }
 
-        await fetchLedgerFromServer(); // Sync from server
-        setModalType('');
         Swal.fire({
-          title: 'Berhasil!',
-          text: `Transaksi ${isIncome ? 'pemasukan' : 'pengeluaran'} berhasil dicatat di server database.`,
+          title: 'Berhasil Dicatat!',
+          text: `Transaksi ${isIncome ? 'pemasukan' : 'pengeluaran'} sebesar ${formatRupiah(amountNum)} berhasil disimpan.`,
           icon: 'success',
           confirmButtonColor: '#10b981'
         });
-      } catch (err) {
-        setFormError(`Gagal menyimpan ke server: ${err.message}`);
+      } else if (modalType === 'edit_kas') {
+        // 11. PATCH /admin/finance/kas-transaksi/:id
+        const payload = {
+          tanggal: kasForm.date,
+          deskripsi: kasForm.description.trim(),
+          kategoriKas: kasForm.category || 'Kas Umum',
+          tipeMutasi: isIncome ? 'masuk' : 'keluar',
+          nominal: amountNum
+        };
+
+        const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/${selectedItem.id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.message || data.pesan || 'Gagal memperbarui transaksi kas di server.');
+        }
+
+        Swal.fire({
+          title: 'Berhasil Diperbarui!',
+          text: 'Perubahan transaksi kas berhasil disimpan.',
+          icon: 'success',
+          confirmButtonColor: '#10b981'
+        });
       }
-    } else {
-      const updated = transaksiKasList.map(t => t.id === selectedItem.id ? { ...kasForm, amount: amountNum } : t);
-      saveKas(updated);
+
       setModalType('');
+      await fetchKasTransaksi();
+      await fetchKasSummary();
+    } catch (err) {
+      setFormError(`Gagal: ${err.message}`);
+      Swal.fire({
+        title: 'Gagal Menyimpan',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
+    } finally {
+      setIsSubmittingKas(false);
     }
   };
 
@@ -3798,7 +4143,7 @@ export default function AdminDashboard({
       };
 
       if (modalType === 'add_agenda') {
-        const response = await fetch('http://172.20.32.85:3333/admin/agenda', {
+        const response = await fetch(`${API_BASE_URL}/admin/agenda`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3827,7 +4172,7 @@ export default function AdminDashboard({
           confirmButtonColor: '#10b981'
         });
       } else {
-        const response = await fetch(`http://172.20.32.85:3333/admin/agenda/${selectedItem.id}`, {
+        const response = await fetch(`${API_BASE_URL}/admin/agenda/${selectedItem.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -3887,7 +4232,7 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/surat-masuk/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/surat-masuk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3924,7 +4269,7 @@ export default function AdminDashboard({
 
     const token = sessionStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.85:3333/admin/surat-keluar/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/surat-keluar/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3969,8 +4314,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.85:3333/admin/surat-masuk/${suratMasukForm.id}`
-        : 'http://172.20.32.85:3333/admin/surat-masuk';
+        ? `${API_BASE_URL}/admin/surat-masuk/${suratMasukForm.id}`
+        : `${API_BASE_URL}/admin/surat-masuk`;
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4040,8 +4385,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.85:3333/admin/surat-keluar/${suratKeluarForm.id}`
-        : 'http://172.20.32.85:3333/admin/surat-keluar';
+        ? `${API_BASE_URL}/admin/surat-keluar/${suratKeluarForm.id}`
+        : `${API_BASE_URL}/admin/surat-keluar`;
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4124,7 +4469,7 @@ export default function AdminDashboard({
     const token = sessionStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
-        await fetch(`http://172.20.32.85:3333/admin/pengajuan/${id}`, {
+        await fetch(`${API_BASE_URL}/admin/pengajuan/${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -4364,14 +4709,21 @@ export default function AdminDashboard({
                 </button>
                 <button
                   onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'layanan'
                       ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
                 >
-                  <FileText className="w-4 h-4 text-orange-500" />
-                  <span>Persuratan & Layanan</span>
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-4 h-4 text-orange-500" />
+                    <span>Persuratan & Layanan</span>
+                  </div>
+                  {pendingSubmissionsCount > 0 && (
+                    <span className="text-xs bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold animate-pulse">
+                      {pendingSubmissionsCount}
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
@@ -4507,7 +4859,7 @@ export default function AdminDashboard({
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
-                      <span>Riwayat Pembayaran</span>
+                      <span>Riwayat IPL</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
@@ -4694,32 +5046,35 @@ export default function AdminDashboard({
                     <FileText className="w-4 h-4 text-sky-400" />
                     <span>Surat</span>
                   </div>
-                  <span className="text-[9px] text-slate-500 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                  <div className="flex items-center gap-2">
+                    {pendingSubmissionsCount > 0 && (
+                      <span className="text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold animate-pulse">
+                        {pendingSubmissionsCount}
+                      </span>
+                    )}
+                    <span className="text-[9px] text-slate-500 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                  </div>
                 </button>
 
                 {isSuratOpen && (
                   <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'layanan' 
                           ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
                           : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Pengajuan Surat</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('sek_surat_masuk'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'sek_surat_masuk' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_masuk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Surat Masuk</span>
+                      <div className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Pengajuan Surat</span>
+                      </div>
+                      {pendingSubmissionsCount > 0 && (
+                        <span className="text-[10px] bg-rose-500 text-white px-1.5 py-0.2 rounded-full font-bold animate-pulse">
+                          {pendingSubmissionsCount}
+                        </span>
+                      )}
                     </button>
 
                     <button
@@ -5061,7 +5416,7 @@ export default function AdminDashboard({
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Riwayat Setoran</span>
+                      <span>Riwayat IPL</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
@@ -5251,7 +5606,6 @@ export default function AdminDashboard({
                     {activeTab === 'sek_warga_masuk' && 'Verifikasi Registrasi Warga Baru ✨'}
                     {activeTab === 'data_wizard' && 'Pendaftaran Rumah, KK & Warga ⚡'}
                     {activeTab === 'layanan' && 'Loket Persetujuan Surat Pengantar Warga 📝'}
-                    {activeTab === 'sek_surat_masuk' && 'Modul Catatan & Berkas Surat Masuk 📥'}
                     {activeTab === 'sek_surat_template' && 'Simulator & Pratinjau Kop Surat Resmi A4 📜'}
                     {activeTab === 'iuran_jenis' && 'Pengaturan Tarif & Nominal Iuran Bulanan IPL 💳'}
                     {activeTab === 'iuran_pembayaran' && 'Form Pencatatan Pembayaran Manual Warga ✍️'}
@@ -5442,7 +5796,14 @@ export default function AdminDashboard({
                         </div>
                         <span className="text-[11px] sm:text-xs leading-tight">Persetujuan Surat</span>
                       </div>
-                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+                      <div className="flex items-center gap-1.5">
+                        {pendingSubmissionsCount > 0 && (
+                          <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
+                            {pendingSubmissionsCount}
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+                      </div>
                     </button>
 
                     {/* 3. Pembayaran IPL */}
@@ -6021,258 +6382,6 @@ export default function AdminDashboard({
           )}
 
           {/* SEKRETARIS: 4. SURAT MASUK */}
-          {activeTab === 'sek_surat_masuk' && (() => {
-            // Apply filtering logic
-            const filtered = suratMasukList.filter(s => {
-              const matchSearch = 
-                (s.asalSurat && s.asalSurat.toLowerCase().includes(suratMasukSearch.toLowerCase())) ||
-                (s.perihal && s.perihal.toLowerCase().includes(suratMasukSearch.toLowerCase())) ||
-                (s.nomorSurat && s.nomorSurat.toLowerCase().includes(suratMasukSearch.toLowerCase()));
-              
-              const matchStatus = suratMasukStatusFilter === 'All' || s.status === suratMasukStatusFilter;
-
-              let matchDate = true;
-              const itemDate = new Date(s.tanggalSurat);
-              if (suratMasukDateStart) {
-                const start = new Date(suratMasukDateStart);
-                start.setHours(0,0,0,0);
-                itemDate.setHours(0,0,0,0);
-                if (itemDate < start) matchDate = false;
-              }
-              if (suratMasukDateEnd) {
-                const end = new Date(suratMasukDateEnd);
-                end.setHours(23,59,59,999);
-                itemDate.setHours(0,0,0,0);
-                if (itemDate > end) matchDate = false;
-              }
-
-              return matchSearch && matchStatus && matchDate;
-            });
-
-            const itemsPerPage = 5;
-            const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1;
-            const paginated = filtered.slice(
-              (suratMasukPage - 1) * itemsPerPage,
-              suratMasukPage * itemsPerPage
-            );
-
-            return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-                {/* TOOLBAR: SEARCH & FILTERS */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1">
-                    {/* Search Input */}
-                    <div className="relative flex-1 max-w-md">
-                      <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                        <Search className="h-4 w-4 text-slate-400" />
-                      </span>
-                      <input
-                        type="text"
-                        placeholder="Cari Nomor / Pengirim / Perihal..."
-                        value={suratMasukSearch}
-                        onChange={(e) => { setSuratMasukSearch(e.target.value); setSuratMasukPage(1); }}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-all"
-                      />
-                    </div>
-
-                    {/* Status dropdown */}
-                    <select
-                      value={suratMasukStatusFilter}
-                      onChange={(e) => { setSuratMasukStatusFilter(e.target.value); setSuratMasukPage(1); }}
-                      className="px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/45 border border-slate-200/80 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs font-extrabold text-slate-600 dark:text-slate-300 cursor-pointer"
-                    >
-                      <option value="All">Semua Status</option>
-                      <option value="Baru">Baru</option>
-                      <option value="Diproses">Diproses</option>
-                      <option value="Selesai">Selesai</option>
-                    </select>
-
-                    {/* Date filter picker */}
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950/40 p-1.5 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                      <input
-                        type="date"
-                        value={suratMasukDateStart}
-                        onChange={(e) => { setSuratMasukDateStart(e.target.value); setSuratMasukPage(1); }}
-                        className="bg-transparent outline-none text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
-                        title="Tanggal Mulai"
-                      />
-                      <span className="text-slate-400 text-[10px] font-black uppercase">s/d</span>
-                      <input
-                        type="date"
-                        value={suratMasukDateEnd}
-                        onChange={(e) => { setSuratMasukDateEnd(e.target.value); setSuratMasukPage(1); }}
-                        className="bg-transparent outline-none text-[11px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
-                        title="Tanggal Selesai"
-                      />
-                      {(suratMasukDateStart || suratMasukDateEnd || suratMasukStatusFilter !== 'All' || suratMasukSearch) && (
-                        <button
-                          onClick={() => {
-                            setSuratMasukSearch('');
-                            setSuratMasukStatusFilter('All');
-                            setSuratMasukDateStart('');
-                            setSuratMasukDateEnd('');
-                            setSuratMasukPage(1);
-                          }}
-                          className="ml-1 p-1 bg-slate-200/60 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
-                          title="Reset Filters"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Add Button */}
-                  <button
-                    onClick={() => {
-                      setSuratMasukForm({
-                        id: '',
-                        nomorSurat: '',
-                        asalSurat: '',
-                        perihal: '',
-                        tanggalSurat: new Date().toISOString().split('T')[0],
-                        tanggalDiterima: new Date().toISOString().split('T')[0],
-                        status: 'Baru',
-                        fileLampiran: null,
-                        fileUrl: ''
-                      });
-                      setModalType('add_surat_masuk');
-                    }}
-                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-500/10 transition-all flex items-center gap-2 cursor-pointer self-start md:self-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Registrasi Surat Masuk</span>
-                  </button>
-                </div>
-
-                {/* DATA TABLE */}
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                        <th className="p-4">Nomor Surat</th>
-                        <th className="p-4">Asal / Pengirim</th>
-                        <th className="p-4">Perihal</th>
-                        <th className="p-4">Tgl Surat</th>
-                        <th className="p-4">Tgl Diterima</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4 text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {suratMasukLoading ? (
-                        Array.from({ length: 3 }).map((_, idx) => (
-                          <tr key={idx} className="animate-pulse">
-                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-28"></div></td>
-                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-36"></div></td>
-                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-44"></div></td>
-                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-18"></div></td>
-                            <td className="p-4"><div className="h-3.5 bg-slate-100 dark:bg-slate-800 rounded-lg w-18"></div></td>
-                            <td className="p-4"><div className="h-5 bg-slate-100 dark:bg-slate-800 rounded-full w-14"></div></td>
-                            <td className="p-4 text-right"><div className="h-7 bg-slate-100 dark:bg-slate-800 rounded-lg w-20 ml-auto"></div></td>
-                          </tr>
-                        ))
-                      ) : paginated.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" className="p-12 text-center">
-                            <div className="flex flex-col items-center justify-center gap-2">
-                              <FolderOpen className="w-10 h-10 text-slate-300 dark:text-slate-700" />
-                              <h5 className="font-extrabold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider">Tidak Ada Surat Masuk</h5>
-                              <p className="text-[10px] text-slate-400 max-w-xs font-bold leading-normal">
-                                Belum ada surat masuk terdaftar atau cocok dengan pencarian.
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        paginated.map((s) => (
-                          <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-350">{s.nomorSurat}</td>
-                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{s.asalSurat}</td>
-                            <td className="p-4 font-medium text-slate-600 dark:text-slate-400">{s.perihal}</td>
-                            <td className="p-4 font-bold text-slate-500">{formatDateIndo(s.tanggalSurat)}</td>
-                            <td className="p-4 font-bold text-slate-500">{formatDateIndo(s.tanggalDiterima)}</td>
-                            <td className="p-4">
-                              <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
-                                s.status === 'Baru' 
-                                  ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                                  : s.status === 'Diproses' 
-                                    ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                              }`}>
-                                {s.status}
-                              </span>
-                            </td>
-                            <td className="p-4 text-right flex justify-end gap-1.5">
-                              <button
-                                onClick={() => setSuratMasukDetail(s)}
-                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-emerald-500 cursor-pointer"
-                                title="Detail Surat"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  setSuratMasukForm({
-                                    id: s.id,
-                                    nomorSurat: s.nomorSurat,
-                                    asalSurat: s.asalSurat,
-                                    perihal: s.perihal,
-                                    tanggalSurat: s.tanggalSurat,
-                                    tanggalDiterima: s.tanggalDiterima,
-                                    status: s.status,
-                                    fileLampiran: null,
-                                    fileUrl: s.fileLampiran
-                                  });
-                                  setModalType('edit_surat_masuk');
-                                }}
-                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-amber-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-amber-500 cursor-pointer"
-                                title="Edit Surat"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSuratMasuk(s.id)}
-                                className="p-1 border border-slate-200 dark:border-slate-800 hover:border-rose-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-slate-500 hover:text-rose-500 cursor-pointer"
-                                title="Hapus Surat"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* PAGINATION */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 font-sans">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">
-                      Halaman {suratMasukPage} dari {totalPages} ({filtered.length} Surat)
-                    </span>
-                    <div className="flex gap-1">
-                      <button
-                        disabled={suratMasukPage === 1}
-                        onClick={() => setSuratMasukPage(prev => Math.max(prev - 1, 1))}
-                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        disabled={suratMasukPage === totalPages}
-                        onClick={() => setSuratMasukPage(prev => Math.min(prev + 1, totalPages))}
-                        className="p-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-slate-400 hover:text-emerald-500 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
 
           {/* SEKRETARIS: 6. TEMPLATE SURAT */}
           {activeTab === 'sek_surat_template' && (
@@ -6679,7 +6788,7 @@ export default function AdminDashboard({
                     formData.append('kategori', arsipForm.kategori || 'Dokumentasi Umum');
                     formData.append('file', file);
 
-                    const res = await fetch('http://172.20.32.85:3333/admin/arsip-media', {
+                    const res = await fetch(`${API_BASE_URL}/admin/arsip-media`, {
                       method: 'POST',
                       headers: {
                         'Authorization': `Bearer ${token}`
@@ -6853,7 +6962,7 @@ export default function AdminDashboard({
                       ) : (
                         arsipFileList.map((a) => {
                           const isVid = a.media_type === 'video' || a.mime_type?.startsWith('video');
-                          const mediaUrl = a.media_url ? (a.media_url.startsWith('http') ? a.media_url : `http://172.20.32.85:3333${a.media_url}`) : `http://172.20.32.85:3333/post/arsip-media/${a.id}/file`;
+                          const mediaUrl = a.media_url ? (a.media_url.startsWith('http') ? a.media_url : `${API_BASE_URL}${a.media_url}`) : `${API_BASE_URL}/post/arsip-media/${a.id}/file`;
                           const sizeFormatted = a.file_size 
                             ? (a.file_size > 1024 * 1024 ? `${(a.file_size / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(a.file_size / 1024)} KB`)
                             : (a.size || '-');
@@ -6914,7 +7023,7 @@ export default function AdminDashboard({
                                       if (!token) return;
 
                                       try {
-                                        const res = await fetch(`http://172.20.32.85:3333/admin/arsip-media/${a.id}`, {
+                                        const res = await fetch(`${API_BASE_URL}/admin/arsip-media/${a.id}`, {
                                           method: 'DELETE',
                                           headers: { 'Authorization': `Bearer ${token}` }
                                         });
@@ -7647,14 +7756,32 @@ export default function AdminDashboard({
                     <TrendingDown className="w-4 h-4" />
                     <span>- Catat Pengeluaran</span>
                   </button>
-                  <button
-                    onClick={handlePrintKasReport}
-                    className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer"
-                    title="Cetak Laporan Transparansi Kas"
-                  >
-                    <FileText className="w-4 h-4 text-slate-500" />
-                    <span>Cetak Laporan</span>
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleExportKas('xlsx')}
+                      className="py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-emerald-300/60 dark:border-emerald-700 transition-all cursor-pointer"
+                      title="Ekspor Laporan Kas ke Excel (.xlsx)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="hidden sm:inline">Excel</span>
+                    </button>
+                    <button
+                      onClick={() => handleExportKas('pdf')}
+                      className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-rose-300/60 dark:border-rose-700 transition-all cursor-pointer"
+                      title="Ekspor Laporan Kas ke PDF (.pdf)"
+                    >
+                      <Download className="w-3.5 h-3.5 text-rose-600" />
+                      <span className="hidden sm:inline">PDF</span>
+                    </button>
+                    <button
+                      onClick={handlePrintKasReport}
+                      className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer"
+                      title="Cetak Laporan Transparansi Kas"
+                    >
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <span>Cetak</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -7744,75 +7871,138 @@ export default function AdminDashboard({
               {kasSubTab === 'transaksi' && (
                 <div className="space-y-4 animate-fade-in">
                   {/* Filter Toolbar */}
-                  <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center bg-slate-50/70 dark:bg-slate-950/40 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-                    <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                      {/* Search Bar */}
-                      <div className="relative flex-1 max-w-sm">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                          type="text"
-                          placeholder="Cari transaksi, ID, kategori..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-sans"
-                        />
+                  <div className="space-y-3 bg-slate-50/70 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                    <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center">
+                      <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                        {/* Search Bar */}
+                        <div className="relative flex-1 max-w-sm">
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Cari transaksi, ID, keperluan..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-sans"
+                          />
+                        </div>
+
+                        {/* Type Filter Pills */}
+                        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => setKasFilterType('all')}
+                            className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                              kasFilterType === 'all'
+                                ? 'bg-orange-500 text-white shadow-xs'
+                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                            }`}
+                          >
+                            Semua ({transaksiKasList.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setKasFilterType('income')}
+                            className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                              kasFilterType === 'income'
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                            }`}
+                          >
+                            Masuk ({transaksiKasList.filter(t => t.type === 'income').length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setKasFilterType('expense')}
+                            className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                              kasFilterType === 'expense'
+                                ? 'bg-rose-600 text-white shadow-xs'
+                                : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                            }`}
+                          >
+                            Keluar ({transaksiKasList.filter(t => t.type === 'expense').length})
+                          </button>
+                        </div>
                       </div>
 
-                      {/* Type Filter Pills */}
-                      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-xl">
-                        <button
-                          type="button"
-                          onClick={() => setKasFilterType('all')}
-                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                            kasFilterType === 'all'
-                              ? 'bg-orange-500 text-white shadow-xs'
-                              : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                          }`}
+                      {/* Category Filter Dropdown */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">Kategori:</span>
+                        <select
+                          value={kasFilterCategory}
+                          onChange={(e) => {
+                            setKasFilterCategory(e.target.value);
+                            fetchKasTransaksi({ kasFilterCategory: e.target.value });
+                          }}
+                          className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
                         >
-                          Semua ({transaksiKasList.length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setKasFilterType('income')}
-                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                            kasFilterType === 'income'
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
-                          }`}
-                        >
-                          Masuk ({transaksiKasList.filter(t => t.type === 'income').length})
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setKasFilterType('expense')}
-                          className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
-                            kasFilterType === 'expense'
-                              ? 'bg-rose-600 text-white shadow-xs'
-                              : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                          }`}
-                        >
-                          Keluar ({transaksiKasList.filter(t => t.type === 'expense').length})
-                        </button>
+                          <option value="all">Semua Kategori</option>
+                          {kategoriSaranList.map((cat, idx) => (
+                            <option key={idx} value={cat}>{cat}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
-                    {/* Category Filter Dropdown */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-slate-400 hidden sm:inline">Kategori:</span>
-                      <select
-                        value={kasFilterCategory}
-                        onChange={(e) => setKasFilterCategory(e.target.value)}
-                        className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                    {/* Date Range Toolbar */}
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200/50 dark:border-slate-800/60 text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-400">Rentang Tanggal:</span>
+                        <input
+                          type="date"
+                          value={kasDateStart}
+                          onChange={(e) => setKasDateStart(e.target.value)}
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-200 outline-none"
+                          placeholder="Mulai"
+                        />
+                        <span className="text-slate-400">s/d</span>
+                        <input
+                          type="date"
+                          value={kasDateEnd}
+                          onChange={(e) => setKasDateEnd(e.target.value)}
+                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-200 outline-none"
+                          placeholder="Selesai"
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          fetchKasTransaksi();
+                          fetchKasSummary();
+                        }}
+                        className="py-1.5 px-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-xs"
                       >
-                        <option value="all">Semua Kategori</option>
-                        <option value="Iuran Warga">Iuran Warga</option>
-                        <option value="Donasi">Donasi / Sumbangan</option>
-                        <option value="Keamanan">Keamanan Lingkungan</option>
-                        <option value="Kebersihan">Kebersihan & Sampah</option>
-                        <option value="Sosial / Santunan">Sosial / Santunan</option>
-                        <option value="Pembangunan">Pembangunan / Fasum</option>
-                        <option value="Lain-lain">Lain-lain</option>
-                      </select>
+                        Terapkan Filter
+                      </button>
+
+                      {(kasDateStart || kasDateEnd || kasFilterCategory !== 'all' || kasFilterType !== 'all' || searchQuery) && (
+                        <button
+                          onClick={() => {
+                            setKasDateStart('');
+                            setKasDateEnd('');
+                            setKasFilterCategory('all');
+                            setKasFilterType('all');
+                            setSearchQuery('');
+                            fetchKasTransaksi({
+                              kasDateStart: '',
+                              kasDateEnd: '',
+                              kasFilterCategory: 'all',
+                              kasFilterType: 'all',
+                              searchQuery: ''
+                            });
+                            fetchKasSummary();
+                          }}
+                          className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
+                        >
+                          Reset Filter
+                        </button>
+                      )}
+
+                      {isLoadingKas && (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-orange-500 font-bold ml-auto animate-pulse">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Memuat Data...</span>
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -7833,15 +8023,17 @@ export default function AdminDashboard({
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {(() => {
                           const q = searchQuery.toLowerCase();
-                          const filtered = transaksiKasList.filter((t) => {
+                          const filtered = (transaksiKasList || []).filter((t) => {
                             const matchesQuery = !searchQuery || 
                               (t.description || '').toLowerCase().includes(q) || 
                               (t.category || '').toLowerCase().includes(q) ||
-                              (t.id || '').toLowerCase().includes(q) ||
+                              String(t.id || '').toLowerCase().includes(q) ||
                               (t.date || '').toLowerCase().includes(q);
-                            const matchesType = kasFilterType === 'all' || t.type === kasFilterType;
+                            const matchesType = kasFilterType === 'all' || t.type === kasFilterType || (kasFilterType === 'income' ? (t.type === 'income' || t.tipeMutasi === 'masuk') : (t.type === 'expense' || t.tipeMutasi === 'keluar'));
                             const matchesCategory = kasFilterCategory === 'all' || t.category === kasFilterCategory;
-                            return matchesQuery && matchesType && matchesCategory;
+                            const matchesDateStart = !kasDateStart || t.date >= kasDateStart;
+                            const matchesDateEnd = !kasDateEnd || t.date <= kasDateEnd;
+                            return matchesQuery && matchesType && matchesCategory && matchesDateStart && matchesDateEnd;
                           });
 
                           if (filtered.length === 0) {
@@ -9322,46 +9514,34 @@ export default function AdminDashboard({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                 <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas RT (PDF/Printer)</h4>
-                  <p className="text-xs text-slate-400">Cetak lembar laporan fisik transaksi kas masuk & keluar RT secara formal.</p>
-                  <button
-                    onClick={handlePrintKasReport}
-                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer"
-                  >
-                    Cetak Buku Kas RT
-                  </button>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas RT (PDF & Cetak)</h4>
+                  <p className="text-xs text-slate-400">Unduh dokumen PDF atau cetak lembar fisik transaksi kas masuk & keluar RT secara formal.</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => handleExportKas('pdf')}
+                      className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Unduh PDF Kas</span>
+                    </button>
+                    <button
+                      onClick={handlePrintKasReport}
+                      className="py-2.5 px-4 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span>Cetak Lembar Kas</span>
+                    </button>
+                  </div>
                 </div>
                 <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Rekapitulasi Iuran (Ekspor Excel)</h4>
-                  <p className="text-xs text-slate-400">Ekspor matriks iuran warga (CSV/Excel format) untuk audit pembukuan.</p>
+                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas & Rekapitulasi (Ekspor Excel)</h4>
+                  <p className="text-xs text-slate-400">Ekspor seluruh rekapan transaksi buku kas RT ke file spreadsheet Microsoft Excel (.xlsx).</p>
                   <button
-                    onClick={() => {
-                      try {
-                        const headers = ["ID Transaksi", "Tanggal", "Keterangan", "Kategori", "Tipe", "Nominal (Rp)"];
-                        const rows = (transaksiKasList || []).map(t => [
-                          t.id || '-',
-                          formatDateIndo(t.date || t.created_at),
-                          t.description || t.keterangan || '-',
-                          t.category || t.kategori || 'Lainnya',
-                          (t.type === 'income' || t.tipe === 'masuk') ? 'Pemasukan' : 'Pengeluaran',
-                          t.amount || t.nominal || 0
-                        ]);
-                        const csvContent = [headers, ...rows].map(e => e.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
-                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement("a");
-                        link.setAttribute("href", url);
-                        link.setAttribute("download", `laporan_kas_rt05_${new Date().toISOString().split('T')[0]}.csv`);
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                      } catch (err) {
-                        alert(`Gagal mengekspor CSV: ${err.message}`);
-                      }
-                    }}
-                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer"
+                    onClick={() => handleExportKas('xlsx')}
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                   >
-                    Ekspor CSV Spreadsheet
+                    <Download className="w-4 h-4" />
+                    <span>Ekspor Excel (.xlsx)</span>
                   </button>
                 </div>
               </div>
@@ -10482,7 +10662,7 @@ export default function AdminDashboard({
                       <select
                         value={kasForm.type}
                         onChange={(e) => setKasForm({ ...kasForm, type: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold"
                       >
                         <option value="income">Masuk (Pemasukan)</option>
                         <option value="expense">Keluar (Pengeluaran)</option>
@@ -10490,31 +10670,32 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas</label>
-                      <select
-                        value={kasForm.category}
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
+                      <input
+                        required
+                        list="kategori-kas-suggestions"
+                        type="text"
+                        placeholder="Pilih atau ketik kategori..."
+                        value={kasForm.category || ''}
                         onChange={(e) => setKasForm({ ...kasForm, category: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
-                      >
-                        <option value="Iuran Warga">Iuran Warga</option>
-                        <option value="Donasi">Donasi / Sumbangan</option>
-                        <option value="Kebersihan">Kebersihan</option>
-                        <option value="Keamanan">Keamanan Complex</option>
-                        <option value="Sosial / Santunan">Sosial / Santunan</option>
-                        <option value="Kas Masjid">Kas Masjid</option>
-                        <option value="Pembangunan">Pembangunan Fisik</option>
-                        <option value="Lain-lain">Lain-lain</option>
-                      </select>
+                      />
+                      <datalist id="kategori-kas-suggestions">
+                        {kategoriSaranList.map((cat, idx) => (
+                          <option key={idx} value={cat} />
+                        ))}
+                      </datalist>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Jumlah Uang (Rupiah) *</label>
+                      <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Uang (Rp) *</label>
                       <input
                         required
                         type="number"
-                        placeholder="Contoh: 50000"
+                        min="1"
+                        placeholder="Contoh: 150000"
                         value={kasForm.amount}
                         onChange={(e) => setKasForm({ ...kasForm, amount: e.target.value })}
                         className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm"
@@ -10533,11 +10714,11 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Deskripsi / Keterangan *</label>
+                    <label className="font-bold text-slate-655 dark:text-slate-350">Deskripsi / Keperluan Transaksi *</label>
                     <textarea
                       required
                       rows={3}
-                      placeholder="Tulis alasan transaksi kas secara jelas..."
+                      placeholder="Tulis uraian atau keperluan transaksi secara jelas..."
                       value={kasForm.description}
                       onChange={(e) => setKasForm({ ...kasForm, description: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none"
@@ -10546,9 +10727,17 @@ export default function AdminDashboard({
 
                   <button
                     type="submit"
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs"
+                    disabled={isSubmittingKas}
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold rounded-xl transition-colors cursor-pointer text-xs flex items-center justify-center gap-2 shadow-sm"
                   >
-                    Simpan Transaksi Kas
+                    {isSubmittingKas ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Menyimpan ke Server...</span>
+                      </>
+                    ) : (
+                      <span>{modalType === 'add_kas' ? 'Simpan Transaksi Kas' : 'Simpan Perubahan Transaksi'}</span>
+                    )}
                   </button>
                 </form>
               )}
@@ -10926,157 +11115,6 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* ADD / EDIT SURAT MASUK MODAL */}
-      {(modalType === 'add_surat_masuk' || modalType === 'edit_surat_masuk') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
-                {modalType === 'add_surat_masuk' ? 'Registrasi Surat Masuk' : 'Edit Surat Masuk'}
-              </h3>
-              <button onClick={() => setModalType('')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSuratMasukSubmit} className="p-6 space-y-4 text-xs font-sans">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Nomor Surat *</label>
-                  <input
-                    required
-                    type="text"
-                    value={suratMasukForm.nomorSurat}
-                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, nomorSurat: e.target.value })}
-                    placeholder="Contoh: 025/RT05/VII/2026"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Asal / Instansi Pengirim *</label>
-                  <input
-                    required
-                    type="text"
-                    value={suratMasukForm.asalSurat}
-                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, asalSurat: e.target.value })}
-                    placeholder="Contoh: Kelurahan Cinere"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-500 block">Hal / Perihal Surat *</label>
-                <input
-                  required
-                  type="text"
-                  value={suratMasukForm.perihal}
-                  onChange={(e) => setSuratMasukForm({ ...suratMasukForm, perihal: e.target.value })}
-                  placeholder="Contoh: Undangan Rapat HUT RI"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Tanggal Surat *</label>
-                  <input
-                    required
-                    type="date"
-                    value={suratMasukForm.tanggalSurat}
-                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, tanggalSurat: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Tanggal Diterima *</label>
-                  <input
-                    required
-                    type="date"
-                    value={suratMasukForm.tanggalDiterima}
-                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, tanggalDiterima: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">Status Surat</label>
-                  <select
-                    value={suratMasukForm.status}
-                    onChange={(e) => setSuratMasukForm({ ...suratMasukForm, status: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
-                  >
-                    <option value="Baru">Baru</option>
-                    <option value="Diproses">Diproses</option>
-                    <option value="Selesai">Selesai</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500 block">File Lampiran (PDF / Gambar)</label>
-                  <div className="relative flex items-center bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden px-3 py-2">
-                    <Upload className="w-4 h-4 text-slate-400 mr-2" />
-                    <input
-                      type="file"
-                      accept=".pdf,.png,.jpg,.jpeg"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          setSuratMasukForm({ ...suratMasukForm, fileLampiran: file });
-                        }
-                      }}
-                      className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                    />
-                    <span className="text-[10px] font-bold text-slate-500 truncate">
-                      {suratMasukForm.fileLampiran ? suratMasukForm.fileLampiran.name : (suratMasukForm.fileUrl || 'Pilih file...')}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-bold text-slate-500 block">Ringkasan / Catatan Isi Surat</label>
-                <textarea
-                  rows={2}
-                  value={suratMasukForm.isiRingkas}
-                  onChange={(e) => setSuratMasukForm({ ...suratMasukForm, isiRingkas: e.target.value })}
-                  placeholder="Catat intisari isi surat masuk di sini..."
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white resize-none"
-                />
-              </div>
-
-              <div className="flex gap-2.5 pt-2">
-                <button
-                  type="submit"
-                  disabled={suratMasukSubmitLoading}
-                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
-                >
-                  {suratMasukSubmitLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    <span>Simpan Surat</span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setModalType('')}
-                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
-                >
-                  Batal
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
       {/* ADD / EDIT SURAT KELUAR MODAL */}
       {(modalType === 'add_surat_keluar' || modalType === 'edit_surat_keluar') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -11215,115 +11253,7 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* DETAIL SURAT MASUK MODAL */}
-      {suratMasukDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 font-sans">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSuratMasukDetail(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Detail Surat Masuk</h3>
-                <span className="text-[10px] text-slate-400 font-bold font-mono block mt-0.5">{suratMasukDetail.nomorSurat}</span>
-              </div>
-              <button onClick={() => setSuratMasukDetail(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
-                <XIcon className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-5 text-xs font-sans">
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-2 gap-4">
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Pengirim / Asal</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">{suratMasukDetail.asalSurat}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Status</span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase inline-block mt-1 ${
-                    suratMasukDetail.status === 'Baru' 
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                      : suratMasukDetail.status === 'Diproses' 
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
-                        : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  }`}>
-                    {suratMasukDetail.status}
-                  </span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Surat</span>
-                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratMasukDetail.tanggalSurat)}</span>
-                </div>
-                <div>
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Diterima</span>
-                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratMasukDetail.tanggalDiterima)}</span>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <span className="text-[9px] font-bold text-slate-400 block uppercase">Perihal</span>
-                <span className="font-bold text-slate-800 dark:text-white leading-normal text-xs block">{suratMasukDetail.perihal}</span>
-              </div>
-
-              {suratMasukDetail.isiRingkas && (
-                <div className="space-y-1 p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Isi Ringkas / Catatan</span>
-                  <p className="text-slate-600 dark:text-slate-400 leading-normal italic">"{suratMasukDetail.isiRingkas}"</p>
-                </div>
-              )}
-
-              {/* FILE LAMPIRAN PREVIEW & DOWNLOAD */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/30 rounded-2xl border border-slate-200/50 dark:border-slate-800/80 flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-emerald-500" />
-                    <div>
-                      <span className="font-extrabold text-slate-700 dark:text-slate-300 block text-[10px] uppercase">File Lampiran</span>
-                      <span className="text-[9px] font-bold text-slate-400 truncate max-w-[180px] block">
-                        {suratMasukDetail.fileLampiran || 'Tidak ada lampiran file'}
-                      </span>
-                    </div>
-                  </div>
-                  {suratMasukDetail.fileLampiran && (
-                    <button 
-                      type="button"
-                      onClick={() => alert(`Simulasi mengunduh file: ${suratMasukDetail.fileLampiran}`)}
-                      className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer"
-                      title="Download File"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-
-                {suratMasukDetail.fileLampiran && (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950 p-2.5 text-center mt-1">
-                    <div className="py-6 flex flex-col items-center justify-center gap-1.5 font-sans">
-                      <File className="w-8 h-8 text-slate-300 dark:text-slate-700" />
-                      <span className="text-[10px] text-slate-500 font-bold">Preview Lampiran ({suratMasukDetail.fileLampiran})</span>
-                      <button 
-                        type="button"
-                        onClick={() => alert(`Simulasi Preview Dokumen: ${suratMasukDetail.fileLampiran}`)}
-                        className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-[9px] font-extrabold text-slate-600 dark:text-slate-300 rounded-lg cursor-pointer transition-colors"
-                      >
-                        Pratinjau File
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button type="button" onClick={() => setSuratMasukDetail(null)} className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-extrabold rounded-xl cursor-pointer">
-                  Tutup
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DETAIL SURAT KELUAR MODAL */}
+              {/* DETAIL SURAT KELUAR MODAL */}
       {suratKeluarDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSuratKeluarDetail(null)}></div>

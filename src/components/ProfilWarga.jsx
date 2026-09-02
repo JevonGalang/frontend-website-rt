@@ -7,6 +7,7 @@ import {
   Loader2, Search, Menu, Camera, Shield, ShieldCheck
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { API_BASE_URL } from '../config/api';
 import { io } from '../utils/liveSocket';
 import DateInput from './DateInput';
 import logoRW11 from '../assets/logo_rw11.png';
@@ -231,7 +232,7 @@ export default function ProfilWarga({
     }
     if (!token) return;
 
-    const socketConnection = io('http://172.20.32.85:3333', {
+    const socketConnection = io(API_BASE_URL, {
       auth: { token }
     });
 
@@ -374,7 +375,7 @@ export default function ProfilWarga({
     setProfilSayaError('');
 
     try {
-      let res = await fetch('http://172.20.32.85:3333/api/profil-saya', {
+      let res = await fetch(`${API_BASE_URL}/api/profil-saya`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -477,7 +478,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/getmyfamily/${famId}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/getmyfamily/${famId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -528,7 +529,7 @@ export default function ProfilWarga({
     if (!token) return;
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/pengaduan', {
+      const response = await fetch(`${API_BASE_URL}/resident/pengaduan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -554,7 +555,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingAnnouncements(true);
     try {
-      const res = await fetch('http://172.20.32.85:3333/resident/announcement', {
+      const res = await fetch(`${API_BASE_URL}/resident/announcement`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -575,7 +576,7 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
+      const response = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -598,7 +599,7 @@ export default function ProfilWarga({
     setIsLoadingPayments(true);
     setPaymentsError('');
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/my-payments', {
+      const response = await fetch(`${API_BASE_URL}/resident/my-payments`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -621,14 +622,14 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://172.20.32.85:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`${API_BASE_URL}/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       if (!res.ok) {
-        res = await fetch(`http://172.20.32.85:3333/resident/notifications?page=${page}&limit=${limit}&is_read=all`, {
+        res = await fetch(`${API_BASE_URL}/resident/notifications?page=${page}&limit=${limit}&is_read=all`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -648,14 +649,14 @@ export default function ProfilWarga({
     }
 
     try {
-      let countRes = await fetch('http://172.20.32.85:3333/account/notifications/unread-count', {
+      let countRes = await fetch(`${API_BASE_URL}/account/notifications/unread-count`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       if (!countRes.ok) {
-        countRes = await fetch('http://172.20.32.85:3333/resident/notifications/unread-count', {
+        countRes = await fetch(`${API_BASE_URL}/resident/notifications/unread-count`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -679,7 +680,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://172.20.32.85:3333/account/notifications/${id}/read`, {
+      let res = await fetch(`${API_BASE_URL}/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -687,7 +688,7 @@ export default function ProfilWarga({
         }
       });
       if (!res.ok) {
-        await fetch(`http://172.20.32.85:3333/resident/notifications/${id}/read`, {
+        await fetch(`${API_BASE_URL}/resident/notifications/${id}/read`, {
           method: 'PATCH',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -707,7 +708,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch('http://172.20.32.85:3333/account/notifications/read-all', {
+      let res = await fetch(`${API_BASE_URL}/account/notifications/read-all`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -715,7 +716,7 @@ export default function ProfilWarga({
         }
       });
       if (!res.ok) {
-        await fetch('http://172.20.32.85:3333/resident/notifications/read-all', {
+        await fetch(`${API_BASE_URL}/resident/notifications/read-all`, {
           method: 'PATCH',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -734,9 +735,9 @@ export default function ProfilWarga({
     if (!token) return;
     setIsLoadingIplBills(true);
     setIplBillsError('');
-    console.log('%c[WARGA IPL] 🔄 GET http://172.20.32.85:3333/resident/ipl/bills', 'color: #06b6d4; font-weight: bold;');
+    console.log(`%c[WARGA IPL] 🔄 GET ${API_BASE_URL}/resident/ipl/bills`, 'color: #06b6d4; font-weight: bold;');
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/ipl/bills', {
+      const response = await fetch(`${API_BASE_URL}/resident/ipl/bills`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -922,7 +923,7 @@ export default function ProfilWarga({
     if (token && (currentUser.id || currentUser.warga_id)) {
       const citizenId = currentUser.id || currentUser.warga_id;
       try {
-        await fetch(`http://172.20.32.85:3333/resident/warga/${citizenId}`, {
+        await fetch(`${API_BASE_URL}/resident/warga/${citizenId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -965,7 +966,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
+      const response = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1011,7 +1012,7 @@ export default function ProfilWarga({
       formData.append('file', docUploadFile);
       formData.append('type', docUploadType);
 
-      const response = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${idWarga}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/uploadsensitifdata/${idWarga}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1048,7 +1049,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1078,7 +1079,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/karyawan', {
+      const response = await fetch(`${API_BASE_URL}/resident/karyawan`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -1096,7 +1097,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/vote/results', {
+      const response = await fetch(`${API_BASE_URL}/resident/vote/results`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -1112,7 +1113,7 @@ export default function ProfilWarga({
     const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/vote', {
+      const response = await fetch(`${API_BASE_URL}/resident/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1146,7 +1147,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/pengaduan', {
+      const response = await fetch(`${API_BASE_URL}/resident/pengaduan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1194,7 +1195,7 @@ export default function ProfilWarga({
     }
 
     try {
-      let response = await fetch('http://172.20.32.85:3333/resident/my-account', {
+      let response = await fetch(`${API_BASE_URL}/resident/my-account`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1210,7 +1211,7 @@ export default function ProfilWarga({
 
       if (!response.ok) {
         // Fallback to /resident/password if /resident/my-account returned error
-        const fallbackRes = await fetch('http://172.20.32.85:3333/resident/password', {
+        const fallbackRes = await fetch(`${API_BASE_URL}/resident/password`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1279,7 +1280,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('http://172.20.32.85:3333/resident/datawarga', {
+      const response = await fetch(`${API_BASE_URL}/resident/datawarga`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1344,7 +1345,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/warga/${editingMember.warga_id}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/warga/${editingMember.warga_id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1402,7 +1403,7 @@ export default function ProfilWarga({
     formData.append('type', uploadDocForm.type);
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1447,7 +1448,7 @@ export default function ProfilWarga({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1474,7 +1475,7 @@ export default function ProfilWarga({
     if (!window.confirm('Apakah Anda yakin ingin menghapus berkas dokumen sensitif ini?')) return;
 
     try {
-      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/${documentId}`, {
+      const response = await fetch(`${API_BASE_URL}/resident/sensitifdata/${documentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1528,14 +1529,14 @@ export default function ProfilWarga({
       formData.append('billIds', JSON.stringify(selectedBillIds));
 
       console.log('--- WARGA: Sending /resident/ipl/pay ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.85:3333/resident/ipl/pay');
+      console.log(`Target URL/Endpoint: POST ${API_BASE_URL}/resident/ipl/pay`);
       console.log('Payload billIds:', JSON.stringify(selectedBillIds));
       console.log('Payload amount:', totalAmount);
       console.log('Payload channel: transfer');
       console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.85:3333/resident/ipl/pay', {
+        const response = await fetch(`${API_BASE_URL}/resident/ipl/pay`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1588,14 +1589,14 @@ export default function ProfilWarga({
       formData.append('description', description);
 
       console.log('--- WARGA: Sending /resident/kas/contribute ---');
-      console.log('Target URL/Endpoint: POST http://172.20.32.85:3333/resident/kas/contribute');
+      console.log(`Target URL/Endpoint: POST ${API_BASE_URL}/resident/kas/contribute`);
       console.log('Payload amount:', parseInt(kasPaymentForm.amount));
       console.log('Payload category:', kasPaymentForm.category);
       console.log('Payload description:', description);
       console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('http://172.20.32.85:3333/resident/kas/contribute', {
+        const response = await fetch(`${API_BASE_URL}/resident/kas/contribute`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -3692,7 +3693,7 @@ export default function ProfilWarga({
                                 uploadData.append('type', 'ktp');
                                 uploadData.append('file', file);
 
-                                const res = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${targetId}`, {
+                                const res = await fetch(`${API_BASE_URL}/resident/uploadsensitifdata/${targetId}`, {
                                   method: 'POST',
                                   headers: {
                                     'Authorization': `Bearer ${token}`
