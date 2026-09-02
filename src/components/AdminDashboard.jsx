@@ -132,7 +132,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
+      const res = await fetch('/api/admin/finance/settings', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -159,7 +159,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/settings', {
+      const res = await fetch('/api/admin/finance/settings', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -203,7 +203,7 @@ export default function AdminDashboard({
 
     setIsAdminChangingPassword(true);
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/change-password', {
+      const res = await fetch('/api/admin/change-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -332,8 +332,8 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      console.log(`%c[PROOF] 🔄 Fetching proof via GET http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
-      const response = await fetch(`http://172.20.32.31:3333/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
+      console.log(`%c[PROOF] 🔄 Fetching proof via GET /admin/finance/proof/${rawFileName}`, 'color: #06b6d4; font-weight: bold;');
+      const response = await fetch(`/api/admin/finance/proof/${encodeURIComponent(rawFileName)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -355,7 +355,7 @@ export default function AdminDashboard({
         // Fallback to static direct url
         setSelectedProofModal(prev => prev ? ({
           ...prev,
-          fileUrl: `http://172.20.32.31:3333/admin/finance/proof/${rawFileName}`,
+          fileUrl: `/api/admin/finance/proof/${rawFileName}`,
           isLoading: false,
           hasImgError: false
         }) : null);
@@ -596,7 +596,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/access-logs?limit=100', {
+      const response = await fetch('/api/admin/access-logs?limit=100', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -648,7 +648,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pengaduan', {
+      const response = await fetch('/api/admin/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -689,7 +689,7 @@ export default function AdminDashboard({
     const payloadStatus = (status === 'Proses' || status === 'setujui' || status === 'Proses') ? 'disetujui' : status;
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`/api/admin/pengaduan/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -734,7 +734,7 @@ export default function AdminDashboard({
     if (!result.isConfirmed) return;
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pengaduan/${id}`, {
+      const response = await fetch(`/api/admin/pengaduan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -763,7 +763,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/create-staff-account', {
+      const response = await fetch('/api/admin/create-staff-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -800,7 +800,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`http://172.20.32.31:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`/api/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -824,7 +824,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch(`http://172.20.32.31:3333/account/notifications/${id}/read`, {
+      await fetch(`/api/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -842,7 +842,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      await fetch('http://172.20.32.31:3333/account/notifications/read-all', {
+      await fetch('/api/account/notifications/read-all', {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -861,7 +861,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) { setAnnouncementsError('Token tidak ditemukan.'); setIsLoadingAnnouncements(false); return; }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
+      const res = await fetch('/api/admin/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.status === 403) {
@@ -891,7 +891,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/announcement', {
+      const res = await fetch('/api/admin/announcement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ judul: announcementForm.judul, isi: announcementForm.isi })
@@ -937,7 +937,7 @@ export default function AdminDashboard({
     if (announcementForm.isi.trim()) body.isi = announcementForm.isi;
     if (!Object.keys(body).length) return;
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${editingAnnouncementId}`, {
+      const res = await fetch(`/api/admin/announcement/${editingAnnouncementId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(body)
@@ -990,7 +990,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/announcement/${id}`, {
+      const res = await fetch(`/api/admin/announcement/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1037,7 +1037,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pengajuan', {
+      const response = await fetch('/api/admin/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1124,7 +1124,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/pending-warga', {
+      const response = await fetch('/api/admin/pending-warga', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1159,7 +1159,7 @@ export default function AdminDashboard({
     const docId = w.ktp_document_id || w.warga_id || w.id;
     if (docId && token) {
       try {
-        const res = await fetch(`http://172.20.32.31:3333/admin/sensitifdata/file/${docId}`, {
+        const res = await fetch(`/api/admin/sensitifdata/file/${docId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -1210,7 +1210,7 @@ export default function AdminDashboard({
     const targetWarga = pendingWargaList.find(w => w.warga_id === targetId || w.id === targetId || String(w.warga_id) === String(targetId) || String(w.id) === String(targetId));
 
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/pending-warga/${targetId}`, {
+      const response = await fetch(`/api/admin/pending-warga/${targetId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1271,7 +1271,7 @@ export default function AdminDashboard({
     try {
       console.log('--- BENDAHARA: fetchPendingPayments started ---');
       console.log('Authorization Token:', token ? `Bearer ${token.substring(0, 15)}...` : 'None');
-      const response = await fetch('http://172.20.32.31:3333/admin/finance/pending', {
+      const response = await fetch('/api/admin/finance/pending', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       console.log('HTTP Status Response:', response.status);
@@ -1402,8 +1402,8 @@ export default function AdminDashboard({
 
     try {
       const endpoint = type === 'ipl' 
-        ? `http://172.20.32.31:3333/admin/finance/ipl-payments/${paymentId}/verify`
-        : `http://172.20.32.31:3333/admin/finance/kas-contributions/${paymentId}/verify`;
+        ? `/api/admin/finance/ipl-payments/${paymentId}/verify`
+        : `/api/admin/finance/kas-contributions/${paymentId}/verify`;
 
       const reqBody = { decision };
       if (decision === 'rejected' && rejectReason) {
@@ -1455,9 +1455,9 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingBillPeriods(true);
-    console.log('%c[BILL PERIODS] 🔄 GET http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
+    console.log('%c[BILL PERIODS] 🔄 GET /admin/finance/bill-periods', 'color: #06b6d4; font-weight: bold;');
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
+      const res = await fetch('/api/admin/finance/bill-periods', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -1489,10 +1489,10 @@ export default function AdminDashboard({
       periodYear: parseInt(billPeriodForm.periodYear)
     };
 
-    console.log('%c[BILL PERIODS] 🚀 POST http://172.20.32.31:3333/admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
+    console.log('%c[BILL PERIODS] 🚀 POST /admin/finance/bill-periods', 'color: #8b5cf6; font-weight: bold;', payload);
 
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/bill-periods', {
+      const res = await fetch('/api/admin/finance/bill-periods', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1551,10 +1551,10 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
 
-    console.log(`%c[BILL PERIODS] 📢 POST http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
+    console.log(`%c[BILL PERIODS] 📢 POST /admin/finance/bill-periods/${periodId}/publish`, 'color: #10b981; font-weight: bold;');
 
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/publish`, {
+      const res = await fetch(`/api/admin/finance/bill-periods/${periodId}/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -1586,10 +1586,10 @@ export default function AdminDashboard({
     console.log(`%c[BILL PERIODS] 📊 GET Summary & Bills for period ID: ${periodId}`, 'color: #3b82f6; font-weight: bold;');
     try {
       const [summaryRes, billsRes] = await Promise.all([
-        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/summary`, {
+        fetch(`/api/admin/finance/bill-periods/${periodId}/summary`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch(`http://172.20.32.31:3333/admin/finance/bill-periods/${periodId}/bills`, {
+        fetch(`/api/admin/finance/bill-periods/${periodId}/bills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1635,7 +1635,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/bills/${billId}/exempt`, {
+      const res = await fetch(`/api/admin/finance/bills/${billId}/exempt`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1679,7 +1679,7 @@ export default function AdminDashboard({
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const res = await fetch(`/api/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -1732,7 +1732,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const res = await fetch('http://172.20.32.31:3333/admin/finance/manual-payment', {
+      const res = await fetch('/api/admin/finance/manual-payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1779,10 +1779,10 @@ export default function AdminDashboard({
     setIsLoadingAudit(true);
     try {
       const [iplRes, kasRes] = await Promise.all([
-        fetch('http://172.20.32.31:3333/admin/finance/ipl-payments/audit', {
+        fetch('/api/admin/finance/ipl-payments/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://172.20.32.31:3333/admin/finance/kas-contributions/audit', {
+        fetch('/api/admin/finance/kas-contributions/audit', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -1819,7 +1819,7 @@ export default function AdminDashboard({
       return;
     }
     try {
-      const response = await fetch(`http://172.20.32.31:3333/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const response = await fetch(`/api/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.status === 403) {
@@ -1901,7 +1901,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/resident', {
+      const response = await fetch('/api/admin/resident', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1960,7 +1960,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/kepala-keluarga/list', {
+      const response = await fetch('/api/admin/kepala-keluarga/list', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2013,7 +2013,7 @@ export default function AdminDashboard({
     setSuratMasukLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/surat-masuk', {
+      const response = await fetch('/api/admin/surat-masuk', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2059,7 +2059,7 @@ export default function AdminDashboard({
     setSuratKeluarLoading(true);
     const token = localStorage.getItem('rt_token');
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/surat-keluar', {
+      const response = await fetch('/api/admin/surat-keluar', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -2124,7 +2124,7 @@ export default function AdminDashboard({
     });
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/admin/datawarga', {
+      const response = await fetch('/api/admin/datawarga', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -2276,7 +2276,7 @@ export default function AdminDashboard({
 
     try {
       if (sudoActionType === 'reveal_warga') {
-        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-warga/${sudoTargetId}`, {
+        const res = await fetch(`/api/admin/reveal-warga/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2292,7 +2292,7 @@ export default function AdminDashboard({
           setSudoPromptError(data.message || data.pesan || 'Gagal membuka sensor NIK. Periksa sandi Anda.');
         }
       } else if (sudoActionType === 'reveal_resident') {
-        const res = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const res = await fetch(`/api/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2309,7 +2309,7 @@ export default function AdminDashboard({
         }
       } else if (sudoActionType === 'patch_kk') {
         // verify password first by making a dry run reveal-resident call
-        const verifyRes = await fetch(`http://172.20.32.31:3333/admin/reveal-resident/${sudoTargetId}`, {
+        const verifyRes = await fetch(`/api/admin/reveal-resident/${sudoTargetId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2322,7 +2322,7 @@ export default function AdminDashboard({
           throw new Error(verifyData.message || verifyData.pesan || 'Verifikasi sandi gagal.');
         }
 
-        const response = await fetch(`http://172.20.32.31:3333/admin/resident/${sudoTargetId}`, {
+        const response = await fetch(`/api/admin/resident/${sudoTargetId}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -2380,7 +2380,7 @@ export default function AdminDashboard({
 
   const fetchLedgerFromServer = async () => {
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/dashboard-stats');
+      const response = await fetch('/api/post/dashboard-stats');
       if (response.ok) {
         const data = await response.json();
         if (data.response === 200 && data.output?.ledger) {
@@ -2495,7 +2495,7 @@ export default function AdminDashboard({
       fetchKepalaKeluargaList();
     }
 
-    const socketConnection = io('http://172.20.32.31:3333', {
+    const socketConnection = io('/', {
       transports: ['websocket'],
       auth: { token }
     });
@@ -2712,7 +2712,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
+      const response = await fetch('/api/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3021,7 +3021,7 @@ export default function AdminDashboard({
 
     try {
       const token = localStorage.getItem('rt_token');
-      const response = await fetch('http://172.20.32.31:3333/admin/create-account', {
+      const response = await fetch('/api/admin/create-account', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -3430,7 +3430,7 @@ export default function AdminDashboard({
         }
 
         try {
-          const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${id}`, {
+          const response = await fetch(`/api/admin/agenda/${id}`, {
             method: 'DELETE',
             headers: {
               'Authorization': `Bearer ${token}`
@@ -3539,7 +3539,7 @@ export default function AdminDashboard({
           }
         };
 
-        const res = await fetch('http://172.20.32.31:3333/admin/register-resident-only', {
+        const res = await fetch('/api/admin/register-resident-only', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3594,7 +3594,7 @@ export default function AdminDashboard({
         const targetId = selectedItem?.id || selectedItem?.warga_id || selectedItem?.family_id;
 
         if (token && targetId) {
-          const response = await fetch(`http://172.20.32.31:3333/resident/warga/${targetId}`, {
+          const response = await fetch(`/api/resident/warga/${targetId}`, {
             method: 'PATCH',
             headers: {
               'Content-Type': 'application/json',
@@ -3665,8 +3665,8 @@ export default function AdminDashboard({
       try {
         const isIncome = kasForm.type === 'income';
         const url = isIncome 
-          ? 'http://172.20.32.31:3333/admin/finance/income' 
-          : 'http://172.20.32.31:3333/admin/finance/expense';
+          ? '/api/admin/finance/income' 
+          : '/api/admin/finance/expense';
         const backendCategory = mapCategoryToBackend(kasForm.category, kasForm.type);
 
         const res = await fetch(url, {
@@ -3741,7 +3741,7 @@ export default function AdminDashboard({
       };
 
       if (modalType === 'add_agenda') {
-        const response = await fetch('http://172.20.32.31:3333/admin/agenda', {
+        const response = await fetch('/api/admin/agenda', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -3770,7 +3770,7 @@ export default function AdminDashboard({
           confirmButtonColor: '#10b981'
         });
       } else {
-        const response = await fetch(`http://172.20.32.31:3333/admin/agenda/${selectedItem.id}`, {
+        const response = await fetch(`/api/admin/agenda/${selectedItem.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -3830,7 +3830,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/surat-masuk/${id}`, {
+      const res = await fetch(`/api/admin/surat-masuk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3867,7 +3867,7 @@ export default function AdminDashboard({
 
     const token = localStorage.getItem('rt_token');
     try {
-      const res = await fetch(`http://172.20.32.31:3333/admin/surat-keluar/${id}`, {
+      const res = await fetch(`/api/admin/surat-keluar/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -3912,8 +3912,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.31:3333/admin/surat-masuk/${suratMasukForm.id}`
-        : 'http://172.20.32.31:3333/admin/surat-masuk';
+        ? `/api/admin/surat-masuk/${suratMasukForm.id}`
+        : '/api/admin/surat-masuk';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -3983,8 +3983,8 @@ export default function AdminDashboard({
 
     try {
       const url = isEdit 
-        ? `http://172.20.32.31:3333/admin/surat-keluar/${suratKeluarForm.id}`
-        : 'http://172.20.32.31:3333/admin/surat-keluar';
+        ? `/api/admin/surat-keluar/${suratKeluarForm.id}`
+        : '/api/admin/surat-keluar';
       const method = isEdit ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
@@ -4067,7 +4067,7 @@ export default function AdminDashboard({
     const token = localStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
-        await fetch(`http://172.20.32.31:3333/admin/pengajuan/${id}`, {
+        await fetch(`/api/admin/pengajuan/${id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -8717,7 +8717,7 @@ export default function AdminDashboard({
 
                   try {
                     const backendCategory = mapCategoryToBackend(pemasukanForm.category, 'income');
-                    const res = await fetch('http://172.20.32.31:3333/admin/finance/income', {
+                    const res = await fetch('/api/admin/finance/income', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',
@@ -8856,7 +8856,7 @@ export default function AdminDashboard({
                       });
                     }
 
-                    const res = await fetch('http://172.20.32.31:3333/admin/finance/expense', {
+                    const res = await fetch('/api/admin/finance/expense', {
                       method: 'POST',
                       headers,
                       body: bodyData

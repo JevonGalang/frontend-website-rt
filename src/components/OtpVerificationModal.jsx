@@ -56,7 +56,7 @@ export default function OtpVerificationModal({
         setResendSuccess('');
 
         try {
-          const response = await fetch('http://172.20.32.31:3333/auth/request-otp', {
+          const response = await fetch('/api/auth/request-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: parseInt(userId) })
@@ -150,7 +150,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/auth/request-otp', {
+      const response = await fetch('/api/auth/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: parseInt(userId) })
@@ -194,7 +194,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/auth/verify-otp', {
+      const response = await fetch('/api/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

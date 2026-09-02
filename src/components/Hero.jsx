@@ -153,7 +153,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('http://172.20.32.31:3333/post/login', {
+      const response = await fetch('/api/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

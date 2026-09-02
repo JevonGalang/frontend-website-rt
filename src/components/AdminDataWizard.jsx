@@ -8,7 +8,7 @@ import {
 import DateInput from './DateInput';
 import Swal from 'sweetalert2';
 
-const API_BASE = 'http://172.20.32.31:3333';
+const API_BASE = '';
 
 const calculateAge = (birthDateString) => {
   if (!birthDateString) return '';
@@ -23,9 +23,9 @@ const calculateAge = (birthDateString) => {
 };
 
 const STEPS = [
-  { id: 1, title: 'Data Rumah', subtitle: 'Buat data rumah baru', icon: Home, endpoint: '/admin/house' },
-  { id: 2, title: 'Kartu Keluarga', subtitle: 'Daftarkan KK pada rumah', icon: CreditCard, endpoint: '/admin/resident' },
-  { id: 3, title: 'Data Warga', subtitle: 'Input data warga lengkap', icon: UserPlus, endpoint: '/admin/datawarga' },
+  { id: 1, title: 'Data Rumah', subtitle: 'Buat data rumah baru', icon: Home, endpoint: '/api/admin/house' },
+  { id: 2, title: 'Kartu Keluarga', subtitle: 'Daftarkan KK pada rumah', icon: CreditCard, endpoint: '/api/admin/resident' },
+  { id: 3, title: 'Data Warga', subtitle: 'Input data warga lengkap', icon: UserPlus, endpoint: '/api/admin/datawarga' },
 ];
 
 // Toast notification component
