@@ -9,6 +9,8 @@ import {
 import Swal from 'sweetalert2';
 import { io } from '../utils/liveSocket';
 import DateInput from './DateInput';
+import logoRW11 from '../assets/logo_rw11.png';
+import logoDepok from '../assets/logo_depok.png';
 
 const extractArrayFromResponse = (payload) => {
   if (!payload) return [];
@@ -55,7 +57,7 @@ const formatDateIndo = (dateStr) => {
 const getTemplatesForType = (type) => {
   const templates = {
     'Surat Pengantar Pengurusan KTP': [
-      { label: 'KTP Baru (Pindah)', text: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Sawangan Baru dikarenakan baru pindah domisili ke wilayah RT 05.' },
+      { label: 'KTP Baru (Pindah)', text: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Cinere dikarenakan baru pindah domisili ke wilayah RT 05 / RW 11.' },
       { label: 'KK Baru (Keluarga)', text: 'Syarat pembaruan Kartu Keluarga (KK) dikarenakan adanya penambahan anggota keluarga baru.' },
       { label: 'KTP Hilang', text: 'Syarat pembuatan duplikat KTP baru di Kelurahan dikarenakan KTP lama hilang.' }
     ],
@@ -188,6 +190,11 @@ export default function ProfilWarga({
   const [isLoadingFamily, setIsLoadingFamily] = useState(false);
   const [familyError, setFamilyError] = useState('');
 
+  // Profil Saya API state (/api/profil-saya)
+  const [profilSayaData, setProfilSayaData] = useState(null);
+  const [isLoadingProfilSaya, setIsLoadingProfilSaya] = useState(false);
+  const [profilSayaError, setProfilSayaError] = useState('');
+
   // Warga announcements state
   const [wargaAnnouncements, setWargaAnnouncements] = useState([]);
   const [isLoadingAnnouncements, setIsLoadingAnnouncements] = useState(false);
@@ -218,13 +225,13 @@ export default function ProfilWarga({
   useEffect(() => {
     let token = null;
     try {
-      token = localStorage.getItem('rt_token');
+      token = sessionStorage.getItem('rt_token');
     } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
+      console.warn('sessionStorage is blocked or unavailable:', e);
     }
     if (!token) return;
 
-    const socketConnection = io('/', {
+    const socketConnection = io('http://172.20.32.85:3333', {
       auth: { token }
     });
 
@@ -252,7 +259,8 @@ export default function ProfilWarga({
       if (data.type === 'finance') {
         fetchWargaPayments();
         fetchIplBills();
-      } else if (data.type === 'warga') {
+      } else if (data.type === 'warga' || data.type === 'profile' || data.type === 'resident') {
+        fetchProfilSaya();
         fetchFamilyMembers();
       } else if (data.type === 'pengaduan') {
         fetchCitizenComplaints();
@@ -358,6 +366,102 @@ export default function ProfilWarga({
     return [];
   };
 
+  const fetchProfilSaya = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+
+    setIsLoadingProfilSaya(true);
+    setProfilSayaError('');
+
+    try {
+      let res = await fetch('http://172.20.32.85:3333/api/profil-saya', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        try {
+          const fallbackRes = await fetch('/api/profil-saya', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          if (fallbackRes.ok) {
+            res = fallbackRes;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (res.ok) {
+        const json = await res.json();
+        const p = json.output || json.data || json;
+        if (p && typeof p === 'object') {
+          setProfilSayaData(p);
+
+          const formattedStatus = (p.status_rumah === 'pribadi' || p.status_rumah === 'milik sendiri' || p.status_rumah === 'tetap')
+            ? 'Tetap'
+            : (p.status_rumah === 'kontrak' || p.status_rumah === 'sewa' ? 'Kontrak' : (p.status_rumah || 'Tetap'));
+
+          const formattedRtRw = (p.rt && p.rw) ? `${p.rt} / ${p.rw}` : (p.rt ? `RT ${p.rt}` : (p.rw ? `RW ${p.rw}` : (currentUser?.rtRw || '04 / 09')));
+
+          const updatedUser = {
+            ...currentUser,
+            username: p.username || currentUser?.username,
+            name: p.nama || currentUser?.name,
+            nik: p.nik || currentUser?.nik,
+            gender: p.jenis_kelamin || currentUser?.gender,
+            tglLahir: p.tgl_lahir || currentUser?.tglLahir,
+            tanggalLahir: p.tgl_lahir || currentUser?.tanggalLahir,
+            alamat: p.alamat || currentUser?.alamat,
+            house_blok: p.blok || currentUser?.house_blok,
+            house_nomor: p.nomor_rumah || currentUser?.house_nomor,
+            status: formattedStatus,
+            status_rumah: p.status_rumah || currentUser?.status_rumah,
+            noHp: p.no_hp || currentUser?.noHp,
+            email: p.email || currentUser?.email,
+            rtRw: formattedRtRw
+          };
+
+          setCurrentUser(prev => ({ ...prev, ...updatedUser }));
+          try {
+            sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+          } catch (e) {}
+
+          setFormData(prev => ({
+            ...prev,
+            name: p.nama || prev.name,
+            username: p.username || prev.username,
+            nik: p.nik || prev.nik,
+            gender: p.jenis_kelamin || prev.gender,
+            tglLahir: p.tgl_lahir || prev.tglLahir,
+            alamat: p.alamat || prev.alamat,
+            house_blok: p.blok || prev.house_blok,
+            house_nomor: p.nomor_rumah || prev.house_nomor,
+            status: formattedStatus,
+            noHp: p.no_hp || prev.noHp,
+            email: p.email || prev.email
+          }));
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.warn('Fetch /api/profil-saya failed:', errData);
+        setProfilSayaError(errData.message || 'Gagal memuat profil saya.');
+      }
+    } catch (err) {
+      console.error('Error fetching /api/profil-saya:', err);
+      setProfilSayaError(err.message);
+    } finally {
+      setIsLoadingProfilSaya(false);
+    }
+  };
+
   const fetchFamilyMembers = async () => {
     const famId = currentUser.familyId || currentUser.family_id;
     if (!famId) return;
@@ -365,7 +469,7 @@ export default function ProfilWarga({
     setIsLoadingFamily(true);
     setFamilyError('');
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setFamilyError('Token tidak ditemukan. Harap login kembali.');
       setIsLoadingFamily(false);
@@ -373,7 +477,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`/api/resident/getmyfamily/${famId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/getmyfamily/${famId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -409,7 +513,7 @@ export default function ProfilWarga({
           pekerjaan: selfMember.pekerjaan || currentUser.pekerjaan || ''
         };
         setCurrentUser(updatedUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
       }
     } catch (err) {
       console.error(err);
@@ -420,11 +524,11 @@ export default function ProfilWarga({
   };
 
   const fetchCitizenComplaints = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
 
     try {
-      const response = await fetch('/api/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.85:3333/resident/pengaduan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -446,11 +550,11 @@ export default function ProfilWarga({
   };
 
   const fetchWargaAnnouncements = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingAnnouncements(true);
     try {
-      const res = await fetch('/api/resident/announcement', {
+      const res = await fetch('http://172.20.32.85:3333/resident/announcement', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -467,11 +571,11 @@ export default function ProfilWarga({
   };
 
   const fetchCitizenSubmissions = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
-      const response = await fetch('/api/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -489,12 +593,12 @@ export default function ProfilWarga({
   };
 
   const fetchWargaPayments = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingPayments(true);
     setPaymentsError('');
     try {
-      const response = await fetch('/api/resident/my-payments', {
+      const response = await fetch('http://172.20.32.85:3333/resident/my-payments', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -514,17 +618,17 @@ export default function ProfilWarga({
 
   
   const fetchServerNotifications = async (page = 1, limit = 20) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`/api/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
+      let res = await fetch(`http://172.20.32.85:3333/account/notifications?page=${page}&limit=${limit}&is_read=all`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       if (!res.ok) {
-        res = await fetch(`/api/resident/notifications?page=${page}&limit=${limit}&is_read=all`, {
+        res = await fetch(`http://172.20.32.85:3333/resident/notifications?page=${page}&limit=${limit}&is_read=all`, {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -544,14 +648,14 @@ export default function ProfilWarga({
     }
 
     try {
-      let countRes = await fetch('/api/account/notifications/unread-count', {
+      let countRes = await fetch('http://172.20.32.85:3333/account/notifications/unread-count', {
         headers: { 
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       if (!countRes.ok) {
-        countRes = await fetch('/api/resident/notifications/unread-count', {
+        countRes = await fetch('http://172.20.32.85:3333/resident/notifications/unread-count', {
           headers: { 
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -572,10 +676,10 @@ export default function ProfilWarga({
 
   const handleMarkNotifAsRead = async (id) => {
     if (!id) return;
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch(`/api/account/notifications/${id}/read`, {
+      let res = await fetch(`http://172.20.32.85:3333/account/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -583,7 +687,7 @@ export default function ProfilWarga({
         }
       });
       if (!res.ok) {
-        await fetch(`/api/resident/notifications/${id}/read`, {
+        await fetch(`http://172.20.32.85:3333/resident/notifications/${id}/read`, {
           method: 'PATCH',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -600,10 +704,10 @@ export default function ProfilWarga({
   const handleMarkAllNotifsAsRead = async () => {
     setIsAllNotifRead(true);
     setServerUnreadCount(0);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      let res = await fetch('/api/account/notifications/read-all', {
+      let res = await fetch('http://172.20.32.85:3333/account/notifications/read-all', {
         method: 'PATCH',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -611,7 +715,7 @@ export default function ProfilWarga({
         }
       });
       if (!res.ok) {
-        await fetch('/api/resident/notifications/read-all', {
+        await fetch('http://172.20.32.85:3333/resident/notifications/read-all', {
           method: 'PATCH',
           headers: { 
             'Authorization': `Bearer ${token}`,
@@ -626,13 +730,13 @@ export default function ProfilWarga({
   };
 
   const fetchIplBills = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingIplBills(true);
     setIplBillsError('');
-    console.log('%c[WARGA IPL] 🔄 GET /resident/ipl/bills', 'color: #06b6d4; font-weight: bold;');
+    console.log('%c[WARGA IPL] 🔄 GET http://172.20.32.85:3333/resident/ipl/bills', 'color: #06b6d4; font-weight: bold;');
     try {
-      const response = await fetch('/api/resident/ipl/bills', {
+      const response = await fetch('http://172.20.32.85:3333/resident/ipl/bills', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await response.json();
@@ -656,6 +760,7 @@ export default function ProfilWarga({
   };
 
   useEffect(() => {
+    fetchProfilSaya();
     fetchFamilyMembers();
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
@@ -688,8 +793,8 @@ export default function ProfilWarga({
     });
     if (result.isConfirmed) {
       setCurrentUser(null);
-      localStorage.removeItem('rt_current_user');
-      localStorage.removeItem('rt_token');
+      sessionStorage.removeItem('rt_current_user');
+      sessionStorage.removeItem('rt_token');
     }
   };
 
@@ -813,11 +918,11 @@ export default function ProfilWarga({
       foto: formData.foto || currentUser.foto
     };
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (token && (currentUser.id || currentUser.warga_id)) {
       const citizenId = currentUser.id || currentUser.warga_id;
       try {
-        await fetch(`/api/resident/warga/${citizenId}`, {
+        await fetch(`http://172.20.32.85:3333/resident/warga/${citizenId}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -853,14 +958,14 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
     }
 
     try {
-      const response = await fetch('/api/resident/pengajuan', {
+      const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -895,7 +1000,7 @@ export default function ProfilWarga({
       alert('Silakan pilih file dokumen terlebih dahulu.');
       return;
     }
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     
     setIsUploadingDoc(true);
@@ -906,7 +1011,7 @@ export default function ProfilWarga({
       formData.append('file', docUploadFile);
       formData.append('type', docUploadType);
 
-      const response = await fetch(`/api/resident/uploadsensitifdata/${idWarga}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${idWarga}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -940,10 +1045,10 @@ export default function ProfilWarga({
   };
 
   const handleDownloadDocument = async (documentId, fileName) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch(`/api/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -970,10 +1075,10 @@ export default function ProfilWarga({
 
   const fetchKaryawanList = async () => {
     setIsLoadingVoting(true);
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('/api/resident/karyawan', {
+      const response = await fetch('http://172.20.32.85:3333/resident/karyawan', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -988,10 +1093,10 @@ export default function ProfilWarga({
   };
 
   const fetchVoteResults = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
-      const response = await fetch('/api/resident/vote/results', {
+      const response = await fetch('http://172.20.32.85:3333/resident/vote/results', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {
@@ -1004,10 +1109,10 @@ export default function ProfilWarga({
   };
 
   const handleCastVote = async (karyawanId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) { alert('Token tidak ditemukan.'); return; }
     try {
-      const response = await fetch('/api/resident/vote', {
+      const response = await fetch('http://172.20.32.85:3333/resident/vote', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1034,14 +1139,14 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
     }
 
     try {
-      const response = await fetch('/api/resident/pengaduan', {
+      const response = await fetch('http://172.20.32.85:3333/resident/pengaduan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1082,14 +1187,14 @@ export default function ProfilWarga({
       return;
     }
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan. Harap login kembali.');
       return;
     }
 
     try {
-      let response = await fetch('/api/resident/my-account', {
+      let response = await fetch('http://172.20.32.85:3333/resident/my-account', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1105,7 +1210,7 @@ export default function ProfilWarga({
 
       if (!response.ok) {
         // Fallback to /resident/password if /resident/my-account returned error
-        const fallbackRes = await fetch('/api/resident/password', {
+        const fallbackRes = await fetch('http://172.20.32.85:3333/resident/password', {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -1144,7 +1249,7 @@ export default function ProfilWarga({
     setAddMemberError('');
     setIsAddingMember(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setAddMemberError('Token tidak ditemukan. Harap login kembali.');
       setIsAddingMember(false);
@@ -1174,7 +1279,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch('/api/resident/datawarga', {
+      const response = await fetch('http://172.20.32.85:3333/resident/datawarga', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1231,7 +1336,7 @@ export default function ProfilWarga({
     setIsEditingMember(true);
     setEditMemberError('');
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setEditMemberError('Token tidak ditemukan.');
       setIsEditingMember(false);
@@ -1239,7 +1344,7 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`/api/resident/warga/${editingMember.warga_id}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/warga/${editingMember.warga_id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -1273,7 +1378,7 @@ export default function ProfilWarga({
     setUploadDocSuccess('');
     setIsUploadingDoc(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setUploadDocError('Token tidak ditemukan. Harap login kembali.');
       setIsUploadingDoc(false);
@@ -1297,7 +1402,7 @@ export default function ProfilWarga({
     formData.append('type', uploadDocForm.type);
 
     try {
-      const response = await fetch(`/api/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${uploadDocForm.wargaId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1336,13 +1441,13 @@ export default function ProfilWarga({
   };
 
   const handleDownloadSensitifDoc = async (documentId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan.');
       return;
     }
     try {
-      const response = await fetch(`/api/resident/sensitifdata/file/${documentId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/file/${documentId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -1361,7 +1466,7 @@ export default function ProfilWarga({
   };
 
   const handleDeleteSensitifDoc = async (documentId) => {
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       alert('Token otentikasi tidak ditemukan.');
       return;
@@ -1369,7 +1474,7 @@ export default function ProfilWarga({
     if (!window.confirm('Apakah Anda yakin ingin menghapus berkas dokumen sensitif ini?')) return;
 
     try {
-      const response = await fetch(`/api/resident/sensitifdata/${documentId}`, {
+      const response = await fetch(`http://172.20.32.85:3333/resident/sensitifdata/${documentId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1393,7 +1498,7 @@ export default function ProfilWarga({
     setPaymentSuccess('');
     setIsSubmittingPayment(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = sessionStorage.getItem('rt_token');
     if (!token) {
       setPaymentError('Token tidak ditemukan. Harap login kembali.');
       setIsSubmittingPayment(false);
@@ -1423,14 +1528,14 @@ export default function ProfilWarga({
       formData.append('billIds', JSON.stringify(selectedBillIds));
 
       console.log('--- WARGA: Sending /resident/ipl/pay ---');
-      console.log('Target URL/Endpoint: POST /resident/ipl/pay');
+      console.log('Target URL/Endpoint: POST http://172.20.32.85:3333/resident/ipl/pay');
       console.log('Payload billIds:', JSON.stringify(selectedBillIds));
       console.log('Payload amount:', totalAmount);
       console.log('Payload channel: transfer');
       console.log('Payload file name:', iplPaymentForm.file ? iplPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('/api/resident/ipl/pay', {
+        const response = await fetch('http://172.20.32.85:3333/resident/ipl/pay', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1483,14 +1588,14 @@ export default function ProfilWarga({
       formData.append('description', description);
 
       console.log('--- WARGA: Sending /resident/kas/contribute ---');
-      console.log('Target URL/Endpoint: POST /resident/kas/contribute');
+      console.log('Target URL/Endpoint: POST http://172.20.32.85:3333/resident/kas/contribute');
       console.log('Payload amount:', parseInt(kasPaymentForm.amount));
       console.log('Payload category:', kasPaymentForm.category);
       console.log('Payload description:', description);
       console.log('Payload file name:', kasPaymentForm.file ? kasPaymentForm.file.name : 'None');
 
       try {
-        const response = await fetch('/api/resident/kas/contribute', {
+        const response = await fetch('http://172.20.32.85:3333/resident/kas/contribute', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1544,7 +1649,7 @@ export default function ProfilWarga({
       statusIuran: 'Lunas'
     };
     setCurrentUser(updatedUser);
-    localStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
+    sessionStorage.setItem('rt_current_user', JSON.stringify(updatedUser));
 
     if (wargaList && setWargaList) {
       const updatedW = wargaList.map(w => {
@@ -1601,16 +1706,20 @@ export default function ProfilWarga({
   const familyHead = familyMembers[0] || null;
 
   // Resolved dynamic values for mock alignment
-  const rtRw = currentUser.rtRw || '04 / 09';
-  const displayNama = currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || 'Warga'));
-  const displayNik = currentUser.nik || (familyHead ? familyHead.nik : '');
-  const displayGender = currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
-  const displayAlamat = currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
-  const displayNoHp = currentUser.noHp || (familyHead ? familyHead.no_hp : '');
-  const displayEmail = currentUser.email || formData.email || '';
-  const tanggalLahir = currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
+  const rtRw = (profilSayaData?.rt && profilSayaData?.rw)
+    ? `${profilSayaData.rt} / ${profilSayaData.rw}`
+    : (currentUser.rtRw || '04 / 09');
+  const displayNama = profilSayaData?.nama || (currentUser.name && currentUser.name !== currentUser.username ? currentUser.name : (familyHead ? familyHead.nama : (currentUser.name || 'Warga')));
+  const displayNik = profilSayaData?.nik || currentUser.nik || (familyHead ? familyHead.nik : '');
+  const displayGender = profilSayaData?.jenis_kelamin || currentUser.gender || (familyHead ? familyHead.jenis_kelamin : 'Laki-laki');
+  const displayAlamat = profilSayaData?.alamat || currentUser.alamat || (familyHead ? familyHead.house_alamat : '');
+  const displayNoHp = profilSayaData?.no_hp || currentUser.noHp || (familyHead ? familyHead.no_hp : '');
+  const displayEmail = profilSayaData?.email || currentUser.email || formData.email || '';
+  const tanggalLahir = profilSayaData?.tgl_lahir || currentUser.tglLahir || currentUser.tanggalLahir || (familyHead ? familyHead.tgl_lahir : (currentUser.name === 'Budi Santoso' ? '11 November 1990' : '20 Januari 2004'));
   const pekerjaan = currentUser.pekerjaan || (familyHead ? familyHead.pekerjaan : (currentUser.name === 'Budi Santoso' ? 'Wiraswasta' : 'Mahasiswa'));
-  const statusRumah = formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap');
+  const statusRumah = profilSayaData?.status_rumah
+    ? (profilSayaData.status_rumah === 'pribadi' || profilSayaData.status_rumah === 'tetap' || profilSayaData.status_rumah === 'milik sendiri' ? 'Tetap' : (profilSayaData.status_rumah === 'kontrak' || profilSayaData.status_rumah === 'sewa' ? 'Kontrak' : profilSayaData.status_rumah))
+    : (formData.status || currentUser.status || (familyHead ? familyHead.status_rumah : 'Tetap'));
   // Safe 4-Category Real-time notifications (IPL, Kegiatan Warga, Jadwal, Kematian)
   const safeWargaList = Array.isArray(wargaList) ? wargaList : [];
   const safeDeceasedWarga = safeWargaList.filter(w => w.statusHidup === 'Meninggal');
@@ -1671,8 +1780,8 @@ export default function ProfilWarga({
       id: `NTF-KEG-${ann.id}`,
       category: 'kegiatan',
       targetTab: 'informasi_pengumuman',
-      title: `📢 Kegiatan Warga: ${ann.judul || 'Pengumuman RT'}`,
-      message: ann.isi || ann.kategori || 'Pengumuman resmi kegiatan warga dari Pengurus RT 05 Sawangan Green Park.',
+      title: ann.judul || 'Pengumuman Resmi RT 05',
+      message: ann.isi || ann.kategori || 'Pengumuman resmi kegiatan warga dari Pengurus RT 05 Villa Mutiara Mas Cinere.',
       time: ann.tanggal ? formatDateIndo(ann.tanggal) : 'Terbaru',
       isUnread: false
     })),
@@ -1800,26 +1909,27 @@ export default function ProfilWarga({
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
       {/* Premium ambient glows */}
-      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-emerald-500/5 dark:bg-emerald-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-teal-500/5 dark:bg-teal-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 dark:bg-orange-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* Mobile Sticky Header Bar (< md) */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-orange-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             aria-label="Buka Menu Navigasi"
           >
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
-              <Landmark className="w-4 h-4" />
+            <div className="flex items-center gap-1">
+              <img src={logoDepok} alt="Logo Kota Depok" className="h-6 w-auto object-contain drop-shadow-xs" />
+              <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
-              <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas Cinere</h1>
+              <span className="text-[9px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
             </div>
           </div>
         </div>
@@ -1841,15 +1951,16 @@ export default function ProfilWarga({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-emerald-50/95 via-slate-50 to-teal-50/95 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
-            <div className="p-4 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center justify-between">
+          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-orange-50/95 via-slate-50 to-amber-50/95 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-orange-200/40 dark:border-slate-800">
+            <div className="p-4 border-b border-orange-200/60 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl text-white shadow-xs">
-                  <Landmark className="w-4 h-4" />
+                <div className="flex items-center gap-1">
+                  <img src={logoDepok} alt="Logo Kota Depok" className="h-7 w-auto object-contain drop-shadow-xs" />
+                  <img src={logoRW11} alt="Logo RW 11" className="h-8 w-auto object-contain drop-shadow-xs" />
                 </div>
                 <div>
-                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Warga Portal</h1>
-                  <span className="text-[8px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-wider block">RT 05 / RW 06</span>
+                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas</h1>
+                  <span className="text-[8px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
                 </div>
               </div>
               <button
@@ -1861,13 +1972,13 @@ export default function ProfilWarga({
               </button>
             </div>
 
-            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
+            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-orange-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-orange-500/20">
                 {displayNama.charAt(0) || 'W'}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
-                <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
+                <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">Warga Portal</p>
               </div>
             </div>
 
@@ -1879,11 +1990,11 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('dashboard'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'dashboard'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
-                  <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+                  <LayoutDashboard className="w-4 h-4 text-orange-500" />
                   <span>Dashboard</span>
                 </button>
 
@@ -1892,7 +2003,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('profil_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'profil_saya'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -1905,7 +2016,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'keluarga_saya'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -1918,11 +2029,11 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'warga_upload_berkas'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
-                  <Upload className="w-4 h-4 text-emerald-500" />
+                  <Upload className="w-4 h-4 text-orange-500" />
                   <span>Upload Berkas Mandiri</span>
                 </button>
 
@@ -1933,7 +2044,7 @@ export default function ProfilWarga({
                     className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <Volume2 className="w-4 h-4 text-emerald-400" />
+                      <Volume2 className="w-4 h-4 text-emerald-500" />
                       <span>Informasi</span>
                     </div>
                     <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
@@ -1945,33 +2056,33 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('informasi_pengumuman'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_pengumuman' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Pengumuman</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('informasi_jadwal'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_jadwal' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Jadwal Kegiatan</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('informasi_kontak'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_kontak' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Kontak Pengurus</span>
                       </button>
                     </div>
@@ -1985,7 +2096,7 @@ export default function ProfilWarga({
                     className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <Wallet className="w-4 h-4 text-amber-400" />
+                      <Wallet className="w-4 h-4 text-amber-500" />
                       <span>Iuran</span>
                     </div>
                     <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
@@ -1997,33 +2108,33 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('iuran_tagihan'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_tagihan' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Tagihan Saya</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('iuran_riwayat'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_riwayat' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Riwayat Pembayaran</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('iuran_upload'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_upload' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Upload Bukti Bayar</span>
                       </button>
                     </div>
@@ -2049,22 +2160,22 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('layanan_ajukan'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'layanan_ajukan' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Ajukan Surat</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('layanan_status'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'layanan_status' 
-                            ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                             : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                         }`}
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Status Pengajuan</span>
                       </button>
                     </div>
@@ -2076,7 +2187,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('pengaduan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaduan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -2089,7 +2200,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('dokumen'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'dokumen'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -2102,7 +2213,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('voting_karyawan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'voting_karyawan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -2115,7 +2226,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('notifikasi'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'notifikasi'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -2133,7 +2244,7 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('pengaturan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaturan'
-                      ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                       : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
                   }`}
                 >
@@ -2164,27 +2275,28 @@ export default function ProfilWarga({
       )}
 
       {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-emerald-50/90 via-slate-50 to-teal-50/70 dark:from-emerald-950 dark:via-teal-950 dark:to-slate-950 text-slate-800 dark:text-white border-r border-emerald-200/80 dark:border-emerald-900/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-6 border-b border-emerald-200/80 dark:border-emerald-900/40 flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-tr from-emerald-600 to-teal-600 rounded-2xl text-white shadow-md shadow-emerald-500/20">
-            <Landmark className="w-5 h-5" />
+        <div className="p-5 border-b border-orange-200/60 dark:border-slate-800/80 flex items-center gap-3">
+          <div className="flex items-center gap-1.5 py-0.5">
+            <img src={logoDepok} alt="Logo Kota Depok" className="h-8 w-auto object-contain drop-shadow-xs" />
+            <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-xs" />
           </div>
           <div>
-            <h1 className="font-extrabold text-sm text-slate-900 dark:text-white tracking-tight leading-tight">Warga Portal</h1>
-            <span className="text-[9px] text-emerald-700 dark:text-emerald-300 uppercase font-extrabold tracking-widest leading-none">RT 05 / RW 06</span>
+            <h1 className="font-extrabold text-xs text-slate-900 dark:text-white tracking-tight leading-tight">Villa Mutiara Mas Cinere</h1>
+            <span className="text-[9px] text-orange-600 dark:text-orange-400 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Warga Portal • RT 05 / RW 11</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-emerald-900/30 rounded-2xl border border-emerald-200/80 dark:border-emerald-700/40 shadow-xs flex items-center gap-3 backdrop-blur-md">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-emerald-500/20">
+        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-orange-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-orange-500/20">
             {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
-            <p className="text-[9px] text-emerald-700 dark:text-emerald-300 font-extrabold uppercase tracking-wider">Warga Portal</p>
+            <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
 
@@ -2196,11 +2308,11 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dashboard'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <LayoutDashboard className="w-4 h-4 text-emerald-400" />
+            <LayoutDashboard className="w-4 h-4 text-orange-500" />
             <span>Dashboard</span>
           </button>
 
@@ -2209,7 +2321,7 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('profil_saya'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'profil_saya'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2222,7 +2334,7 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'keluarga_saya'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2235,11 +2347,11 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'warga_upload_berkas'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Upload className="w-4 h-4 text-emerald-500" />
+            <Upload className="w-4 h-4 text-orange-500" />
             <span>Upload Berkas Mandiri</span>
           </button>
 
@@ -2250,7 +2362,7 @@ export default function ProfilWarga({
               className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <Volume2 className="w-4 h-4 text-emerald-400" />
+                <Volume2 className="w-4 h-4 text-emerald-500" />
                 <span>Informasi</span>
               </div>
               <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
@@ -2262,33 +2374,33 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('informasi_pengumuman')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_pengumuman' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Pengumuman</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('informasi_jadwal')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_jadwal' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Jadwal Kegiatan</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('informasi_kontak')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_kontak' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Kontak Pengurus</span>
                 </button>
               </div>
@@ -2302,7 +2414,7 @@ export default function ProfilWarga({
               className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <Wallet className="w-4 h-4 text-amber-400" />
+                <Wallet className="w-4 h-4 text-amber-500" />
                 <span>Iuran</span>
               </div>
               <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
@@ -2314,33 +2426,33 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('iuran_tagihan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_tagihan' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Tagihan Saya</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('iuran_riwayat')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_riwayat' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Riwayat Pembayaran</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('iuran_upload')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_upload' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Upload Bukti Bayar</span>
                 </button>
               </div>
@@ -2366,22 +2478,22 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('layanan_ajukan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_ajukan' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Ajukan Surat</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('layanan_status')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_status' 
-                      ? 'text-emerald-400 font-bold bg-slate-800/50' 
+                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
                       : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
                   }`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-emerald-400 scale-125' : 'bg-slate-600'}`}></span>
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Status Pengajuan</span>
                 </button>
               </div>
@@ -2393,7 +2505,7 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaduan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaduan'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2406,7 +2518,7 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('dokumen')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dokumen'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2419,7 +2531,7 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('voting_karyawan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'voting_karyawan'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2432,7 +2544,7 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('notifikasi')}
             className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'notifikasi'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2450,7 +2562,7 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaturan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaturan'
-                ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-450 border border-emerald-100/30 dark:border-emerald-900/30 shadow-xs'
+                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
                 : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
@@ -2491,14 +2603,12 @@ export default function ProfilWarga({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-100/60 via-slate-50 to-teal-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
+      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
         
-
-
         {/* Dynamic Header Ribbon */}
-        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-emerald-200/60 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-orange-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
           <div className="flex flex-col font-sans">
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest font-mono">
+            <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}
               {activeTab === 'profil_saya' && 'PROFIL MANDIRI WARGA'}
               {activeTab === 'keluarga_saya' && 'ANGGOTA KELUARGA SAYA'}
@@ -2539,23 +2649,24 @@ export default function ProfilWarga({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
               Live Sync
             </span>
-            <span className="hidden sm:inline-flex px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-[10px] font-bold items-center gap-1.5 font-sans">
-              <Sparkles className="w-3 h-3" />
+            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg text-[10px] font-bold items-center gap-1.5 font-sans">
+              <Sparkles className="w-3 h-3 text-amber-500" />
               Portal Warga
             </span>
           </div>
         </header>
 
         {/* 3. SCROLL CONTENT AREA */}
-        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">          {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
-          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 dark:from-emerald-950/70 dark:via-teal-950/70 dark:to-emerald-950/50 border border-emerald-500/20 dark:border-emerald-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
-            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-emerald-500/10 dark:bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">
+          {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
+          <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/5 dark:from-orange-950/70 dark:via-amber-950/70 dark:to-slate-950/50 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 dark:bg-orange-400/20 rounded-full blur-3xl pointer-events-none"></div>
             <div className="space-y-1.5 z-10">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 bg-emerald-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 dark:text-emerald-200 border border-emerald-500/20 dark:border-white/20">
-                  Portal Mandiri Warga RT 05
+                <span className="px-2.5 py-0.5 bg-orange-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 dark:text-orange-200 border border-orange-500/20 dark:border-white/20">
+                  Villa Mutiara Mas Cinere • RT 05
                 </span>
-                <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
+                <span className="text-[10px] text-orange-600 dark:text-orange-300 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
                 {activeTab === 'dashboard' && `Selamat Datang Kembali, ${currentUser.name}! 👋`}
@@ -2575,13 +2686,13 @@ export default function ProfilWarga({
                 {activeTab === 'notifikasi' && 'Kotak Masuk Notifikasi System 📩'}
                 {activeTab === 'pengaturan' && 'Pengaturan Akun & Kata Sandi 🔑'}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-emerald-100 max-w-xl leading-relaxed font-medium">
+              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed font-medium">
                 Akses seluruh layanan RT 05 secara mandiri, transparan, dan mudah dari perangkat Anda.
               </p>
             </div>
-            <div className="px-4 py-2 bg-emerald-600 dark:bg-white/20 hover:bg-emerald-700 dark:hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-md border border-emerald-500/30 dark:border-white/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
-              <Landmark className="w-4 h-4 text-white dark:text-emerald-300" />
-              <span>RT 05 / RW 06</span>
+            <div className="px-4 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
+              <Landmark className="w-4 h-4 text-white" />
+              <span>RT 05 / RW 11</span>
             </div>
           </div>
           {activeTab === 'dashboard' && (
@@ -2590,7 +2701,7 @@ export default function ProfilWarga({
               {/* Quick statistics widgets grid */}
               {/* Quick statistics widgets grid (2 Columns on Mobile Portrait) */}
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
-                <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-white shadow-md shrink-0 ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
                     <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
@@ -3237,7 +3348,7 @@ export default function ProfilWarga({
                 <button
                   type="submit"
                   disabled={isUploadingDoc}
-                  className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                  className="py-3 px-6 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md shadow-orange-500/20 disabled:opacity-50"
                 >
                   {isUploadingDoc ? 'Sedang Mengunggah...' : 'Unggah Dokumen'}
                 </button>
@@ -3262,12 +3373,12 @@ export default function ProfilWarga({
                         return (
                           <tr key={doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                             <td className="p-4 font-bold text-slate-800 dark:text-white">{citizen.nama}</td>
-                            <td className="p-4 uppercase font-bold text-emerald-650 dark:text-emerald-450">{doc.type}</td>
+                            <td className="p-4 uppercase font-bold text-orange-600 dark:text-orange-400">{doc.type}</td>
                             <td className="p-4 font-mono text-slate-500">{doc.fileName}</td>
                             <td className="p-4 text-center">
                               <button
                                 onClick={() => handleDownloadSensitifDoc(doc.documentId)}
-                                className="py-1 px-3 border border-emerald-500/20 hover:border-emerald-500 text-emerald-500 rounded-lg font-bold text-[10px] cursor-pointer"
+                                className="py-1 px-3 border border-orange-500/20 hover:border-orange-500 text-orange-500 rounded-lg font-bold text-[10px] cursor-pointer"
                               >
                                 Unduh / Lihat
                               </button>
@@ -3296,7 +3407,7 @@ export default function ProfilWarga({
               {/* Header Visual */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
                 <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
                     {formData.foto ? (
                       <img src={formData.foto} alt={displayNama} className="w-full h-full object-cover" />
                     ) : (
@@ -3304,7 +3415,7 @@ export default function ProfilWarga({
                     )}
                   </div>
                   {isEditing && (
-                    <label className="absolute bottom-0 right-0 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white dark:border-slate-800" title="Ubah Foto Profil">
+                    <label className="absolute bottom-0 right-0 p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white dark:border-slate-800" title="Ubah Foto Profil">
                       <Camera className="w-4 h-4" />
                       <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                     </label>
@@ -3319,7 +3430,7 @@ export default function ProfilWarga({
                 {!isEditing ? (
                   <button
                     onClick={handleEditClick}
-                    className="py-2 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02]"
+                    className="py-2 px-5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl shadow-md shadow-orange-500/20 transition-all cursor-pointer flex items-center gap-2 hover:scale-[1.02]"
                   >
                     <Edit2 className="w-4 h-4" />
                     <span>Edit Profil Saya</span>
@@ -3375,7 +3486,7 @@ export default function ProfilWarga({
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">NIK (KTP)</span>
                       <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
-                        {displayNik ? `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}` : '3276********1234'}
+                        {displayNik ? (displayNik.includes('*') ? displayNik : `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}`) : '3276********1234'}
                       </span>
                     </div>
 
@@ -3410,22 +3521,6 @@ export default function ProfilWarga({
                         <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
                       )}
                     </div>
-
-                    {/* Pekerjaan */}
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
-                      <span className="w-36 text-slate-400 font-bold shrink-0">Pekerjaan</span>
-                      {isEditing ? (
-                        <input
-                          type="text"
-                          value={formData.pekerjaan}
-                          onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                          placeholder="Pekerjaan saat ini"
-                        />
-                      ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{pekerjaan}</span>
-                      )}
-                    </div>
                   </div>
                 </div>
 
@@ -3438,6 +3533,34 @@ export default function ProfilWarga({
                       <span className="w-36 text-slate-400 font-bold shrink-0">RT/RW</span>
                       <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
                     </div>
+
+                    {(profilSayaData?.blok || profilSayaData?.nomor_rumah || formData.house_blok || formData.house_nomor) && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
+                        <span className="w-36 text-slate-400 font-bold shrink-0">Blok / No. Rumah</span>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 w-full max-w-md">
+                            <input
+                              type="text"
+                              value={formData.house_blok}
+                              onChange={(e) => setFormData({ ...formData, house_blok: e.target.value })}
+                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              placeholder="Blok (misal: B)"
+                            />
+                            <input
+                              type="text"
+                              value={formData.house_nomor}
+                              onChange={(e) => setFormData({ ...formData, house_nomor: e.target.value })}
+                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              placeholder="Nomor (misal: 15)"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-slate-800 dark:text-slate-200 font-bold">
+                            {`Blok ${profilSayaData?.blok || formData.house_blok || '-'} No. ${profilSayaData?.nomor_rumah || formData.house_nomor || '-'}`}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">Alamat Lengkap</span>
@@ -3485,7 +3608,7 @@ export default function ProfilWarga({
                           type="text"
                           value={formData.noHp}
                           onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                         />
                       ) : (
                         <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
@@ -3500,7 +3623,7 @@ export default function ProfilWarga({
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                         />
                       ) : (
                         <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
@@ -3563,13 +3686,13 @@ export default function ProfilWarga({
 
                               // API Call: POST /resident/uploadsensitifdata/:id
                               try {
-                                const token = localStorage.getItem('rt_token');
+                                const token = sessionStorage.getItem('rt_token');
                                 const targetId = currentUser.id || currentUser.nik || 1;
                                 const uploadData = new FormData();
                                 uploadData.append('type', 'ktp');
                                 uploadData.append('file', file);
 
-                                const res = await fetch(`/api/resident/uploadsensitifdata/${targetId}`, {
+                                const res = await fetch(`http://172.20.32.85:3333/resident/uploadsensitifdata/${targetId}`, {
                                   method: 'POST',
                                   headers: {
                                     'Authorization': `Bearer ${token}`
@@ -3577,25 +3700,28 @@ export default function ProfilWarga({
                                   body: uploadData
                                 });
 
-                                const resData = await res.json();
+                                if (!res.ok) {
+                                  throw new Error('Gagal mengunggah berkas KTP ke server');
+                                }
+
                                 Swal.fire({
-                                  title: 'KTP Berhasil Diunggah! 📸',
-                                  text: resData.message || resData.pesan || 'Foto KTP fisik Anda telah tersimpan secara aman dan siap diverifikasi pengurus RT.',
+                                  title: 'KTP Terunggah!',
+                                  text: 'Foto KTP Anda telah berhasil diunggah ke server.',
                                   icon: 'success',
-                                  confirmButtonColor: '#10b981'
+                                  confirmButtonColor: '#f97316'
                                 });
-                              } catch (err) {
-                                console.warn('Upload KTP API fallback:', err);
+                              } catch(err) {
+                                console.error('Upload Sensitif Data Error:', err);
                                 Swal.fire({
-                                  title: 'KTP Berhasil Diunggah! 📸',
-                                  text: 'Foto KTP fisik Anda telah tersimpan secara aman di sistem lokal.',
+                                  title: 'KTP Disimpan Lokal',
+                                  text: 'Foto KTP disimpan dalam mode pratinjau browser.',
                                   icon: 'success',
-                                  confirmButtonColor: '#10b981'
+                                  confirmButtonColor: '#f97316'
                                 });
                               }
                             }
                           }}
-                          className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-600 dark:file:text-emerald-400 hover:file:bg-emerald-500/20 cursor-pointer"
+                          className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-500/10 file:text-orange-600 dark:file:text-orange-400 hover:file:bg-orange-500/20 cursor-pointer"
                         />
                       </div>
 
@@ -3613,7 +3739,7 @@ export default function ProfilWarga({
                             pekerjaan: pekerjaan
                           });
                         }}
-                        className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 cursor-pointer transition-all flex items-center justify-center gap-2"
                       >
                         <Eye className="w-4 h-4" />
                         <span>Pratinjau Kartu e-KTP Digital</span>
@@ -3627,7 +3753,7 @@ export default function ProfilWarga({
                   <div className="flex gap-3 pt-2">
                     <button
                       type="submit"
-                      className="py-2.5 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-lg cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.01]"
+                      className="py-2.5 px-6 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-500/20 cursor-pointer transition-all flex items-center gap-2 hover:scale-[1.01]"
                     >
                       <Save className="w-4 h-4" />
                       <span>Simpan Perubahan Profil</span>
@@ -3668,7 +3794,7 @@ export default function ProfilWarga({
                       });
                       if (result.isConfirmed) {
                         setCurrentUser(null);
-                        localStorage.removeItem('rt_current_user');
+                        sessionStorage.removeItem('rt_current_user');
                       }
                     }}
                     className="py-2 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-455 font-bold text-xs rounded-xl transition-all cursor-pointer"
@@ -3723,7 +3849,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
-                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 05 Sawangan Green Park.</p>
+                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 05 Villa Mutiara Mas Cinere.</p>
                 </div>
                 <button
                   onClick={fetchWargaAnnouncements}
@@ -3922,18 +4048,18 @@ export default function ProfilWarga({
 
                 
 {/* Banner Rekening Resmi Kas RT */}
-                <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400 tracking-wider">Rekening Resmi Pembayaran IPL</span>
+                    <span className="text-[10px] font-extrabold uppercase text-orange-600 dark:text-orange-400 tracking-wider">Rekening Resmi Pembayaran IPL</span>
                     <p className="font-mono text-base font-black text-slate-800 dark:text-slate-100">Bank Mandiri: 157-00-98234-04-1</p>
-                    <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 05 SAWANGAN GREEN PARK</p>
+                    <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 05 VILLA MUTIARA MAS CINERE</p>
                   </div>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText('1570098234041');
                       Swal.fire({ title: 'Disalin!', text: 'Nomor rekening Bank Mandiri berhasil disalin ke clipboard.', icon: 'success', timer: 1500, showConfirmButton: false });
                     }}
-                    className="py-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all"
+                    className="py-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-orange-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all"
                   >
                     📋 Salin Rekening
                   </button>
@@ -3963,7 +4089,7 @@ export default function ProfilWarga({
                         setPaymentType('ipl');
                         setActiveTab('iuran_upload');
                       }}
-                      className="py-2 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-md flex items-center gap-1.5 whitespace-nowrap"
+                      className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5 whitespace-nowrap"
                     >
                       <span>Bayar Sekarang (Upload Bukti)</span>
                       <ChevronRight className="w-4 h-4" />
@@ -4546,7 +4672,7 @@ export default function ProfilWarga({
                     <button
                       type="submit"
                       disabled={isSubmittingPayment || (paymentType === 'ipl' && selectedBillIds.length === 0)}
-                      className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md disabled:opacity-50"
+                      className="py-3 px-6 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md shadow-orange-500/20 disabled:opacity-50"
                     >
                       {isSubmittingPayment ? 'Mengirim Data...' : 'Kirim Bukti Pembayaran'}
                     </button>
@@ -4611,17 +4737,17 @@ export default function ProfilWarga({
                   <textarea
                     required
                     rows={4}
-                    placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Sawangan karena pindah domisili..."
+                    placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Cinere karena pindah domisili..."
                     value={letterForm.keperluan}
                     onChange={(e) => setLetterForm({ ...letterForm, keperluan: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
                   />
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md"
+                    className="py-3 px-6 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-md shadow-orange-500/20"
                   >
                     Kirim Pengajuan Surat
                   </button>
@@ -4683,7 +4809,7 @@ export default function ProfilWarga({
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
                             <button
                               onClick={() => setViewingApprovedLetter(sub)}
-                              className="flex-1 py-2 border border-emerald-500 text-emerald-600 dark:text-emerald-450 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block"
+                              className="flex-1 py-2 border border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block"
                             >
                               Pratinjau Kop Surat
                             </button>
@@ -4691,7 +4817,7 @@ export default function ProfilWarga({
                               onClick={() => {
                                 alert(`Mengunduh berkas ${sub.wargaTipeSurat} untuk keperluan: ${sub.wargaKeperluan}. (Simulasi berkas PDF RT berhasil diunduh)`);
                               }}
-                              className="flex-1 py-2 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-xs"
+                              className="flex-1 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-md shadow-orange-500/20"
                             >
                               Unduh Format
                             </button>
@@ -4888,9 +5014,9 @@ export default function ProfilWarga({
                     />
                     <label
                       htmlFor="warga-doc-file-input"
-                      className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white dark:bg-slate-900 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/20 transition-all cursor-pointer block"
+                      className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-orange-500 dark:hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white dark:bg-slate-900 hover:bg-orange-50/30 dark:hover:bg-orange-950/20 transition-all cursor-pointer block"
                     >
-                      <Upload className="w-8 h-8 text-emerald-500 animate-pulse" />
+                      <Upload className="w-8 h-8 text-orange-500 animate-pulse" />
                       <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
                         {docUploadFile ? `Terpilih: ${docUploadFile.name}` : 'Klik untuk memilih file dokumen...'}
                       </span>
@@ -4902,7 +5028,7 @@ export default function ProfilWarga({
                   <button
                     type="submit"
                     disabled={isUploadingDoc || !docUploadFile}
-                    className="w-full py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="w-full py-3 px-6 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {isUploadingDoc ? (
                       <span>Mengunggah Berkas...</span>
@@ -4917,21 +5043,21 @@ export default function ProfilWarga({
 
                 {/* Information Card & Requirement Guidelines */}
                 <div className="lg:col-span-6 space-y-5">
-                  <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl space-y-3">
-                    <h4 className="font-extrabold text-xs text-emerald-700 dark:text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                  <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl space-y-3">
+                    <h4 className="font-extrabold text-xs text-orange-700 dark:text-orange-400 uppercase tracking-wider flex items-center gap-2">
                       <span>💡</span> Panduan Pengunggahan Berkas Kependudukan
                     </h4>
                     <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-500 font-bold">1.</span>
+                        <span className="text-orange-500 font-bold">1.</span>
                         <span>Pastikan hasil foto/scan dokumen terlihat jelas, tidak buram, dan teks dapat terbaca dengan baik.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-500 font-bold">2.</span>
+                        <span className="text-orange-500 font-bold">2.</span>
                         <span>Berkas yang diunggah akan tersimpan dengan enkripsi dan hanya dapat diakses oleh Pengurus RT & Sekretaris.</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="text-emerald-500 font-bold">3.</span>
+                        <span className="text-orange-500 font-bold">3.</span>
                         <span>Pengurus RT menggunakan berkas ini untuk mempercepat verifikasi surat pengantar mandiri warga.</span>
                       </li>
                     </ul>
@@ -4982,7 +5108,7 @@ export default function ProfilWarga({
                         {wargaDocuments.map((doc) => (
                           <tr key={doc.document_id || doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                             <td className="p-4">
-                              <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[10px] font-extrabold uppercase">
+                              <span className="px-2.5 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full text-[10px] font-extrabold uppercase">
                                 {doc.type || 'Dokumen'}
                               </span>
                             </td>
@@ -4999,7 +5125,7 @@ export default function ProfilWarga({
                               <button
                                 type="button"
                                 onClick={() => handleDownloadDocument(doc.document_id || doc.id, doc.file_path)}
-                                className="px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
                               >
                                 <span>📥 Unduh / Lihat</span>
                               </button>
@@ -5020,20 +5146,20 @@ export default function ProfilWarga({
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Arsip Dokumen Resmi Warga</h3>
-                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 05 Sawangan.</p>
+                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 05 Villa Mutiara Mas Cinere.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">AD / ART Rukun Tetangga 05</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Dokumen Anggaran Dasar dan Anggaran Rumah Tangga resmi yang berisi aturan kerukunan hidup bertetangga.</p>
-                  <button onClick={() => alert('Mengunduh AD_ART_RT04.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
+                  <button onClick={() => alert('Mengunduh AD_ART_RT05.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
                 </div>
 
                 <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
                   <h4 className="font-bold text-sm text-slate-900 dark:text-white">Formulir Pendaftaran Warga Baru</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Berkas formulir kosong yang wajib diisi bagi penghuni baru (kontrak maupun tetap) untuk diserahkan ke Sekretaris.</p>
-                  <button onClick={() => alert('Mengunduh FORM_WARGA_BARU.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans">Unduh PDF</button>
+                  <button onClick={() => alert('Mengunduh FORM_WARGA_BARU.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
                 </div>
               </div>
             </div>
@@ -5050,7 +5176,7 @@ export default function ProfilWarga({
                 <div className="flex gap-2">
                   <button
                     onClick={() => { fetchKaryawanList(); fetchVoteResults(); }}
-                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer flex items-center gap-1"
+                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-orange-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer flex items-center gap-1"
                   >
                     <span>🔄 Segarkan</span>
                   </button>
@@ -5059,7 +5185,7 @@ export default function ProfilWarga({
 
               {isLoadingVoting ? (
                 <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
-                  <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
                   <p className="text-xs font-bold text-slate-500">Memuat data kandidat...</p>
                 </div>
               ) : (
@@ -5077,7 +5203,7 @@ export default function ProfilWarga({
                           </div>
                           <button
                             onClick={() => handleCastVote(k.id)}
-                            className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-transform active:scale-[0.98]"
+                            className="w-full py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-transform active:scale-[0.98] shadow-md shadow-orange-500/20"
                           >
                             🗳️ Berikan Suara
                           </button>
@@ -5110,7 +5236,7 @@ export default function ProfilWarga({
                             <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                               <div
                                 style={{ width: `${percentage}%` }}
-                                className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-500"
+                                className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-500"
                               />
                             </div>
                           </div>
@@ -5136,7 +5262,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <div className="p-2 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-xl">
                       <Bell className="w-5 h-5" />
                     </div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pusat Notifikasi & Informasi Warga</h3>
@@ -5154,10 +5280,10 @@ export default function ProfilWarga({
                       if (setCurrentUser) {
                         const updated = { ...currentUser, tagihNotification: false };
                         setCurrentUser(updated);
-                        localStorage.setItem('rt_current_user', JSON.stringify(updated));
+                        sessionStorage.setItem('rt_current_user', JSON.stringify(updated));
                       }
                     }}
-                    className="px-3.5 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
                   >
                     <span>✓ Tandai Semua Dibaca</span>
                   </button>
@@ -5179,7 +5305,7 @@ export default function ProfilWarga({
                     onClick={() => setNotifCategoryFilter(flt.id)}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                       notifCategoryFilter === flt.id
-                        ? 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-xs'
+                        ? 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 text-white shadow-xs'
                         : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -5196,9 +5322,9 @@ export default function ProfilWarga({
                     <div
                       key={ntf.id}
                       onClick={() => setActiveTab(ntf.targetTab)}
-                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 cursor-pointer hover:scale-[1.01] hover:border-emerald-500/50 group ${
+                      className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 cursor-pointer hover:scale-[1.01] hover:border-orange-500/50 group ${
                         ntf.isUnread
-                          ? 'bg-emerald-500/10 dark:bg-emerald-950/30 border-emerald-500/30 shadow-xs'
+                          ? 'bg-orange-500/10 dark:bg-orange-950/30 border-orange-500/30 shadow-xs'
                           : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800'
                       }`}
                     >
@@ -5209,7 +5335,7 @@ export default function ProfilWarga({
                           ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
                           : ntf.category === 'pengaduan'
                           ? 'bg-gradient-to-br from-rose-500 to-red-600'
-                          : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                          : 'bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600'
                       }`}>
                         {ntf.category === 'surat' ? (
                           <FileText className="w-4 h-4" />
@@ -5224,7 +5350,7 @@ export default function ProfilWarga({
 
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
                             {ntf.title}
                           </h4>
                           <span className="text-[10px] font-mono text-slate-400 shrink-0">
@@ -5518,10 +5644,10 @@ export default function ProfilWarga({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setViewingApprovedLetter(null)}></div>
           <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600"></div>
             
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05</h3>
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05 / RW 11</h3>
               <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <span className="font-extrabold text-sm">✕</span>
               </button>
@@ -5532,12 +5658,12 @@ export default function ProfilWarga({
               <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
                 {/* KOP SURAT HEADER */}
                 <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
                   <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
                   </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05rw11villamutiaramas@gmail.com | Kontak: +62 812-3456-7890</p>
                 </div>
 
                 {/* LETTER CONTENT */}
@@ -5548,13 +5674,13 @@ export default function ProfilWarga({
                       {viewingApprovedLetter.wargaTipeSurat}
                     </h5>
                     <span className="text-[10px] font-bold text-slate-600 tracking-wider">
-                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW06 / VII / 2026
+                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW11 / VII / 2026
                     </span>
                   </div>
 
                   {/* Body Text */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
                   </p>
 
                   {/* Citizen Biodata Table */}
@@ -5579,7 +5705,7 @@ export default function ProfilWarga({
                         <td className="font-bold">Alamat Lengkap</td>
                         <td>:</td>
                         <td className="leading-snug">
-                          {viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Sawangan Green Park, RT 05 RW 06, Kel. Sawangan Baru, Kec. Sawangan, Depok.'}
+                          {viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
                         </td>
                       </tr>
                     </tbody>
@@ -5587,10 +5713,10 @@ export default function ProfilWarga({
 
                   {/* Purpose Paragraph */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
                   </p>
 
-                  <p className="text-slate-850 leading-relaxed text-justify">
+                  <p className="text-slate-800 leading-relaxed text-justify">
                     Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
                   </p>
                 </div>
@@ -5605,7 +5731,7 @@ export default function ProfilWarga({
                   </div>
                   <div>
                     <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <span className="block font-bold">Ketua RT 05 RW 11</span>
                     <div className="h-16"></div>
                     <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
                   </div>
@@ -5614,11 +5740,11 @@ export default function ProfilWarga({
             </div>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat}.docx`)}
-                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                  className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
                 >
                   <span>Unduh Dokumen</span>
                 </button>
@@ -5638,14 +5764,14 @@ export default function ProfilWarga({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
           <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border-b border-sky-800 flex justify-between items-center">
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-950 via-slate-900 to-amber-950 border-b border-orange-800/40 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-sky-500/20 text-sky-300 rounded-xl border border-sky-400/30">
+                <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl border border-orange-400/30">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
-                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 06</p>
+                  <p className="text-[10px] text-orange-200/80">Verifikasi Dokumen Resmi RT 05 / RW 11</p>
                 </div>
               </div>
               <button
@@ -5662,14 +5788,14 @@ export default function ProfilWarga({
                 <button
                   type="button"
                   onClick={() => setKtpTab('asli')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}
                 >
                   📸 Foto Berkas KTP Asli
                 </button>
                 <button
                   type="button"
                   onClick={() => setKtpTab('digital')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}
                 >
                   💳 Kartu Digital e-KTP
                 </button>
@@ -5698,7 +5824,7 @@ export default function ProfilWarga({
                         href={selectedKtpWarga.foto_ktp}
                         target="_blank"
                         rel="noreferrer"
-                        className="py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+                        className="py-1.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-orange-500/20"
                       >
                         <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
                       </a>
@@ -5707,18 +5833,18 @@ export default function ProfilWarga({
                 </div>
               ) : (
                 /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
-                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-sky-300 via-sky-200 to-cyan-300 dark:from-slate-800 dark:via-sky-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-sky-400/50 shadow-2xl space-y-3 font-sans">
+                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-orange-100 via-amber-50 to-orange-200 dark:from-slate-800 dark:via-orange-950/40 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-orange-400/50 shadow-2xl space-y-3 font-sans">
                   <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
                     <Landmark className="w-48 h-48" />
                   </div>
 
                   <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
-                    <h4 className="text-xs sm:text-sm font-black text-sky-900 dark:text-sky-300">PROVINSI JAWA BARAT</h4>
+                    <h4 className="text-xs sm:text-sm font-black text-orange-900 dark:text-orange-300">PROVINSI JAWA BARAT</h4>
                     <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
                   </div>
 
-                  <div className="flex items-center gap-3 bg-sky-950/80 text-emerald-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-sky-700/50">
-                    <span className="text-sky-300 text-xs">NIK :</span>
+                  <div className="flex items-center gap-3 bg-slate-950/80 text-orange-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-orange-500/30">
+                    <span className="text-orange-300 text-xs">NIK :</span>
                     <span>{selectedKtpWarga.nik || '3276051508980004'}</span>
                   </div>
 
@@ -5738,19 +5864,19 @@ export default function ProfilWarga({
                       </div>
                       <div className="grid grid-cols-12 gap-1">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
-                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || 'Jl. Sawangan Green Park B4/15'}</span>
+                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || 'Jl. Villa Mutiara Mas Cinere Blok B4 No. 15'}</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
-                        <span className="col-span-8 font-bold">005 / 006</span>
+                        <span className="col-span-8 font-bold">005 / 011</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
-                        <span className="col-span-8 font-bold">SAWANGAN BARU</span>
+                        <span className="col-span-8 font-bold">CINERE</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1 pl-3">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
-                        <span className="col-span-8 font-bold">SAWANGAN</span>
+                        <span className="col-span-8 font-bold">CINERE</span>
                       </div>
                       <div className="grid grid-cols-12 gap-1">
                         <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>

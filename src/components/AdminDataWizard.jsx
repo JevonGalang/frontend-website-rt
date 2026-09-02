@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import DateInput from './DateInput';
 import Swal from 'sweetalert2';
+import { getSessionToken } from '../utils/authSession';
 
-const API_BASE = '';
+const API_BASE = 'http://172.20.32.85:3333';
 
 const calculateAge = (birthDateString) => {
   if (!birthDateString) return '';
@@ -128,7 +129,7 @@ export default function AdminDataWizard() {
   // Fetch residents list
   const fetchResidents = async () => {
     setIsLoadingResidents(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/resident`, {
         headers: {
@@ -189,7 +190,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep1 = async () => {
     if (!validateStep1()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/house`, {
         method: 'POST',
@@ -232,7 +233,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep2 = async () => {
     if (!validateStep2()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/resident`, {
         method: 'POST',
@@ -275,7 +276,7 @@ export default function AdminDataWizard() {
   const handleSubmitStep3 = async () => {
     if (!validateStep3()) return;
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/datawarga`, {
         method: 'POST',
@@ -317,7 +318,7 @@ export default function AdminDataWizard() {
   const handleCreateWargaAccount = async () => {
     if (!familyId) return;
     setIsCreatingAccount(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const res = await fetch(`${API_BASE}/admin/create-account`, {
         method: 'POST',
@@ -370,7 +371,7 @@ export default function AdminDataWizard() {
     }
 
     setIsLoading(true);
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     try {
       const payload = {
         house: {
@@ -535,7 +536,7 @@ export default function AdminDataWizard() {
      bg-white dark:bg-slate-800/60 
      ${fieldErrors[field]
        ? 'border-red-400 dark:border-red-500 focus:ring-2 focus:ring-red-300 dark:focus:ring-red-800'
-       : 'border-slate-200 dark:border-slate-700 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 dark:focus:ring-emerald-900'
+       : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 dark:focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900'
      }
      text-slate-800 dark:text-slate-100 placeholder:text-slate-350 dark:placeholder:text-slate-500`;
 
@@ -552,9 +553,9 @@ export default function AdminDataWizard() {
         {/* Success hero */}
         <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
           {/* Decorative bg */}
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10" />
+          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5 dark:from-orange-500/10 dark:to-amber-500/10" />
           <div className="relative z-10">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/25 animate-bounce-slow">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
               <Check className="w-10 h-10 text-white" strokeWidth={3} />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
@@ -608,8 +609,8 @@ export default function AdminDataWizard() {
           {/* Warga summary */}
           <div className={`${cardClass} p-6`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl">
-                <UserPlus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 rounded-xl">
+                <UserPlus className="w-5 h-5 text-orange-600 dark:text-orange-400" />
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Data Warga</h3>
@@ -647,10 +648,10 @@ export default function AdminDataWizard() {
         </div>
 
         {createdAccount ? (
-          <div className={`${cardClass} p-6 border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/[0.02] max-w-xl mx-auto space-y-4`}>
+          <div className={`${cardClass} p-6 border-orange-500/30 dark:border-orange-500/20 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 rounded-xl">
-                <Key className="w-5 h-5 text-emerald-500" />
+              <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 rounded-xl">
+                <Key className="w-5 h-5 text-orange-500" />
               </div>
               <div>
                 <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kredensial Akun Login Warga</h3>
@@ -700,21 +701,15 @@ export default function AdminDataWizard() {
               <p className="text-[11px] text-slate-400">Buat kredensial login portal warga secara otomatis untuk keluarga baru ini.</p>
             </div>
             <button
-              onClick={handleCreateWargaAccount}
-              disabled={isCreatingAccount}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-650 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+              onClick={() => {
+                const textToCopy = `Kredensial Login Warga RT 05:\nUsername: ${createdAccount.username}\nPassword Sementara: ${createdAccount.temporaryPassword}`;
+                navigator.clipboard.writeText(textToCopy);
+                setToast({ type: 'success', message: 'Semua kredensial berhasil disalin!' });
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
             >
-              {isCreatingAccount ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Membuat Akun...</span>
-                </>
-              ) : (
-                <>
-                  <Key className="w-3.5 h-3.5" />
-                  <span>Buat Akun Login Warga</span>
-                </>
-              )}
+              <Copy className="w-4 h-4" />
+              <span>Salin Semua Kredensial</span>
             </button>
           </div>
         )}
@@ -723,7 +718,7 @@ export default function AdminDataWizard() {
         <div className="flex justify-center">
           <button
             onClick={handleReset}
-            className="flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
+            className="flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
           >
             <RotateCcw className="w-4 h-4" />
             Input Data Baru Lagi
@@ -771,9 +766,9 @@ export default function AdminDataWizard() {
           {/* Success hero */}
           <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
             {/* Decorative bg */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 via-transparent to-teal-500/5 dark:from-emerald-500/10 dark:to-teal-500/10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5 dark:from-orange-500/10 dark:to-amber-500/10" />
             <div className="relative z-10">
-              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/25 animate-bounce-slow">
+              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
                 <Check className="w-10 h-10 text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
@@ -827,8 +822,8 @@ export default function AdminDataWizard() {
             {/* Warga summary */}
             <div className={`${cardClass} p-6`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-xl">
-                  <UserPlus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 rounded-xl">
+                  <UserPlus className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kepala Keluarga</h3>
@@ -845,10 +840,10 @@ export default function AdminDataWizard() {
           </div>
 
           {createdAccount ? (
-            <div className={`${cardClass} p-6 border-emerald-500/30 dark:border-emerald-500/20 bg-emerald-500/[0.02] max-w-xl mx-auto space-y-4`}>
+            <div className={`${cardClass} p-6 border-orange-500/30 dark:border-orange-500/20 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 rounded-xl">
-                  <Key className="w-5 h-5 text-emerald-500" />
+                <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 rounded-xl">
+                  <Key className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kredensial Akun Login Warga</h3>
@@ -900,7 +895,7 @@ export default function AdminDataWizard() {
               <button
                 onClick={handleCreateWargaAccount}
                 disabled={isCreatingAccount}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-650 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
               >
                 {isCreatingAccount ? (
                   <>
@@ -921,7 +916,7 @@ export default function AdminDataWizard() {
           <div className="flex justify-center">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-emerald-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
+              className="flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
             >
               <RotateCcw className="w-4 h-4" />
               Input Data Baru Lagi
@@ -981,7 +976,7 @@ export default function AdminDataWizard() {
                     type="text"
                     value={oneStepForm.alamat}
                     onChange={e => setOneStepForm({ ...oneStepForm, alamat: e.target.value })}
-                    placeholder="Contoh: Jl. Melati No. 12, Sawangan Green Park"
+                    placeholder="Contoh: Jl. Melati No. 12, Villa Mutiara Mas Cinere"
                     className={inputClass('alamat')}
                   />
                   {fieldErrors.alamat && <p className="text-red-500 text-[10px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.alamat}</p>}
@@ -997,7 +992,7 @@ export default function AdminDataWizard() {
                         onClick={() => setOneStepForm({ ...oneStepForm, statusRumah: opt })}
                         className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
                           ${oneStepForm.statusRumah === opt
-                            ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
                             : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
                           }`}
                       >
@@ -1038,7 +1033,7 @@ export default function AdminDataWizard() {
             {/* 3. Kepala Keluarga */}
             <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
               <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-805 pb-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 rounded-lg">
+                <div className="p-2 bg-orange-500/10 text-orange-600 dark:text-orange-450 rounded-lg">
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <div>
@@ -1085,7 +1080,7 @@ export default function AdminDataWizard() {
                           onClick={() => setOneStepForm({ ...oneStepForm, jenisKelaminKepalaKeluarga: g })}
                           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer
                             ${oneStepForm.jenisKelaminKepalaKeluarga === g
-                              ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
                               : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-300'
                             }`}
                         >
@@ -1202,7 +1197,7 @@ export default function AdminDataWizard() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-500/10 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer transition-all"
               >
                 {isLoading ? (
                   <>
@@ -1293,7 +1288,7 @@ export default function AdminDataWizard() {
               {/* Connector lines */}
               <div className="absolute top-6 left-0 right-0 h-[2px] bg-slate-200 dark:bg-slate-800 mx-16 sm:mx-24" />
               <div
-                className="absolute top-6 left-0 h-[2px] bg-gradient-to-r from-emerald-500 to-teal-500 mx-16 sm:mx-24 transition-all duration-700 ease-out"
+                className="absolute top-6 left-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 mx-16 sm:mx-24 transition-all duration-700 ease-out"
                 style={{
                   width: currentStep === 1 ? '0%' : currentStep === 2 ? 'calc(50% - 3rem)' : 'calc(100% - 6rem)',
                 }}
@@ -1310,9 +1305,9 @@ export default function AdminDataWizard() {
                     <div
                       className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-500 
                         ${isCompleted
-                          ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 scale-100'
+                          ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-100'
                           : isCurrent
-                            ? 'bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 animate-pulse-slow scale-110'
+                            ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 animate-pulse-slow scale-110'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                         }`}
                     >
@@ -1320,7 +1315,7 @@ export default function AdminDataWizard() {
                     </div>
                     {/* Label */}
                     <span className={`mt-2.5 text-xs font-extrabold transition-colors duration-300
-                      ${isCurrent || isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
+                      ${isCurrent ? 'text-orange-600 dark:text-orange-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
                     >
                       {step.title}
                     </span>
@@ -1337,11 +1332,11 @@ export default function AdminDataWizard() {
             {/* Left: Form Card */}
             <div className="lg:col-span-2">
               <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-emerald-500/5 to-transparent dark:from-emerald-500/10 rounded-bl-full" />
+                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-orange-500/5 to-transparent dark:from-orange-500/10 rounded-bl-full" />
                 <div className="relative z-10">
                   {/* Form Header */}
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl text-white shadow-md shadow-emerald-500/20">
+                    <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl text-white shadow-md shadow-orange-500/20">
                       {currentStep === 1 && <Home className="w-5 h-5" />}
                       {currentStep === 2 && <CreditCard className="w-5 h-5" />}
                       {currentStep === 3 && <UserPlus className="w-5 h-5" />}
@@ -1393,7 +1388,7 @@ export default function AdminDataWizard() {
                           type="text"
                           value={houseForm.alamat}
                           onChange={e => setHouseForm({ ...houseForm, alamat: e.target.value })}
-                          placeholder="Contoh: Jl. Melati No. 12, Sawangan Green Park"
+                          placeholder="Contoh: Jl. Melati No. 12, Villa Mutiara Mas Cinere"
                           className={inputClass('alamat')}
                         />
                         {fieldErrors.alamat && <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.alamat}</p>}
@@ -1409,7 +1404,7 @@ export default function AdminDataWizard() {
                               onClick={() => setHouseForm({ ...houseForm, status: opt })}
                               className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
                                 ${houseForm.status === opt
-                                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
                                   : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
                                 }`}
                             >
@@ -1455,7 +1450,7 @@ export default function AdminDataWizard() {
                           min="1"
                         />
                         {fieldErrors.KepalaKeluarga && <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.KepalaKeluarga}</p>}
-                        <p className="text-[10px] text-slate-400 mt-1 font-semibold">⚠️ Perhatikan: field ini case-sensitive (<code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-emerald-600 dark:text-emerald-450 font-bold">KepalaKeluarga</code> — huruf K besar)</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-semibold">⚠️ Perhatikan: field ini case-sensitive (<code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-orange-600 dark:text-orange-450 font-bold">KepalaKeluarga</code> — huruf K besar)</p>
                       </div>
                     </div>
                   )}
@@ -1510,7 +1505,7 @@ export default function AdminDataWizard() {
                                 onClick={() => setWargaForm({ ...wargaForm, jenisKelamin: g })}
                                 className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all duration-200 cursor-pointer
                                   ${wargaForm.jenisKelamin === g
-                                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm'
+                                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
                                     : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
                                   }`}
                               >
@@ -1596,7 +1591,7 @@ export default function AdminDataWizard() {
                       className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-sm font-bold transition-all duration-200 cursor-pointer shadow-lg
                         ${isLoading
                           ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
-                          : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.02] active:scale-95'
+                          : 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-orange-500/20 hover:scale-[1.02] active:scale-95'
                         }`}
                     >
                       {isLoading ? (
@@ -1636,7 +1631,7 @@ export default function AdminDataWizard() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
                     <span className="text-xs font-bold text-slate-500">🏠 House ID</span>
-                    <span className={`text-sm font-black font-mono ${houseId !== null ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                    <span className={`text-sm font-black font-mono ${houseId !== null ? 'text-orange-600 dark:text-orange-400' : 'text-slate-300 dark:text-slate-600'}`}>
                       {houseId !== null ? houseId : '—'}
                     </span>
                   </div>

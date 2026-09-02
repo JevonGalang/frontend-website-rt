@@ -9,7 +9,7 @@ export default function Profil() {
       role: 'Ketua RT',
       name: 'Pak Bambang Mulyono',
       initials: 'BM',
-      gradient: 'from-emerald-500 to-teal-500 shadow-emerald-500/20',
+      gradient: 'from-orange-500 to-amber-500 shadow-orange-500/20',
       description: 'Penanggung jawab utama dan pengambil kebijakan tingkat RT.',
     },
     {
@@ -37,13 +37,13 @@ export default function Profil() {
         
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
             Profil Lingkungan
           </h2>
           <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
-            Mengenal RT Sawangan Green Park
+            Mengenal RT Villa Mutiara Mas Cinere
           </p>
-          <div className="w-12 h-1 bg-emerald-500 mx-auto rounded-full"></div>
+          <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
         </div>
 
         {/* Vision, Mission, & History Tabs */}
@@ -55,7 +55,7 @@ export default function Profil() {
               onClick={() => setActiveTab('visi-misi')}
               className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-left text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap lg:whitespace-normal w-full border ${
                 activeTab === 'visi-misi'
-                  ? 'bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-orange-500/10 dark:bg-orange-400/10 border-orange-500/30 text-orange-600 dark:text-orange-400'
                   : 'bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
@@ -70,7 +70,7 @@ export default function Profil() {
               onClick={() => setActiveTab('nilai')}
               className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-left text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap lg:whitespace-normal w-full border ${
                 activeTab === 'nilai'
-                  ? 'bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-orange-500/10 dark:bg-orange-400/10 border-orange-500/30 text-orange-600 dark:text-orange-400'
                   : 'bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
@@ -85,13 +85,13 @@ export default function Profil() {
               onClick={() => setActiveTab('sejarah')}
               className={`flex items-center gap-3 px-5 py-4 rounded-2xl text-left text-sm font-semibold transition-all duration-200 cursor-pointer whitespace-nowrap lg:whitespace-normal w-full border ${
                 activeTab === 'sejarah'
-                  ? 'bg-emerald-500/10 dark:bg-emerald-400/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  ? 'bg-orange-500/10 dark:bg-orange-400/10 border-orange-500/30 text-orange-600 dark:text-orange-400'
                   : 'bg-white dark:bg-slate-800 border-slate-200/60 dark:border-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
               }`}
             >
               <HelpCircle className="w-5 h-5 flex-shrink-0" />
               <div>
-                <span className="block font-bold">Tentang Sawangan Green Park</span>
+                <span className="block font-bold">Tentang Villa Mutiara Cinere</span>
                 <span className="block text-xs font-normal opacity-80 hidden lg:block">Informasi singkat perumahan</span>
               </div>
             </button>
@@ -103,17 +103,17 @@ export default function Profil() {
               <div className="space-y-6 animate-fade-in">
                 <div>
                   <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Target className="w-6 h-6 text-emerald-500" />
+                    <Target className="w-6 h-6 text-orange-500" />
                     Visi
                   </h3>
                   <p className="mt-3 text-slate-600 dark:text-slate-300 leading-relaxed italic">
-                    "Menjadikan RT Sawangan Green Park sebagai hunian yang modern, ramah lingkungan, harmonis, aman, dan transparan dalam pelayanan administrasi serta keuangan."
+                    "Menjadikan RT Villa Mutiara Mas Cinere sebagai hunian yang modern, ramah lingkungan, harmonis, aman, dan transparan dalam pelayanan administrasi serta keuangan."
                   </p>
                 </div>
                 <hr className="border-slate-100 dark:border-slate-700" />
                 <div>
                   <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Award className="w-6 h-6 text-emerald-500" />
+                    <Award className="w-6 h-6 text-orange-500" />
                     Misi
                   </h3>
                   <ul className="mt-4 space-y-3 text-slate-600 dark:text-slate-300 list-disc list-inside">
@@ -129,16 +129,16 @@ export default function Profil() {
             {activeTab === 'nilai' && (
               <div className="space-y-6 animate-fade-in">
                 <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Heart className="w-6 h-6 text-emerald-500" />
+                  <Heart className="w-6 h-6 text-orange-500" />
                   Prinsip Kerukunan
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30">
-                    <h4 className="font-bold text-emerald-800 dark:text-emerald-400">Guyub Rukun</h4>
+                  <div className="p-5 rounded-2xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
+                    <h4 className="font-bold text-orange-800 dark:text-orange-400">Guyub Rukun</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">Menjunjung tinggi kebersamaan, saling tolong-menolong, dan empati sosial antarwarga.</p>
                   </div>
-                  <div className="p-5 rounded-2xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/30">
-                    <h4 className="font-bold text-teal-800 dark:text-teal-400">Transparansi Keuangan</h4>
+                  <div className="p-5 rounded-2xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
+                    <h4 className="font-bold text-orange-800 dark:text-orange-400">Transparansi Keuangan</h4>
                     <p className="text-sm text-slate-600 dark:text-slate-300 mt-2">Setiap rupiah yang masuk dan keluar dilaporkan secara terbuka agar tidak menimbulkan kecurigaan.</p>
                   </div>
                   <div className="p-5 rounded-2xl bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30">
@@ -156,11 +156,11 @@ export default function Profil() {
             {activeTab === 'sejarah' && (
               <div className="space-y-6 animate-fade-in">
                 <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Shield className="w-6 h-6 text-emerald-500" />
-                  Profil Sawangan Green Park
+                  <Shield className="w-6 h-6 text-orange-500" />
+                  Profil Villa Mutiara Mas Cinere
                 </h3>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
-                  Sawangan Green Park merupakan klaster perumahan modern berasitektur minimalis asri yang terletak di kawasan Sawangan, Depok. Didirikan untuk memadukan kenyamanan kehidupan suburban dengan kemudahan akses transportasi perkotaan.
+                  Villa Mutiara Mas Cinere merupakan klaster perumahan modern berasitektur minimalis asri yang terletak di kawasan Cinere, Depok. Didirikan untuk memadukan kenyamanan kehidupan suburban dengan kemudahan akses transportasi perkotaan.
                 </p>
                 <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                   Saat ini, kepengurusan RT di bawah pimpinan <strong>Pak Bambang Mulyono</strong> berkomitmen untuk mengadopsi teknologi digital demi melayani warganya dengan lebih responsif, transparan, dan inklusif.
@@ -186,15 +186,15 @@ export default function Profil() {
             
             {/* Level 1: Ketua RT */}
             <div className="relative flex flex-col items-center">
-              <div className="relative group p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg text-center w-72 transition-all duration-300 hover:scale-[1.03] hover:shadow-emerald-500/10">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-300"></div>
+              <div className="relative group p-6 rounded-3xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 shadow-lg text-center w-72 transition-all duration-300 hover:scale-[1.03] hover:shadow-orange-500/10">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-orange-500 to-amber-500 rounded-3xl blur opacity-10 group-hover:opacity-20 transition duration-300"></div>
                 <div className="relative flex flex-col items-center space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-500 text-white flex items-center justify-center font-extrabold text-xl shadow-lg">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-extrabold text-xl shadow-lg">
                     {pengurusList[0].initials}
                   </div>
                   <div>
                     <h4 className="font-extrabold text-slate-950 dark:text-white text-lg">{pengurusList[0].name}</h4>
-                    <span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold mt-1 inline-block">
+                    <span className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-xs font-bold mt-1 inline-block">
                       {pengurusList[0].role}
                     </span>
                   </div>

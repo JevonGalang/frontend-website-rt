@@ -56,7 +56,7 @@ export default function OtpVerificationModal({
         setResendSuccess('');
 
         try {
-          const response = await fetch('/api/auth/request-otp', {
+          const response = await fetch('http://172.20.32.85:3333/auth/request-otp', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: parseInt(userId) })
@@ -150,7 +150,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('/api/auth/request-otp', {
+      const response = await fetch('http://172.20.32.85:3333/auth/request-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: parseInt(userId) })
@@ -194,7 +194,7 @@ export default function OtpVerificationModal({
     setResendSuccess('');
 
     try {
-      const response = await fetch('/api/auth/verify-otp', {
+      const response = await fetch('http://172.20.32.85:3333/auth/verify-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,8 +251,8 @@ export default function OtpVerificationModal({
 
         {/* Header Info */}
         <div className="text-center space-y-3 pt-2">
-          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 dark:from-emerald-500/30 dark:to-teal-500/30 border border-emerald-500/40 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/10">
-            <Mail className="w-7 h-7 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 dark:from-orange-500/30 dark:to-amber-500/30 border border-orange-500/40 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/10">
+            <Mail className="w-7 h-7 text-orange-600 dark:text-orange-400 animate-pulse" />
           </div>
           <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
             {title}
@@ -261,7 +261,7 @@ export default function OtpVerificationModal({
             {subtitle || (email ? (flowType === 'user_login' ? 'Kode OTP baru telah otomatis dikirimkan ke email Anda. Masukkan 6 digit kode tersebut untuk mengaktifkan akun:' : 'Masukkan 6 digit kode OTP yang telah dikirimkan ke email:') : 'Masukkan 6 digit kode verifikasi OTP yang telah dikirimkan ke alamat email terdaftar:')}
           </p>
           {email ? (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl text-emerald-800 dark:text-emerald-300 font-mono font-bold text-xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 rounded-xl text-orange-800 dark:text-orange-300 font-mono font-bold text-xs">
               <span>📧</span>
               <span className="break-all">{email}</span>
             </div>
@@ -288,8 +288,8 @@ export default function OtpVerificationModal({
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-mono font-black rounded-xl border-2 outline-none p-0 transition-all ${
                   digit 
-                    ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/20' 
-                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+                    ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm shadow-orange-500/20' 
+                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
                 }`}
               />
             ))}
@@ -316,14 +316,14 @@ export default function OtpVerificationModal({
             {otpTimer > 0 ? (
               <p className="text-xs text-slate-400 font-semibold flex items-center justify-center gap-1.5">
                 <span>Tidak menerima kode? Kirim ulang dalam</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">{otpTimer}s</span>
+                <span className="font-mono font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md">{otpTimer}s</span>
               </p>
             ) : (
               <button
                 type="button"
                 disabled={isResending}
                 onClick={handleResendOtp}
-                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 flex items-center justify-center gap-1.5 mx-auto hover:underline cursor-pointer bg-emerald-500/10 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                className="text-xs font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center justify-center gap-1.5 mx-auto hover:underline cursor-pointer bg-orange-500/10 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
               >
                 {isResending ? (
                   <>
@@ -352,7 +352,7 @@ export default function OtpVerificationModal({
             <button
               type="submit"
               disabled={!isComplete || isVerifying || isResending}
-              className="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-emerald-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
+              className="flex-1 py-3 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
             >
               {isVerifying ? (
                 <>

@@ -2,6 +2,7 @@ import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { X, Lock, User, UserPlus, LogIn, CheckCircle2, ShieldAlert } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
+import { setSession } from '../utils/authSession';
 
 export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, setCurrentUser }) {
   const [activeTab, setActiveTab] = useState('login'); // 'login' | 'register'
@@ -40,8 +41,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         username: 'admin',
         role: 'admin',
       };
+      setSession(adminUser, 'dummy_admin_token');
       setCurrentUser(adminUser);
-      localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
       setSuccess('Login Admin Berhasil! Mengalihkan...');
       setTimeout(() => {
         setSuccess('');
@@ -52,7 +53,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Call API Login to check credentials & verification status
     try {
-      const response = await fetch('/api/post/login', {
+      const response = await fetch('http://172.20.32.85:3333/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,10 +81,6 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
       if (response.ok && resData.token && resData.user) {
         setSuccess('Login Berhasil! Mengalihkan...');
-        try {
-          localStorage.setItem('rt_token', resData.token);
-          localStorage.setItem('rt_token_time', new Date().getTime().toString());
-        } catch (e) {}
 
         const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
         const citizenUser = {
@@ -97,8 +94,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
         };
 
+        setSession(citizenUser, resData.token);
         setCurrentUser(citizenUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
         setTimeout(() => {
           setSuccess('');
           onClose();
@@ -122,8 +119,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         ...citizen,
         role: 'warga',
       };
+      setSession(citizenUser, 'dummy_citizen_token');
       setCurrentUser(citizenUser);
-      localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
       setSuccess(`Selamat datang kembali, ${citizen.name}!`);
       setTimeout(() => {
         setSuccess('');
@@ -198,7 +195,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
 
     // Send register request to backend
     try {
-      const res = await fetch('/api/post/register', {
+      const res = await fetch('http://172.20.32.85:3333/post/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -243,8 +240,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       ...newCitizen,
       role: 'warga',
     };
+    setSession(citizenUser, 'dummy_citizen_token');
     setCurrentUser(citizenUser);
-    localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
 
     setSuccess('Registrasi berhasil! Anda telah otomatis masuk.');
     setTimeout(() => {
@@ -277,8 +274,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           username: 'admin',
           role: 'admin',
         };
+        setSession(adminUser, 'dummy_admin_token');
         setCurrentUser(adminUser);
-        localStorage.setItem('rt_current_user', JSON.stringify(adminUser));
         setSuccess('Login Admin Berhasil! Mengalihkan...');
         setTimeout(() => {
           setSuccess('');
@@ -291,8 +288,8 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         const citizen = wargaList.find((w) => w.username === 'warga');
         if (citizen) {
           const citizenUser = { ...citizen, role: 'warga' };
+          setSession(citizenUser, 'dummy_citizen_token');
           setCurrentUser(citizenUser);
-          localStorage.setItem('rt_current_user', JSON.stringify(citizenUser));
           setSuccess(`Selamat datang kembali, ${citizen.name}!`);
           setTimeout(() => {
             setSuccess('');
@@ -314,7 +311,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
       {/* Modal Container */}
       <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col">
         {/* Header Ribbon */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500"></div>
 
         {/* Close Button */}
         <button 
@@ -328,11 +325,11 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
         <div className="overflow-y-auto p-6 sm:p-8 flex-1">
           {/* Brand Header */}
           <div className="text-center mb-6 mt-2">
-            <h3 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-400 dark:to-teal-300 bg-clip-text text-transparent">
-              Sawangan Green Park
+            <h3 className="text-2xl font-extrabold bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 bg-clip-text text-transparent">
+              Villa Mutiara Mas Cinere
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-widest font-semibold mt-1">
-              Portal Warga & Admin
+              Portal Warga & Admin • RT 05 / RW 11
             </p>
           </div>
 
@@ -346,7 +343,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-4 h-4 text-orange-500" />
               <span>Masuk</span>
             </button>
             <button
@@ -357,7 +354,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
               }`}
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-4 h-4 text-amber-500" />
               <span>Daftar Warga</span>
             </button>
           </div>
@@ -389,7 +386,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Masukkan username atau NIK"
                     value={loginData.username}
                     onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -404,14 +401,14 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Masukkan password"
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-505 dark:from-emerald-500 dark:to-teal-400 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 text-white font-bold text-sm cursor-pointer transition-all mt-2"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-orange-500/20 text-white font-bold text-sm cursor-pointer transition-all mt-2"
               >
                 Masuk ke Akun
               </button>
@@ -425,7 +422,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <button
                     type="button"
                     onClick={() => handleQuickLogin('warga')}
-                    className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl flex flex-col items-center text-center gap-1 cursor-pointer transition-all"
+                    className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-orange-500 dark:hover:border-orange-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl flex flex-col items-center text-center gap-1 cursor-pointer transition-all"
                   >
                     <span className="text-xs font-bold text-slate-805 dark:text-slate-200">Akun Warga</span>
                     <span className="text-[10px] text-slate-450 dark:text-slate-500 font-mono">warga / warga</span>
@@ -433,7 +430,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <button
                     type="button"
                     onClick={() => handleQuickLogin('admin')}
-                    className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl flex flex-col items-center text-center gap-1 cursor-pointer transition-all"
+                    className="py-2.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-orange-500 dark:hover:border-orange-400 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl flex flex-col items-center text-center gap-1 cursor-pointer transition-all"
                   >
                     <span className="text-xs font-bold text-slate-805 dark:text-slate-200">Akun Admin RT</span>
                     <span className="text-[10px] text-slate-450 dark:text-slate-500 font-mono">admin / admin</span>
@@ -453,7 +450,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Nama sesuai KTP"
                     value={registerData.name}
                     onChange={(e) => setRegisterData({ ...registerData, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
 
@@ -465,7 +462,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Buat username"
                     value={registerData.username}
                     onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -480,7 +477,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Nomor Induk Kependudukan"
                     value={registerData.nik}
                     onChange={(e) => setRegisterData({ ...registerData, nik: e.target.value.replace(/\D/g, '') })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
 
@@ -493,7 +490,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Nomor Kartu Keluarga"
                     value={registerData.noKk}
                     onChange={(e) => setRegisterData({ ...registerData, noKk: e.target.value.replace(/\D/g, '') })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -504,7 +501,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <select
                     value={registerData.gender}
                     onChange={(e) => setRegisterData({ ...registerData, gender: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all cursor-pointer"
                   >
                     <option value="Laki-laki" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Laki-laki</option>
                     <option value="Perempuan" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Perempuan</option>
@@ -521,7 +518,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Usia"
                     value={registerData.usia}
                     onChange={(e) => setRegisterData({ ...registerData, usia: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -532,7 +529,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                   <select
                     value={registerData.status}
                     onChange={(e) => setRegisterData({ ...registerData, status: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all cursor-pointer"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all cursor-pointer"
                   >
                     <option value="Tetap" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Tetap</option>
                     <option value="Kontrak" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Kontrak</option>
@@ -547,7 +544,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                     placeholder="Password akun"
                     value={registerData.password}
                     onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
                   />
                 </div>
               </div>
@@ -557,16 +554,16 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
                 <textarea
                   required
                   rows={2}
-                  placeholder="Contoh: Sawangan Green Park Blok B3 No. 12"
+                  placeholder="Contoh: Villa Mutiara Mas Cinere Blok B3 No. 12"
                   value={registerData.alamat}
                   onChange={(e) => setRegisterData({ ...registerData, alamat: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all resize-none"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all resize-none"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-505 dark:from-emerald-500 dark:to-teal-400 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 text-white font-bold text-sm cursor-pointer transition-all mt-3"
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-orange-500/20 text-white font-bold text-sm cursor-pointer transition-all mt-3"
               >
                 Daftar & Masuk
               </button>

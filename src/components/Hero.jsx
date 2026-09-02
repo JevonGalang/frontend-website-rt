@@ -1,12 +1,88 @@
 import { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import { 
-  Users, Calendar, Wallet, CheckCircle2, BarChart2, BookOpen, Layers, 
+  Users, Calendar, Wallet, CheckCircle2, BarChart2, BookOpen, Layers, FileText,
   Lock, User, LogIn, ShieldAlert, Eye, EyeOff, Loader2,
   MapPin, Phone, Mail, Home, TrendingUp, TrendingDown, PieChart, Activity,
-  Clock, AlertTriangle, Shield, Building2, Megaphone
+  Clock, AlertTriangle, Shield, Building2, Megaphone, Landmark, GraduationCap,
+  Camera, Play, Video, Image, Sparkles, Filter, Maximize2, X,
+  Award, Heart
 } from 'lucide-react';
+import dummyImg1 from '../assets/dummy/dummy_1.png';
+import dummyImg2 from '../assets/dummy/dummy_2.png';
+import dummyImg3 from '../assets/dummy/dummy_3.jpg';
+import dummyImg4 from '../assets/dummy/dummy_4.jpg';
+import dummyImg5 from '../assets/dummy/dummy_5.jpg';
 import OtpVerificationModal from './OtpVerificationModal';
+import { setSession } from '../utils/authSession';
+
+// ═════════════════════════════════════════════════════════════════════════
+// DUMMY CMS DATA TEMPLATE: Siap dihubungkan ke Endpoint API / Database CMS
+// ═════════════════════════════════════════════════════════════════════════
+const DUMMY_DOKUMENTASI = [
+  {
+    id: 'doc-1',
+    title: 'Kerja Bakti Massal & Penghijauan Taman',
+    category: 'Gotong Royong',
+    type: 'image',
+    date: '20 Agustus 2026',
+    location: 'Taman Utama & Jalur Hijau RT 05',
+    thumbnail: dummyImg1,
+    description: 'Kegiatan gotong royong rutin warga dalam merapikan fasilitas umum, pembersihan saluran drainase, dan penanaman pohon peneduh di lingkungan komplek.'
+  },
+  {
+    id: 'doc-2',
+    title: 'Semarak Perayaan & Pentas Seni HUT RI ke-81',
+    category: 'HUT RI',
+    type: 'video',
+    duration: '03:24',
+    date: '17 Agustus 2026',
+    location: 'Lapangan Serbaguna RT 05 / RW 11',
+    thumbnail: dummyImg2,
+    description: 'Dokumentasi video kemeriahan lomba anak-anak, karnaval kostum daerah, serta malam panggung gembira perayaan kemerdekaan RI warga Villa Mutiara Mas Cinere.'
+  },
+  {
+    id: 'doc-3',
+    title: 'Senam Sehat Bugar & Jalan Santai Keluarga',
+    category: 'Olahraga',
+    type: 'image',
+    date: '10 Agustus 2026',
+    location: 'Area Bundaran Utama Komplek',
+    thumbnail: dummyImg3,
+    description: 'Aktivitas kebugaran jasmani bersama instruktur profesional dilanjutkan jalan santai keluarga untuk mempererat tali silaturahmi antarwarga.'
+  },
+  {
+    id: 'doc-4',
+    title: 'Layanan Posyandu Balita & Skrining Lansia',
+    category: 'Kesehatan',
+    type: 'image',
+    date: '05 Agustus 2026',
+    location: 'Balai Warga RW 011',
+    thumbnail: dummyImg4,
+    description: 'Pemeriksaan kesehatan berkala, imunisasi balita, penimbangan berat badan, dan cek tensi/gula darah gratis untuk lansia bekerjasama dengan Puskesmas Cinere.'
+  },
+  {
+    id: 'doc-5',
+    title: 'Turnamen Badminton Antar-RT Se-RW 11',
+    category: 'Olahraga',
+    type: 'image',
+    date: '28 Juli 2026',
+    location: 'Gedung Olahraga (GOR) Komunitas',
+    thumbnail: dummyImg5,
+    description: 'Kompetisi bulutangkis ganda putra dan campuran yang diikuti perwakilan warga RT 001 hingga RT 009 dalam rangka menjunjung sportivitas.'
+  },
+  {
+    id: 'doc-6',
+    title: 'Rapat Koordinasi & Rembug Warga Triwulan III',
+    category: 'Sosial',
+    type: 'video',
+    duration: '01:50',
+    date: '15 Juli 2026',
+    location: 'Ruang Pertemuan Balai Warga',
+    thumbnail: dummyImg3,
+    description: 'Musyawarah keterbukaan anggaran kas RT, evaluasi program kebersihan lingkungan, serta pembahasan rencana perbaikan pos keamanan portal.'
+  }
+];
 
 export default function Hero({ 
   totalKK, 
@@ -24,7 +100,7 @@ export default function Hero({
   totalPengeluaran = 0
 }) {
   const [activeTab, setActiveTab] = useState('summary'); // 'summary' | 'chart' | 'ledger'
-  const [activeMainTab, setActiveMainTab] = useState(currentUser ? 'info' : 'login'); // 'login' | 'info'
+  const [activeMainTab, setActiveMainTab] = useState('login'); // 'login' | 'info'
 
   // Login form states
   const [loginData, setLoginData] = useState({ username: '', password: '' });
@@ -38,6 +114,92 @@ export default function Hero({
     email: ''
   });
 
+  // Documentation / Gallery states (Pure API: GET /post/arsip-media)
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [serverArchives, setServerArchives] = useState([]);
+  const [isLoadingArchives, setIsLoadingArchives] = useState(false);
+
+  const fetchPublicArchives = async () => {
+    try {
+      setIsLoadingArchives(true);
+      const res = await fetch('http://172.20.32.85:3333/post/arsip-media?limit=24');
+      if (res.ok) {
+        const data = await res.json();
+        
+        // Extract array from backend response
+        let rawItems = [];
+        if (Array.isArray(data)) {
+          rawItems = data;
+        } else if (Array.isArray(data.output?.pesan?.items)) {
+          rawItems = data.output.pesan.items;
+        } else if (Array.isArray(data.output?.pesan)) {
+          rawItems = data.output.pesan;
+        } else if (Array.isArray(data.output?.items)) {
+          rawItems = data.output.items;
+        } else if (Array.isArray(data.output?.data)) {
+          rawItems = data.output.data;
+        } else if (Array.isArray(data.output)) {
+          rawItems = data.output;
+        } else if (Array.isArray(data.items)) {
+          rawItems = data.items;
+        }
+
+        if (rawItems.length > 0) {
+          const mapped = rawItems.map(item => {
+            const rawUrl = item.media_url || (item.id ? `/post/arsip-media/${item.id}/file` : '');
+            const fullUrl = rawUrl 
+              ? (rawUrl.startsWith('http') ? rawUrl : `http://172.20.32.85:3333${rawUrl.startsWith('/') ? '' : '/'}${rawUrl}`)
+              : `http://172.20.32.85:3333/post/arsip-media/${item.id}/file`;
+            
+            const isVideo = 
+              (item.media_type && item.media_type.toLowerCase().includes('video')) || 
+              (item.mime_type && item.mime_type.toLowerCase().includes('video')) ||
+              /\.(mp4|webm|mov|mkv|avi|mpeg)$/i.test(item.original_name || item.media_url || item.judul || item.name || '');
+
+            return {
+              id: item.id || `arc-${Math.random()}`,
+              title: item.judul || item.title || item.name || 'Dokumentasi Kegiatan',
+              category: item.kategori || item.category || 'Dokumentasi Umum',
+              type: isVideo ? 'video' : 'image',
+              mime_type: item.mime_type || (isVideo ? 'video/mp4' : 'image/jpeg'),
+              date: item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Dokumentasi Lingkungan',
+              location: 'Lingkungan RT 05',
+              thumbnail: fullUrl,
+              media_url: fullUrl,
+              description: item.judul || item.description || 'Dokumentasi kegiatan warga RT 05.',
+              file_size: item.file_size
+            };
+          });
+          setServerArchives(mapped);
+          console.info('[Hero] Galeri arsip media berhasil dimuat dari API backend:', mapped.length, 'item');
+        } else {
+          setServerArchives([]);
+        }
+      } else {
+        console.warn(`[Hero] API /post/arsip-media respon status ${res.status}.`);
+      }
+    } catch (err) {
+      console.warn('[Hero] Gagal memuat arsip media dari API server:', err.message);
+    } finally {
+      setIsLoadingArchives(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPublicArchives();
+  }, []);
+
+  const activeDokumentasiList = serverArchives.length > 0 ? serverArchives : DUMMY_DOKUMENTASI;
+
+  const filteredDokumentasi = selectedCategory === 'all'
+    ? activeDokumentasiList
+    : selectedCategory === 'image'
+    ? activeDokumentasiList.filter(d => d.type === 'image')
+    : selectedCategory === 'video'
+    ? activeDokumentasiList.filter(d => d.type === 'video')
+    : activeDokumentasiList.filter(d => (d.category || '').toLowerCase() === selectedCategory.toLowerCase());
+
   // Modal dialog for Emergency Call
   const handleEmergencyClick = (emg) => {
     Swal.fire({
@@ -45,9 +207,9 @@ export default function Hero({
       html: `
         <div class="space-y-3 text-left font-sans text-xs pt-2">
           <p class="text-slate-500 font-medium">${emg.subtitle}</p>
-          <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center">
+          <div class="p-3 bg-orange-500/10 border border-orange-500/20 rounded-xl text-center">
             <span class="block text-slate-400 text-[10px] font-bold uppercase tracking-wider">Nomor Siaga Utama</span>
-            <span class="text-lg font-black font-mono text-emerald-600">${emg.phone}</span>
+            <span class="text-lg font-black font-mono text-orange-600">${emg.phone}</span>
             <span class="block text-[10px] text-slate-400 font-medium mt-1">${emg.altPhone}</span>
           </div>
           <p class="text-[10px] text-slate-400 italic text-center">Tekan 'Panggil Sekarang' untuk menghubungi kontak darurat secara langsung.</p>
@@ -68,13 +230,13 @@ export default function Hero({
 
   // Modal dialog for Service Requirement Guide
   const handleShowGuideModal = (srv) => {
-    const reqList = srv.requirements.map(r => `<li class="flex items-center gap-2 text-slate-700 font-semibold py-1 border-b border-slate-100"><span class="text-emerald-500 font-bold">✓</span> ${r}</li>`).join('');
+    const reqList = srv.requirements.map(r => `<li class="flex items-center gap-2 text-slate-700 font-semibold py-1 border-b border-slate-100"><span class="text-orange-500 font-bold">✓</span> ${r}</li>`).join('');
     Swal.fire({
       title: `📋 ${srv.title}`,
       html: `
         <div class="space-y-3 text-left font-sans text-xs pt-2">
           <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-            <span class="font-bold text-emerald-600 uppercase text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-md">${srv.category}</span>
+            <span class="font-bold text-orange-600 uppercase text-[10px] bg-orange-500/10 px-2 py-0.5 rounded-md">${srv.category}</span>
             <span class="text-slate-500 font-bold text-[10px]">⏱️ Estimasi: ${srv.estimate}</span>
           </div>
           <div>
@@ -153,7 +315,7 @@ export default function Hero({
     }
 
     try {
-      const response = await fetch('/api/post/login', {
+      const response = await fetch('http://172.20.32.85:3333/post/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,8 +349,6 @@ export default function Hero({
       }
 
       setSuccess('Login Berhasil! Mengalihkan...');
-      localStorage.setItem('rt_token', resData.token);
-      localStorage.setItem('rt_token_time', new Date().getTime().toString());
 
       const localCitizen = wargaList.find(w => w.username.toLowerCase() === resData.user.username.toLowerCase());
       
@@ -200,13 +360,14 @@ export default function Hero({
         role: resData.user.role,
         familyId: resData.user.family_id,
         must_change_password: resData.user.must_change_password,
-        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
+        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Moch. Taufik)' : resData.user.username)
       };
+
+      setSession(userSession, resData.token);
 
       setTimeout(() => {
         setIsLoggingIn(false);
         setCurrentUser(userSession);
-        localStorage.setItem('rt_current_user', JSON.stringify(userSession));
         
         // Push user redirect
         if (userSession.role === 'warga') {
@@ -222,7 +383,7 @@ export default function Hero({
   const handleOtpSuccess = () => {
     setUnverifiedOtpState({ isOpen: false, userId: null, email: '' });
 
-    // Flow 2: Use in-memory state only. If credentials exist in React state, re-trigger login.
+    // Flow 2: If credentials exist in React state, re-trigger login.
     if (loginData.username && loginData.password) {
       Swal.fire({
         title: 'Verifikasi Berhasil! 🎉',
@@ -239,7 +400,7 @@ export default function Hero({
         title: 'Verifikasi Berhasil! 🎉',
         text: 'Akun Anda telah berhasil diverifikasi. Silakan masukkan kata sandi Anda untuk masuk.',
         icon: 'success',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: '#f97316',
         confirmButtonText: 'Masuk Sekarang'
       });
     }
@@ -248,22 +409,21 @@ export default function Hero({
   return (
     <section
       id="beranda"
-      className="relative min-h-screen pt-4 sm:pt-6 pb-16 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
+      className="relative min-h-screen pt-6 sm:pt-10 pb-20 flex flex-col items-center justify-center overflow-hidden bg-[var(--color-canvas)] text-[var(--color-ink)]"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col justify-center font-sans">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full flex-grow flex flex-col justify-center font-sans relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           
           {/* Welcoming Text Column */}
           <div className="lg:col-span-7 text-center lg:text-left space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[10px] font-bold tracking-wider uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent-purple)]"></span>
-              Selamat Datang Warga Sawangan Green Park
+            <div className="text-orange-600 dark:text-orange-400 text-xs sm:text-sm font-extrabold tracking-wider uppercase">
+              Portal Informasi & Layanan Mandiri RT 05
             </div>
             
-            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
-              Portal Resmi <br className="hidden sm:inline" />
-              <span className="text-[var(--color-accent-green)]">
-                Rukun Tetangga RT 05 <br/> RW 06
+            <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
+              Selamat Datang di Portal <br className="hidden sm:inline" />
+              <span className="bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 bg-clip-text text-transparent">
+                Villa Mutiara Cinere
               </span>
             </h1>
             
@@ -271,57 +431,80 @@ export default function Hero({
               Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 05 secara instan dan terbuka.
             </p>
 
-            {/* Quick trust badges */}
-            <div className="pt-1 flex flex-wrap items-center justify-center lg:justify-start gap-3 sm:gap-6 text-[var(--color-body-mid)] text-[11px] sm:text-xs font-semibold">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
-                <span>Pelayanan Cepat</span>
+            {/* Characteristics Card (Option 3: 2-Column Split with Individual Lucide Icons) */}
+            <div className="w-full p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs text-left space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    Karakteristik & Fasilitas Wilayah
+                  </span>
+                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                    Villa Mutiara Cinere
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
-                <span>Kas Transparan</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--color-accent-green)] shrink-0" />
-                <span>Upload Mandiri</span>
+
+              {/* 2-Column Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                
+                {/* 1. Kawasan Perumahan */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    Kawasan perumahan menengah terdiri dari 9 RT
+                  </p>
+                </div>
+
+                {/* 2. Sarana Ibadah */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
+                    <Landmark className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    Memiliki sarana ibadah
+                  </p>
+                </div>
+
+                {/* 3. Fasilitas Olahraga */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    Memiliki fasilitas olahraga
+                  </p>
+                </div>
+
+                {/* 4. Sarana Pendidikan */}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
+                  <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <GraduationCap className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                    Terdapat pendidikan anak usia dini dan TKIT
+                  </p>
+                </div>
+
               </div>
             </div>
           </div>
           
           {/* Summary / Access Portal Column (Right Side) */}
           <div className="lg:col-span-5 flex justify-center w-full">
-            <div className="w-full max-w-md">
-              
+            <div className="relative w-full max-w-md">
               {/* Core Feature Card (rounded-md with hairline border) */}
               <div className="bg-[var(--color-canvas)] border border-[var(--color-hairline)] rounded-xl sm:rounded-md p-4 sm:p-6 lg:p-8 space-y-5 sm:space-y-6 shadow-md w-full">
                 
-                {/* Main Access Tabs (Only shown if guest) */}
+                {/* Main Access Header (Shown if guest) */}
                 {!currentUser ? (
-                  <div className="flex bg-slate-50 dark:bg-slate-950 p-1 rounded-sm border border-[var(--color-hairline)] text-[10px] sm:text-xs font-bold gap-1 font-sans">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMainTab('login')}
-                      className={`flex-1 py-2 rounded-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        activeMainTab === 'login' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)]' 
-                          : 'text-[var(--color-body-mid)] hover:text-[var(--color-ink)]'
-                      }`}
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Portal Login</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveMainTab('info')}
-                      className={`flex-1 py-2 rounded-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        activeMainTab === 'info' 
-                          ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)]' 
-                          : 'text-[var(--color-body-mid)] hover:text-[var(--color-ink)]'
-                      }`}
-                    >
-                      <BarChart2 className="w-3.5 h-3.5" />
-                      <span>Info & Kas RT</span>
-                    </button>
+                  <div className="flex bg-slate-50 dark:bg-slate-950 p-2 rounded-sm border border-[var(--color-hairline)] text-xs font-bold font-sans items-center justify-center gap-2 text-[var(--color-ink)]">
+                    <Lock className="w-4 h-4 text-[var(--color-primary-wf)]" />
+                    <span>Portal Login Warga & Staf</span>
                   </div>
                 ) : (
                   /* Welcome card for logged in user */
@@ -337,7 +520,7 @@ export default function Hero({
                 )}
 
                 {/* TAB CONTENT: DIRECT LOGIN PANEL */}
-                {activeMainTab === 'login' && !currentUser && (
+                {!currentUser && (
                   <div className="space-y-4 animate-fade-in font-sans">
                     <div className="space-y-1">
                       <h3 className="text-base font-extrabold text-[var(--color-ink)]">Gerbang Masuk Warga & Staf</h3>
@@ -345,19 +528,17 @@ export default function Hero({
                     </div>
 
                     <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs font-semibold">
-                      {error && (
+                      {error ? (
                         <div className="p-3 bg-[var(--color-accent-red)]/10 border border-[var(--color-accent-red)]/20 text-[var(--color-accent-red)] rounded-sm flex items-center gap-2">
                           <ShieldAlert className="w-4 h-4 shrink-0" />
                           <span>{error}</span>
                         </div>
-                      )}
-
-                      {success && (
+                      ) : success ? (
                         <div className="p-3 bg-[var(--color-accent-green)]/10 border border-[var(--color-accent-green)]/20 text-[var(--color-accent-green)] rounded-sm flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 shrink-0" />
+                          <CheckCircle2 className="w-4 h-4 shrink-0 animate-pulse" />
                           <span>{success}</span>
                         </div>
-                      )}
+                      ) : null}
 
                       <div className="space-y-1.5">
                         <label className="text-[var(--color-body-text)]">Username atau NIK Warga *</label>
@@ -422,7 +603,7 @@ export default function Hero({
                 )}
 
                 {/* TAB CONTENT: STATS & INFOGRAPHICS */}
-                {(activeMainTab === 'info' || currentUser) && (
+                {currentUser && (
                   <div className="space-y-6 animate-fade-in font-sans">
                     {/* Tab controls */}
                     <div className="flex bg-slate-55 bg-slate-105 p-1 rounded-sm border border-[var(--color-hairline)] text-[10px] font-bold">
@@ -600,15 +781,306 @@ export default function Hero({
           
         </div>
 
-                {/* ═══════════════════════════════════════════════════════════════════
-            QUICK ACCESS PORTAL & INFORMASI DASHBOARD
+        {/* ═══════════════════════════════════════════════════════════════════
+            DOKUMENTASI & GALERI KEGIATAN WARGA (DUMMY CMS GRID TEMPLATE)
             ═══════════════════════════════════════════════════════════════════ */}
+        {!currentUser && (
+          <div className="mt-16 pt-12 border-t border-[var(--color-hairline)] w-full font-sans space-y-8 animate-fade-in">
+            {/* Section Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
+              <div className="space-y-2">
+                <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center gap-1.5 w-fit">
+                  <Camera className="w-3.5 h-3.5 text-orange-500" /> Galeri & Momen Lingkungan
+                </span>
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight">
+                  Dokumentasi Kegiatan Warga
+                </h2>
+                <p className="text-xs sm:text-sm text-[var(--color-body-mid)] max-w-xl">
+                  Dokumentasi acara kegiatan warga Villa Mutiara Mas Cinere
+                </p>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded-xl border border-[var(--color-hairline)] text-xs font-bold">
+                {[
+                  { id: 'all', label: 'Semua' },
+                  { id: 'image', label: 'Foto' },
+                  { id: 'video', label: 'Video' },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setSelectedCategory(tab.id)}
+                    className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                      selectedCategory === tab.id
+                        ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-xs font-black'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Grid 6 Items (3 columns on lg, 2 on sm, 1 on mobile) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+              {filteredDokumentasi.map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedMedia(item)}
+                  className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-xs hover:shadow-lg hover:border-orange-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between text-left"
+                >
+                  {/* Thumbnail Container */}
+                  <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
+                    {item.type === 'video' ? (
+                      item.media_url ? (
+                        <div className="w-full h-full relative flex items-center justify-center bg-slate-950">
+                          <video
+                            src={`${item.media_url}#t=0.5`}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            crossOrigin="anonymous"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                        </div>
+                      ) : (
+                        <div className="w-full h-full relative">
+                          <img
+                            src={item.thumbnail || dummyImg3}
+                            alt={item.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <img
+                          src={item.thumbnail || item.media_url}
+                          alt={item.title}
+                          crossOrigin="anonymous"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = dummyImg1;
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
+                      </>
+                    )}
+
+                    {/* Top Badges */}
+                    <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+                      <span className="px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider">
+                        {item.category}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-lg bg-orange-600/90 backdrop-blur-md text-white text-[10px] font-bold flex items-center gap-1">
+                        {item.type === 'video' ? (
+                          <>
+                            <Play className="w-3 h-3 fill-current" />
+                            <span>{item.duration || 'Video'}</span>
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="w-3 h-3" />
+                            <span>Foto</span>
+                          </>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Center Play Button for Video */}
+                    {item.type === 'video' && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-orange-600/90 text-white flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-orange-500 transition-all duration-300">
+                          <Play className="w-5 h-5 fill-current ml-0.5" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3 h-3 text-orange-500" />
+                          {item.date}
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 truncate max-w-[140px]">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          {item.location}
+                        </span>
+                      </div>
+
+                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-1">
+                        {item.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium">
+                        {item.description}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-orange-600 dark:text-orange-400">
+                      <span>Lihat Dokumentasi</span>
+                      <Maximize2 className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ═══════════════════════════════════════════════════════════════════
+                TENTANG VILLA MUTIARA MAS CINERE (PROFIL SINGKAT)
+                ═══════════════════════════════════════════════════════════════════ */}
+            <div className="pt-14 border-t border-[var(--color-hairline)] w-full font-sans space-y-6">
+              {/* Section Header */}
+              <div className="text-center max-w-2xl mx-auto space-y-2">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight">
+                  Tentang Villa Mutiara Cinere
+                </h2>
+              </div>
+
+              {/* Clean Single Profile Card */}
+              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-8 space-y-3 shadow-xs text-left max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold text-xs uppercase tracking-wider">
+                  <Landmark className="w-4 h-4" />
+                  <span>Profil Perumahan</span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                  Villa Mutiara Mas Cinere merupakan kawasan hunian perumahan menengah yang terletak di Kelurahan Grogol, Kecamatan Limo, Kota Depok. Memadukan kenyamanan kehidupan perumahan asri, tertib, dan aman dengan sistem tata kelola lingkungan RT 05 yang transparan dan berbasis digital demi kemudahan pelayanan mandiri seluruh warga.
+                </p>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════════
+                  BAGAN STRUKTUR PENGURUS RT 05
+                  ═══════════════════════════════════════════════════════════════════ */}
+              <div className="pt-6 space-y-8 max-w-4xl mx-auto">
+                <div className="text-center space-y-1.5">
+                  <span className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-extrabold uppercase tracking-wider">
+                    Struktur Organisasi
+                  </span>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                    Bagan Kepengurusan RT 05
+                  </h3>
+                </div>
+
+                {/* Tree Structure Visual */}
+                <div className="flex flex-col items-center justify-center">
+                  
+                  {/* Level 1: Ketua RT */}
+                  <div className="relative flex flex-col items-center z-10">
+                    <div className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-orange-500/40 shadow-md shadow-orange-500/5 hover:border-orange-500 transition-all min-w-[260px] sm:min-w-[290px]">
+                      <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
+                        <User className="w-6 h-6" />
+                      </div>
+                      <div className="text-left space-y-0.5">
+                        <span className="block text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                          Ketua RT 05
+                        </span>
+                        <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+                          Moch. Taufik
+                        </h4>
+                      </div>
+                    </div>
+
+                    {/* Connector line down from Ketua */}
+                    <div className="w-0.5 h-8 bg-orange-500/40 dark:bg-orange-500/30"></div>
+                  </div>
+
+                  {/* Horizontal Crossbar Connector (Desktop) */}
+                  <div className="relative w-full max-w-xl">
+                    <div className="hidden sm:block absolute top-0 left-1/4 right-1/4 h-0.5 bg-orange-500/40 dark:bg-orange-500/30"></div>
+                    <div className="hidden sm:block absolute top-0 left-1/4 w-0.5 h-6 bg-orange-500/40 dark:bg-orange-500/30"></div>
+                    <div className="hidden sm:block absolute top-0 right-1/4 w-0.5 h-6 bg-orange-500/40 dark:bg-orange-500/30"></div>
+
+                    {/* Level 2: Sekretaris & Bendahara Columns */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 pt-0 sm:pt-6 w-full">
+                      
+                      {/* Branch 1: Sekretaris */}
+                      <div className="flex flex-col items-center space-y-3">
+                        {/* Group Header Badge */}
+                        <div className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                          Sekretariat
+                        </div>
+
+                        {/* Member 1: Chika Angraeni */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="text-left min-w-0 flex-1">
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris I</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Chika Angraeni</span>
+                          </div>
+                        </div>
+
+                        {/* Member 2: Ade Chandra */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="text-left min-w-0 flex-1">
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris II</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Ade Chandra</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Branch 2: Bendahara */}
+                      <div className="flex flex-col items-center space-y-3">
+                        {/* Group Header Badge */}
+                        <div className="px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                          Bendahara / Keuangan
+                        </div>
+
+                        {/* Member 1: Bpk. Mulyani R */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="text-left min-w-0 flex-1">
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara I</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Bpk. Mulyani R</span>
+                          </div>
+                        </div>
+
+                        {/* Member 2: Ibu Amaniari */}
+                        <div className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div className="text-left min-w-0 flex-1">
+                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara II</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Ibu Amaniari</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+                {/* ═══════════════════════════════════════════════════════════════════
+            QUICK ACCESS PORTAL & INFORMASI DASHBOARD (HANYA UNTUK USER LOGIN)
+            ═══════════════════════════════════════════════════════════════════ */}
+        {currentUser && (
+          <>
         <div className="mt-16 pt-12 border-t border-[var(--color-hairline)] w-full font-sans space-y-10 sm:space-y-12">
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto space-y-3">
             <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center justify-center gap-1.5 w-fit mx-auto">
-              <Megaphone className="w-3.5 h-3.5 text-emerald-500" /> Akses Cepat & Pusat Informasi RT
+              <Megaphone className="w-3.5 h-3.5 text-orange-500" /> Akses Cepat & Pusat Informasi RT
             </span>
             <h2 className="text-2xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
               Quick Access Portal & Informasi Dashboard
@@ -622,8 +1094,8 @@ export default function Hero({
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
             
             {/* 1. Total Warga */}
-            <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+            <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -661,13 +1133,13 @@ export default function Hero({
             </div>
 
             {/* 4. IPL Sudah Lunas */}
-            <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+            <div className="bg-gradient-to-br from-orange-500/10 via-green-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-orange-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
                 <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
-                  {publicStats?.ipl_lunas || 42} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                  {publicStats?.ipl_lunas || 42} <span className="text-xs text-orange-600 dark:text-orange-400 font-bold">KK</span>
                 </span>
                 <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
               </div>
@@ -687,8 +1159,8 @@ export default function Hero({
             </div>
 
             {/* 6. Surat Masuk */}
-            <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+            <div className="bg-gradient-to-br from-cyan-500/10 via-amber-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+              <div className="p-2.5 sm:p-3 bg-gradient-to-br from-cyan-500 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
                 <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -730,12 +1202,12 @@ export default function Hero({
           {/* ═══════════════════════════════════════════════════════════════════
               MODUL 1: PUSAT KONTAK DARURAT (HARMONIZED COLOR PALETTE)
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-white dark:from-emerald-950/30 dark:via-slate-900 dark:to-slate-900 border border-emerald-500/25 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs space-y-4 sm:space-y-6">
+          <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/30 dark:via-slate-900 dark:to-slate-900 border border-orange-500/25 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs space-y-4 sm:space-y-6">
             
             {/* Unified Header for Emergency Contacts Rumpun */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-emerald-500/20 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-orange-500/20 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 sm:p-3 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                <div className="p-2.5 sm:p-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                   <Phone className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                 </div>
                 <div>
@@ -747,7 +1219,7 @@ export default function Hero({
                   </p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit whitespace-nowrap">
+              <span className="px-3 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit whitespace-nowrap">
                 🚨 Layanan Siaga 24 Jam
               </span>
             </div>
@@ -756,9 +1228,9 @@ export default function Hero({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {[
                 { id: 'emg-1', title: 'Pos Keamanan RT 05', subtitle: 'Keamanan 24 Jam Satpam', phone: '0812-9988-7711', altPhone: 'Ext. Pos Satpam Utama', badge: 'Keamanan', color: 'emerald' },
-                { id: 'emg-2', title: 'Ketua RT 05 Sawangan', subtitle: 'Bpk. Achmad Mulyono', phone: '0812-3456-7890', altPhone: 'Rumah Blok B3 No. 12', badge: 'Pengurus RT', color: 'emerald' },
-                { id: 'emg-3', title: 'Ambulans & Medis Depok', subtitle: 'Layanan Medis Darurat', phone: '119 / (021) 777-8899', altPhone: 'RSUD Depok Sawangan', badge: 'Kesehatan', color: 'emerald' },
-                { id: 'emg-4', title: 'Polsek Sawangan Depok', subtitle: 'Kepolisian Sektor', phone: '(021) 778-5544', altPhone: 'Layanan Pengaduan 110', badge: 'Kepolisian', color: 'emerald' },
+                { id: 'emg-2', title: 'Ketua RT 05 Cinere', subtitle: 'Bpk. Achmad Mulyono', phone: '0812-3456-7890', altPhone: 'Rumah Blok B3 No. 12', badge: 'Pengurus RT', color: 'emerald' },
+                { id: 'emg-3', title: 'Ambulans & Medis Depok', subtitle: 'Layanan Medis Darurat', phone: '119 / (021) 777-8899', altPhone: 'RSUD Depok / Cinere', badge: 'Kesehatan', color: 'emerald' },
+                { id: 'emg-4', title: 'Polsek Cinere Depok', subtitle: 'Kepolisian Sektor', phone: '(021) 778-5544', altPhone: 'Layanan Pengaduan 110', badge: 'Kepolisian', color: 'emerald' },
               ].map((emg) => (
                 <div
                   key={emg.id}
@@ -767,20 +1239,20 @@ export default function Hero({
                       window.open(`tel:${emg.phone.replace(/[^0-9+]/g, '')}`, '_self');
                     }
                   }}
-                  className="bg-white/90 dark:bg-slate-950/80 backdrop-blur-xs border border-slate-200/80 dark:border-slate-800/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-emerald-500/40 dark:hover:border-emerald-500/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                  className="bg-white/90 dark:bg-slate-950/80 backdrop-blur-xs border border-slate-200/80 dark:border-slate-800/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-orange-500/40 dark:hover:border-orange-500/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="p-2 rounded-xl text-white shadow-xs bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20">
+                      <div className="p-2 rounded-xl text-white shadow-xs bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/20">
                         <Phone className="w-3.5 h-3.5" />
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase border bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+                      <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase border bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
                         {emg.badge}
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                         {emg.title}
                       </h4>
                       <p className="text-[10px] text-slate-400 font-medium">{emg.subtitle}</p>
@@ -798,7 +1270,7 @@ export default function Hero({
                       e.stopPropagation();
                       handleEmergencyClick(emg);
                     }}
-                    className="mt-3.5 w-full py-2 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="mt-3.5 w-full py-2 px-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <Phone className="w-3.5 h-3.5" />
                     <span>Hubungi Sekarang</span>
@@ -816,11 +1288,11 @@ export default function Hero({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-emerald-500" /> Panduan Syarat Persuratan Publik
+                  <BookOpen className="w-5 h-5 text-orange-500" /> Panduan Syarat Persuratan Publik
                 </h3>
                 <p className="text-xs text-slate-400">Daftar dokumen persyaratan yang wajib disiapkan sebelum mengajukan permohonan surat pengantar.</p>
               </div>
-              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 w-fit">
+              <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 w-fit">
                 📋 Bebas Akses Tanpa Login
               </span>
             </div>
@@ -839,13 +1311,13 @@ export default function Hero({
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full text-[9px] font-extrabold uppercase">
+                      <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full text-[9px] font-extrabold uppercase">
                         {srv.category}
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">⏱️ {srv.estimate}</span>
                     </div>
 
-                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
                       {srv.title}
                     </h4>
 
@@ -853,7 +1325,7 @@ export default function Hero({
                       <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Persyaratan Utama:</span>
                       {srv.requirements.map((req, idx) => (
                         <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-                          <span className="text-emerald-500 text-xs">✓</span>
+                          <span className="text-orange-500 text-xs">✓</span>
                           <span className="line-clamp-1">{req}</span>
                         </div>
                       ))}
@@ -866,7 +1338,7 @@ export default function Hero({
                       e.stopPropagation();
                       handleShowGuideModal(srv);
                     }}
-                    className="mt-4 w-full py-2 px-3 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-extrabold text-xs rounded-xl border border-emerald-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="mt-4 w-full py-2 px-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-extrabold text-xs rounded-xl border border-orange-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Lihat Panduan Lengkap</span>
@@ -892,7 +1364,7 @@ export default function Hero({
               Pusat Data & Statistik Lingkungan
             </h2>
             <p className="text-xs sm:text-sm text-[var(--color-body-mid)] leading-relaxed max-w-2xl mx-auto">
-              Informasi terbuka kependudukan, keuangan kas RT, dan kepatuhan iuran warga Sawangan Green Park. Seluruh data dapat diakses publik tanpa memerlukan login.
+              Informasi terbuka kependudukan, keuangan kas RT, dan kepatuhan iuran warga Villa Mutiara Mas Cinere. Seluruh data dapat diakses publik tanpa memerlukan login.
             </p>
           </div>
 
@@ -902,7 +1374,7 @@ export default function Hero({
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
                   <Building2 className="w-5 h-5" />
-                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Sawangan Green Park — RT 05</h3>
+                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Villa Mutiara Mas Cinere — RT 05</h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -911,14 +1383,14 @@ export default function Hero({
                       <MapPin className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Alamat Lengkap</span>
-                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Sawangan Green Park, Kel. Sawangan Baru, Kec. Sawangan, Kota Depok, Jawa Barat 16511</span>
+                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Villa Mutiara Mas Cinere, Kel. Cinere, Kec. Cinere, Kota Depok, Jawa Barat 16514</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Home className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Wilayah Cakupan</span>
-                        <span className="text-xs sm:text-sm font-semibold">RT 05 / RW 06</span>
+                        <span className="text-xs sm:text-sm font-semibold">RT 05 / RW 11</span>
                       </div>
                     </div>
                   </div>
@@ -1227,7 +1699,7 @@ export default function Hero({
                       {[
                         { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, color: 'from-[var(--color-accent-blue)] to-[var(--color-accent-blue-deep)]' },
                         { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, color: 'from-[var(--color-accent-purple)] to-[var(--color-accent-pink)]' },
-                        { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, color: 'from-[var(--color-accent-green)] to-teal-500' },
+                        { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, color: 'from-[var(--color-accent-green)] to-amber-500' },
                         { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, color: 'from-[var(--color-accent-orange)] to-yellow-500' },
                       ].map((ag, i) => (
                         <div key={i} className="space-y-1">
@@ -1270,7 +1742,7 @@ export default function Hero({
                   desc: 'Warga yang membayar IPL tepat waktu',
                   icon: <CheckCircle2 className="w-4 h-4" />,
                   iconBg: 'bg-[var(--color-accent-green)]/10 text-[var(--color-accent-green)] border border-[var(--color-accent-green)]/20',
-                  gradient: 'from-[var(--color-accent-green)] to-teal-400'
+                  gradient: 'from-[var(--color-accent-green)] to-amber-400'
                 },
                 { 
                   label: 'Keterlambatan IPL', 
@@ -1354,7 +1826,7 @@ export default function Hero({
                         <td className="py-2.5">
                           <div className="flex items-center gap-2">
                             <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-sm overflow-hidden max-w-[80px]">
-                              <div className="h-full bg-gradient-to-r from-[var(--color-accent-green)] to-teal-400 rounded-sm" style={{ width: `${row.pct}%` }}></div>
+                              <div className="h-full bg-gradient-to-r from-[var(--color-accent-green)] to-amber-400 rounded-sm" style={{ width: `${row.pct}%` }}></div>
                             </div>
                             <span className="text-[var(--color-ink)] font-black">{row.pct}%</span>
                           </div>
@@ -1370,13 +1842,100 @@ export default function Hero({
           {/* Footer note */}
           <div className="mt-8 text-center font-sans">
             <p className="text-[10px] text-[var(--color-mute)] font-semibold">
-              Data statistik ini bersifat terbuka dan dapat diakses oleh seluruh warga maupun pengunjung tanpa harus login ke dalam sistem.
+              Data statistik & informasi dashboard ini khusus dapat diakses oleh warga dan pengurus yang telah terverifikasi dan login ke portal resmi RT.
               <br />Terakhir diperbarui: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}.
             </p>
           </div>
         </div>
+        </>
+        )}
 
       </div>
+
+      {/* Modal Popup Preview Dokumentasi (CMS Ready) */}
+      {selectedMedia && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in font-sans text-left">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
+            
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedMedia(null)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Media Area */}
+            <div className="relative aspect-video w-full bg-black flex items-center justify-center overflow-hidden">
+              {selectedMedia.type === 'video' ? (
+                selectedMedia.media_url ? (
+                  <video
+                    key={selectedMedia.id || selectedMedia.media_url}
+                    controls
+                    autoPlay
+                    playsInline
+                    preload="auto"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-contain bg-black"
+                    src={selectedMedia.media_url}
+                  >
+                    <source src={selectedMedia.media_url} type={selectedMedia.mime_type || 'video/mp4'} />
+                    Browser Anda tidak mendukung pemutar video HTML5.
+                  </video>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center bg-slate-950 text-white space-y-3 p-6 text-center">
+                    <div className="w-16 h-16 rounded-full bg-orange-600 flex items-center justify-center shadow-lg">
+                      <Play className="w-8 h-8 fill-current ml-1" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-300">Video Dokumentasi Kegiatan ({selectedMedia.duration || 'HD'})</span>
+                    <p className="text-[11px] text-slate-500">Video siap diputar otomatis saat dihubungkan ke storage / media server backend</p>
+                  </div>
+                )
+              ) : (
+                <img
+                  src={selectedMedia.media_url || selectedMedia.thumbnail}
+                  alt={selectedMedia.title}
+                  crossOrigin="anonymous"
+                  className="w-full h-full object-contain bg-black"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = dummyImg1;
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Info Area */}
+            <div className="p-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold text-[10px] uppercase tracking-wider">
+                  {selectedMedia.category}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">
+                  {selectedMedia.date} • {selectedMedia.location}
+                </span>
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+                {selectedMedia.title}
+              </h3>
+
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                {selectedMedia.description}
+              </p>
+
+              <div className="pt-3 flex justify-end">
+                <button
+                  onClick={() => setSelectedMedia(null)}
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                >
+                  Tutup Preview
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* OTP Verification Modal for Unverified Citizen Login (Flow 2) */}
       <OtpVerificationModal

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
+import { getSessionToken } from '../utils/authSession';
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -84,10 +85,10 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
   const [serverSubmissions, setServerSubmissions] = useState([]);
 
   const fetchResidentSubmissions = async () => {
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
     if (!token) return;
     try {
-      const res = await fetch('/api/resident/pengajuan', {
+      const res = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) return;
@@ -118,11 +119,11 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     e.preventDefault();
     setIsSubmitting(true);
 
-    const token = localStorage.getItem('rt_token');
+    const token = getSessionToken();
 
     if (token) {
       try {
-        const response = await fetch('/api/resident/pengajuan', {
+        const response = await fetch('http://172.20.32.85:3333/resident/pengajuan', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -336,8 +337,8 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                     name="wargaAlamat"
                     value={formData.wargaAlamat}
                     onChange={handleInputChange}
-                    placeholder="Contoh: Perumahan Sawangan Green Park Blok B3 No. 12"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                    placeholder="Contoh: Villa Mutiara Mas Cinere Blok B3 No. 12"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
                   />
                 </div>
 
@@ -354,7 +355,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                     value={formData.wargaKeperluan}
                     onChange={handleInputChange}
                     placeholder="Contoh: Mengurus kelengkapan dokumen pernikahan anak kandung pertama."
-                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
                   />
                 </div>
 
@@ -362,7 +363,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/15 cursor-pointer transition-all ${
+                  className={`w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-orange-500/20 cursor-pointer transition-all ${
                     isSubmitting ? 'opacity-70 pointer-events-none' : ''
                   }`}
                 >
@@ -390,7 +391,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 </div>
                 <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white">Pengajuan Berhasil Dikirim!</h3>
                 <p className="text-slate-655 dark:text-slate-300 text-sm max-w-md">
-                  Data pengisian Anda sudah tercatat di sistem RT Sawangan Green Park. Ketua RT (Pak Bambang Mulyono) akan segera memproses dokumen Anda.
+                  Data pengisian Anda sudah tercatat di sistem RT 05 Villa Mutiara Mas Cinere. Pengurus RT akan segera memproses dokumen Anda.
                 </p>
               </div>
 
@@ -399,7 +400,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 <div className="text-center pb-4 mb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
                   <h4 className="font-extrabold text-slate-800 dark:text-white text-base">BUKTI PENGAJUAN SURAT PENGANTAR</h4>
                   <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">
-                    RT 05 / RW 06 - Sawangan Green Park
+                    RT 05 / RW 11 - Villa Mutiara Mas Cinere
                   </span>
                   <span className="block text-xs text-slate-500 dark:text-slate-400 mt-2">
                     Tanggal Pengajuan: {submittedData.submissionDate}
@@ -653,12 +654,12 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
               <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
                 {/* KOP SURAT HEADER */}
                 <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 06</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">KUMPULAN WARGA SAWANGAN GREEN PARK</h3>
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
                   <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, Jawa Barat 16511
+                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
                   </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05sawangan@gmail.com | Kontak: +62 812-3456-7890</p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05cinere@gmail.com | Kontak: +62 812-3456-7890</p>
                 </div>
 
                 {/* LETTER CONTENT */}
@@ -669,13 +670,13 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                       {viewingApprovedLetter.wargaTipeSurat}
                     </h5>
                     <span className="text-[10px] font-bold text-slate-600 tracking-wider">
-                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW06 / VII / 2026
+                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW11 / VII / 2026
                     </span>
                   </div>
 
                   {/* Body Text */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 06 Perumahan Sawangan Green Park, Kelurahan Sawangan Baru, Kecamatan Sawangan, Kota Depok, dengan ini menerangkan bahwa:
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
                   </p>
 
                   {/* Citizen Biodata Table */}
@@ -700,7 +701,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                         <td className="font-bold">Alamat Lengkap</td>
                         <td>:</td>
                         <td className="leading-snug">
-                          {viewingApprovedLetter.wargaAlamat || (currentUser && currentUser.alamat) || 'Perumahan Sawangan Green Park, RT 05 RW 06, Kel. Sawangan Baru, Kec. Sawangan, Depok.'}
+                          {viewingApprovedLetter.wargaAlamat || (currentUser && currentUser.alamat) || 'Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Depok.'}
                         </td>
                       </tr>
                     </tbody>
@@ -708,7 +709,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
 
                   {/* Purpose Paragraph */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 06 Perumahan Sawangan Green Park. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
                   </p>
 
                   <p className="text-slate-850 leading-relaxed text-justify">
@@ -726,7 +727,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                   </div>
                   <div>
                     <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 06</span>
+                    <span className="block font-bold">Ketua RT 05 RW 11</span>
                     <div className="h-16"></div>
                     <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
                   </div>

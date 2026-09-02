@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
-import logoGSP from '../assets/logoGSP.png';
+import { clearSession } from '../utils/authSession';
+import logoRW11 from '../assets/logo_rw11.png';
+import logoDepok from '../assets/logo_depok.png';
 
 const menuItems = [
   { id: 'beranda', label: 'Beranda' },
@@ -37,16 +39,17 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         <div className="flex items-center justify-between h-12 sm:h-14">
           
           {/* Logo / Brand Name */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavClick('beranda')}>
-            <div className="flex items-center justify-center py-1">
-              <img src={logoGSP} alt="Logo Sawangan Green Park" className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" />
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => handleNavClick('beranda')}>
+            <div className="flex items-center gap-1.5 py-1">
+              <img src={logoDepok} alt="Logo Kota Depok" className="h-7 sm:h-8 w-auto object-contain drop-shadow-xs opacity-90" />
+              <img src={logoRW11} alt="Logo RW 11" className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" />
             </div>
             <div className="leading-tight">
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-[var(--color-ink)] block">
-                Sawangan Green Park
+                Villa Mutiara Mas Cinere
               </span>
               <span className="block text-[8px] font-bold text-[var(--color-mute)] uppercase tracking-wider leading-none mt-0.5">
-                Rukun Tetangga 05
+                Rukun Tetangga 05 / RW 11
               </span>
             </div>
           </div>
@@ -55,7 +58,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           <div className="hidden lg:flex items-center gap-1">
             {menuItems
               .filter(item => {
-                const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
+                const restrictedTabs = ['profil-saya', 'profil', 'agenda', 'layanan', 'data-warga', 'kas'];
                 if (!currentUser && restrictedTabs.includes(item.id)) return false;
                 return true;
               })
@@ -90,9 +93,8 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
                 </span>
                 <button
                   onClick={() => {
+                    clearSession();
                     setCurrentUser(null);
-                    localStorage.removeItem('rt_current_user');
-                    localStorage.removeItem('rt_token');
                     setCurrentPage('beranda');
                   }}
                   className="px-3 py-1.5 bg-[var(--color-canvas)] hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-500 font-bold text-xs rounded-sm cursor-pointer transition-all"
@@ -133,7 +135,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         <div className="px-4 py-4 space-y-1 sm:px-5">
           {menuItems
             .filter(item => {
-              const restrictedTabs = ['profil-saya', 'layanan', 'data-warga', 'kas'];
+              const restrictedTabs = ['profil-saya', 'profil', 'agenda', 'layanan', 'data-warga', 'kas'];
               if (!currentUser && restrictedTabs.includes(item.id)) return false;
               return true;
             })
@@ -160,9 +162,8 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
               <button
                 onClick={() => {
                   setIsOpen(false);
+                  clearSession();
                   setCurrentUser(null);
-                  localStorage.removeItem('rt_current_user');
-                  localStorage.removeItem('rt_token');
                   setCurrentPage('beranda');
                 }}
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"
@@ -175,11 +176,11 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
       </div>
 
       {/* Interactive Mobile Bottom Floating Dock Bar (Portrait Mode Optimized) */}
-      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-lg text-white px-3 py-2 rounded-full border border-emerald-500/30 shadow-2xl flex items-center gap-1.5 max-w-[94vw] overflow-x-auto no-scrollbar font-sans">
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-lg text-white px-3 py-2 rounded-full border border-orange-500/30 shadow-2xl flex items-center gap-1.5 max-w-[94vw] overflow-x-auto no-scrollbar font-sans">
         <button
           onClick={() => handleNavClick('beranda')}
           className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'beranda' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            currentPage === 'beranda' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
           }`}
         >
           <Landmark className="w-3.5 h-3.5" />
@@ -190,7 +191,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           <button
             onClick={() => handleNavClick('profil-saya')}
             className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'profil-saya' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+              currentPage === 'profil-saya' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
             <User className="w-3.5 h-3.5" />
@@ -202,7 +203,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           <button
             onClick={() => handleNavClick('layanan')}
             className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'layanan' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+              currentPage === 'layanan' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
@@ -214,7 +215,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
           <button
             onClick={() => handleNavClick('kas')}
             className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'kas' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+              currentPage === 'kas' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
             }`}
           >
             <Wallet className="w-3.5 h-3.5" />
@@ -225,7 +226,7 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
         <button
           onClick={() => handleNavClick('kontak')}
           className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'kontak' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            currentPage === 'kontak' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
           }`}
         >
           <PhoneCall className="w-3.5 h-3.5" />

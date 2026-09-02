@@ -8,11 +8,11 @@ export default function Kontak() {
   // Dummy RT Chairman Contact Details
   const kontakRt = {
     nama: 'Pak Bambang Mulyono',
-    jabatan: 'Ketua RT 05 / RW 06',
+    jabatan: 'Ketua RT 05 / RW 11',
     telepon: '+62 812-3456-7890',
     whatsapp: '6281234567890', // Internasional format without '+'
-    alamat: 'Perumahan Sawangan Green Park, Blok B3 No. 12, Sawangan, Depok',
-    email: 'rt.sawangangreenpark@gmail.com',
+    alamat: 'Perumahan Villa Mutiara Mas Cinere, Blok B3 No. 12, Cinere, Depok',
+    email: 'rt.villamutiaramas@gmail.com',
   };
 
   const handleSendWhatsApp = (e) => {
@@ -20,7 +20,7 @@ export default function Kontak() {
     if (!waName || !waMessage) return;
 
     // Constructing WhatsApp message
-    const formattedMessage = `Halo ${kontakRt.nama}, saya ${waName} (warga Sawangan Green Park). %0A%0A${waMessage}`;
+    const formattedMessage = `Halo ${kontakRt.nama}, saya ${waName} (warga Villa Mutiara Mas Cinere). %0A%0A${waMessage}`;
     const waUrl = `https://wa.me/${kontakRt.whatsapp}?text=${formattedMessage}`;
     
     // Redirect to WhatsApp
@@ -40,13 +40,13 @@ export default function Kontak() {
         
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
             Hubungi Kami
           </h2>
           <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
             Kontak Pengurus & Peta RT
           </p>
-          <div className="w-12 h-1 bg-emerald-500 mx-auto rounded-full"></div>
+          <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
@@ -68,7 +68,7 @@ export default function Kontak() {
                 
                 {/* Alamat */}
                 <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl flex-shrink-0">
+                  <div className="p-3 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl flex-shrink-0">
                     <MapPin className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
@@ -94,7 +94,7 @@ export default function Kontak() {
 
                 {/* WhatsApp */}
                 <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-500 dark:text-emerald-400 rounded-xl flex-shrink-0">
+                  <div className="p-3 bg-orange-500/10 dark:bg-orange-500/20 text-orange-500 dark:text-orange-400 rounded-xl flex-shrink-0">
                     <MessageSquare className="w-5 h-5" />
                   </div>
                   <div className="space-y-1">
@@ -103,7 +103,7 @@ export default function Kontak() {
                       href={`https://wa.me/${kontakRt.whatsapp}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-slate-700 dark:text-slate-300 font-bold hover:text-emerald-500 flex items-center gap-1"
+                      className="text-sm text-slate-700 dark:text-slate-300 font-bold hover:text-orange-500 flex items-center gap-1"
                     >
                       <span>Hubungi WA</span>
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -140,7 +140,7 @@ export default function Kontak() {
                     placeholder="Nama Anda"
                     value={waName}
                     onChange={(e) => setWaName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
                   />
                 </div>
                 <div>
@@ -150,12 +150,12 @@ export default function Kontak() {
                     placeholder="Tulis pesan atau pertanyaan Anda di sini..."
                     value={waMessage}
                     onChange={(e) => setWaMessage(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
                   />
                 </div>
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                  className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
                 >
                   <Send className="w-4 h-4" />
                   <span>Kirim via WhatsApp</span>
@@ -168,10 +168,10 @@ export default function Kontak() {
           <div className="lg:col-span-6 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
             <div className="mb-4">
               <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Peta Wilayah RT Sawangan Green Park
+                Peta Wilayah RT Villa Mutiara Mas Cinere
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Lokasi klaster dan pos satpam utama Sawangan Green Park
+                Lokasi klaster dan pos satpam utama Villa Mutiara Mas Cinere
               </p>
             </div>
             
@@ -183,12 +183,12 @@ export default function Kontak() {
               {/* Map mockup graphic */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="text-center space-y-3 z-10 px-4">
-                  <div className="inline-block p-4 bg-emerald-500 text-white rounded-full shadow-lg shadow-emerald-500/30 animate-pulse">
+                  <div className="inline-block p-4 bg-orange-500 text-white rounded-full shadow-lg shadow-orange-500/30 animate-pulse">
                     <MapPin className="w-8 h-8" />
                   </div>
-                  <h4 className="font-extrabold text-slate-800 dark:text-white text-base">Sawangan Green Park</h4>
+                  <h4 className="font-extrabold text-slate-800 dark:text-white text-base">Villa Mutiara Mas Cinere</h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
-                    Kawasan RT 05 / RW 06 Kelurahan Sawangan, Kecamatan Sawangan, Kota Depok, Jawa Barat
+                    Kawasan RT 05 / RW 11 Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat
                   </p>
                 </div>
               </div>
@@ -204,7 +204,7 @@ export default function Kontak() {
 
             <div className="pt-4 mt-4 border-t border-slate-200/60 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
               <span>* Akses masuk klaster satu pintu (One Gate System)</span>
-              <span className="font-bold text-emerald-500">Security 24 Jam</span>
+              <span className="font-bold text-orange-500">Security 24 Jam</span>
             </div>
           </div>
 
