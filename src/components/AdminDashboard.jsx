@@ -22,7 +22,16 @@ import logoDepok from '../assets/logo_depok.png';
 const extractArrayFromResponse = (payload) => {
   if (!payload) return [];
   if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.output?.pesan?.data)) return payload.output.pesan.data;
+  if (Array.isArray(payload?.output?.pesan?.transactions)) return payload.output.pesan.transactions;
+  if (Array.isArray(payload?.output?.pesan?.items)) return payload.output.pesan.items;
+  if (Array.isArray(payload?.output?.pesan?.rows)) return payload.output.pesan.rows;
+  if (Array.isArray(payload?.output?.pesan?.ledger)) return payload.output.pesan.ledger;
   if (Array.isArray(payload?.output?.pesan)) return payload.output.pesan;
+  if (Array.isArray(payload?.output?.transactions)) return payload.output.transactions;
+  if (Array.isArray(payload?.output?.items)) return payload.output.items;
+  if (Array.isArray(payload?.output?.rows)) return payload.output.rows;
+  if (Array.isArray(payload?.output?.ledger)) return payload.output.ledger;
   if (Array.isArray(payload?.output?.data)) return payload.output.data;
   if (Array.isArray(payload?.output)) return payload.output;
   if (Array.isArray(payload?.pesan)) return payload.pesan;
@@ -39,6 +48,69 @@ const extractArrayFromResponse = (payload) => {
   }
 
   return [];
+};
+
+const parseKasNumber = (value) => {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || value.trim() === '') return null;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+const normalizeKasTransaction = (transaction, fallback = {}) => {
+  const rawType = String(
+    transaction?.tipeMutasi ??
+    transaction?.tipe_mutasi ??
+    transaction?.type ??
+    transaction?.tipe ??
+    fallback.type ??
+    ''
+  ).toLowerCase();
+  const isIncome = ['masuk', 'income', 'in', 'pemasukan', 'credit'].includes(rawType);
+  const rawDate =
+    transaction?.tanggal ??
+    transaction?.transaction_date ??
+    transaction?.transactionDate ??
+    transaction?.date ??
+    transaction?.created_at ??
+    fallback.date;
+
+  return {
+    id:
+      transaction?.id ??
+      transaction?.transactionId ??
+      transaction?.transaction_id ??
+      transaction?.insertId ??
+      fallback.id ??
+      `TX-${Date.now()}`,
+    type: isIncome ? 'income' : 'expense',
+    amount: parseKasNumber(
+      transaction?.nominal ?? transaction?.amount ?? transaction?.jumlah ?? fallback.amount
+    ) ?? 0,
+    category:
+      transaction?.kategoriKas ??
+      transaction?.kategori_kas ??
+      transaction?.kategori ??
+      transaction?.sourceType ??
+      transaction?.source_type ??
+      transaction?.category ??
+      fallback.category ??
+      'Kas Umum',
+    description:
+      transaction?.deskripsi ??
+      transaction?.keterangan ??
+      transaction?.description ??
+      fallback.description ??
+      '',
+    date: rawDate ? String(rawDate).substring(0, 10) : new Date().toISOString().split('T')[0],
+    statusTransparansi:
+      transaction?.statusTransparansi ??
+      transaction?.status_transparansi ??
+      fallback.statusTransparansi ??
+      'Publik',
+    raw: transaction
+  };
 };
 
 const formatDateTimeIndo = (dateStr) => {
@@ -2486,22 +2558,14 @@ export default function AdminDashboard({
 
       if (res.ok) {
         const data = await res.json();
-        const rawItems = data.output?.data || data.output?.transactions || data.output?.items || (Array.isArray(data.output) ? data.output : (Array.isArray(data.data) ? data.data : []));
-        const mapped = rawItems.map(t => {
-          const isIncome = (t.tipeMutasi === 'masuk' || t.tipe_mutasi === 'masuk' || t.type === 'income' || t.type === 'in' || t.tipe === 'masuk');
-          return {
-            id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
-            type: isIncome ? 'income' : 'expense',
-            amount: parseFloat(t.nominal || t.amount || 0),
-            category: t.kategoriKas || t.kategori_kas || t.kategori || t.category || 'Kas Umum',
-            description: t.deskripsi || t.keterangan || t.description || '',
-            date: t.tanggal ? String(t.tanggal).substring(0, 10) : (t.transaction_date ? String(t.transaction_date).substring(0, 10) : (t.date || new Date().toISOString().split('T')[0])),
-            statusTransparansi: t.statusTransparansi || t.status_transparansi || 'Publik',
-            raw: t
-          };
-        });
-        setTransaksiKasList(mapped);
-        localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+        const mapped = extractArrayFromResponse(data).map(t => normalizeKasTransaction(t));
+
+        // Sesudah create/update, pertahankan state optimistis bila server belum
+        // langsung mengembalikan ledger terbaru (eventual consistency).
+        if (mapped.length > 0 || !customParams.preserveOnEmpty) {
+          setTransaksiKasList(mapped);
+          localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
+        }
       } else {
         throw new Error('Gagal memuat transaksi kas.');
       }
@@ -2512,16 +2576,9 @@ export default function AdminDashboard({
         if (res.ok) {
           const data = await res.json();
           if (data.output?.ledger) {
-            const mapped = data.output.ledger.map(t => ({
-              id: t.id !== undefined ? t.id : `TX-${Math.floor(Math.random() * 90000 + 10000)}`,
-              type: t.type === 'in' ? 'income' : 'expense',
-              amount: parseFloat(t.amount || 0),
-              category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
-              description: t.description || '',
-              date: t.transaction_date ? String(t.transaction_date).substring(0, 10) : new Date().toISOString().split('T')[0],
-              statusTransparansi: 'Publik'
-            }));
+            const mapped = data.output.ledger.map(t => normalizeKasTransaction(t));
             setTransaksiKasList(mapped);
+            localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
           }
         }
       } catch (e) {
@@ -2556,13 +2613,18 @@ export default function AdminDashboard({
       });
       if (res.ok) {
         const data = await res.json();
-        const sum = data.output?.summary || data.output || data.data || {};
-        setKasServerSummary({
-          totalPemasukan: sum.totalPemasukan ?? sum.total_pemasukan ?? sum.total_income ?? sum.totalIncome ?? null,
-          totalPengeluaran: sum.totalPengeluaran ?? sum.total_pengeluaran ?? sum.total_expense ?? sum.totalExpense ?? null,
-          saldoAkhir: sum.saldoAkhir ?? sum.saldo_akhir ?? sum.current_balance ?? sum.sisaKas ?? sum.balance ?? null,
-          jumlahTransaksi: sum.jumlahTransaksi ?? sum.jumlah_transaksi ?? sum.total_transactions ?? sum.count ?? null
-        });
+        const output = data.output?.pesan ?? data.output ?? data.data ?? data.pesan ?? data;
+        const sum = output?.summary ?? output?.stats ?? output;
+        const nextSummary = {
+          totalPemasukan: parseKasNumber(sum?.totalPemasukan ?? sum?.total_pemasukan ?? sum?.total_income ?? sum?.totalIncome ?? sum?.totalMasuk),
+          totalPengeluaran: parseKasNumber(sum?.totalPengeluaran ?? sum?.total_pengeluaran ?? sum?.total_expense ?? sum?.totalExpense ?? sum?.totalKeluar),
+          saldoAkhir: parseKasNumber(sum?.saldoAkhir ?? sum?.saldo_akhir ?? sum?.current_balance ?? sum?.sisaKas ?? sum?.balance ?? sum?.saldo),
+          jumlahTransaksi: parseKasNumber(sum?.jumlahTransaksi ?? sum?.jumlah_transaksi ?? sum?.total_transactions ?? sum?.count)
+        };
+
+        if (Object.values(nextSummary).some(value => value !== null)) {
+          setKasServerSummary(nextSummary);
+        }
       }
     } catch (err) {
       console.warn('Gagal memuat summary kas:', err.message);
@@ -4053,6 +4115,41 @@ export default function AdminDashboard({
           throw new Error(data.message || data.pesan || 'Gagal mencatat transaksi kas di server.');
         }
 
+        const responsePayload = data.output?.pesan ?? data.output ?? data.data ?? data;
+        const createdPayload = responsePayload?.transaction ?? responsePayload?.data ?? responsePayload;
+        const optimisticTransaction = normalizeKasTransaction(createdPayload, {
+          id: `TX-pending-${payload.tanggal}-${isIncome ? 'in' : 'out'}-${amountNum}-${payload.deskripsi}`,
+          type: isIncome ? 'income' : 'expense',
+          amount: amountNum,
+          category: payload.kategoriKas,
+          description: payload.deskripsi,
+          date: payload.tanggal,
+          statusTransparansi: 'Publik'
+        });
+
+        setTransaksiKasList(previous => {
+          const withoutDuplicate = previous.filter(item => String(item.id) !== String(optimisticTransaction.id));
+          const updated = [optimisticTransaction, ...withoutDuplicate];
+          localStorage.setItem('rt_kaslist', JSON.stringify(updated));
+          return updated;
+        });
+
+        const currentIncome = kasServerSummary?.totalPemasukan ?? transaksiKasList
+          .filter(item => item.type === 'income')
+          .reduce((total, item) => total + (parseKasNumber(item.amount) ?? 0), 0);
+        const currentExpense = kasServerSummary?.totalPengeluaran ?? transaksiKasList
+          .filter(item => item.type === 'expense')
+          .reduce((total, item) => total + (parseKasNumber(item.amount) ?? 0), 0);
+        const nextIncome = currentIncome + (isIncome ? amountNum : 0);
+        const nextExpense = currentExpense + (isIncome ? 0 : amountNum);
+
+        setKasServerSummary(previous => ({
+          totalPemasukan: nextIncome,
+          totalPengeluaran: nextExpense,
+          saldoAkhir: (previous?.saldoAkhir ?? (currentIncome - currentExpense)) + (isIncome ? amountNum : -amountNum),
+          jumlahTransaksi: (previous?.jumlahTransaksi ?? transaksiKasList.length) + 1
+        }));
+
         Swal.fire({
           title: 'Berhasil Dicatat!',
           text: `Transaksi ${isIncome ? 'pemasukan' : 'pengeluaran'} sebesar ${formatRupiah(amountNum)} berhasil disimpan.`,
@@ -4092,8 +4189,10 @@ export default function AdminDashboard({
       }
 
       setModalType('');
-      await fetchKasTransaksi();
-      await fetchKasSummary();
+      await Promise.all([
+        fetchKasTransaksi({ preserveOnEmpty: modalType === 'add_kas' }),
+        fetchKasSummary()
+      ]);
     } catch (err) {
       setFormError(`Gagal: ${err.message}`);
       Swal.fire({
@@ -8081,7 +8180,7 @@ export default function AdminDashboard({
                               </td>
                               <td className="p-4 text-center">
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[10px] font-bold border border-emerald-500/20">
-                                  <CheckCircle className="w-3 h-3" />
+                                  <CheckCircle2 className="w-3 h-3" />
                                   <span>Terverifikasi</span>
                                 </span>
                               </td>
