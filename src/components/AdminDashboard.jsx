@@ -7,7 +7,8 @@ import {
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
   Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield, ShieldCheck,
-  Mail, RefreshCw, ExternalLink, ZoomIn, ZoomOut, RotateCw, XCircle, CreditCard, Bell, History
+  Mail, RefreshCw, ExternalLink, ZoomIn, ZoomOut, RotateCw, XCircle, CreditCard, Bell, History,
+  PieChart, Home
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -2465,7 +2466,12 @@ export default function AdminDashboard({
             nik: nik,
             noKk: item.family_nokk || item.no_kk || item.noKk || '',
             gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
-            status: item.house_status || item.status || 'Tetap',
+            house_status: item.house_status || '',
+            status: (item.house_status || '').toLowerCase().includes('kontrak') || (item.house_status || '').toLowerCase().includes('sewa')
+              ? 'Kontrak'
+              : (item.house_status || '').toLowerCase().includes('pribadi') || (item.house_status || '').toLowerCase().includes('tetap') || (item.house_status || '').toLowerCase().includes('milik')
+              ? 'Tetap'
+              : (item.status && !['diterima', 'pending', 'ditolak', 'aktif'].includes(item.status.toLowerCase()) ? item.status : 'Tetap'),
             statusHidup: item.status_hidup || item.statusHidup || 'Hidup',
             username: username,
             account_username: username,
@@ -5040,6 +5046,404 @@ export default function AdminDashboard({
     }))
   ];
 
+  // Render Quick Actions Widget
+  const renderQuickActions = (customClasses = "col-span-12 lg:col-span-3 p-4 sm:p-5 lg:p-6") => (
+    <div className={`bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6 ${customClasses}`}>
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
+        <p className="text-[11px] sm:text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
+        {/* 1. Tambah Warga */}
+        <button
+          onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
+          className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
+              <Users className="w-5 h-5 sm:w-4 sm:h-4" />
+            </div>
+            <span className="text-[11px] sm:text-xs leading-tight">Tambah Warga Baru</span>
+          </div>
+          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+        </button>
+
+        {/* 2. Persetujuan Surat */}
+        <button
+          onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
+          className="w-full p-3 sm:py-3 sm:px-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
+              <FileCheck className="w-5 h-5 sm:w-4 sm:h-4" />
+            </div>
+            <span className="text-[11px] sm:text-xs leading-tight">Persetujuan Surat</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {pendingSubmissionsCount > 0 && (
+              <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
+                {pendingSubmissionsCount}
+              </span>
+            )}
+            <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+          </div>
+        </button>
+
+        {/* 3. Pembayaran IPL */}
+        <button
+          onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+          className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
+              <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
+            </div>
+            <span className="text-[11px] sm:text-xs leading-tight">Bayar IPL</span>
+          </div>
+          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+        </button>
+
+        {/* 4. Pengaduan */}
+        <button
+          onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
+          className="w-full p-3 sm:py-3 sm:px-3.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+        >
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+            <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
+              <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
+            </div>
+            <span className="text-[11px] sm:text-xs leading-tight">Kelola Pengaduan</span>
+          </div>
+          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+        </button>
+      </div>
+      
+      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
+        Klik pintasan di atas untuk membuka formulir operasional langsung.
+      </div>
+    </div>
+  );
+
+  // Render Demografi Kependudukan Widget (Bagan Donut Rasio Gender, Status Hunian, dan Distribusi Usia)
+  const renderDemografiKependudukan = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", isFullWidth = false) => {
+    const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
+    const totalPop = living.length || 1;
+    
+    // Gender ratio
+    const male = living.filter(w => {
+      const g = (w.gender || w.jenisKelamin || w.jenis_kelamin || '').toLowerCase();
+      return g.startsWith('l') || g.includes('laki');
+    }).length;
+    const female = Math.max(0, totalPop - male);
+    const malePct = living.length > 0 ? Math.round((male / totalPop) * 100) : 50;
+    const femalePct = living.length > 0 ? (100 - malePct) : 50;
+
+    // Status hunian (Mapping dari house_status / residentServerList / status warga)
+    const resolveStatusHunian = (w) => {
+      const direct = (w.house_status || w.status_rumah || '').toLowerCase();
+      if (direct.includes('kontrak') || direct.includes('sewa')) return 'Kontrak';
+      if (direct.includes('pribadi') || direct.includes('tetap') || direct.includes('milik')) return 'Tetap';
+
+      // Lookup di residentServerList (data KK/Rumah dari GET /admin/resident)
+      if (residentServerList && residentServerList.length > 0) {
+        const matchedResident = residentServerList.find(r => 
+          (r.family_id && w.family_id && String(r.family_id) === String(w.family_id)) ||
+          (r.id && w.family_id && String(r.id) === String(w.family_id)) ||
+          (r.no_kk && w.noKk && String(r.no_kk).trim() === String(w.noKk).trim()) ||
+          (r.house_id && w.house_id && String(r.house_id) === String(w.house_id))
+        );
+        if (matchedResident) {
+          const rStatus = (matchedResident.house_status || matchedResident.status || '').toLowerCase();
+          if (rStatus.includes('kontrak') || rStatus.includes('sewa')) return 'Kontrak';
+          if (rStatus.includes('pribadi') || rStatus.includes('tetap') || rStatus.includes('milik')) return 'Tetap';
+        }
+      }
+
+      // Fallback ke w.status (jika bukan status verifikasi akun seperti 'diterima' / 'pending')
+      const generalStatus = (w.status || '').toLowerCase();
+      if (generalStatus.includes('kontrak') || generalStatus.includes('sewa')) return 'Kontrak';
+      if (generalStatus.includes('pribadi') || generalStatus.includes('tetap') || generalStatus.includes('milik')) return 'Tetap';
+
+      // Default di perumahan klaster adalah Tetap
+      return 'Tetap';
+    };
+
+    const tetap = living.filter(w => resolveStatusHunian(w) === 'Tetap').length;
+    const kontrak = living.filter(w => resolveStatusHunian(w) === 'Kontrak').length;
+    const totalHunianPop = tetap + kontrak || totalPop;
+    const tetapPct = totalHunianPop > 0 ? Math.round((tetap / totalHunianPop) * 100) : 70;
+    const kontrakPct = totalHunianPop > 0 ? (100 - tetapPct) : 30;
+
+    // Age distribution
+    const getAge = (w) => {
+      const val = parseInt(w.usia || w.umur || w.age);
+      if (!isNaN(val)) return val;
+      if (w.tanggalLahir || w.tanggal_lahir) {
+        const birthYear = new Date(w.tanggalLahir || w.tanggal_lahir).getFullYear();
+        if (!isNaN(birthYear)) return new Date().getFullYear() - birthYear;
+      }
+      return 0;
+    };
+    const anak = living.filter(w => { const u = getAge(w); return u >= 0 && u <= 12; }).length;
+    const remaja = living.filter(w => { const u = getAge(w); return u >= 13 && u <= 20; }).length;
+    const dewasa = living.filter(w => { const u = getAge(w); return u >= 21 && u <= 50; }).length;
+    const lansia = living.filter(w => { const u = getAge(w); return u > 50; }).length;
+
+    const anakPct = living.length > 0 ? Math.round((anak / totalPop) * 100) : 0;
+    const remajaPct = living.length > 0 ? Math.round((remaja / totalPop) * 100) : 0;
+    const dewasaPct = living.length > 0 ? Math.round((dewasa / totalPop) * 100) : 0;
+    const lansiaPct = living.length > 0 ? Math.round((lansia / totalPop) * 100) : 0;
+
+    const contentSection = (
+      <>
+        {/* Gender SVG Donut & Status Donut side-by-side */}
+        <div className="grid grid-cols-2 gap-4 sm:gap-6">
+          {/* Gender */}
+          <div className="flex flex-col items-center space-y-3">
+            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO GENDER</span>
+            <div className="relative">
+              <svg className="w-24 h-24 sm:w-28 sm:h-28 xl:w-30 xl:h-30 transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="10"
+                  strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
+                  strokeLinecap="round"
+                />
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ed52cb" strokeWidth="10"
+                  strokeDasharray={`${2.39 * femalePct} ${239 - 2.39 * femalePct}`}
+                  strokeDashoffset={`${-(2.39 * malePct)}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{living.length}</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Jiwa</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-[#2563eb]"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Laki-laki</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{male} ({malePct}%)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-[#ed52cb]"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Perempuan</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{female} ({femalePct}%)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Status Hunian */}
+          <div className="flex flex-col items-center space-y-3">
+            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">STATUS HUNIAN</span>
+            <div className="relative">
+              <svg className="w-24 h-24 sm:w-28 sm:h-28 xl:w-30 xl:h-30 transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="10"
+                  strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
+                  strokeLinecap="round"
+                />
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f97316" strokeWidth="10"
+                  strokeDasharray={`${2.39 * kontrakPct} ${239 - 2.39 * kontrakPct}`}
+                  strokeDashoffset={`${-(2.39 * tetapPct)}`}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 mb-0.5" />
+                <span className="text-[9px] font-bold text-slate-400 uppercase">Hunian</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-[#10b981]"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Tetap</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{tetap} ({tetapPct}%)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-[#f97316]"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Kontrak</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{kontrak} ({kontrakPct}%)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Age Distribution Bars */}
+        <div className={`${isFullWidth ? 'pt-4 lg:pt-0 lg:pl-8 border-t lg:border-t-0 lg:border-l' : 'pt-4 border-t'} border-slate-100 dark:border-slate-800 space-y-3 font-sans`}>
+          <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">DISTRIBUSI KELOMPOK USIA</span>
+          {[
+            { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, dotColor: 'bg-blue-500', barGradient: 'from-blue-500 to-blue-600' },
+            { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, dotColor: 'bg-purple-500', barGradient: 'from-purple-500 to-pink-500' },
+            { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, dotColor: 'bg-emerald-600', barGradient: 'from-emerald-500 to-teal-500' },
+            { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, dotColor: 'bg-amber-500', barGradient: 'from-amber-500 to-orange-500' },
+          ].map((ag, i) => (
+            <div key={i} className="space-y-1">
+              <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <span className={`w-2 h-2 rounded-full ${ag.dotColor}`}></span>
+                  <span>{ag.label}</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-extrabold">{ag.count} orang ({ag.pct}%)</span>
+              </div>
+              <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                <div className={`h-full bg-gradient-to-r ${ag.barGradient} rounded-full transition-all duration-700`} style={{ width: `${Math.max(ag.pct, living.length > 0 && ag.count > 0 ? 3 : 0)}%` }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+
+    return (
+      <div className={cardClassName}>
+        <div>
+          <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            Demografi Kependudukan
+          </h3>
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Statistik komposisi warga berdasarkan gender, usia, dan status hunian.
+          </p>
+        </div>
+
+        {isFullWidth ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center pt-2">
+            {contentSection}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {contentSection}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Render Pusat Notifikasi & Perubahan RT Widget
+  const renderPusatNotifikasi = (customClasses = "col-span-12 lg:col-span-4 p-5 sm:p-6") => (
+    <div className={`bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xs flex flex-col justify-between space-y-4 font-sans ${customClasses}`}>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+            <Bell className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Pusat Notifikasi & Perubahan RT</h3>
+            <p className="text-[10px] text-slate-400">Log operasional real-time IPL, Kegiatan, Jadwal, dan Data Kematian</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+            {adminNotifications.length} Info Terkini
+          </span>
+        </div>
+      </div>
+
+      {/* 4-Category Filter Chips */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-[11px] font-bold">
+        {[
+          { id: 'semua', label: '🔔 Semua' },
+          { id: 'ipl', label: '💳 IPL & Kas' },
+          { id: 'kegiatan', label: '📢 Kegiatan' },
+          { id: 'jadwal', label: '📅 Jadwal' },
+          { id: 'kematian', label: '🕊️ Kematian' },
+        ].map((flt) => (
+          <button
+            key={flt.id}
+            type="button"
+            onClick={() => setAdminNotifCategory(flt.id)}
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+              adminNotifCategory === flt.id
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            {flt.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Notification items list */}
+      <div className="space-y-2.5 flex-1 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1 custom-scrollbar">
+        {adminNotifications
+          .filter(act => adminNotifCategory === 'semua' || act.category === adminNotifCategory)
+          .map((act) => (
+            <div
+              key={act.id}
+              onClick={() => setActiveTab(act.targetTab || 'overview')}
+              className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-start justify-between gap-3 cursor-pointer hover:scale-[1.01] group ${
+                act.isUrgent
+                  ? 'bg-rose-500/10 dark:bg-rose-950/20 border-rose-500/30'
+                  : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/40'
+              }`}
+            >
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className={`p-2 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
+                  act.category === 'ipl'
+                    ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
+                    : act.category === 'kegiatan'
+                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                    : act.category === 'jadwal'
+                    ? 'bg-gradient-to-br from-purple-500 to-pink-600'
+                    : 'bg-gradient-to-br from-rose-600 to-red-700'
+                }`}>
+                  {act.category === 'ipl' ? (
+                    <Wallet className="w-3.5 h-3.5" />
+                  ) : act.category === 'kegiatan' ? (
+                    <Volume2 className="w-3.5 h-3.5" />
+                  ) : act.category === 'jadwal' ? (
+                    <Calendar className="w-3.5 h-3.5" />
+                  ) : (
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <h5 className="font-extrabold text-slate-900 dark:text-white text-xs group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                      {act.title}
+                    </h5>
+                    <span className="text-[9px] font-mono text-slate-400 shrink-0">{act.time}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed line-clamp-2">
+                    {act.message}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center self-center shrink-0">
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                  ↗
+                </span>
+              </div>
+            </div>
+          ))}
+
+        {adminNotifications.filter(act => adminNotifCategory === 'semua' || act.category === adminNotifCategory).length === 0 && (
+          <div className="p-8 text-center text-slate-400 text-xs italic">
+            Belum ada notifikasi pada kategori ini.
+          </div>
+        )}
+      </div>
+
+      <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+        <span>🟢 Live Real-Time Feed</span>
+        <span>Klik item untuk menuju modul terkait</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
       {/* Premium ambient glows */}
@@ -5803,17 +6207,6 @@ export default function AdminDashboard({
                 {isIuranOpen && (
                   <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
                     <button
-                      onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'iuran_jenis' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Jenis Iuran</span>
-                    </button>
-                    <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
@@ -6016,7 +6409,7 @@ export default function AdminDashboard({
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">● Live Sync</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
-                    {activeTab === 'overview' && 'Dasbor Kontrol Pengurus RT 05 👋'}
+                    {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 05 📋' : 'Dasbor Kontrol Pengurus RT 05 👋')}
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
                     {activeTab === 'kas' && 'Monitoring Keuangan & Transparansi Kas RT 💰'}
                     {activeTab === 'sek_warga_kk' && 'Kelola Data Kartu Keluarga (KK) 📄'}
@@ -6058,320 +6451,136 @@ export default function AdminDashboard({
           {activeTab === 'overview' && (
             <div className="space-y-8 animate-fade-in">
               
-              {/* Welcome Banner Card */}
-              <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 text-white rounded-3xl p-6 sm:p-8 border border-orange-400/30 shadow-xl shadow-orange-500/20 relative overflow-hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-                <div className="absolute right-[-20px] top-[-20px] w-40 h-40 bg-amber-400/20 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="space-y-2 z-10">
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">Dasbor Kontrol Pengurus RT 05 👋</h3>
-                  <p className="text-xs text-orange-100 max-w-xl leading-relaxed">Kelola kependudukan, pengajuan surat warga, pembukuan kas RT, dan verifikasi iuran bulanan dalam satu panel kontrol terpadu.</p>
-                </div>
-                <div className="px-5 py-2.5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-extrabold text-xs rounded-xl shadow-lg border border-white/30 flex items-center gap-2 transition-all z-10">
-                  <Sparkles className="w-4 h-4 text-amber-200" />
-                  <span>Status System: Real-Time Sync</span>
-                </div>
-              </div>
-
               {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
-                
-                {/* 1. Total Warga */}
-                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
-                    <Users className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="hidden" aria-hidden="true">{logsTrigger}</span>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{totalWarga}</span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
-                  </div>
-                </div>
-
-                {/* 2. Total Kartu Keluarga */}
-                <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
-                    <Landmark className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{uniqueKKs}</span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
-                  </div>
-                </div>
-
-                {/* 3. Total Rumah */}
-                <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
-                    <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {dashboardStats?.total_rumah || new Set(residentServerList.map(r => r.house_id || r.house_alamat || r.alamat).concat(wargaList.map(w => w.alamat))).size || 52}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
-                  </div>
-                </div>
-
-                {/* 4. IPL Sudah Lunas */}
-                <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
-                    <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {calcIplLunas} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
-                  </div>
-                </div>
-
-                {/* 5. IPL Belum Lunas */}
-                <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
-                    <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {calcIplBelumLunas} <span className="text-xs text-rose-500 font-bold">KK</span>
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
-                  </div>
-                </div>
-
-                {/* 6. Surat Masuk */}
-                <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {suratMasukList.length > 0 ? suratMasukList.length : (dashboardStats?.surat_masuk || 18)}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
-                  </div>
-                </div>
-
-                {/* 7. Surat Keluar */}
-                <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
-                    <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {suratKeluarList.length > 0 ? suratKeluarList.length : (dashboardStats?.surat_keluar || 34)}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
-                  </div>
-                </div>
-
-                {/* 8. Pengaduan Aktif */}
-                <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
-                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                      {serverComplaints.filter(c => c.status !== 'Selesai').length || (dashboardStats?.pengaduan_aktif || 3)}
-                    </span>
-                    <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Layout Split: Quick actions & Recent activities */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-                
-                {/* Left panel: Quick Actions (5 Buttons in 2-Column Grid on Portrait/Mobile) */}
-                <div className="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6">
-                  <div className="space-y-1">
-                    <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
-                    <p className="text-[11px] sm:text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
-                    {/* 1. Tambah Warga */}
-                    <button
-                      onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
-                      className="w-full p-3 sm:py-3 sm:px-4 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-                    >
-                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-                        <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
-                          <Users className="w-5 h-5 sm:w-4 sm:h-4" />
-                        </div>
-                        <span className="text-[11px] sm:text-xs leading-tight">Tambah Warga Baru</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    {/* 2. Persetujuan Surat */}
-                    <button
-                      onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-                      className="w-full p-3 sm:py-3 sm:px-4 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-                    >
-                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-                        <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
-                          <FileCheck className="w-5 h-5 sm:w-4 sm:h-4" />
-                        </div>
-                        <span className="text-[11px] sm:text-xs leading-tight">Persetujuan Surat</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        {pendingSubmissionsCount > 0 && (
-                          <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
-                            {pendingSubmissionsCount}
-                          </span>
-                        )}
-                        <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-                      </div>
-                    </button>
-
-                    {/* 3. Pembayaran IPL */}
-                    <button
-                      onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-                      className="w-full p-3 sm:py-3 sm:px-4 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-                    >
-                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-                        <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
-                          <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
-                        </div>
-                        <span className="text-[11px] sm:text-xs leading-tight">Bayar IPL</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-                    </button>
-
-                    {/* 4. Pengaduan */}
-                    <button
-                      onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
-                      className="w-full p-3 sm:py-3 sm:px-4 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-                    >
-                      <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-                        <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
-                          <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
-                        </div>
-                        <span className="text-[11px] sm:text-xs leading-tight">Kelola Pengaduan</span>
-                      </div>
-                      <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-                    </button>
-                  </div>
+              {!isSekretaris && (
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                   
-                  <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
-                    Klik pintasan di atas untuk membuka formulir operasional langsung.
-                  </div>
-                </div>
-
-                {/* Right panel: Live 4-Category Notification & Changes Feed (7 Cols) */}
-                <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-5 sm:p-6 lg:p-7 shadow-xs flex flex-col justify-between space-y-4 font-sans">
-                  
-                  {/* Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
-                        <Bell className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Pusat Notifikasi & Perubahan RT</h3>
-                        <p className="text-[10px] text-slate-400">Log operasional real-time IPL, Kegiatan, Jadwal, dan Data Kematian</p>
-                      </div>
+                  {/* 1. Total Warga */}
+                  <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
+                    <span className="hidden" aria-hidden="true">{logsTrigger}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{totalWarga}</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
+                    </div>
+                  </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto">
-                      <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
-                        {adminNotifications.length} Info Terkini
+                  {/* 2. Total Kartu Keluarga */}
+                  <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+                      <Landmark className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{uniqueKKs}</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
+                    </div>
+                  </div>
+
+                  {/* 3. Total Rumah */}
+                  <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
+                      <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {dashboardStats?.total_rumah || new Set(residentServerList.map(r => r.house_id || r.house_alamat || r.alamat).concat(wargaList.map(w => w.alamat))).size || 52}
                       </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
                     </div>
                   </div>
 
-                  {/* 4-Category Filter Chips */}
-                  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-[11px] font-bold">
-                    {[
-                      { id: 'semua', label: '🔔 Semua' },
-                      { id: 'ipl', label: '💳 IPL & Kas' },
-                      { id: 'kegiatan', label: '📢 Kegiatan' },
-                      { id: 'jadwal', label: '📅 Jadwal' },
-                      { id: 'kematian', label: '🕊️ Kematian' },
-                    ].map((flt) => (
-                      <button
-                        key={flt.id}
-                        type="button"
-                        onClick={() => setAdminNotifCategory(flt.id)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                          adminNotifCategory === flt.id
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                        }`}
-                      >
-                        {flt.label}
-                      </button>
-                    ))}
+                  {/* 4. IPL Sudah Lunas */}
+                  <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {calcIplLunas} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
+                    </div>
                   </div>
 
-                  {/* Notification items list */}
-                  <div className="space-y-2.5 flex-1 max-h-[380px] sm:max-h-[440px] overflow-y-auto pr-1 custom-scrollbar">
-                    {adminNotifications
-                      .filter(act => adminNotifCategory === 'semua' || act.category === adminNotifCategory)
-                      .map((act) => (
-                        <div
-                          key={act.id}
-                          onClick={() => setActiveTab(act.targetTab || 'overview')}
-                          className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-start justify-between gap-3 cursor-pointer hover:scale-[1.01] group ${
-                            act.isUrgent
-                              ? 'bg-rose-500/10 dark:bg-rose-950/20 border-rose-500/30'
-                              : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/40'
-                          }`}
-                        >
-                          <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <div className={`p-2 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
-                              act.category === 'ipl'
-                                ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
-                                : act.category === 'kegiatan'
-                                ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                                : act.category === 'jadwal'
-                                ? 'bg-gradient-to-br from-purple-500 to-pink-600'
-                                : 'bg-gradient-to-br from-rose-600 to-red-700'
-                            }`}>
-                              {act.category === 'ipl' ? (
-                                <Wallet className="w-3.5 h-3.5" />
-                              ) : act.category === 'kegiatan' ? (
-                                <Volume2 className="w-3.5 h-3.5" />
-                              ) : act.category === 'jadwal' ? (
-                                <Calendar className="w-3.5 h-3.5" />
-                              ) : (
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1 space-y-0.5">
-                              <div className="flex items-center justify-between gap-1.5">
-                                <h5 className="font-extrabold text-slate-900 dark:text-white text-xs group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
-                                  {act.title}
-                                </h5>
-                                <span className="text-[9px] font-mono text-slate-400 shrink-0">{act.time}</span>
-                              </div>
-                              <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed line-clamp-2">
-                                {act.message}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center self-center shrink-0">
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
-                              ↗
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-
-                    {adminNotifications.filter(act => adminNotifCategory === 'semua' || act.category === adminNotifCategory).length === 0 && (
-                      <div className="p-8 text-center text-slate-400 text-xs italic">
-                        Belum ada notifikasi pada kategori ini.
-                      </div>
-                    )}
+                  {/* 5. IPL Belum Lunas */}
+                  <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
+                      <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {calcIplBelumLunas} <span className="text-xs text-rose-500 font-bold">KK</span>
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
+                    </div>
                   </div>
 
-                  <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
-                    <span>🟢 Live Real-Time Feed</span>
-                    <span>Klik item untuk menuju modul terkait</span>
+                  {/* 6. Surat Masuk */}
+                  <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {suratMasukList.length > 0 ? suratMasukList.length : (dashboardStats?.surat_masuk || 18)}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
+                    </div>
+                  </div>
+
+                  {/* 7. Surat Keluar */}
+                  <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
+                      <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {suratKeluarList.length > 0 ? suratKeluarList.length : (dashboardStats?.surat_keluar || 34)}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
+                    </div>
+                  </div>
+
+                  {/* 8. Pengaduan Aktif */}
+                  <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
+                      <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                        {serverComplaints.filter(c => c.status !== 'Selesai').length || (dashboardStats?.pengaduan_aktif || 3)}
+                      </span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+              {/* Layout: Sekretaris (2 Kolom: Quick Action & Demografi) vs RT / Non-Sekretaris */}
+              {isSekretaris ? (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                  {renderQuickActions("lg:col-span-5 p-4 sm:p-6 lg:p-8")}
+                  <div className="lg:col-span-7">
+                    {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", false)}
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-6 lg:space-y-8">
+                  {/* Row 1: Quick Action (Kiri) & Pusat Notifikasi (Kanan) */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+                    {renderQuickActions("lg:col-span-5 p-4 sm:p-6 lg:p-8")}
+                    {renderPusatNotifikasi("lg:col-span-7 p-5 sm:p-6 lg:p-7")}
+                  </div>
 
-              </div>
+                  {/* Row 2: Demografi Kependudukan (Di bawah Quick Action & Pusat Notifikasi) */}
+                  <div>
+                    {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", true)}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
