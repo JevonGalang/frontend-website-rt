@@ -7,7 +7,7 @@ import {
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
   Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield, ShieldCheck,
-  Mail, RefreshCw, ExternalLink, ZoomIn, ZoomOut, RotateCw, XCircle, CreditCard, Bell
+  Mail, RefreshCw, ExternalLink, ZoomIn, ZoomOut, RotateCw, XCircle, CreditCard, Bell, History
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -58,6 +58,62 @@ const parseKasNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+export const parseLocalDateString = (rawDate) => {
+  if (!rawDate) {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  // If already pure YYYY-MM-DD
+  if (typeof rawDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim())) {
+    return rawDate.trim();
+  }
+
+  // If string contains date and time, e.g. "2026-09-03 09:30:00" or ISO "2026-09-03T..."
+  if (typeof rawDate === 'string') {
+    const trimmed = rawDate.trim();
+    // If it has timezone Z or offset, parse as Date object to accurately obtain local date
+    if (trimmed.includes('T') || trimmed.includes('Z') || /[+-]\d{2}:\d{2}$/.test(trimmed)) {
+      const dateObj = new Date(trimmed);
+      if (!isNaN(dateObj.getTime())) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+    }
+    // If simple "YYYY-MM-DD ..." without timezone
+    const isoPrefixMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoPrefixMatch) {
+      return `${isoPrefixMatch[1]}-${isoPrefixMatch[2]}-${isoPrefixMatch[3]}`;
+    }
+    // If DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
+    if (dmyMatch) {
+      const [, d, m, y] = dmyMatch;
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+
+  // Fallback to Date object parsing in local time
+  try {
+    const dateObj = new Date(rawDate);
+    if (!isNaN(dateObj.getTime())) {
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const day = String(dateObj.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch (e) {}
+
+  return String(rawDate).substring(0, 10);
+};
+
+export const getTodayDateLocal = () => parseLocalDateString(new Date());
+
 const normalizeKasTransaction = (transaction, fallback = {}) => {
   const rawType = String(
     transaction?.tipeMutasi ??
@@ -103,7 +159,7 @@ const normalizeKasTransaction = (transaction, fallback = {}) => {
       transaction?.description ??
       fallback.description ??
       '',
-    date: rawDate ? String(rawDate).substring(0, 10) : new Date().toISOString().split('T')[0],
+    date: parseLocalDateString(rawDate),
     statusTransparansi:
       transaction?.statusTransparansi ??
       transaction?.status_transparansi ??
@@ -162,20 +218,26 @@ const calculateAge = (birthDateString) => {
 };
 
 const isTabAllowedForRole = (tab, role) => {
-  if (role === 'rt' || role === 'admin') return true;
+  if (role === 'rt' || role === 'admin' || role === 'superadmin') return true;
   
-  const financeTabs = [
-    'kas', 'iuran_jenis', 'iuran_pembayaran', 'iuran_riwayat', 'iuran_tunggakan', 'iuran_verifikasi',
-    'laporan_bulanan', 'laporan_tahunan', 'laporan_rekap', 'laporan_export',
-    'keuangan_qris'
+  const bendaharaTabs = [
+    'overview', 'pengaturan', 'kas', 'iuran_jenis', 'iuran_pembayaran', 
+    'iuran_riwayat', 'iuran_tunggakan', 'iuran_verifikasi', 'keuangan_qris'
   ];
   
   if (role === 'bendahara') {
-    return tab === 'overview' || tab === 'pengaturan' || financeTabs.includes(tab);
+    return bendaharaTabs.includes(tab);
   }
   
+  const secretaryAllowedTabs = [
+    'overview', 'pengaturan', 'warga', 'sek_warga_kk', 'sek_warga_masuk',
+    'layanan', 'sek_surat_template', 'sek_info_pengumuman', 'agenda',
+    'sek_info_notulen', 'sek_pengaduan', 'sek_arsip', 'sek_laporan',
+    'sek_akun_manage', 'iuran_pembayaran'
+  ];
+
   if (role === 'sekertaris' || role === 'sekretaris') {
-    return !financeTabs.includes(tab);
+    return secretaryAllowedTabs.includes(tab);
   }
   
   return false;
@@ -320,6 +382,10 @@ export default function AdminDashboard({
   ]);
   const [isLoadingKas, setIsLoadingKas] = useState(false);
   const [isSubmittingKas, setIsSubmittingKas] = useState(false);
+  const [isClosingKas, setIsClosingKas] = useState(false);
+  const [isLoadingClosingHistory, setIsLoadingClosingHistory] = useState(false);
+  const [tutupBukuHistoryList, setTutupBukuHistoryList] = useState([]);
+  const [tutupBukuCatatan, setTutupBukuCatatan] = useState('');
 
   // Laporan states
   const [laporanBulananMonth, setLaporanBulananMonth] = useState(new Date().getMonth() + 1);
@@ -1807,7 +1873,7 @@ export default function AdminDashboard({
     }
   };
 
-  // Manual Payment States (Bagian C #2)
+  // Manual Payment States (IPL Cash & Kas Insidental)
   const [manualPaymentForm, setManualPaymentForm] = useState({
     familyId: '',
     jenis_iuran: 'ipl', // 'ipl' | 'kas'
@@ -1822,31 +1888,51 @@ export default function AdminDashboard({
   const fetchUnpaidBillsForFamily = async (familyId) => {
     if (!familyId) {
       setFamilyUnpaidBills([]);
+      setManualPaymentForm(prev => ({ ...prev, billIds: [], amount: 0 }));
       return;
     }
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingFamilyBills(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/admin/finance/tracking?month=${trackingMonth}&year=${trackingYear}`, {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/families/${familyId}/ipl-bills/outstanding`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.output && Array.isArray(data.output) ? data.output : []);
-        const matching = list.filter(item => String(item.family_id) === String(familyId) && (item.status === 'Nunggak' || item.status === 'unpaid' || item.status === 'Belum Bayar'));
-        setFamilyUnpaidBills(matching);
-        if (matching.length > 0) {
-          const ids = matching.map(m => m.bill_id).filter(Boolean);
+        const raw = await res.json();
+        const items = extractArrayFromResponse(raw);
+        const formattedBills = items.map(b => ({
+          id: b.id || b.bill_id || b.billId,
+          period_title: b.period_title || b.periodTitle || (b.month && b.year ? `IPL Bulan ${b.month}/${b.year}` : `Tagihan IPL #${b.id || b.bill_id}`),
+          month: b.month,
+          year: b.year,
+          amount: Number(b.amount || b.nominal || b.nominal_tagihan || 200000),
+          due_date: b.due_date || b.dueDate,
+          status: b.status || 'unpaid',
+          rawItem: b
+        }));
+        setFamilyUnpaidBills(formattedBills);
+        if (formattedBills.length > 0) {
+          const ids = formattedBills.map(m => m.id).filter(Boolean);
           setManualPaymentForm(prev => ({
             ...prev,
             billIds: ids,
-            amount: matching.reduce((sum, m) => sum + (m.nominal_tagihan || 200000), 0)
+            amount: formattedBills.reduce((sum, m) => sum + m.amount, 0)
+          }));
+        } else {
+          setManualPaymentForm(prev => ({
+            ...prev,
+            billIds: [],
+            amount: 0
           }));
         }
+      } else {
+        setFamilyUnpaidBills([]);
+        setManualPaymentForm(prev => ({ ...prev, billIds: [], amount: 0 }));
       }
     } catch (e) {
-      console.error(e);
+      console.error('Gagal memuat outstanding bills:', e);
+      setFamilyUnpaidBills([]);
     } finally {
       setIsLoadingFamilyBills(false);
     }
@@ -1855,64 +1941,111 @@ export default function AdminDashboard({
   const handleManualPaymentSubmit = async (e) => {
     e.preventDefault();
     if (!manualPaymentForm.familyId) {
-      alert('Silakan pilih Kepala Keluarga / Warga terlebih dahulu.');
+      Swal.fire('Perhatian', 'Silakan pilih Kepala Keluarga / Warga terlebih dahulu.', 'warning');
       return;
     }
-    if (!manualPaymentForm.amount || parseInt(manualPaymentForm.amount) <= 0) {
-      alert('Nominal pembayaran harus lebih besar dari 0.');
-      return;
-    }
-    const token = sessionStorage.getItem('rt_token');
-    if (!token) { alert('Token tidak ditemukan.'); return; }
 
-    const reqBody = {
-      family_id: parseInt(manualPaymentForm.familyId),
-      jenis_iuran: manualPaymentForm.jenis_iuran,
-      amount: parseInt(manualPaymentForm.amount)
-    };
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) { 
+      Swal.fire('Error', 'Sesi login tidak valid atau token tidak ditemukan.', 'error');
+      return; 
+    }
 
     if (manualPaymentForm.jenis_iuran === 'ipl') {
-      reqBody.billIds = manualPaymentForm.billIds && manualPaymentForm.billIds.length > 0
-        ? manualPaymentForm.billIds.map(Number)
-        : [];
-    } else {
-      reqBody.category = manualPaymentForm.category;
-      reqBody.description = manualPaymentForm.description.trim() || 'Iuran Kas Manual';
-    }
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/finance/manual-payment`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(reqBody)
-      });
-      const data = await res.json();
-      if (res.ok) {
-        Swal.fire({
-          title: 'Pencatatan Berhasil! 🎉',
-          text: data.message || data.output?.message || 'Pencatatan iuran warga manual berhasil disimpan!',
-          icon: 'success',
-          confirmButtonColor: '#10b981'
-        });
-        setManualPaymentForm({
-          familyId: '',
-          jenis_iuran: 'ipl',
-          amount: iplAmountInput || 200000,
-          billIds: [],
-          category: 'sosial',
-          description: ''
-        });
-        setFamilyUnpaidBills([]);
-        fetchFinanceTracking();
-        fetchLedgerFromServer();
-      } else {
-        Swal.fire('Gagal', data.message || data.pesan || 'Gagal menyimpan pencatatan manual.', 'error');
+      if (!manualPaymentForm.billIds || manualPaymentForm.billIds.length === 0) {
+        Swal.fire('Pilih Tagihan', 'Silakan pilih minimal 1 tagihan IPL yang akan dibayar tunai.', 'warning');
+        return;
       }
-    } catch (err) {
-      alert(`Koneksi gagal: ${err.message}`);
+
+      const reqBody = {
+        familyId: parseInt(manualPaymentForm.familyId),
+        billIds: manualPaymentForm.billIds.map(Number)
+      };
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/finance/ipl-payments/cash`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(reqBody)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          Swal.fire({
+            title: 'Pembayaran IPL Berhasil! 🎉',
+            text: data.message || data.output?.message || 'Setoran tunai IPL warga berhasil dicatat dan disahkan.',
+            icon: 'success',
+            confirmButtonColor: '#10b981'
+          });
+          setManualPaymentForm({
+            familyId: '',
+            jenis_iuran: 'ipl',
+            amount: 200000,
+            billIds: [],
+            category: 'sosial',
+            description: ''
+          });
+          setFamilyUnpaidBills([]);
+          fetchFinanceTracking();
+          fetchLedgerFromServer();
+          fetchFinanceAudit();
+        } else {
+          Swal.fire('Gagal', data.message || data.pesan || data.error || 'Gagal menyimpan pembayaran tunai IPL.', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', `Koneksi gagal: ${err.message}`, 'error');
+      }
+    } else {
+      // Kas Insidental
+      if (!manualPaymentForm.amount || parseInt(manualPaymentForm.amount) <= 0) {
+        Swal.fire('Perhatian', 'Nominal kas insidental harus lebih besar dari 0.', 'warning');
+        return;
+      }
+
+      const reqBody = {
+        family_id: parseInt(manualPaymentForm.familyId),
+        jenis_iuran: 'kas',
+        amount: parseInt(manualPaymentForm.amount),
+        category: manualPaymentForm.category,
+        description: manualPaymentForm.description.trim() || 'Iuran Kas Manual'
+      };
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/admin/finance/manual-payment`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(reqBody)
+        });
+        const data = await res.json();
+        if (res.ok) {
+          Swal.fire({
+            title: 'Pencatatan Kas Berhasil! 🎉',
+            text: data.message || data.output?.message || 'Pencatatan kas insidental berhasil disimpan!',
+            icon: 'success',
+            confirmButtonColor: '#10b981'
+          });
+          setManualPaymentForm({
+            familyId: '',
+            jenis_iuran: 'ipl',
+            amount: 200000,
+            billIds: [],
+            category: 'sosial',
+            description: ''
+          });
+          setFamilyUnpaidBills([]);
+          fetchFinanceTracking();
+          fetchLedgerFromServer();
+        } else {
+          Swal.fire('Gagal', data.message || data.pesan || 'Gagal menyimpan pencatatan kas.', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', `Koneksi gagal: ${err.message}`, 'error');
+      }
     }
   };
 
@@ -2128,6 +2261,7 @@ export default function AdminDashboard({
         
         const formatted = items.map(kk => {
           const citizenId = kk.warga_id || kk.id || kk.user_id || 0;
+          const familyId = kk.family_id || kk.id_family || kk.familyId || kk.family_ID || citizenId;
           const name = kk.nama || kk.name || kk.kepala_keluarga_nama || 'Kepala Keluarga';
           const alamat = kk.alamat || kk.house_alamat || (kk.blok || kk.house_blok ? `Blok ${kk.blok || kk.house_blok} No. ${kk.nomor || kk.house_nomor || ''}` : '');
           const nik = kk.nik || '';
@@ -2135,6 +2269,7 @@ export default function AdminDashboard({
           
           return {
             id: citizenId,
+            familyId: familyId,
             name: name,
             alamat: alamat,
             nik: nik,
@@ -2595,18 +2730,24 @@ export default function AdminDashboard({
   };
 
   // 4. GET /admin/finance/kas-transaksi/summary
-  const fetchKasSummary = async () => {
+  const fetchKasSummary = async (customParams = {}) => {
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     try {
+      const q = customParams.searchQuery !== undefined ? customParams.searchQuery : searchQuery;
+      const type = customParams.kasFilterType !== undefined ? customParams.kasFilterType : kasFilterType;
+      const cat = customParams.kasFilterCategory !== undefined ? customParams.kasFilterCategory : kasFilterCategory;
+      const start = customParams.kasDateStart !== undefined ? customParams.kasDateStart : kasDateStart;
+      const end = customParams.kasDateEnd !== undefined ? customParams.kasDateEnd : kasDateEnd;
+
       const queryParams = new URLSearchParams();
-      if (searchQuery) queryParams.set('keyword', searchQuery);
-      if (kasFilterType && kasFilterType !== 'all') {
-        queryParams.set('tipeMutasi', kasFilterType === 'income' ? 'masuk' : 'keluar');
+      if (q) queryParams.set('keyword', q);
+      if (type && type !== 'all') {
+        queryParams.set('tipeMutasi', type === 'income' ? 'masuk' : 'keluar');
       }
-      if (kasFilterCategory && kasFilterCategory !== 'all') queryParams.set('kategoriKas', kasFilterCategory);
-      if (kasDateStart) queryParams.set('tanggalMulai', kasDateStart);
-      if (kasDateEnd) queryParams.set('tanggalSelesai', kasDateEnd);
+      if (cat && cat !== 'all') queryParams.set('kategoriKas', cat);
+      if (start) queryParams.set('tanggalMulai', start);
+      if (end) queryParams.set('tanggalSelesai', end);
 
       const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/summary?${queryParams.toString()}`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -2842,10 +2983,86 @@ export default function AdminDashboard({
     }
   };
 
-  const userRole = currentUser?.role || '';
-  const isRtOrAdmin = userRole === 'rt' || userRole === 'admin';
+  // 13. GET /admin/finance/kas-transaksi/tutup-buku
+  const fetchKasClosingHistory = async () => {
+    setIsLoadingClosingHistory(true);
+    const token = sessionStorage.getItem('rt_token');
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/tutup-buku`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const records = extractArrayFromResponse(data);
+        setTutupBukuHistoryList(records);
+        return records;
+      }
+    } catch (err) {
+      console.warn('Gagal memuat riwayat tutup buku:', err.message);
+    } finally {
+      setIsLoadingClosingHistory(false);
+    }
+  };
+
+  // 14. POST /admin/finance/kas-transaksi/tutup-buku
+  const handleExecuteTutupBuku = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setIsClosingKas(true);
+    const token = sessionStorage.getItem('rt_token');
+    try {
+      const payload = {};
+      if (tutupBukuCatatan && tutupBukuCatatan.trim()) {
+        payload.catatan = tutupBukuCatatan.trim();
+        payload.keterangan = tutupBukuCatatan.trim();
+      }
+
+      const res = await fetch(`${API_BASE_URL}/admin/finance/kas-transaksi/tutup-buku`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || data.pesan || 'Gagal melakukan tutup buku kas.');
+      }
+
+      setModalType('');
+      setTutupBukuCatatan('');
+
+      await Swal.fire({
+        title: 'Tutup Buku Berhasil!',
+        text: data.message || 'Snapshot pembukuan kas periode ini telah dikunci dan dicatat di arsip resmi.',
+        icon: 'success',
+        confirmButtonColor: '#10b981'
+      });
+
+      await Promise.all([
+        fetchKasTransaksi(),
+        fetchKasSummary(),
+        fetchKasClosingHistory()
+      ]);
+    } catch (err) {
+      Swal.fire({
+        title: 'Gagal Tutup Buku',
+        text: err.message,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
+    } finally {
+      setIsClosingKas(false);
+    }
+  };
+
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const isRtOrAdmin = userRole === 'rt' || userRole === 'admin' || userRole === 'superadmin';
   const isBendahara = userRole === 'bendahara';
   const isSekretaris = userRole === 'sekertaris' || userRole === 'sekretaris';
+  const canCloseKas = ['bendahara', 'rt', 'superadmin', 'admin'].includes(userRole);
+  const canReadKasClosing = ['rt', 'sekretaris', 'sekertaris', 'bendahara', 'superadmin', 'admin'].includes(userRole);
 
   useEffect(() => {
     // Only fetch data that the current role has permission to access
@@ -2893,17 +3110,26 @@ export default function AdminDashboard({
       fetchKasTransaksi();
       fetchKasSummary();
       fetchKasKategoriSaran();
+      if (canReadKasClosing) {
+        fetchKasClosingHistory();
+      }
     }
-    if (activeTab === 'laporan_bulanan') {
+    if (activeTab === 'laporan_bulanan' && !isBendahara) {
       fetchLaporanBulanan();
     }
-    if (activeTab === 'laporan_tahunan') {
+    if (activeTab === 'laporan_tahunan' && !isBendahara) {
       fetchLaporanTahunan();
     }
-    if (activeTab === 'laporan_rekap') {
+    if (activeTab === 'laporan_rekap' && !isBendahara) {
       fetchLaporanRekap();
     }
-  }, [activeTab, residentSubTab]);
+  }, [activeTab, residentSubTab, isBendahara]);
+
+  useEffect(() => {
+    if (isBendahara && activeTab.startsWith('laporan_')) {
+      setActiveTab('overview');
+    }
+  }, [isBendahara, activeTab]);
 
   useEffect(() => {
     let token = null;
@@ -3725,6 +3951,57 @@ export default function AdminDashboard({
   );
   const sisaKasRT = sisaKas;
 
+  const isKasFilterActive = Boolean(
+    kasDateStart || 
+    kasDateEnd || 
+    (kasFilterCategory && kasFilterCategory !== 'all') || 
+    (kasFilterType && kasFilterType !== 'all') || 
+    (searchQuery && searchQuery.trim())
+  );
+
+  const filteredKasTransactions = (transaksiKasList || []).filter((t) => {
+    const itemDate = parseLocalDateString(t.date);
+    const q = (searchQuery || '').toLowerCase().trim();
+
+    const matchesQuery = !q || 
+      (t.description || '').toLowerCase().includes(q) || 
+      (t.category || '').toLowerCase().includes(q) || 
+      String(t.id || '').toLowerCase().includes(q) ||
+      itemDate.includes(q);
+
+    const matchesType = kasFilterType === 'all' || 
+      t.type === kasFilterType || 
+      (kasFilterType === 'income' ? (t.type === 'income' || t.tipeMutasi === 'masuk') : (t.type === 'expense' || t.tipeMutasi === 'keluar'));
+
+    const matchesCategory = kasFilterCategory === 'all' || t.category === kasFilterCategory;
+
+    let matchesDateStart = true;
+    if (kasDateStart) {
+      matchesDateStart = itemDate >= kasDateStart;
+    }
+
+    let matchesDateEnd = true;
+    if (kasDateEnd) {
+      matchesDateEnd = itemDate <= kasDateEnd;
+    }
+
+    return matchesQuery && matchesType && matchesCategory && matchesDateStart && matchesDateEnd;
+  });
+
+  const kasFilteredIncome = filteredKasTransactions
+    .filter(t => t.type === 'income')
+    .reduce((sum, t) => sum + (parseKasNumber(t.amount) || 0), 0);
+
+  const kasFilteredExpense = filteredKasTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((sum, t) => sum + (parseKasNumber(t.amount) || 0), 0);
+
+  const kasFilteredNet = kasFilteredIncome - kasFilteredExpense;
+
+  const displayKasIncome = isKasFilterActive ? kasFilteredIncome : totalPemasukan;
+  const displayKasExpense = isKasFilterActive ? kasFilteredExpense : totalPengeluaran;
+  const displayKasSaldo = isKasFilterActive ? kasFilteredNet : sisaKas;
+
   const totalAgendas = agendaList.length;
   const pendingSubmissionsCount = displaySubmissions.filter(s => s.status === 'Pending' || !s.status).length;
 
@@ -3736,6 +4013,49 @@ export default function AdminDashboard({
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(isNaN(val) ? 0 : val);
+  };
+
+  // Helper to verify if a kas transaction has been closed in tutup buku
+  const checkIsTransactionClosed = (item) => {
+    if (!item) return false;
+    const raw = item.raw || item;
+
+    // 1. Explicit closed/locked flags from backend
+    if (
+      raw.is_closed || 
+      raw.is_locked || 
+      raw.isClosed || 
+      raw.isLocked ||
+      raw.tutup_buku_id || 
+      raw.closing_id || 
+      raw.periode_tutup_buku_id || 
+      raw.id_tutup_buku ||
+      raw.status_tutup_buku === 'closed' ||
+      raw.status === 'closed' ||
+      raw.status === 'locked' ||
+      raw.statusTransparansi === 'Terkunci'
+    ) {
+      return true;
+    }
+
+    // 2. Cross-reference with tutupBukuHistoryList
+    if (Array.isArray(tutupBukuHistoryList) && tutupBukuHistoryList.length > 0) {
+      const rawItemDate = item.date || raw.tanggal || raw.transaction_date || raw.transactionDate;
+      const itemDate = parseLocalDateString(rawItemDate);
+
+      const isCovered = tutupBukuHistoryList.some((closing) => {
+        const rawClosingDate = closing.tanggal_tutup || closing.tanggal_penutupan || closing.created_at || closing.tanggal || closing.closed_at;
+        if (!rawClosingDate) return false;
+        const closingDate = parseLocalDateString(rawClosingDate);
+        return itemDate && closingDate && itemDate <= closingDate;
+      });
+
+      if (isCovered) {
+        return true;
+      }
+    }
+
+    return false;
   };
 
   // Setup Form for Editing
@@ -3765,6 +4085,15 @@ export default function AdminDashboard({
       });
       setModalType('edit_warga');
     } else if (type === 'kas') {
+      if (checkIsTransactionClosed(item)) {
+        Swal.fire({
+          title: 'Tidak Bisa',
+          text: 'TIDAK BISA KARENA SUDAH KE PANCATATAN TUTUP BUKU',
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
+        });
+        return;
+      }
       setKasForm({ ...item });
       setModalType('edit_kas');
     } else if (type === 'agenda') {
@@ -3789,7 +4118,7 @@ export default function AdminDashboard({
       setKasForm({
         description: '', 
         amount: '', 
-        date: new Date().toISOString().split('T')[0], 
+        date: getTodayDateLocal(), 
         type: transactionType, 
         category: defaultCategory
       });
@@ -3803,7 +4132,20 @@ export default function AdminDashboard({
   };
 
   // Delete Handlers
-  const handleDelete = async (type, id) => {
+  const handleDelete = async (type, id, item = null) => {
+    if (type === 'kas') {
+      const targetItem = item || (transaksiKasList || []).find(t => String(t.id) === String(id));
+      if (checkIsTransactionClosed(targetItem)) {
+        await Swal.fire({
+          title: 'Tidak Bisa',
+          text: 'TIDAK BISA KARENA SUDAH KE PANCATATAN TUTUP BUKU',
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
+        });
+        return;
+      }
+    }
+
     const result = await Swal.fire({
       title: 'Hapus Data',
       text: 'Apakah Anda yakin ingin menghapus data ini?',
@@ -3828,8 +4170,30 @@ export default function AdminDashboard({
               method: 'DELETE',
               headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await res.json();
+            const data = await res.json().catch(() => ({}));
             if (!res.ok) {
+              const errMsg = (data.message || data.pesan || '').toLowerCase();
+              const isTutupBukuErr = errMsg.includes('tutup buku') || 
+                                     errMsg.includes('closing') || 
+                                     errMsg.includes('kunci') || 
+                                     errMsg.includes('terkunci') || 
+                                     errMsg.includes('closed') ||
+                                     errMsg.includes('periode') ||
+                                     res.status === 400 ||
+                                     res.status === 403 ||
+                                     res.status === 409 ||
+                                     res.status === 422;
+
+              if (isTutupBukuErr) {
+                await Swal.fire({
+                  title: 'Tidak Bisa',
+                  text: 'TIDAK BISA KARENA SUDAH KE PANCATATAN TUTUP BUKU',
+                  icon: 'error',
+                  confirmButtonColor: '#ef4444'
+                });
+                return;
+              }
+
               throw new Error(data.message || data.pesan || 'Gagal menghapus transaksi di server.');
             }
             await fetchKasTransaksi();
@@ -3837,7 +4201,24 @@ export default function AdminDashboard({
             Swal.fire({ title: 'Terhapus!', text: 'Transaksi kas berhasil dihapus (soft-delete).', icon: 'success', confirmButtonColor: '#10b981' });
             return;
           } catch (err) {
-            console.warn('Server delete error, fallback local:', err.message);
+            console.warn('Server delete error:', err.message);
+            const errLower = (err.message || '').toLowerCase();
+            if (errLower.includes('tutup buku') || errLower.includes('closing') || errLower.includes('closed') || errLower.includes('terkunci')) {
+              await Swal.fire({
+                title: 'Tidak Bisa',
+                text: 'TIDAK BISA KARENA SUDAH KE PANCATATAN TUTUP BUKU',
+                icon: 'error',
+                confirmButtonColor: '#ef4444'
+              });
+              return;
+            }
+            Swal.fire({
+              title: 'Gagal Menghapus',
+              text: err.message || 'Gagal menghapus transaksi kas di server.',
+              icon: 'error',
+              confirmButtonColor: '#ef4444'
+            });
+            return;
           }
         }
         const updated = transaksiKasList.filter(t => t.id !== id);
@@ -4992,69 +5373,6 @@ export default function AdminDashboard({
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'keuangan_qris' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                       <span>Rekening & QRIS RT</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Laporan Header */}
-              <div>
-                <button
-                  onClick={() => setIsLaporanOpen(!isLaporanOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <BarChart3 className="w-4 h-4 text-pink-400" />
-                    <span>Laporan</span>
-                  </div>
-                  <span className="text-[9px] text-slate-500 font-extrabold">{isLaporanOpen ? '▼' : '▶'}</span>
-                </button>
-
-                {isLaporanOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
-                    <button
-                      onClick={() => { setActiveTab('laporan_bulanan'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                          activeTab === 'laporan_bulanan' 
-                            ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                            : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                        }`}
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_bulanan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
-                      <span>Laporan Bulanan</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('laporan_tahunan'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'laporan_tahunan' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_tahunan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
-                      <span>Laporan Tahunan</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('laporan_rekap'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'laporan_rekap' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_rekap' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
-                      <span>Rekap Iuran</span>
-                    </button>
-                    <button
-                      onClick={() => { setActiveTab('laporan_export'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'laporan_export' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-405 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'laporan_export' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
-                      <span>Export Excel/PDF</span>
                     </button>
                   </div>
                 )}
@@ -7893,11 +8211,15 @@ export default function AdminDashboard({
                       Total Pemasukan Kas
                     </span>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold rounded-full">
-                      {transaksiKasList.filter(t => t.type === 'income').length} Transaksi
+                      {isKasFilterActive 
+                        ? `${filteredKasTransactions.filter(t => t.type === 'income').length} Transaksi (Filter)` 
+                        : `${transaksiKasList.filter(t => t.type === 'income').length} Transaksi`}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(totalPemasukan)}</span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Akumulasi iuran bulanan warga, donasi, subsidi & sumbangan.</p>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasIncome)}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    {isKasFilterActive ? 'Akumulasi pemasukan pada rentang filter yang dipilih.' : 'Akumulasi iuran bulanan warga, donasi, subsidi & sumbangan.'}
+                  </p>
                 </div>
 
                 <div className="p-5 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-500/20 rounded-2xl relative overflow-hidden shadow-xs">
@@ -7907,25 +8229,36 @@ export default function AdminDashboard({
                       Total Pengeluaran Kas
                     </span>
                     <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-700 dark:text-rose-300 font-bold rounded-full">
-                      {transaksiKasList.filter(t => t.type === 'expense').length} Transaksi
+                      {isKasFilterActive 
+                        ? `${filteredKasTransactions.filter(t => t.type === 'expense').length} Transaksi (Filter)` 
+                        : `${transaksiKasList.filter(t => t.type === 'expense').length} Transaksi`}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(totalPengeluaran)}</span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Belanja operasional keamanan, kebersihan, ATK & kegiatan RT.</p>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasExpense)}</span>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                    {isKasFilterActive ? 'Akumulasi pengeluaran pada rentang filter yang dipilih.' : 'Belanja operasional keamanan, kebersihan, ATK & kegiatan RT.'}
+                  </p>
                 </div>
 
                 <div className="p-5 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
                       <Wallet className="w-4 h-4" />
-                      Saldo Akhir Kas RT
+                      {isKasFilterActive ? 'Saldo Bersih Periode' : 'Saldo Akhir Kas RT'}
                     </span>
                     <span className="text-[10px] px-2 py-0.5 bg-orange-500/20 text-orange-700 dark:text-orange-300 font-bold rounded-full">
-                      Kas Tersedia
+                      {isKasFilterActive ? 'Net Filter' : 'Kas Tersedia'}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(sisaKas)}</span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
+                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasSaldo)}</span>
+                  {isKasFilterActive ? (
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-orange-500/20">
+                      <span>Saldo Seluruh Waktu:</span>
+                      <span className="font-bold font-mono text-slate-700 dark:text-slate-200">{formatRupiah(sisaKas)}</span>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
+                  )}
                 </div>
               </div>
 
@@ -8043,8 +8376,8 @@ export default function AdminDashboard({
                     </div>
 
                     {/* Date Range Toolbar */}
-                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200/50 dark:border-slate-800/60 text-xs">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/50 dark:border-slate-800/60 text-xs">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-bold text-slate-400">Rentang Tanggal:</span>
                         <input
                           type="date"
@@ -8061,47 +8394,62 @@ export default function AdminDashboard({
                           className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-200 outline-none"
                           placeholder="Selesai"
                         />
+                        {isKasFilterActive && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setKasDateStart('');
+                              setKasDateEnd('');
+                              setKasFilterCategory('all');
+                              setKasFilterType('all');
+                              setSearchQuery('');
+                            }}
+                            className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
+                          >
+                            Reset Filter
+                          </button>
+                        )}
                       </div>
 
-                      <button
-                        onClick={() => {
-                          fetchKasTransaksi();
-                          fetchKasSummary();
-                        }}
-                        className="py-1.5 px-3 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-lg transition-all cursor-pointer shadow-xs"
-                      >
-                        Terapkan Filter
-                      </button>
+                      {/* Tombol Tutup Buku & Riwayat Tutup Buku di sebelah rentang waktu */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {canReadKasClosing && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              fetchKasClosingHistory();
+                              setModalType('riwayat_tutup_buku');
+                            }}
+                            className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer shadow-xs"
+                            title="Lihat Arsip Riwayat Periode Tutup Buku"
+                          >
+                            <History className="w-3.5 h-3.5 text-slate-500" />
+                            <span>Riwayat Tutup Buku</span>
+                          </button>
+                        )}
 
-                      {(kasDateStart || kasDateEnd || kasFilterCategory !== 'all' || kasFilterType !== 'all' || searchQuery) && (
-                        <button
-                          onClick={() => {
-                            setKasDateStart('');
-                            setKasDateEnd('');
-                            setKasFilterCategory('all');
-                            setKasFilterType('all');
-                            setSearchQuery('');
-                            fetchKasTransaksi({
-                              kasDateStart: '',
-                              kasDateEnd: '',
-                              kasFilterCategory: 'all',
-                              kasFilterType: 'all',
-                              searchQuery: ''
-                            });
-                            fetchKasSummary();
-                          }}
-                          className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
-                        >
-                          Reset Filter
-                        </button>
-                      )}
+                        {canCloseKas && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTutupBukuCatatan('');
+                              setModalType('tutup_buku');
+                            }}
+                            className="py-1.5 px-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                            title="Kunci & Tutup Buku Periode Kas RT"
+                          >
+                            <Lock className="w-3.5 h-3.5" />
+                            <span>Tutup Buku</span>
+                          </button>
+                        )}
 
-                      {isLoadingKas && (
-                        <span className="inline-flex items-center gap-1.5 text-xs text-orange-500 font-bold ml-auto animate-pulse">
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          <span>Memuat Data...</span>
-                        </span>
-                      )}
+                        {isLoadingKas && (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-orange-500 font-bold animate-pulse">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Memuat Data...</span>
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -8115,44 +8463,37 @@ export default function AdminDashboard({
                           <th className="p-4">Kategori Kas</th>
                           <th className="p-4 text-center">Tipe Mutasi</th>
                           <th className="p-4 text-right">Nominal Uang</th>
-                          <th className="p-4 text-center">Status Transparansi</th>
                           <th className="p-4 text-right">Aksi</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {(() => {
-                          const q = searchQuery.toLowerCase();
-                          const filtered = (transaksiKasList || []).filter((t) => {
-                            const matchesQuery = !searchQuery || 
-                              (t.description || '').toLowerCase().includes(q) || 
-                              (t.category || '').toLowerCase().includes(q) ||
-                              String(t.id || '').toLowerCase().includes(q) ||
-                              (t.date || '').toLowerCase().includes(q);
-                            const matchesType = kasFilterType === 'all' || t.type === kasFilterType || (kasFilterType === 'income' ? (t.type === 'income' || t.tipeMutasi === 'masuk') : (t.type === 'expense' || t.tipeMutasi === 'keluar'));
-                            const matchesCategory = kasFilterCategory === 'all' || t.category === kasFilterCategory;
-                            const matchesDateStart = !kasDateStart || t.date >= kasDateStart;
-                            const matchesDateEnd = !kasDateEnd || t.date <= kasDateEnd;
-                            return matchesQuery && matchesType && matchesCategory && matchesDateStart && matchesDateEnd;
-                          });
-
-                          if (filtered.length === 0) {
+                          if (filteredKasTransactions.length === 0) {
                             return (
                               <tr>
-                                <td colSpan={7} className="p-8 text-center text-slate-400">
+                                <td colSpan={6} className="p-8 text-center text-slate-400">
                                   <div className="flex flex-col items-center justify-center gap-2">
                                     <FileText className="w-8 h-8 opacity-40" />
                                     <p className="font-bold text-xs">Tidak ada data transaksi kas yang sesuai filter.</p>
-                                    <p className="text-[11px]">Silakan sesuaikan kata kunci pencarian atau kategori.</p>
+                                    <p className="text-[11px]">Silakan sesuaikan kata kunci pencarian, rentang tanggal, atau kategori.</p>
                                   </div>
                                 </td>
                               </tr>
                             );
                           }
 
-                          return filtered.map((t) => (
+                          return filteredKasTransactions.map((t) => (
                             <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
                               <td className="p-4 space-y-1 font-mono">
-                                <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
+                                  {checkIsTransactionClosed(t) && (
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="Tercatat dalam periode Tutup Buku">
+                                      <Lock className="w-2.5 h-2.5" />
+                                      Tutup Buku
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-[10px] text-slate-400">{t.id}</div>
                               </td>
                               <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words">
@@ -8178,12 +8519,6 @@ export default function AdminDashboard({
                               }`}>
                                 {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
                               </td>
-                              <td className="p-4 text-center">
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-md text-[10px] font-bold border border-emerald-500/20">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  <span>Terverifikasi</span>
-                                </span>
-                              </td>
                               <td className="p-4 text-right">
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
@@ -8194,7 +8529,7 @@ export default function AdminDashboard({
                                     <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-orange-500" />
                                   </button>
                                   <button
-                                    onClick={() => handleDelete('kas', t.id)}
+                                    onClick={() => handleDelete('kas', t.id, t)}
                                     className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
                                     title="Hapus Transaksi"
                                   >
@@ -8752,11 +9087,14 @@ export default function AdminDashboard({
                   >
                     <option value="">-- {isLoadingKepalaKeluarga ? 'Memuat data warga...' : 'Pilih Nama Kepala Keluarga yang Menyerahkan Uang Cash'} --</option>
                     {(kepalaKeluargaList.length > 0 ? kepalaKeluargaList : wargaList.filter(w => w.statusHidup === 'Hidup'))
-                      .map(w => (
-                        <option key={w.id} value={w.rawItem?.family_id || w.rawItem?.id_family || w.id}>
-                          {w.name} {w.alamat ? '(' + w.alamat + ')' : ''} {w.noKk ? '• KK: ' + w.noKk : ''}
-                        </option>
-                      ))}
+                      .map(w => {
+                        const famId = w.familyId || w.rawItem?.family_id || w.rawItem?.id_family || w.rawItem?.familyId || w.id;
+                        return (
+                          <option key={w.id || famId} value={famId}>
+                            {w.name} {w.alamat ? '(' + w.alamat + ')' : ''} {w.noKk ? '• KK: ' + w.noKk : ''}
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
 
@@ -8775,13 +9113,25 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-700 dark:text-slate-300">Total Uang Cash Diterima (Rp) *</label>
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-slate-700 dark:text-slate-300">
+                        {manualPaymentForm.jenis_iuran === 'ipl' ? 'Total Tagihan Dipilih' : 'Total Uang Cash Diterima (Rp) *'}
+                      </label>
+                      {manualPaymentForm.jenis_iuran === 'ipl' && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
+                          {manualPaymentForm.billIds.length} tagihan dipilih
+                        </span>
+                      )}
+                    </div>
                     <input
                       required
                       type="number"
+                      readOnly={manualPaymentForm.jenis_iuran === 'ipl'}
                       value={manualPaymentForm.amount}
                       onChange={(e) => setManualPaymentForm(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-black font-mono text-sm"
+                      className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-black font-mono text-sm ${
+                        manualPaymentForm.jenis_iuran === 'ipl' ? 'opacity-90 bg-slate-100 dark:bg-slate-900/60 cursor-default' : ''
+                      }`}
                     />
                   </div>
                 </div>
@@ -8789,12 +9139,34 @@ export default function AdminDashboard({
                 {/* 3. Detail Tagihan IPL (Checklist Rapel) */}
                 {manualPaymentForm.jenis_iuran === 'ipl' && (
                   <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
-                    <div className="flex justify-between items-center">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Pilih Periode Tagihan Yang Dibayar Tunai:</span>
                         <span className="text-[10px] text-slate-400">Centang 1 atau beberapa tagihan sekaligus jika warga membayar rapel.</span>
                       </div>
-                      {isLoadingFamilyBills && <span className="text-[10px] text-emerald-500 font-bold animate-pulse">Memeriksa tagihan...</span>}
+                      <div className="flex items-center gap-2">
+                        {familyUnpaidBills.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (manualPaymentForm.billIds.length === familyUnpaidBills.length) {
+                                setManualPaymentForm(prev => ({ ...prev, billIds: [], amount: 0 }));
+                              } else {
+                                const allIds = familyUnpaidBills.map(b => b.id);
+                                setManualPaymentForm(prev => ({
+                                  ...prev,
+                                  billIds: allIds,
+                                  amount: familyUnpaidBills.reduce((sum, b) => sum + (b.amount || 200000), 0)
+                                }));
+                              }
+                            }}
+                            className="px-2.5 py-1 text-[10px] font-bold bg-slate-200 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-lg transition-all cursor-pointer"
+                          >
+                            {manualPaymentForm.billIds.length === familyUnpaidBills.length ? 'Batal Pilih Semua' : 'Pilih Semua (Rapel)'}
+                          </button>
+                        )}
+                        {isLoadingFamilyBills && <span className="text-[10px] text-emerald-500 font-bold animate-pulse">Memeriksa tagihan...</span>}
+                      </div>
                     </div>
 
                     {familyUnpaidBills.length > 0 ? (
@@ -8815,12 +9187,12 @@ export default function AdminDashboard({
                                 setManualPaymentForm(prev => ({
                                   ...prev,
                                   billIds: newIds,
-                                  amount: selectedObjs.reduce((sum, bill) => sum + bill.amount, 0)
+                                  amount: selectedObjs.reduce((sum, bill) => sum + (bill.amount || 200000), 0)
                                 }));
                               }}
                               className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
                                 isChecked
-                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200'
+                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200 shadow-xs'
                                   : 'border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900'
                               }`}
                             >
@@ -8840,8 +9212,13 @@ export default function AdminDashboard({
                                   </span>
                                 </div>
                               </div>
-                              <div className="text-right font-mono font-black text-xs text-slate-900 dark:text-white">
-                                {formatRupiah(b.amount)}
+                              <div className="text-right">
+                                <span className="font-mono font-black text-xs text-slate-900 dark:text-white block">
+                                  {formatRupiah(b.amount)}
+                                </span>
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 font-bold uppercase">
+                                  {b.status || 'Belum Bayar'}
+                                </span>
                               </div>
                             </div>
                           );
@@ -8849,8 +9226,15 @@ export default function AdminDashboard({
                       </div>
                     ) : (
                       <p className="text-xs text-slate-400 italic py-2">
-                        {manualPaymentForm.familyId ? 'Keluarga ini tidak memiliki tunggakan IPL (Semua tagihan sudah lunas).' : 'Silakan pilih kepala keluarga terlebih dahulu untuk melihat tagihan.'}
+                        {manualPaymentForm.familyId ? 'Keluarga ini tidak memiliki tagihan IPL outstanding (Semua tagihan lunas).' : 'Silakan pilih kepala keluarga terlebih dahulu untuk melihat tagihan outstanding.'}
                       </p>
+                    )}
+
+                    {familyUnpaidBills.length > 0 && (
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Server akan menghitung total resmi dan memvalidasi penguncian database secara otomatis.</span>
+                      </div>
                     )}
                   </div>
                 )}
@@ -9198,12 +9582,27 @@ export default function AdminDashboard({
                             </td>
                             <td className="p-4 text-right font-sans">
                               {isMenunggak ? (
-                                <button
-                                  onClick={() => alert(`Notifikasi tagihan tunggakan IPL dikirim ke Keluarga ${h.kepala_keluarga_nama}!`)}
-                                  className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
-                                >
-                                  Tagih Warga
-                                </button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setActiveTab('iuran_pembayaran');
+                                      setSearchQuery('');
+                                      const fId = String(h.family_id);
+                                      setManualPaymentForm(prev => ({ ...prev, familyId: fId, jenis_iuran: 'ipl' }));
+                                      fetchUnpaidBillsForFamily(fId);
+                                    }}
+                                    className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-lg transition-all cursor-pointer shadow-xs"
+                                    title="Catat Bayar Tunai Langsung"
+                                  >
+                                    💵 Bayar Tunai
+                                  </button>
+                                  <button
+                                    onClick={() => alert(`Notifikasi tagihan tunggakan IPL dikirim ke Keluarga ${h.kepala_keluarga_nama}!`)}
+                                    className="py-1 px-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                  >
+                                    Tagih
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[10px] text-slate-400 font-semibold italic">Lunas</span>
                               )}
@@ -12165,6 +12564,250 @@ export default function AdminDashboard({
                 className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
               >
                 Tutup Pratinjau
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODAL TUTUP BUKU KAS */}
+      {modalType === 'tutup_buku' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => !isClosingKas && setModalType('')}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Tutup Buku Kas RT</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Kunci & arsipkan snapshot saldo kas periode ini</p>
+                </div>
+              </div>
+              <button
+                disabled={isClosingKas}
+                onClick={() => setModalType('')}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer disabled:opacity-50"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleExecuteTutupBuku} className="p-6 space-y-4 text-xs font-sans">
+              {/* Snapshot Cards */}
+              <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 space-y-3">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                  Snapshot Kas Yang Akan Dikunci
+                </span>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-center">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Total Masuk</span>
+                    <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">{formatRupiah(totalPemasukan)}</span>
+                  </div>
+                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-center">
+                    <span className="text-[10px] text-slate-400 block font-semibold">Total Keluar</span>
+                    <span className="text-xs font-mono font-black text-rose-600 dark:text-rose-400">{formatRupiah(totalPengeluaran)}</span>
+                  </div>
+                  <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/20 rounded-xl border border-amber-500/30 text-center">
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-bold">Saldo Akhir</span>
+                    <span className="text-xs font-mono font-black text-amber-700 dark:text-amber-300">{formatRupiah(sisaKas)}</span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-slate-500 pt-1">
+                  <span>Total Transaksi Kas:</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{transaksiKasList.length} Transaksi</span>
+                </div>
+              </div>
+
+              {/* Notice Banner */}
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-800 dark:text-amber-300">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <span>
+                  <strong>Perhatian:</strong> Sistem akan mengunci mutasi dan menyimpan snapshot resmi secara atomik ke basis data. Pastikan seluruh transaksi kas periode ini telah diverifikasi.
+                </span>
+              </div>
+
+              {/* Catatan Input */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-655 dark:text-slate-350 block">
+                  Catatan / Keterangan Penutupan Buku <span className="text-slate-400 font-normal">(Opsional)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={tutupBukuCatatan}
+                  onChange={(e) => setTutupBukuCatatan(e.target.value)}
+                  placeholder="Contoh: Tutup buku kas periode Agustus 2026 - Kas seimbang dan tervalidasi"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none text-slate-900 dark:text-white"
+                />
+              </div>
+
+              {/* Petugas info */}
+              <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+                <span>Petugas:</span>
+                <span className="font-bold text-slate-700 dark:text-slate-300">
+                  {currentUser?.username || 'Bendahara'} ({currentUser?.role || 'bendahara'})
+                </span>
+              </div>
+
+              {/* Modal Buttons */}
+              <div className="flex gap-2.5 pt-2">
+                <button
+                  type="submit"
+                  disabled={isClosingKas}
+                  className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+                >
+                  {isClosingKas ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Mengunci & Menutup Buku...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Lock className="w-4 h-4" />
+                      <span>Konfirmasi & Tutup Buku</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  disabled={isClosingKas}
+                  onClick={() => setModalType('')}
+                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                >
+                  Batal
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODAL RIWAYAT TUTUP BUKU KAS */}
+      {modalType === 'riwayat_tutup_buku' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[85vh] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <History className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Riwayat Periode Tutup Buku</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Arsip snapshot saldo dan mutasi kas yang telah dikunci</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchKasClosingHistory}
+                  disabled={isLoadingClosingHistory}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                  title="Segarkan Riwayat"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoadingClosingHistory ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  onClick={() => setModalType('')}
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto flex-1 font-sans text-xs">
+              {isLoadingClosingHistory ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-3 text-slate-400">
+                  <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  <span>Memuat arsip riwayat tutup buku...</span>
+                </div>
+              ) : tutupBukuHistoryList.length === 0 ? (
+                <div className="py-12 flex flex-col items-center justify-center gap-2 text-center text-slate-400">
+                  <Lock className="w-8 h-8 opacity-40 text-amber-500" />
+                  <p className="font-bold text-slate-600 dark:text-slate-300">Belum Ada Riwayat Tutup Buku</p>
+                  <p className="text-[11px]">Ketika penutupan buku dilakukan oleh Bendahara atau RT, arsip snapshot resmi akan muncul di sini.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <th className="p-3.5">Waktu Penutupan</th>
+                        <th className="p-3.5 text-right">Saldo Terkunci</th>
+                        <th className="p-3.5 text-right">Pemasukan</th>
+                        <th className="p-3.5 text-right">Pengeluaran</th>
+                        <th className="p-3.5">Petugas</th>
+                        <th className="p-3.5">Keterangan</th>
+                        <th className="p-3.5 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {tutupBukuHistoryList.map((rec, idx) => {
+                        const closingDate = rec.tanggal_tutup || rec.tanggal_penutupan || rec.closed_at || rec.created_at || rec.tanggal;
+                        const closingBalance = rec.saldo_akhir ?? rec.saldoAkhir ?? rec.nominal ?? rec.balance ?? 0;
+                        const closingIncome = rec.total_pemasukan ?? rec.totalPemasukan ?? 0;
+                        const closingExpense = rec.total_pengeluaran ?? rec.totalPengeluaran ?? 0;
+                        const closingOfficer = rec.closed_by || rec.created_by || rec.petugas || rec.username || 'Pengurus RT';
+                        const closingNotes = rec.catatan || rec.keterangan || rec.notes || '-';
+
+                        return (
+                          <tr key={rec.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                            <td className="p-3.5 font-mono">
+                              <span className="font-bold text-slate-700 dark:text-slate-300 block">
+                                {formatDateTimeIndo(closingDate)}
+                              </span>
+                              <span className="text-[10px] text-slate-400">ID: {rec.id || `#${idx + 1}`}</span>
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-black text-amber-600 dark:text-amber-400 text-sm">
+                              {formatRupiah(closingBalance)}
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                              {formatRupiah(closingIncome)}
+                            </td>
+                            <td className="p-3.5 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
+                              {formatRupiah(closingExpense)}
+                            </td>
+                            <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-300">
+                              {closingOfficer}
+                            </td>
+                            <td className="p-3.5 max-w-[200px] whitespace-normal break-words text-slate-500">
+                              {closingNotes}
+                            </td>
+                            <td className="p-3.5 text-center">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 inline-flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>Terkunci</span>
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
+              <span className="text-slate-400 text-[11px]">
+                Total {tutupBukuHistoryList.length} arsip penutupan buku tercatat
+              </span>
+              <button
+                onClick={() => setModalType('')}
+                className="py-2 px-5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl transition-all cursor-pointer"
+              >
+                Tutup
               </button>
             </div>
           </div>

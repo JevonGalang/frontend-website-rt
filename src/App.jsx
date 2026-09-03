@@ -3,6 +3,7 @@ import { Globe, Play, MessageCircle } from 'lucide-react';
 import { io } from './utils/liveSocket';
 import { getSession, getSessionToken, updateSessionUser, clearSession } from './utils/authSession';
 import { API_BASE_URL } from './config/api';
+import { parseLocalDateString } from './utils/dateUtils';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Profil from './components/Profil';
@@ -230,7 +231,7 @@ export default function App() {
             amount: t.amount,
             category: t.source_type ? (t.source_type.charAt(0).toUpperCase() + t.source_type.slice(1)) : 'Lainnya',
             description: t.description,
-            date: t.transaction_date ? t.transaction_date.substring(0, 10) : new Date().toISOString().split('T')[0]
+            date: parseLocalDateString(t.transaction_date)
           }));
           setTransaksiKasList(mapped);
 
