@@ -1692,16 +1692,42 @@ export default function ProfilWarga({
 
   // Derived properties
   const mySubmissions = [
-    ...serverSubmissions.map(sub => ({
-      id: sub.id,
-      wargaNama: currentUser.name || `Keluarga #${sub.family_id}`,
-      wargaTipeSurat: sub.jenis,
-      wargaKeperluan: sub.keperluan,
-      status: sub.status === 'disetujui' ? 'Approved' : (sub.status === 'ditolak' ? 'Rejected' : 'Pending'),
-      submissionDate: 'Server API',
-      isFromServer: true
-    })),
-    ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-'))
+    ...serverSubmissions.map(sub => {
+      const rawDate = sub.created_at || sub.createdAt || sub.tgl_pengajuan || sub.tanggal || sub.date || sub.submission_date || sub.submissionDate;
+      const formattedDate = rawDate ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+      const rawStatus = (sub.status || '').toLowerCase();
+      let statusIndo = 'Menunggu';
+      if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
+      else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
+      else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
+
+      return {
+        id: sub.id,
+        wargaNama: currentUser.name || `Keluarga #${sub.family_id}`,
+        wargaTipeSurat: sub.jenis,
+        wargaKeperluan: sub.keperluan,
+        status: statusIndo,
+        tanggal: formattedDate,
+        submissionDate: formattedDate,
+        isFromServer: true
+      };
+    }),
+    ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-')).map(sub => {
+      const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
+      const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+      const rawStatus = (sub.status || '').toLowerCase();
+      let statusIndo = 'Menunggu';
+      if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
+      else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
+      else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
+
+      return {
+        ...sub,
+        status: statusIndo,
+        tanggal: formattedDate,
+        submissionDate: formattedDate
+      };
+    })
   ];
 
   const familyHead = familyMembers[0] || null;
@@ -4790,23 +4816,23 @@ export default function ProfilWarga({
                         <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 font-sans">
                           Status: {' '}
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold inline-block ${
-                            sub.status === 'Completed'
+                            sub.status === 'Completed' || sub.status === 'Selesai'
                               ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600'
-                              : sub.status === 'Approved'
+                              : sub.status === 'Approved' || sub.status === 'Disetujui'
                               ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600'
-                              : sub.status === 'Rejected'
+                              : sub.status === 'Rejected' || sub.status === 'Ditolak'
                               ? 'bg-red-50 dark:bg-red-950/40 text-rose-500'
                               : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 animate-pulse'
                           }`}>
-                            {sub.status || 'Pending'}
+                            {sub.status || 'Menunggu'}
                           </span>
                         </div>
                         
                         <div className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider font-sans">
-                          Diajukan: {sub.submissionDate || '12 Juni 2026'}
+                          Diajukan: {sub.tanggal || sub.submissionDate || 'Terbaru'}
                         </div>
 
-                        {(sub.status === 'Approved' || sub.status === 'Completed') && (
+                        {(sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai') && (
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
                             <button
                               onClick={() => setViewingApprovedLetter(sub)}

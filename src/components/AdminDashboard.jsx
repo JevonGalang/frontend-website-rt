@@ -3896,6 +3896,22 @@ export default function AdminDashboard({
         (c.fammilyId && String(c.fammilyId) === String(sub.family_id)) ||
         (c.noKk && sub.no_kk && !sub.no_kk.includes('x') && c.noKk === sub.no_kk)
       );
+
+      // Ambil tanggal pengajuan riil dari server
+      const rawDate = sub.created_at || sub.createdAt || sub.tgl_pengajuan || sub.tanggal || sub.date || sub.submission_date || sub.submissionDate;
+      const formattedDate = rawDate ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+
+      // Normalisasi status berkas ke Bahasa Indonesia (Disetujui / Ditolak / Selesai / Menunggu)
+      const rawStatus = (sub.status || '').toLowerCase();
+      let statusIndo = 'Menunggu';
+      if (rawStatus === 'disetujui' || rawStatus === 'approved') {
+        statusIndo = 'Disetujui';
+      } else if (rawStatus === 'ditolak' || rawStatus === 'rejected') {
+        statusIndo = 'Ditolak';
+      } else if (rawStatus === 'selesai' || rawStatus === 'completed') {
+        statusIndo = 'Selesai';
+      }
+
       return {
         id: sub.id,
         wargaNama: w ? w.name : `Keluarga #${sub.family_id}`,
@@ -3904,12 +3920,31 @@ export default function AdminDashboard({
         wargaAlamat: w ? w.alamat : 'Villa Mutiara Mas Cinere',
         wargaTipeSurat: sub.jenis,
         wargaKeperluan: sub.keperluan,
-        status: (sub.status === 'selesai' || sub.status === 'Completed' || sub.status === 'Selesai') ? 'Completed' : ((sub.status === 'disetujui' || sub.status === 'Approved') ? 'Approved' : ((sub.status === 'ditolak' || sub.status === 'Rejected') ? 'Rejected' : 'Pending')),
-        submissionDate: 'Server API',
+        status: statusIndo,
+        tanggal: formattedDate,
+        submissionDate: formattedDate,
         isFromServer: true
       };
     }),
-    ...submissionsList.filter(s => typeof s.id === 'string' && s.id.startsWith('LTR-'))
+    ...submissionsList.filter(s => typeof s.id === 'string' && s.id.startsWith('LTR-')).map(sub => {
+      const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
+      const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+      const rawStatus = (sub.status || '').toLowerCase();
+      let statusIndo = 'Menunggu';
+      if (rawStatus === 'disetujui' || rawStatus === 'approved') {
+        statusIndo = 'Disetujui';
+      } else if (rawStatus === 'ditolak' || rawStatus === 'rejected') {
+        statusIndo = 'Ditolak';
+      } else if (rawStatus === 'selesai' || rawStatus === 'completed') {
+        statusIndo = 'Selesai';
+      }
+      return {
+        ...sub,
+        status: statusIndo,
+        tanggal: formattedDate,
+        submissionDate: formattedDate
+      };
+    })
   ];
 
   // Log out function
@@ -4009,7 +4044,7 @@ export default function AdminDashboard({
   const displayKasSaldo = isKasFilterActive ? kasFilteredNet : sisaKas;
 
   const totalAgendas = agendaList.length;
-  const pendingSubmissionsCount = displaySubmissions.filter(s => s.status === 'Pending' || !s.status).length;
+  const pendingSubmissionsCount = displaySubmissions.filter(s => s.status === 'Pending' || s.status === 'Menunggu' || !s.status).length;
 
   // Format currency
   const formatRupiah = (num) => {
@@ -4925,12 +4960,19 @@ export default function AdminDashboard({
 
   // Letter Submissions Handlers (Approve/Reject/Complete)
   const handleSubmissionStatus = async (id, nextStatus) => {
+    const isApprove = nextStatus === 'Disetujui' || nextStatus === 'Approved';
+    const isReject = nextStatus === 'Ditolak' || nextStatus === 'Rejected';
+    const isComplete = nextStatus === 'Selesai' || nextStatus === 'Completed';
+
+    const localStatus = isApprove ? 'Disetujui' : (isReject ? 'Ditolak' : (isComplete ? 'Selesai' : nextStatus));
+    const apiStatus = isApprove ? 'disetujui' : (isReject ? 'ditolak' : (isComplete ? 'selesai' : 'pending'));
+
     // 1. Optimistic / local state update
     const updatedSubmissionsList = submissionsList.map(sub => {
       if (sub.id === id || String(sub.id) === String(id)) {
         return {
           ...sub,
-          status: nextStatus,
+          status: localStatus,
           processedDate: formatDateIndo(new Date())
         };
       }
@@ -4938,16 +4980,6 @@ export default function AdminDashboard({
     });
     setSubmissionsList(updatedSubmissionsList);
     saveSubmissions(updatedSubmissionsList);
-
-    // Map nextStatus to backend status
-    let apiStatus = 'pending';
-    if (nextStatus === 'Approved') {
-      apiStatus = 'disetujui';
-    } else if (nextStatus === 'Completed') {
-      apiStatus = 'selesai';
-    } else if (nextStatus === 'Rejected') {
-      apiStatus = 'ditolak';
-    }
 
     // Update serverSubmissions state optimistically
     setServerSubmissions(prev => prev.map(s => (s.id === id || String(s.id) === String(id)) ? { ...s, status: apiStatus } : s));
@@ -4968,18 +5000,18 @@ export default function AdminDashboard({
       }
     }
 
-    const statusTitle = nextStatus === 'Approved' ? 'Disetujui! ✅' : nextStatus === 'Completed' ? 'Selesai & Diambil! 🎉' : 'Ditolak ❌';
-    const statusText = nextStatus === 'Approved' 
+    const statusTitle = isApprove ? 'Disetujui! ✅' : isComplete ? 'Selesai & Diambil! 🎉' : 'Ditolak ❌';
+    const statusText = isApprove 
       ? 'Pengajuan surat pengantar warga telah disetujui.' 
-      : nextStatus === 'Completed' 
+      : isComplete 
       ? 'Surat pengantar telah diselesaikan dan diambil oleh warga.' 
       : 'Pengajuan surat pengantar warga ditolak.';
 
     Swal.fire({
       title: statusTitle,
       text: statusText,
-      icon: nextStatus === 'Rejected' ? 'warning' : 'success',
-      confirmButtonColor: nextStatus === 'Rejected' ? '#ef4444' : '#10b981'
+      icon: isReject ? 'warning' : 'success',
+      confirmButtonColor: isReject ? '#ef4444' : '#10b981'
     });
   };
 
@@ -5125,8 +5157,9 @@ export default function AdminDashboard({
     </div>
   );
 
-  // Render Demografi Kependudukan Widget (Bagan Donut Rasio Gender, Status Hunian, dan Distribusi Usia)
-  const renderDemografiKependudukan = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", isFullWidth = false) => {
+  // Render Demografi Kependudukan Widget (Bagan Donut Rasio Gender, Status Hunian, Tunggakan Aktif, dan Distribusi Usia)
+  const renderDemografiKependudukan = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", showTunggakan = false) => {
+    if (isBendahara) return null;
     const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
     const totalPop = living.length || 1;
     
@@ -5175,6 +5208,13 @@ export default function AdminDashboard({
     const tetapPct = totalHunianPop > 0 ? Math.round((tetap / totalHunianPop) * 100) : 70;
     const kontrakPct = totalHunianPop > 0 ? (100 - tetapPct) : 30;
 
+    // Tunggakan Aktif
+    const rawTunggakanPct = typeof dashboardStats?.tunggakan_percentage === 'number'
+      ? dashboardStats.tunggakan_percentage
+      : (uniqueKKs > 0 ? Math.round((calcIplBelumLunas / uniqueKKs) * 100) : 12);
+    const tunggakanPct = Math.min(100, Math.max(0, rawTunggakanPct));
+    const kepatuhanPct = Math.max(0, 100 - tunggakanPct);
+
     // Age distribution
     const getAge = (w) => {
       const val = parseInt(w.usia || w.umur || w.age);
@@ -5195,92 +5235,156 @@ export default function AdminDashboard({
     const dewasaPct = living.length > 0 ? Math.round((dewasa / totalPop) * 100) : 0;
     const lansiaPct = living.length > 0 ? Math.round((lansia / totalPop) * 100) : 0;
 
-    const contentSection = (
-      <>
-        {/* Gender SVG Donut & Status Donut side-by-side */}
-        <div className="grid grid-cols-2 gap-4 sm:gap-6">
-          {/* Gender */}
-          <div className="flex flex-col items-center space-y-3">
-            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO GENDER</span>
-            <div className="relative">
-              <svg className="w-24 h-24 sm:w-28 sm:h-28 xl:w-30 xl:h-30 transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="10"
-                  strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
-                  strokeLinecap="round"
-                />
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ed52cb" strokeWidth="10"
-                  strokeDasharray={`${2.39 * femalePct} ${239 - 2.39 * femalePct}`}
-                  strokeDashoffset={`${-(2.39 * malePct)}`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{living.length}</span>
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Jiwa</span>
-              </div>
+    // Donut Rasio Gender
+    const genderBlock = (
+      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl h-full">
+        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO GENDER</span>
+        <div className="relative my-auto">
+          <svg className="w-24 h-24 sm:w-28 sm:h-28 transform -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="10"
+              strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
+              strokeLinecap="round"
+            />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ed52cb" strokeWidth="10"
+              strokeDasharray={`${2.39 * femalePct} ${239 - 2.39 * femalePct}`}
+              strokeDashoffset={`${-(2.39 * malePct)}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{living.length}</span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Jiwa</span>
+          </div>
+        </div>
+        <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-xs bg-[#2563eb]"></div>
+              <span className="text-slate-600 dark:text-slate-300">Laki-laki</span>
             </div>
-            <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-xs bg-[#2563eb]"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Laki-laki</span>
-                </div>
-                <span className="text-slate-900 dark:text-white font-bold">{male} ({malePct}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-xs bg-[#ed52cb]"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Perempuan</span>
-                </div>
-                <span className="text-slate-900 dark:text-white font-bold">{female} ({femalePct}%)</span>
-              </div>
+            <span className="text-slate-900 dark:text-white font-bold">{male} ({malePct}%)</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-xs bg-[#ed52cb]"></div>
+              <span className="text-slate-600 dark:text-slate-300">Perempuan</span>
+            </div>
+            <span className="text-slate-900 dark:text-white font-bold">{female} ({femalePct}%)</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Donut Status Hunian
+    const hunianBlock = (
+      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl h-full">
+        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">STATUS HUNIAN</span>
+        <div className="relative my-auto">
+          <svg className="w-24 h-24 sm:w-28 sm:h-28 transform -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="10"
+              strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
+              strokeLinecap="round"
+            />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f97316" strokeWidth="10"
+              strokeDasharray={`${2.39 * kontrakPct} ${239 - 2.39 * kontrakPct}`}
+              strokeDashoffset={`${-(2.39 * tetapPct)}`}
+              strokeLinecap="round"
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 mb-0.5" />
+            <span className="text-[9px] font-bold text-slate-400 uppercase">Hunian</span>
+          </div>
+        </div>
+        <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-xs bg-[#10b981]"></div>
+              <span className="text-slate-600 dark:text-slate-300">Tetap</span>
+            </div>
+            <span className="text-slate-900 dark:text-white font-bold">{tetap} ({tetapPct}%)</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-xs bg-[#f97316]"></div>
+              <span className="text-slate-600 dark:text-slate-300">Kontrak</span>
+            </div>
+            <span className="text-slate-900 dark:text-white font-bold">{kontrak} ({kontrakPct}%)</span>
+          </div>
+        </div>
+      </div>
+    );
+
+    // Widget Tunggakan Aktif
+    const tunggakanBlock = (
+      <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between space-y-3 h-full">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="p-2.5 bg-rose-500/10 dark:bg-rose-950/40 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
+              <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-md tracking-wider">
+              IPL RT 05
+            </span>
+          </div>
+
+          <div>
+            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+              TUNGGAKAN AKTIF
+            </span>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                {tunggakanPct}%
+              </span>
+              <span className="text-[11px] font-bold text-rose-500">
+                ({calcIplBelumLunas} dari {uniqueKKs} KK)
+              </span>
             </div>
           </div>
 
-          {/* Status Hunian */}
-          <div className="flex flex-col items-center space-y-3">
-            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">STATUS HUNIAN</span>
-            <div className="relative">
-              <svg className="w-24 h-24 sm:w-28 sm:h-28 xl:w-30 xl:h-30 transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="10"
-                  strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
-                  strokeLinecap="round"
-                />
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f97316" strokeWidth="10"
-                  strokeDasharray={`${2.39 * kontrakPct} ${239 - 2.39 * kontrakPct}`}
-                  strokeDashoffset={`${-(2.39 * tetapPct)}`}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <Home className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 mb-0.5" />
-                <span className="text-[9px] font-bold text-slate-400 uppercase">Hunian</span>
-              </div>
+          {/* Progress bar */}
+          <div className="space-y-1.5">
+            <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-gradient-to-r from-rose-500 via-rose-600 to-pink-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
+                style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
+              ></div>
             </div>
-            <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-xs bg-[#10b981]"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Tetap</span>
-                </div>
-                <span className="text-slate-900 dark:text-white font-bold">{tetap} ({tetapPct}%)</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-xs bg-[#f97316]"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Kontrak</span>
-                </div>
-                <span className="text-slate-900 dark:text-white font-bold">{kontrak} ({kontrakPct}%)</span>
-              </div>
-            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight">
+              Warga dengan tunggakan belum terbayar
+            </p>
           </div>
         </div>
 
-        {/* Age Distribution Bars */}
-        <div className={`${isFullWidth ? 'pt-4 lg:pt-0 lg:pl-8 border-t lg:border-t-0 lg:border-l' : 'pt-4 border-t'} border-slate-100 dark:border-slate-800 space-y-3 font-sans`}>
-          <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">DISTRIBUSI KELOMPOK USIA</span>
+        {/* Quick Link */}
+        <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+          <span className="text-slate-500 dark:text-slate-400 font-medium">Status Kepatuhan:</span>
+          <button
+            onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+            className="font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>{kepatuhanPct}% Lunas</span>
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+    );
+
+    // Age distribution progress bars
+    const ageBars = (
+      <div className="space-y-3 font-sans">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+            DISTRIBUSI KELOMPOK USIA
+          </span>
+          <span className="text-[10px] text-slate-400 font-semibold">
+            Total {living.length} Jiwa Terdata
+          </span>
+        </div>
+
+        <div className={showTunggakan ? "grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3" : "space-y-3"}>
           {[
             { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, dotColor: 'bg-blue-500', barGradient: 'from-blue-500 to-blue-600' },
             { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, dotColor: 'bg-purple-500', barGradient: 'from-purple-500 to-pink-500' },
@@ -5301,30 +5405,255 @@ export default function AdminDashboard({
             </div>
           ))}
         </div>
-      </>
+      </div>
     );
 
     return (
       <div className={cardClassName}>
-        <div>
-          <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-            Demografi Kependudukan
-          </h3>
-          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Statistik komposisi warga berdasarkan gender, usia, dan status hunian.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              {showTunggakan ? 'Demografi Kependudukan & Kepatuhan Warga' : 'Demografi Kependudukan'}
+            </h3>
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+              {showTunggakan
+                ? 'Statistik komposisi kependudukan berdasarkan gender, status hunian, kepatuhan iuran IPL, dan kelompok usia.'
+                : 'Statistik komposisi warga berdasarkan gender, usia, dan status hunian.'}
+            </p>
+          </div>
+          {showTunggakan && (
+            <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 rounded-xl w-fit">
+              Data Terintegrasi RT 05
+            </span>
+          )}
         </div>
 
-        {isFullWidth ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 items-center pt-2">
-            {contentSection}
+        {showTunggakan ? (
+          <div className="space-y-6">
+            {/* Top 3 Cards Sejajar: Gender, Status Hunian, Tunggakan Aktif */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 items-stretch">
+              {genderBlock}
+              {hunianBlock}
+              {tunggakanBlock}
+            </div>
+
+            {/* Bottom: Age Distribution in 2 Columns */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              {ageBars}
+            </div>
           </div>
         ) : (
           <div className="space-y-6">
-            {contentSection}
+            <div className="grid grid-cols-2 gap-4 sm:gap-6">
+              {genderBlock}
+              {hunianBlock}
+            </div>
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              {ageBars}
+            </div>
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Render Arus Keuangan Kas RT Widget (Khusus Role Bendahara)
+  const renderArusKeuanganKasRT = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans") => {
+    const dynIncome = totalPemasukan || 0;
+    const dynExpense = totalPengeluaran || 0;
+    const dynBalance = sisaKasRT ?? (dynIncome - dynExpense);
+    const dynTotal = dynIncome + dynExpense;
+    const dynInPct = dynTotal > 0 ? Math.round((dynIncome / dynTotal) * 100) : 0;
+    const dynOutPct = dynTotal > 0 ? Math.round((dynExpense / dynTotal) * 100) : 0;
+
+    // Tunggakan Aktif
+    const rawTunggakanPct = typeof dashboardStats?.tunggakan_percentage === 'number'
+      ? dashboardStats.tunggakan_percentage
+      : (uniqueKKs > 0 ? Math.round((calcIplBelumLunas / uniqueKKs) * 100) : 12);
+    const tunggakanPct = Math.min(100, Math.max(0, rawTunggakanPct));
+    const kepatuhanPct = Math.max(0, 100 - tunggakanPct);
+
+    return (
+      <div className={cardClassName}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Activity className="w-5 h-5 text-emerald-500" />
+              Arus Keuangan Kas RT
+            </h3>
+            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Data keuangan diperbarui secara real-time dari database transaksi.
+            </p>
+          </div>
+          <button
+            onClick={() => setActiveTab('kas')}
+            className="text-[10px] font-bold uppercase px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer w-fit"
+          >
+            <span>Buku Kas RT</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* 3 Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 font-sans">
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+            <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+            <span className="block text-sm sm:text-base md:text-lg font-black text-emerald-600 dark:text-emerald-400 truncate">
+              {formatRupiah(dynIncome)}
+            </span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+              PEMASUKAN
+            </span>
+          </div>
+
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+            <TrendingDown className="w-5 h-5 text-rose-500 mx-auto mb-1" />
+            <span className="block text-sm sm:text-base md:text-lg font-black text-rose-500 dark:text-rose-400 truncate">
+              {formatRupiah(dynExpense)}
+            </span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+              PENGELUARAN
+            </span>
+          </div>
+
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+            <Wallet className="w-5 h-5 text-sky-500 mx-auto mb-1" />
+            <span className={`block text-sm sm:text-base md:text-lg font-black truncate ${dynBalance >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-rose-500 dark:text-rose-400'}`}>
+              {formatRupiah(dynBalance)}
+            </span>
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+              SALDO AKTIF
+            </span>
+          </div>
+        </div>
+
+        {/* Progress bars */}
+        <div className="space-y-3 font-sans">
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300">
+              <span>PEMASUKAN (ARUS MASUK)</span>
+              <span className="text-emerald-500 font-extrabold">{dynInPct}%</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${dynInPct}%` }}></div>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300">
+              <span>PENGELUARAN (ARUS KELUAR)</span>
+              <span className="text-rose-500 font-extrabold">{dynOutPct}%</span>
+            </div>
+            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="h-full bg-rose-500 rounded-full transition-all duration-700" style={{ width: `${dynOutPct}%` }}></div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2 Kolom Sejajar: Bagan Rasio (Kiri) & Card Tunggakan Aktif (Kanan) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-stretch pt-2 font-sans">
+          {/* Kiri: Bagan Rasio Arus Keuangan */}
+          <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col items-center justify-between space-y-3 h-full">
+            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              RASIO ARUS KEUANGAN
+            </span>
+            <div className="relative my-auto py-1">
+              <svg className="w-28 h-28 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="dark:stroke-slate-800" />
+                {dynInPct > 0 && (
+                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="9"
+                    strokeDasharray={`${2.39 * dynInPct} ${239 - 2.39 * dynInPct}`}
+                    strokeLinecap="round"
+                  />
+                )}
+                {dynOutPct > 0 && (
+                  <circle cx="50" cy="50" r="38" fill="transparent" stroke="#ef4444" strokeWidth="9"
+                    strokeDasharray={`${2.39 * dynOutPct} ${239 - 2.39 * dynOutPct}`}
+                    strokeDashoffset={`${-(2.39 * dynInPct)}`}
+                    strokeLinecap="round"
+                  />
+                )}
+                {dynInPct === 0 && dynOutPct === 0 && (
+                  <circle cx="50" cy="12" r="4.5" fill="#ef4444" />
+                )}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO</span>
+                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white mt-0.5">{dynInPct}:{dynOutPct}</span>
+              </div>
+            </div>
+            <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-emerald-500"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Pemasukan</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{dynInPct}%</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-xs bg-rose-500"></div>
+                  <span className="text-slate-600 dark:text-slate-300">Pengeluaran</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">{dynOutPct}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Kanan: Card Tunggakan Aktif */}
+          <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between space-y-3 h-full">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="p-2.5 bg-rose-500/10 dark:bg-rose-950/40 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
+                  <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-md tracking-wider">
+                  IPL RT 05
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                  TUNGGAKAN AKTIF
+                </span>
+                <div className="flex items-baseline gap-2 mt-0.5">
+                  <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                    {tunggakanPct}%
+                  </span>
+                  <span className="text-[11px] font-bold text-rose-500">
+                    ({calcIplBelumLunas} dari {uniqueKKs} KK)
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="space-y-1.5">
+                <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-rose-500 via-rose-600 to-pink-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
+                    style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
+                  ></div>
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight">
+                  Warga dengan tunggakan belum terbayar
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Link */}
+            <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
+              <span className="text-slate-500 dark:text-slate-400 font-medium">Status Kepatuhan:</span>
+              <button
+                onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+                className="font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{kepatuhanPct}% Lunas</span>
+                <ChevronRight className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   };
@@ -6569,16 +6898,22 @@ export default function AdminDashboard({
                 </div>
               ) : (
                 <div className="space-y-6 lg:space-y-8">
-                  {/* Row 1: Quick Action (Kiri) & Pusat Notifikasi (Kanan) */}
-                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
-                    {renderQuickActions("lg:col-span-5 p-4 sm:p-6 lg:p-8")}
-                    {renderPusatNotifikasi("lg:col-span-7 p-5 sm:p-6 lg:p-7")}
+                  {/* Row 1: Quick Action (Kiri) & Pusat Notifikasi (Kanan) - Sejajar Sama Tinggi */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
+                    {renderQuickActions("lg:col-span-5 p-4 sm:p-6 lg:p-8 flex flex-col justify-between h-full")}
+                    {renderPusatNotifikasi("lg:col-span-7 p-5 sm:p-6 lg:p-7 flex flex-col justify-between h-full")}
                   </div>
 
-                  {/* Row 2: Demografi Kependudukan (Di bawah Quick Action & Pusat Notifikasi) */}
-                  <div>
-                    {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", true)}
-                  </div>
+                  {/* Row 2: Demografi Kependudukan (Untuk RT/Admin) atau Arus Keuangan Kas RT (Khusus Bendahara) */}
+                  {isBendahara ? (
+                    <div>
+                      {renderArusKeuanganKasRT("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans")}
+                    </div>
+                  ) : (
+                    <div>
+                      {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", true)}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -7166,7 +7501,6 @@ export default function AdminDashboard({
                     id: 'NOT-' + Math.floor(Math.random() * 900 + 100),
                     date: notulenForm.date,
                     title: notulenForm.title,
-                    recorder: currentUser.name,
                     decisions: notulenForm.decisions
                   };
                   setNotulenList([newEntry, ...notulenList]);
@@ -7209,7 +7543,6 @@ export default function AdminDashboard({
                     <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal Rapat</th>
                       <th className="p-4">Topik Musyawarah</th>
-                      <th className="p-4">Notulis</th>
                       <th className="p-4">Hasil / Keputusan Rapat</th>
                     </tr>
                   </thead>
@@ -7218,10 +7551,16 @@ export default function AdminDashboard({
                       <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{formatDateIndo(n.date)}</td>
                         <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{n.title}</td>
-                        <td className="p-4 text-slate-500">{n.recorder}</td>
                         <td className="p-4 text-slate-500 max-w-sm truncate" title={n.decisions}>{n.decisions}</td>
                       </tr>
                     ))}
+                    {notulenList.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="p-8 text-center text-slate-400 dark:text-slate-500 italic font-semibold">
+                          Belum ada catatan notulen rapat yang tersimpan.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -10367,7 +10706,7 @@ export default function AdminDashboard({
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal / ID</th>
+                      <th className="p-4">Tanggal</th>
                       <th className="p-4">Data Warga Pemohon</th>
                       <th className="p-4">Jenis Surat Pengantar</th>
                       <th className="p-4">Keperluan / Keterangan</th>
@@ -10380,9 +10719,8 @@ export default function AdminDashboard({
                       .filter(s => s.wargaNama.toLowerCase().includes(searchQuery.toLowerCase()))
                       .map((sub) => (
                         <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                          <td className="p-4 font-mono space-y-1">
-                            <span className="font-semibold text-slate-805 dark:text-slate-350">{sub.submissionDate}</span>
-                            <div className="text-[10px] text-slate-400">{sub.id}</div>
+                          <td className="p-4 font-mono">
+                            <span className="font-semibold text-slate-800 dark:text-slate-200">{sub.tanggal || sub.submissionDate}</span>
                           </td>
                           <td className="p-4 space-y-1">
                             <span className="font-bold text-slate-905 dark:text-slate-100">{sub.wargaNama}</span>
@@ -10398,15 +10736,15 @@ export default function AdminDashboard({
                           <td className="p-4 text-center">
                             <div className="flex flex-col items-center gap-1">
                               <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg inline-block ${
-                                sub.status === 'Approved'
+                                (sub.status === 'Disetujui' || sub.status === 'Approved')
                                   ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
-                                  : sub.status === 'Rejected'
+                                  : (sub.status === 'Ditolak' || sub.status === 'Rejected')
                                   ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
-                                  : sub.status === 'Completed'
+                                  : (sub.status === 'Selesai' || sub.status === 'Completed')
                                   ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
                                   : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 animate-pulse'
                               }`}>
-                                {sub.status || 'Pending'}
+                                {sub.status || 'Menunggu'}
                               </span>
                               {sub.processedDate && (
                                 <span className="text-[8px] text-slate-400">Diproses: {sub.processedDate}</span>
@@ -10415,11 +10753,11 @@ export default function AdminDashboard({
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
-                              {/* If Pending, can Approve or Reject */}
-                              {(!sub.status || sub.status === 'Pending') && (
+                              {/* If Pending / Menunggu, can Approve (Disetujui) or Reject (Ditolak) */}
+                              {(!sub.status || sub.status === 'Pending' || sub.status === 'Menunggu') && (
                                 <>
                                   <button
-                                    onClick={() => handleSubmissionStatus(sub.id, 'Approved')}
+                                    onClick={() => handleSubmissionStatus(sub.id, 'Disetujui')}
                                     className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                                     title="Setujui"
                                   >
@@ -10427,7 +10765,7 @@ export default function AdminDashboard({
                                     <span>Setujui</span>
                                   </button>
                                   <button
-                                    onClick={() => handleSubmissionStatus(sub.id, 'Rejected')}
+                                    onClick={() => handleSubmissionStatus(sub.id, 'Ditolak')}
                                     className="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                                     title="Tolak"
                                   >
@@ -10437,10 +10775,10 @@ export default function AdminDashboard({
                                 </>
                               )}
 
-                              {/* If Approved, can Complete (when resident picks up) */}
-                              {sub.status === 'Approved' && (
+                              {/* If Approved / Disetujui, can Complete (when resident picks up) */}
+                              {(sub.status === 'Approved' || sub.status === 'Disetujui') && (
                                 <button
-                                  onClick={() => handleSubmissionStatus(sub.id, 'Completed')}
+                                  onClick={() => handleSubmissionStatus(sub.id, 'Selesai')}
                                   className="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all"
                                   title="Tandai Selesai Diambil"
                                 >
@@ -10449,8 +10787,8 @@ export default function AdminDashboard({
                                 </button>
                               )}
                               
-                              {/* If Completed or Rejected, no further actions, show status lock */}
-                              {(sub.status === 'Completed' || sub.status === 'Rejected') && (
+                              {/* If Completed / Selesai or Rejected / Ditolak, no further actions, show status lock */}
+                              {(sub.status === 'Completed' || sub.status === 'Selesai' || sub.status === 'Rejected' || sub.status === 'Ditolak') && (
                                 <span className="text-[10px] text-slate-400 font-semibold italic">Arsip Terkunci</span>
                               )}
                             </div>
