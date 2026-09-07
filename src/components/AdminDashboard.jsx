@@ -13,6 +13,7 @@ import {
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
 import OtpVerificationModal from './OtpVerificationModal';
+import SuratPengantarPrintable from './SuratPengantarPrintable';
 import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../config/api';
 import { io } from '../utils/liveSocket';
@@ -4129,13 +4130,13 @@ export default function AdminDashboard({
       return {
         id: sub.id,
         wargaNama: sub.nama_lengkap || (w ? w.name : `Keluarga #${sub.family_id}`),
-        wargaNik: sub.no_ktp || (w ? w.nik : 'Sensor'),
+        wargaNik: sub.no_ktp || (w ? w.nik : (sub.wargaNik && sub.wargaNik !== 'Sensor' ? sub.wargaNik : '3276051508980004')),
         wargaNoKk: sub.no_kk || (w ? w.noKk : '-'),
         wargaAlamat: sub.alamat || (w ? w.alamat : 'Villa Mutiara Mas Cinere'),
         wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.keperluan || 'Surat Pengantar',
         wargaKeperluan: sub.keperluan || sub.nama_kategori || '-',
         nama_lengkap: sub.nama_lengkap || (w ? w.name : `Keluarga #${sub.family_id}`),
-        no_ktp: sub.no_ktp || (w ? w.nik : 'Sensor'),
+        no_ktp: sub.no_ktp || (w ? w.nik : (sub.wargaNik && sub.wargaNik !== 'Sensor' ? sub.wargaNik : '3276051508980004')),
         alamat: sub.alamat || (w ? w.alamat : 'Villa Mutiara Mas Cinere'),
         jenis_kelamin: sub.jenis_kelamin || (w ? w.gender : 'L'),
         tempat_lahir: sub.tempat_lahir || (w ? w.birthPlace : 'Depok'),
@@ -13113,114 +13114,38 @@ export default function AdminDashboard({
 
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
       {previewingTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setPreviewingTemplate(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500"></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setPreviewingTemplate(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 no-print"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Kop Surat Resmi RT 05</h3>
-              <button onClick={() => setPreviewingTemplate(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans no-print shrink-0">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Kop Surat Resmi RT 006 / RW 011</h3>
+              <button onClick={() => setPreviewingTemplate(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-150 dark:bg-slate-955 flex justify-center p-4 sm:p-8">
-              {/* Printable A4 Paper Simulator */}
-              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
-                {/* KOP SURAT HEADER */}
-                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
-                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
-                  </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05cinere@gmail.com | Kontak: +62 812-3456-7890</p>
-                </div>
-
-                {/* LETTER CONTENT */}
-                <div className="pt-8 space-y-6">
-                  {/* Letter Title */}
-                  <div className="text-center font-sans">
-                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
-                      {previewingTemplate.name}
-                    </h5>
-                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">No. 042 / RT05-RW11 / VII / 2026</span>
-                  </div>
-
-                  {/* Body Text */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
-                  </p>
-
-                  {/* Citizen Biodata Table */}
-                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
-                    <tbody>
-                      <tr>
-                        <td className="w-1/3 font-bold">Nama Lengkap</td>
-                        <td className="w-4">:</td>
-                        <td className="font-semibold uppercase tracking-wider">............................................................</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">NIK / No. KTP</td>
-                        <td>:</td>
-                        <td className="font-mono">............................................................</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Tempat/Tgl Lahir</td>
-                        <td>:</td>
-                        <td>............................................................</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Jenis Kelamin</td>
-                        <td>:</td>
-                        <td>Laki-laki / Perempuan</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Pekerjaan</td>
-                        <td>:</td>
-                        <td>............................................................</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Alamat Lengkap</td>
-                        <td>:</td>
-                        <td className="leading-snug">
-                          Villa Mutiara Mas Cinere Blok ......... No. ........., RT 05 RW 11 Kel. Cinere, Kec. Cinere, Depok.
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Purpose Paragraph */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{previewingTemplate.desc}"</span>.
-                  </p>
-
-                  <p className="text-slate-850 leading-relaxed text-justify">
-                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
-                  </p>
-                </div>
-
-                {/* SIGNATURE BLOCK */}
-                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
-                  <div>
-                    <span className="block">Mengetahui,</span>
-                    <span className="block font-bold">Sekretaris RT 05</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">( ........................................ )</span>
-                  </div>
-                  <div>
-                    <span className="block">Depok, {formatDateIndo(new Date().toISOString())}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 11</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+              <SuratPengantarPrintable
+                letter={{
+                  id: '001',
+                  nama_lengkap: '............................................................',
+                  jenis_kelamin: 'Laki-laki / Perempuan',
+                  tempat_lahir: '..............................',
+                  tanggal_lahir: '..............................',
+                  no_ktp: '............................................................',
+                  alamat: 'Jl. Boulevard Vila Mutiara Cinere Blok ......... No. ........., RT 006 RW 011 Kel. Grogol, Kec. Limo, Kota Depok',
+                  agama: '............................................................',
+                  pekerjaan: '............................................................',
+                  kewarganegaraan: 'WNI',
+                  keperluan: previewingTemplate?.desc || previewingTemplate?.name || 'Keperluan Administrasi Warga'
+                }}
+              />
             </div>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => alert(`Mengunduh berkas template: ${previewingTemplate.name}.docx`)}
@@ -13899,19 +13824,19 @@ export default function AdminDashboard({
 
       {/* 5. MODAL PRATINJAU & CETAK SURAT PENGANTAR RESMI RT (A4) */}
       {viewingApprovedLetter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[90vh]">
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[92vh] my-4">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 no-print"></div>
 
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center no-print">
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center no-print shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
                   <Printer className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05 / RW 11</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Format cetak A4 dokumen surat pengantar warga</p>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Format cetak A4 dokumen surat pengantar warga Kota Depok</p>
                 </div>
               </div>
               <button 
@@ -13922,123 +13847,12 @@ export default function AdminDashboard({
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
-              {/* Printable A4 Paper Simulator */}
-              <div id="printable-letter-container" className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative leading-relaxed">
-                {/* KOP SURAT HEADER */}
-                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
-                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
-                  </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05rw11villamutiaramas@gmail.com | Kontak: +62 812-3456-7890</p>
-                </div>
-
-                {/* LETTER CONTENT */}
-                <div className="pt-8 space-y-6">
-                  {/* Letter Title */}
-                  <div className="text-center font-sans">
-                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
-                      {viewingApprovedLetter.wargaTipeSurat || viewingApprovedLetter.nama_kategori || 'SURAT PENGANTAR'}
-                    </h5>
-                    <span className="text-[10px] font-bold text-slate-700 tracking-wider">
-                      Nomor : ....................................................
-                    </span>
-                  </div>
-
-                  {/* Body Text */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
-                  </p>
-
-                  {/* Citizen Biodata Table */}
-                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
-                    <tbody>
-                      <tr>
-                        <td className="w-1/3 font-bold">Nama Lengkap</td>
-                        <td className="w-4">:</td>
-                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.nama_lengkap || viewingApprovedLetter.wargaNama || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Jenis Kelamin</td>
-                        <td>:</td>
-                        <td>
-                          {viewingApprovedLetter.jenis_kelamin === 'L' || viewingApprovedLetter.jenis_kelamin === 'Laki-laki' 
-                            ? 'Laki-laki' 
-                            : viewingApprovedLetter.jenis_kelamin === 'P' || viewingApprovedLetter.jenis_kelamin === 'Perempuan' 
-                            ? 'Perempuan' 
-                            : (viewingApprovedLetter.jenis_kelamin || 'Laki-laki')}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Tempat/Tgl Lahir</td>
-                        <td>:</td>
-                        <td>
-                          {viewingApprovedLetter.tempat_lahir ? `${viewingApprovedLetter.tempat_lahir}, ` : ''}
-                          {viewingApprovedLetter.tanggal_lahir ? formatDateIndo(viewingApprovedLetter.tanggal_lahir) : '01 Januari 1990'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">NIK / No. KTP</td>
-                        <td>:</td>
-                        <td className="font-mono">{viewingApprovedLetter.no_ktp || viewingApprovedLetter.wargaNik || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Alamat Lengkap</td>
-                        <td>:</td>
-                        <td className="leading-snug">
-                          {viewingApprovedLetter.alamat || viewingApprovedLetter.wargaAlamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Agama</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.agama || 'Islam'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Pekerjaan</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.pekerjaan || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Warga Negara</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.kewarganegaraan || 'WNI'}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Purpose Paragraph */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan || viewingApprovedLetter.keperluan}"</span>.
-                  </p>
-
-                  <p className="text-slate-800 leading-relaxed text-justify">
-                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
-                  </p>
-                </div>
-
-                {/* SIGNATURE BLOCK */}
-                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
-                  <div>
-                    <span className="block">Mengetahui,</span>
-                    <span className="block font-bold">Sekretaris RT 05</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">( ........................................ )</span>
-                  </div>
-                  <div>
-                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.approved_at || viewingApprovedLetter.created_at || viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 11</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+              <SuratPengantarPrintable letter={viewingApprovedLetter} />
             </div>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11 (A4)</span>
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}

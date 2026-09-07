@@ -187,8 +187,20 @@ const addLimitWarnings = () => {
 };
 
 // Watch for DOM changes to inject warnings dynamically on React tab changes/modal openings
+let mutationDebounceTimer = null;
+
 const observer = new MutationObserver(() => {
-  addLimitWarnings();
+  if (mutationDebounceTimer) clearTimeout(mutationDebounceTimer);
+  mutationDebounceTimer = setTimeout(() => {
+    try {
+      observer.disconnect();
+      addLimitWarnings();
+    } catch (e) {
+      console.warn('Error in addLimitWarnings:', e);
+    } finally {
+      observer.observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }, 150);
 });
 observer.observe(document.documentElement, { childList: true, subtree: true });
 

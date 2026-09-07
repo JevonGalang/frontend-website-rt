@@ -178,27 +178,84 @@ body {
 /* Print styles for official RT letter A4 printing */
 @media print {
   @page {
-    size: A4;
-    margin: 15mm 20mm;
+    size: A4 portrait;
+    margin: 8mm 12mm;
   }
-  body * {
-    visibility: hidden;
-  }
-  #printable-letter-container, #printable-letter-container * {
-    visibility: visible;
-  }
-  #printable-letter-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100% !important;
+
+  html,
+  html.dark,
+  body,
+  body.dark,
+  #root {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    color-scheme: light !important;
     margin: 0 !important;
     padding: 0 !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Reset all modal backdrops and containers so dark backgrounds never bleed */
+  .fixed,
+  [class*="backdrop"],
+  [class*="overflow-y-auto"],
+  [class*="shadow-"] {
+    background: transparent !important;
+    background-color: transparent !important;
     box-shadow: none !important;
     border: none !important;
-    background: white !important;
-    color: black !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
   }
+
+  #printable-letter-container,
+  #printable-letter-container * {
+    visibility: visible !important;
+  }
+
+  #printable-letter-container {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 14.5px !important;
+    line-height: 1.55 !important;
+    page-break-after: avoid !important;
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    break-before: avoid !important;
+    break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #printable-letter-container img {
+    visibility: visible !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   .no-print {
     display: none !important;
   }

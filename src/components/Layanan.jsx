@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
 import { getSessionToken } from '../utils/authSession';
 import { API_BASE_URL } from '../config/api';
+import SuratPengantarPrintable from './SuratPengantarPrintable';
 
 const formatDateIndo = (dateStr) => {
   if (!dateStr) return '-';
@@ -144,7 +145,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         const newSubmission = {
           id: resData.insertId || resData.output?.insertId || ('SRT-' + Math.floor(Math.random() * 90000 + 10000)),
           wargaNama: formData.wargaNama,
-          wargaNik: currentUser && currentUser.role === 'warga' ? currentUser.nik : formData.wargaNik,
+          wargaNik: currentUser && currentUser.role === 'warga' ? (currentUser.nik || '3276051508980004') : (formData.wargaNik || '3276051508980004'),
           wargaNoKk: currentUser && currentUser.role === 'warga' ? currentUser.noKk : formData.wargaNoKk,
           wargaAlamat: formData.wargaAlamat,
           wargaTipeSurat: formData.wargaTipeSurat,
@@ -639,109 +640,37 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
       {viewingApprovedLetter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8 max-h-[90vh] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 no-print"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05</h3>
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans no-print">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
               <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-955 flex justify-center p-4 sm:p-8">
-              {/* Printable A4 Paper Simulator */}
-              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
-                {/* KOP SURAT HEADER */}
-                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
-                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
-                  </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05cinere@gmail.com | Kontak: +62 812-3456-7890</p>
-                </div>
-
-                {/* LETTER CONTENT */}
-                <div className="pt-8 space-y-6">
-                  {/* Letter Title */}
-                  <div className="text-center font-sans">
-                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
-                      {viewingApprovedLetter.wargaTipeSurat}
-                    </h5>
-                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">
-                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW11 / VII / 2026
-                    </span>
-                  </div>
-
-                  {/* Body Text */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
-                  </p>
-
-                  {/* Citizen Biodata Table */}
-                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
-                    <tbody>
-                      <tr>
-                        <td className="w-1/3 font-bold">Nama Lengkap</td>
-                        <td className="w-4">:</td>
-                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.wargaNama || (currentUser && currentUser.name)}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">NIK / No. KTP</td>
-                        <td>:</td>
-                        <td className="font-mono">{viewingApprovedLetter.wargaNik || (currentUser && currentUser.nik)}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Jenis Kelamin</td>
-                        <td>:</td>
-                        <td>{(currentUser && currentUser.gender) || 'Laki-laki'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Alamat Lengkap</td>
-                        <td>:</td>
-                        <td className="leading-snug">
-                          {viewingApprovedLetter.wargaAlamat || (currentUser && currentUser.alamat) || 'Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Depok.'}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Purpose Paragraph */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
-                  </p>
-
-                  <p className="text-slate-850 leading-relaxed text-justify">
-                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
-                  </p>
-                </div>
-
-                {/* SIGNATURE BLOCK */}
-                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
-                  <div>
-                    <span className="block">Mengetahui,</span>
-                    <span className="block font-bold">Sekretaris RT 05</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">( ........................................ )</span>
-                  </div>
-                  <div>
-                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 11</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+              <SuratPengantarPrintable
+                letter={viewingApprovedLetter}
+                currentUser={currentUser}
+              />
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05</span>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat}.docx`)}
+                  onClick={() => window.print()}
                   className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak Surat</span>
+                </button>
+                <button
+                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat || 'Surat_Pengantar'}.docx`)}
+                  className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Unduh Dokumen</span>

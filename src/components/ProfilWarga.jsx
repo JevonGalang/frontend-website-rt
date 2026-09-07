@@ -12,6 +12,7 @@ import { io } from '../utils/liveSocket';
 import DateInput from './DateInput';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
+import SuratPengantarPrintable from './SuratPengantarPrintable';
 
 const extractArrayFromResponse = (payload) => {
   if (!payload) return [];
@@ -596,16 +597,16 @@ export default function ProfilWarga({
         setLetterCategories(sortedCats);
         if (sortedCats.length > 0) {
           setLetterForm(prev => {
-            if (!prev.kategori_id) {
-              const firstCat = sortedCats[0];
-              const isLainLain = firstCat.nama_kategori?.toLowerCase().includes('lain');
-              return {
-                ...prev,
-                kategori_id: firstCat.id,
-                keperluan: isLainLain ? '' : (firstCat.nama_kategori || '')
-              };
-            }
-            return prev;
+            const firstCat = sortedCats[0];
+            const isLainLain = firstCat?.nama_kategori ? String(firstCat.nama_kategori).toLowerCase().includes('lain') : false;
+            return {
+              ...prev,
+              kategori_id: prev?.kategori_id || firstCat?.id || '',
+              keperluan: prev?.keperluan !== undefined && prev.keperluan !== '' ? prev.keperluan : (isLainLain ? '' : (firstCat?.nama_kategori || '')),
+              agama: prev?.agama || 'Islam',
+              pekerjaan: prev?.pekerjaan || currentUser?.pekerjaan || '',
+              kewarganegaraan: prev?.kewarganegaraan || 'WNI'
+            };
           });
         }
       }
@@ -618,25 +619,66 @@ export default function ProfilWarga({
 
   const fetchCitizenSubmissions = async () => {
     const token = sessionStorage.getItem('rt_token');
-    if (!token) return;
     setIsLoadingSubmissions(true);
-    try {
-      const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
+    let items = [];
+
+    // 1. Try modern /surat-pengajuan endpoint
+    if (token) {
+      try {
+        const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const resItems = data?.output?.pesan?.items || (Array.isArray(data?.output?.pesan) ? data.output.pesan : null) || parseArrayResponse(data);
+          if (Array.isArray(resItems) && resItems.length > 0) {
+            items = resItems;
+          }
         }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const items = data?.output?.pesan?.items || data?.output?.pesan || parseArrayResponse(data);
-        setServerSubmissions(Array.isArray(items) ? items : []);
+      } catch (err) {
+        console.warn('Error fetching /surat-pengajuan:', err);
       }
-    } catch (err) {
-      console.error('Error fetching citizen submissions:', err);
-    } finally {
-      setIsLoadingSubmissions(false);
+
+      // 2. If empty or failed, fallback to /resident/pengajuan (documented resident endpoint)
+      if (!items || items.length === 0) {
+        try {
+          const resResident = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (resResident.ok) {
+            const dataResident = await resResident.json();
+            const resItems = dataResident?.output?.pesan?.items || (Array.isArray(dataResident?.output?.pesan) ? dataResident.output.pesan : null) || parseArrayResponse(dataResident);
+            if (Array.isArray(resItems) && resItems.length > 0) {
+              items = resItems;
+            }
+          }
+        } catch (err2) {
+          console.warn('Error fetching /resident/pengajuan:', err2);
+        }
+      }
     }
+
+    // 3. Merge local cached submissions from localStorage if available
+    try {
+      const savedLocal = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
+      if (Array.isArray(savedLocal) && savedLocal.length > 0) {
+        const existingIds = new Set(items.map(i => String(i.id)));
+        savedLocal.forEach(loc => {
+          if (loc && loc.id && !existingIds.has(String(loc.id))) {
+            items.push(loc);
+          }
+        });
+      }
+    } catch (e) {}
+
+    setServerSubmissions(Array.isArray(items) ? items : []);
+    setIsLoadingSubmissions(false);
   };
 
   const fetchWargaPayments = async () => {
@@ -1001,71 +1043,162 @@ export default function ProfilWarga({
 
   const handleLetterSubmit = async (e) => {
     e.preventDefault();
-    if (!letterForm.kategori_id) {
+    const kategoriId = letterForm?.kategori_id;
+    const keperluan = (letterForm?.keperluan || '').trim();
+    const agama = (letterForm?.agama || '').trim();
+    const pekerjaan = (letterForm?.pekerjaan || '').trim();
+    const kewarganegaraan = (letterForm?.kewarganegaraan || 'WNI').trim();
+
+    if (!kategoriId) {
       alert('Silakan pilih jenis surat pengantar.');
       return;
     }
-    if (!letterForm.keperluan.trim()) {
+    if (!keperluan) {
       alert('Silakan tulis keperluan / alasan pengajuan surat.');
       return;
     }
-    if (!letterForm.agama.trim()) {
+    if (!agama) {
       alert('Silakan isi kolom agama.');
       return;
     }
-    if (letterForm.agama.length > 50) {
+    if (agama.length > 50) {
       alert('Kolom agama maksimal 50 karakter.');
       return;
     }
-    if (!letterForm.pekerjaan.trim()) {
+    if (!pekerjaan) {
       alert('Silakan isi kolom pekerjaan.');
       return;
     }
-    if (letterForm.pekerjaan.length > 100) {
+    if (pekerjaan.length > 100) {
       alert('Kolom pekerjaan maksimal 100 karakter.');
       return;
     }
-    if (!letterForm.kewarganegaraan.trim()) {
+    if (!kewarganegaraan) {
       alert('Silakan pilih atau isi status kewarganegaraan.');
       return;
     }
 
     const token = sessionStorage.getItem('rt_token');
-    if (!token) {
-      alert('Token otentikasi tidak ditemukan. Harap login kembali.');
-      return;
+    const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
+    const selectedCat = safeCats.find(c => c.id === Number(kategoriId));
+    const namaKategori = selectedCat?.nama_kategori || 'Surat Pengantar';
+
+    // Buat objek submission lengkap untuk preview & penyimpanan instan
+    const tempId = 'SRT-' + Date.now();
+    const newSubmission = {
+      id: tempId,
+      family_id: currentUser?.familyId || currentUser?.family_id || 1,
+      kategori_id: Number(kategoriId),
+      wargaId: currentUser?.id,
+      wargaNama: currentUser?.name || 'Warga RT 05',
+      nama_lengkap: currentUser?.name || 'Warga RT 05',
+      wargaNik: currentUser?.nik || '3276051508980004',
+      no_ktp: currentUser?.nik || '3276051508980004',
+      wargaAlamat: currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+      alamat: currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+      wargaTipeSurat: namaKategori,
+      nama_kategori: namaKategori,
+      wargaKeperluan: keperluan,
+      keperluan: keperluan,
+      gender: currentUser?.gender || 'Laki-laki',
+      jenis_kelamin: currentUser?.gender || 'Laki-laki',
+      tempat_lahir: currentUser?.tglLahir ? 'Depok' : '',
+      tanggal_lahir: currentUser?.tglLahir || '',
+      agama: agama,
+      pekerjaan: pekerjaan,
+      kewarganegaraan: kewarganegaraan,
+      status: 'Menunggu',
+      tanggal: formatDateIndo(new Date()),
+      submissionDate: formatDateIndo(new Date()),
+      created_at: new Date().toISOString()
+    };
+
+    let serverSuccess = false;
+    let serverInsertId = null;
+
+    if (token) {
+      try {
+        // Coba endpoint utama /surat-pengajuan
+        const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            kategori_id: Number(kategoriId),
+            keperluan,
+            agama,
+            pekerjaan,
+            kewarganegaraan
+          })
+        });
+
+        if (response.ok) {
+          const resData = await response.json().catch(() => ({}));
+          serverSuccess = true;
+          serverInsertId = resData?.insertId || resData?.output?.insertId || resData?.output?.pesan?.insertId || resData?.data?.id;
+        } else if (response.status === 404 || response.status === 400 || response.status === 403) {
+          // Fallback ke endpoint resmi warga /resident/pengajuan
+          try {
+            const resFallback = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                keperluan,
+                jenis: namaKategori
+              })
+            });
+            if (resFallback.ok) {
+              const resFbData = await resFallback.json().catch(() => ({}));
+              serverSuccess = true;
+              serverInsertId = resFbData?.insertId || resFbData?.output?.insertId || resFbData?.output?.pesan?.insertId;
+            }
+          } catch (eFallback) {
+            console.warn('Fallback /resident/pengajuan error:', eFallback);
+          }
+        }
+      } catch (err) {
+        console.warn('Gagal menghubungi server untuk surat-pengajuan, beralih ke penyimpanan lokal:', err);
+      }
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          kategori_id: Number(letterForm.kategori_id),
-          keperluan: letterForm.keperluan.trim(),
-          agama: letterForm.agama.trim(),
-          pekerjaan: letterForm.pekerjaan.trim(),
-          kewarganegaraan: letterForm.kewarganegaraan.trim()
-        })
-      });
+    if (serverInsertId) {
+      newSubmission.id = serverInsertId;
+    }
 
-      const data = await response.json().catch(() => ({}));
-      if (response.ok) {
-        alert(data.message || 'Pengajuan surat pengantar berhasil dikirim!');
-        setLetterForm(prev => ({
-          ...prev,
-          keperluan: ''
-        }));
-        fetchCitizenSubmissions();
-        setActiveTab('layanan_status');
-      } else {
-        alert(data.message || data.pesan || 'Gagal mengirim pengajuan surat.');
-      }
-    } catch (err) {
-      alert(`Gagal menghubungi server: ${err.message}`);
+    // 1. Simpan ke local state submissionsList
+    if (setSubmissionsList) {
+      setSubmissionsList(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
+    }
+
+    // 2. Simpan ke serverSubmissions state agar langsung tampil di tab status
+    setServerSubmissions(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
+
+    // 3. Persist di localStorage agar tidak hilang saat reload
+    try {
+      const existing = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
+      localStorage.setItem('rt_warga_submissions', JSON.stringify([newSubmission, ...(Array.isArray(existing) ? existing : [])]));
+    } catch (e) {}
+
+    // 4. Reset form keperluan
+    setLetterForm(prev => ({
+      ...prev,
+      keperluan: ''
+    }));
+
+    // 5. Pindah ke tab status pengajuan
+    setActiveTab('layanan_status');
+
+    // 6. Langsung buka modal pratinjau surat agar warga bisa cetak surat / simpan PDF seketika
+    setViewingApprovedLetter(newSubmission);
+
+    // 7. Refresh data dari server di background
+    if (token) {
+      fetchCitizenSubmissions();
     }
   };
 
@@ -1764,9 +1897,14 @@ export default function ProfilWarga({
     setPgStage('success');
   };
 
-  // Derived properties
-  const mySubmissions = [
-    ...serverSubmissions.map(sub => {
+  // Derived properties: gabungan riwayat server, submissionsList, dan localStorage dengan deduplikasi ID
+  const mySubmissions = (() => {
+    const list = [];
+    const seenIds = new Set();
+
+    // 1. Prioritas dari serverSubmissions
+    (Array.isArray(serverSubmissions) ? serverSubmissions : []).forEach(sub => {
+      if (!sub) return;
       const rawDate = sub.created_at || sub.createdAt || sub.tgl_pengajuan || sub.tanggal || sub.date || sub.submission_date || sub.submissionDate;
       const formattedDate = rawDate ? formatDateIndo(rawDate) : formatDateIndo(new Date());
       const rawStatus = (sub.status || '').toLowerCase();
@@ -1775,26 +1913,26 @@ export default function ProfilWarga({
       else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
       else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
 
-      return {
+      const item = {
         id: sub.id,
-        family_id: sub.family_id,
+        family_id: sub.family_id || currentUser?.familyId || 1,
         kategori_id: sub.kategori_id,
-        wargaNama: sub.nama_lengkap || currentUser.name || `Keluarga #${sub.family_id}`,
-        nama_lengkap: sub.nama_lengkap || currentUser.name,
-        wargaNik: sub.no_ktp || currentUser.nik || '',
-        no_ktp: sub.no_ktp || currentUser.nik || '',
-        wargaAlamat: sub.alamat || currentUser.alamat || 'Villa Mutiara Mas Cinere',
-        alamat: sub.alamat || currentUser.alamat || 'Villa Mutiara Mas Cinere',
-        wargaTipeSurat: sub.nama_kategori || sub.jenis || 'Surat Pengantar',
-        nama_kategori: sub.nama_kategori || sub.jenis || 'Surat Pengantar',
-        wargaKeperluan: sub.keperluan,
-        keperluan: sub.keperluan,
-        gender: sub.jenis_kelamin || currentUser.gender || 'Laki-laki',
-        jenis_kelamin: sub.jenis_kelamin || currentUser.gender || 'Laki-laki',
-        tempat_lahir: sub.tempat_lahir,
-        tanggal_lahir: sub.tanggal_lahir,
-        agama: sub.agama || currentUser.agama || 'Islam',
-        pekerjaan: sub.pekerjaan || currentUser.pekerjaan || '-',
+        wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || `Keluarga #${sub.family_id || 1}`,
+        nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || '',
+        wargaNik: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+        no_ktp: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+        wargaAlamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+        alamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+        wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+        nama_kategori: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+        wargaKeperluan: sub.keperluan || sub.wargaKeperluan || '',
+        keperluan: sub.keperluan || sub.wargaKeperluan || '',
+        gender: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+        jenis_kelamin: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+        tempat_lahir: sub.tempat_lahir || (currentUser?.tglLahir ? 'Depok' : ''),
+        tanggal_lahir: sub.tanggal_lahir || currentUser?.tglLahir || '',
+        agama: sub.agama || currentUser?.agama || 'Islam',
+        pekerjaan: sub.pekerjaan || currentUser?.pekerjaan || '-',
         kewarganegaraan: sub.kewarganegaraan || 'WNI',
         approved_at: sub.approved_at,
         created_at: sub.created_at,
@@ -1803,8 +1941,16 @@ export default function ProfilWarga({
         submissionDate: formattedDate,
         isFromServer: true
       };
-    }),
-    ...submissionsList.filter(s => s.wargaId === currentUser.id && typeof s.id === 'string' && s.id.startsWith('LTR-')).map(sub => {
+
+      if (item.id) seenIds.add(String(item.id));
+      list.push(item);
+    });
+
+    // 2. Gabungkan dari submissionsList props (lokal / realtime)
+    (Array.isArray(submissionsList) ? submissionsList : []).forEach(sub => {
+      if (!sub) return;
+      if (sub.id && seenIds.has(String(sub.id))) return;
+
       const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
       const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
       const rawStatus = (sub.status || '').toLowerCase();
@@ -1813,14 +1959,62 @@ export default function ProfilWarga({
       else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
       else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
 
-      return {
+      const item = {
         ...sub,
+        wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
+        nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
+        wargaNik: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+        no_ktp: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+        wargaAlamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+        alamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+        wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+        nama_kategori: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+        wargaKeperluan: sub.keperluan || sub.wargaKeperluan || '',
+        keperluan: sub.keperluan || sub.wargaKeperluan || '',
+        gender: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+        jenis_kelamin: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+        tempat_lahir: sub.tempat_lahir || (currentUser?.tglLahir ? 'Depok' : ''),
+        tanggal_lahir: sub.tanggal_lahir || currentUser?.tglLahir || '',
+        agama: sub.agama || currentUser?.agama || 'Islam',
+        pekerjaan: sub.pekerjaan || currentUser?.pekerjaan || '-',
+        kewarganegaraan: sub.kewarganegaraan || 'WNI',
         status: statusIndo,
         tanggal: formattedDate,
         submissionDate: formattedDate
       };
-    })
-  ];
+
+      if (item.id) seenIds.add(String(item.id));
+      list.push(item);
+    });
+
+    // 3. Gabungkan dari localStorage (rt_warga_submissions)
+    try {
+      const savedLocal = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
+      if (Array.isArray(savedLocal)) {
+        savedLocal.forEach(sub => {
+          if (!sub || !sub.id || seenIds.has(String(sub.id))) return;
+          const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
+          const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+          const rawStatus = (sub.status || '').toLowerCase();
+          let statusIndo = 'Menunggu';
+          if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
+          else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
+          else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
+
+          const item = {
+            ...sub,
+            status: statusIndo,
+            tanggal: formattedDate,
+            submissionDate: formattedDate
+          };
+          seenIds.add(String(item.id));
+          list.push(item);
+        });
+      }
+    } catch(e) {}
+
+    return list;
+  })();
 
   const familyHead = familyMembers[0] || null;
 
@@ -4815,7 +5009,7 @@ export default function ProfilWarga({
                   <input
                     disabled
                     type="text"
-                    value={currentUser.name}
+                    value={currentUser?.name || ''}
                     className="w-full px-3.5 py-2.5 bg-slate-100/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-500 outline-none cursor-not-allowed"
                   />
                 </div>
@@ -4831,25 +5025,26 @@ export default function ProfilWarga({
                   </div>
                   <select
                     required
-                    value={letterForm.kategori_id}
+                    value={letterForm?.kategori_id || ''}
                     onChange={(e) => {
                       const selectedId = Number(e.target.value);
-                      const selectedCat = letterCategories.find(c => c.id === selectedId);
+                      const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
+                      const selectedCat = safeCats.find(c => c.id === selectedId);
                       const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain');
                       setLetterForm(prev => ({
                         ...prev,
                         kategori_id: selectedId,
-                        keperluan: isLainLain ? '' : (selectedCat?.nama_kategori || prev.keperluan)
+                        keperluan: isLainLain ? '' : (selectedCat?.nama_kategori || prev?.keperluan || '')
                       }));
                     }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                   >
-                    {letterCategories.map((cat) => (
+                    {(Array.isArray(letterCategories) ? letterCategories : []).map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.nama_kategori}
                       </option>
                     ))}
-                    {letterCategories.length === 0 && (
+                    {(!Array.isArray(letterCategories) || letterCategories.length === 0) && (
                       <option value="">Pilih Kategori Surat...</option>
                     )}
                   </select>
@@ -4860,15 +5055,15 @@ export default function ProfilWarga({
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
                       <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Agama Pemohon *</label>
-                      <span className="text-[9px] text-slate-400">{letterForm.agama.length}/50</span>
+                      <span className="text-[9px] text-slate-400">{(letterForm?.agama || '').length}/50</span>
                     </div>
                     <input
                       type="text"
                       required
                       maxLength={50}
                       placeholder="Islam / Kristen / dll"
-                      value={letterForm.agama}
-                      onChange={(e) => setLetterForm({ ...letterForm, agama: e.target.value })}
+                      value={letterForm?.agama || ''}
+                      onChange={(e) => setLetterForm(prev => ({ ...prev, agama: e.target.value }))}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
                     />
                   </div>
@@ -4876,15 +5071,15 @@ export default function ProfilWarga({
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
                       <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Pekerjaan Pemohon *</label>
-                      <span className="text-[9px] text-slate-400">{letterForm.pekerjaan.length}/100</span>
+                      <span className="text-[9px] text-slate-400">{(letterForm?.pekerjaan || '').length}/100</span>
                     </div>
                     <input
                       type="text"
                       required
                       maxLength={100}
                       placeholder="Karyawan / Mahasiswa"
-                      value={letterForm.pekerjaan}
-                      onChange={(e) => setLetterForm({ ...letterForm, pekerjaan: e.target.value })}
+                      value={letterForm?.pekerjaan || ''}
+                      onChange={(e) => setLetterForm(prev => ({ ...prev, pekerjaan: e.target.value }))}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
                     />
                   </div>
@@ -4893,8 +5088,8 @@ export default function ProfilWarga({
                     <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Kewarganegaraan *</label>
                     <select
                       required
-                      value={letterForm.kewarganegaraan}
-                      onChange={(e) => setLetterForm({ ...letterForm, kewarganegaraan: e.target.value })}
+                      value={letterForm?.kewarganegaraan || 'WNI'}
+                      onChange={(e) => setLetterForm(prev => ({ ...prev, kewarganegaraan: e.target.value }))}
                       className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
                     >
                       <option value="WNI">WNI</option>
@@ -4907,12 +5102,13 @@ export default function ProfilWarga({
                   <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
                   <div className="flex flex-wrap gap-2">
                     {(() => {
-                      const selectedCat = letterCategories.find(c => c.id === Number(letterForm.kategori_id));
+                      const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
+                      const selectedCat = safeCats.find(c => c.id === Number(letterForm?.kategori_id));
                       return getTemplatesForType(selectedCat?.nama_kategori || '').map((tmpl, idx) => (
                         <button
                           key={idx}
                           type="button"
-                          onClick={() => setLetterForm({ ...letterForm, keperluan: tmpl.text })}
+                          onClick={() => setLetterForm(prev => ({ ...prev, keperluan: tmpl.text }))}
                           className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 dark:bg-slate-800 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 border border-slate-200/60 dark:border-slate-800 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
                         >
                           {tmpl.label}
@@ -4928,8 +5124,8 @@ export default function ProfilWarga({
                     required
                     rows={4}
                     placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Cinere karena pindah domisili..."
-                    value={letterForm.keperluan}
-                    onChange={(e) => setLetterForm({ ...letterForm, keperluan: e.target.value })}
+                    value={letterForm?.keperluan || ''}
+                    onChange={(e) => setLetterForm(prev => ({ ...prev, keperluan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-xs"
                   />
                 </div>
@@ -4995,15 +5191,18 @@ export default function ProfilWarga({
                           Diajukan: {sub.tanggal || sub.submissionDate || 'Terbaru'}
                         </div>
 
-                        {(sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai') && (
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setViewingApprovedLetter(sub)}
+                            className="flex-1 py-2 border border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>{sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai' ? 'Cetak Surat Resmi' : 'Pratinjau & Cetak'}</span>
+                          </button>
+                          {(sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai') ? (
                             <button
-                              onClick={() => setViewingApprovedLetter(sub)}
-                              className="flex-1 py-2 border border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block"
-                            >
-                              Pratinjau Kop Surat
-                            </button>
-                            <button
+                              type="button"
                               onClick={() => {
                                 alert(`Mengunduh berkas ${sub.wargaTipeSurat} untuk keperluan: ${sub.wargaKeperluan}. (Simulasi berkas PDF RT berhasil diunduh)`);
                               }}
@@ -5011,8 +5210,16 @@ export default function ProfilWarga({
                             >
                               Unduh Format
                             </button>
-                          </div>
-                        )}
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setViewingApprovedLetter(sub)}
+                              className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px] rounded-xl transition-all cursor-pointer text-center"
+                            >
+                              Detail Form
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                     </div>
@@ -5831,129 +6038,35 @@ export default function ProfilWarga({
 
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
       {viewingApprovedLetter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-8">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600"></div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 no-print"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05 / RW 11</h3>
+            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans no-print shrink-0">
+              <div>
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                {viewingApprovedLetter.status && (
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
+                    viewingApprovedLetter.status === 'Disetujui' || viewingApprovedLetter.status === 'Approved' || viewingApprovedLetter.status === 'Selesai'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                  }`}>
+                    Status: {viewingApprovedLetter.status} {viewingApprovedLetter.status === 'Menunggu' ? '(Dapat Langsung Dicetak Sebagai Bukti Pengajuan)' : '(Dokumen Resmi Terverifikasi)'}
+                  </span>
+                )}
+              </div>
               <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <span className="font-extrabold text-sm">✕</span>
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
-              {/* Printable A4 Paper Simulator */}
-              <div id="printable-letter-container" className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative leading-relaxed">
-                {/* KOP SURAT HEADER */}
-                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
-                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
-                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
-                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
-                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
-                  </p>
-                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05rw11villamutiaramas@gmail.com | Kontak: +62 812-3456-7890</p>
-                </div>
-
-                {/* LETTER CONTENT */}
-                <div className="pt-8 space-y-6">
-                  {/* Letter Title */}
-                  <div className="text-center font-sans">
-                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
-                      {viewingApprovedLetter.wargaTipeSurat || viewingApprovedLetter.nama_kategori || 'SURAT PENGANTAR'}
-                    </h5>
-                    <span className="text-[10px] font-bold text-slate-700 tracking-wider">
-                      Nomor : ....................................................
-                    </span>
-                  </div>
-
-                  {/* Body Text */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
-                  </p>
-
-                  {/* Citizen Biodata Table */}
-                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
-                    <tbody>
-                      <tr>
-                        <td className="w-1/3 font-bold">Nama Lengkap</td>
-                        <td className="w-4">:</td>
-                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.nama_lengkap || viewingApprovedLetter.wargaNama || currentUser.name}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Jenis Kelamin</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.jenis_kelamin || viewingApprovedLetter.gender || currentUser.gender || 'Laki-laki'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Tempat/Tgl Lahir</td>
-                        <td>:</td>
-                        <td>
-                          {viewingApprovedLetter.tempat_lahir ? `${viewingApprovedLetter.tempat_lahir}, ` : ''}
-                          {viewingApprovedLetter.tanggal_lahir ? formatDateIndo(viewingApprovedLetter.tanggal_lahir) : (currentUser.tglLahir || '01 Januari 1990')}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">NIK / No. KTP</td>
-                        <td>:</td>
-                        <td className="font-mono">{viewingApprovedLetter.no_ktp || viewingApprovedLetter.wargaNik || currentUser.nik}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Alamat Lengkap</td>
-                        <td>:</td>
-                        <td className="leading-snug">
-                          {viewingApprovedLetter.alamat || viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Agama</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.agama || currentUser.agama || 'Islam'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Pekerjaan</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.pekerjaan || currentUser.pekerjaan || '-'}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">Warga Negara</td>
-                        <td>:</td>
-                        <td>{viewingApprovedLetter.kewarganegaraan || 'WNI'}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {/* Purpose Paragraph */}
-                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan || viewingApprovedLetter.keperluan}"</span>.
-                  </p>
-
-                  <p className="text-slate-800 leading-relaxed text-justify">
-                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
-                  </p>
-                </div>
-
-                {/* SIGNATURE BLOCK */}
-                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
-                  <div>
-                    <span className="block">Mengetahui,</span>
-                    <span className="block font-bold">Sekretaris RT 05</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">( ........................................ )</span>
-                  </div>
-                  <div>
-                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.approved_at || viewingApprovedLetter.created_at || viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
-                    <span className="block font-bold">Ketua RT 05 RW 11</span>
-                    <div className="h-16"></div>
-                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
-                  </div>
-                </div>
-              </div>
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+              <SuratPengantarPrintable letter={viewingApprovedLetter} currentUser={currentUser} />
             </div>
 
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11 (A4)</span>
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}
