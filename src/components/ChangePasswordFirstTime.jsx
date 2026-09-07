@@ -84,7 +84,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
 
       <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
         <div className="text-center space-y-2">
-          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 text-orange-500 rounded-2xl flex items-center justify-center animate-pulse border border-orange-500/30">
+          <div className="mx-auto w-14 h-14 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center animate-pulse border border-orange-500/30">
             <Lock className="w-7 h-7 text-orange-600 dark:text-orange-400" />
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Ganti Kata Sandi</h2>
@@ -147,7 +147,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
           <button
             type="submit"
             disabled={isLoading || !!success}
-            className="w-full py-3.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-orange-500/20"
+            className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-orange-500/20"
           >
             {isLoading ? (
               <>

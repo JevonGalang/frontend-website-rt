@@ -26,6 +26,7 @@ const DEFAULT_SUBMISSIONS = [];
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('beranda');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Theme Dark/Light Mode state
   const [darkMode, setDarkMode] = useState(() => {
@@ -359,8 +360,8 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans antialiased flex flex-col justify-between">
-      {/* Navigation bar */}
+    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-slate-800 dark:text-slate-100 font-sans antialiased flex flex-col justify-between">
+      {/* Navigation bar & Sidebar */}
       <Navbar 
         darkMode={darkMode} 
         setDarkMode={setDarkMode} 
@@ -368,10 +369,12 @@ export default function App() {
         setCurrentUser={setCurrentUser}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
       />
 
       {/* Main Content Layout */}
-      <main className="pt-14 sm:pt-16 flex-grow">
+      <main className="pt-16 flex-grow font-sans pb-16 lg:pb-8">
         {/* Beranda Section */}
         {currentPage === 'beranda' && (
           <Hero
@@ -464,7 +467,7 @@ export default function App() {
           <div className="flex justify-center">
             <div className="relative inline-block group">
               {/* Outer Golden Border & Shadow */}
-              <div className="relative px-8 sm:px-12 py-3 rounded-full bg-gradient-to-b from-[#eec98d] via-[#dfa55d] to-[#bf853b] border-2 border-[#fae8c8] shadow-xl shadow-black/50 text-center">
+              <div className="relative px-8 sm:px-12 py-3 rounded-full bg-[#dfa55d] border-2 border-[#fae8c8] shadow-xl shadow-black/50 text-center">
                 {/* Inner Decorative Stroke */}
                 <div className="absolute inset-1 rounded-full border border-[#8a5717]/40 pointer-events-none"></div>
                 
@@ -479,7 +482,7 @@ export default function App() {
           </div>
 
           {/* Golden Horizontal Hairline Divider */}
-          <div className="w-full max-w-5xl mx-auto h-[1px] bg-gradient-to-r from-transparent via-[#d6a354]/40 to-transparent"></div>
+          <div className="w-full max-w-5xl mx-auto h-[1px] bg-[#d6a354]/40"></div>
 
           {/* Social Media & Contact Links Row */}
           <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 md:gap-12 text-xs sm:text-sm font-semibold text-slate-200">

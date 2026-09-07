@@ -1,7 +1,20 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import Swal from 'sweetalert2'
 import './index.css'
 import App from './App.jsx'
+
+// Global window.alert override to SweetAlert2
+if (typeof window !== 'undefined') {
+  window.alert = (msg) => {
+    Swal.fire({
+      title: 'Pemberitahuan',
+      text: String(msg || ''),
+      icon: 'info',
+      confirmButtonColor: '#f97316'
+    });
+  };
+}
 
 // Global Fetch Interceptor for API request and response diagnostics.
 const originalFetch = window.fetch;

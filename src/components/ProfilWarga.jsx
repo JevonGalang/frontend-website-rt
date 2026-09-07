@@ -2264,7 +2264,7 @@ export default function ProfilWarga({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-orange-50/95 via-slate-50 to-amber-50/95 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-orange-200/40 dark:border-slate-800">
+          <aside className="relative w-72 max-w-[85vw] bg-white dark:bg-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-orange-200/40 dark:border-slate-800">
             <div className="p-4 border-b border-orange-200/60 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-1">
@@ -2508,31 +2508,9 @@ export default function ProfilWarga({
                   <span>Pengaduan</span>
                 </button>
 
-                {/* Dokumen */}
-                <button
-                  onClick={() => { setActiveTab('dokumen'); setIsMobileDrawerOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'dokumen'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <FolderOpen className="w-4 h-4 text-purple-400" />
-                  <span>Dokumen</span>
-                </button>
 
-                {/* Voting Karyawan */}
-                <button
-                  onClick={() => { setActiveTab('voting_karyawan'); setIsMobileDrawerOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    activeTab === 'voting_karyawan'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Voting Karyawan</span>
-                </button>
+
+
 
                 {/* Notifikasi */}
                 <button
@@ -2826,31 +2804,9 @@ export default function ProfilWarga({
             <span>Pengaduan</span>
           </button>
 
-          {/* Dokumen */}
-          <button
-            onClick={() => setActiveTab('dokumen')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'dokumen'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <FolderOpen className="w-4 h-4 text-purple-400" />
-            <span>Dokumen</span>
-          </button>
 
-          {/* Voting Karyawan */}
-          <button
-            onClick={() => setActiveTab('voting_karyawan')}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'voting_karyawan'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Voting Karyawan</span>
-          </button>
+
+
 
           {/* Notifikasi */}
           <button

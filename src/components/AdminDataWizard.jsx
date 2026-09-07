@@ -552,9 +552,9 @@ export default function AdminDataWizard() {
         {/* Success hero */}
         <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
           {/* Decorative bg */}
-          <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5 dark:from-orange-500/10 dark:to-amber-500/10" />
+          <div className="absolute inset-0 bg-orange-500/5 dark:bg-orange-500/10" />
           <div className="relative z-10">
-            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
+            <div className="mx-auto w-20 h-20 bg-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
               <Check className="w-10 h-10 text-white" strokeWidth={3} />
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
@@ -765,9 +765,9 @@ export default function AdminDataWizard() {
           {/* Success hero */}
           <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
             {/* Decorative bg */}
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-transparent to-amber-500/5 dark:from-orange-500/10 dark:to-amber-500/10" />
+            <div className="absolute inset-0 bg-orange-500/5 dark:bg-orange-500/10" />
             <div className="relative z-10">
-              <div className="mx-auto w-20 h-20 bg-gradient-to-br from-orange-500 to-amber-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
+              <div className="mx-auto w-20 h-20 bg-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
                 <Check className="w-10 h-10 text-white" strokeWidth={3} />
               </div>
               <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
@@ -894,7 +894,7 @@ export default function AdminDataWizard() {
               <button
                 onClick={handleCreateWargaAccount}
                 disabled={isCreatingAccount}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer"
               >
                 {isCreatingAccount ? (
                   <>
@@ -915,7 +915,7 @@ export default function AdminDataWizard() {
           <div className="flex justify-center">
             <button
               onClick={handleReset}
-              className="flex items-center gap-2.5 px-6 py-3 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
+              className="flex items-center gap-2.5 px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl text-sm shadow-lg shadow-orange-500/20 transition-all duration-200 cursor-pointer hover:scale-[1.02] active:scale-95"
             >
               <RotateCcw className="w-4 h-4" />
               Input Data Baru Lagi
@@ -1196,7 +1196,7 @@ export default function AdminDataWizard() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer transition-all"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-500/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 cursor-pointer transition-all"
               >
                 {isLoading ? (
                   <>
@@ -1287,7 +1287,7 @@ export default function AdminDataWizard() {
               {/* Connector lines */}
               <div className="absolute top-6 left-0 right-0 h-[2px] bg-slate-200 dark:bg-slate-800 mx-16 sm:mx-24" />
               <div
-                className="absolute top-6 left-0 h-[2px] bg-gradient-to-r from-orange-500 via-amber-500 to-emerald-500 mx-16 sm:mx-24 transition-all duration-700 ease-out"
+                className="absolute top-6 left-0 h-[2px] bg-orange-500 mx-16 sm:mx-24 transition-all duration-700 ease-out"
                 style={{
                   width: currentStep === 1 ? '0%' : currentStep === 2 ? 'calc(50% - 3rem)' : 'calc(100% - 6rem)',
                 }}
@@ -1306,7 +1306,7 @@ export default function AdminDataWizard() {
                         ${isCompleted
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-100'
                           : isCurrent
-                            ? 'bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/30 animate-pulse-slow scale-110'
+                            ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 animate-pulse-slow scale-110'
                             : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
                         }`}
                     >
@@ -1331,11 +1331,11 @@ export default function AdminDataWizard() {
             {/* Left: Form Card */}
             <div className="lg:col-span-2">
               <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-orange-500/5 to-transparent dark:from-orange-500/10 rounded-bl-full" />
+                <div className="absolute top-0 right-0 w-40 h-40 bg-orange-500/5 dark:bg-orange-500/10 rounded-bl-full" />
                 <div className="relative z-10">
                   {/* Form Header */}
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2.5 bg-gradient-to-br from-orange-500 to-amber-500 rounded-xl text-white shadow-md shadow-orange-500/20">
+                    <div className="p-2.5 bg-orange-500 rounded-xl text-white shadow-md shadow-orange-500/20">
                       {currentStep === 1 && <Home className="w-5 h-5" />}
                       {currentStep === 2 && <CreditCard className="w-5 h-5" />}
                       {currentStep === 3 && <UserPlus className="w-5 h-5" />}
@@ -1590,7 +1590,7 @@ export default function AdminDataWizard() {
                       className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-sm font-bold transition-all duration-200 cursor-pointer shadow-lg
                         ${isLoading
                           ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
-                          : 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white shadow-orange-500/20 hover:scale-[1.02] active:scale-95'
+                          : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20 hover:scale-[1.02] active:scale-95'
                         }`}
                     >
                       {isLoading ? (

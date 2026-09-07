@@ -52,13 +52,13 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
         
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
             Statistik Kependudukan
           </h2>
           <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
             Data Demografi & Jumlah Warga
           </p>
-          <div className="w-12 h-1 bg-emerald-500 mx-auto rounded-full"></div>
+          <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
         </div>
 
         {/* 3 Core Stats Cards */}

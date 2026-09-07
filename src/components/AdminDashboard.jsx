@@ -5595,7 +5595,7 @@ export default function AdminDashboard({
           <div className="space-y-1.5">
             <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
               <div 
-                className="h-full bg-gradient-to-r from-rose-500 via-rose-600 to-pink-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
+                className="h-full bg-rose-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
                 style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
               ></div>
             </div>
@@ -5633,10 +5633,10 @@ export default function AdminDashboard({
 
         <div className={showTunggakan ? "grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3" : "space-y-3"}>
           {[
-            { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, dotColor: 'bg-blue-500', barGradient: 'from-blue-500 to-blue-600' },
-            { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, dotColor: 'bg-purple-500', barGradient: 'from-purple-500 to-pink-500' },
-            { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, dotColor: 'bg-emerald-600', barGradient: 'from-emerald-500 to-teal-500' },
-            { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, dotColor: 'bg-amber-500', barGradient: 'from-amber-500 to-orange-500' },
+            { label: 'Anak-anak (0–12 th)', count: anak, pct: anakPct, dotColor: 'bg-blue-500', barGradient: 'bg-blue-500' },
+            { label: 'Remaja (13–20 th)', count: remaja, pct: remajaPct, dotColor: 'bg-purple-500', barGradient: 'bg-purple-500' },
+            { label: 'Dewasa (21–50 th)', count: dewasa, pct: dewasaPct, dotColor: 'bg-emerald-600', barGradient: 'bg-emerald-500' },
+            { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, dotColor: 'bg-amber-500', barGradient: 'bg-amber-500' },
           ].map((ag, i) => (
             <div key={i} className="space-y-1">
               <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400">
@@ -5647,7 +5647,7 @@ export default function AdminDashboard({
                 <span className="text-slate-900 dark:text-white font-extrabold">{ag.count} orang ({ag.pct}%)</span>
               </div>
               <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div className={`h-full bg-gradient-to-r ${ag.barGradient} rounded-full transition-all duration-700`} style={{ width: `${Math.max(ag.pct, living.length > 0 && ag.count > 0 ? 3 : 0)}%` }}></div>
+                <div className={`h-full ${ag.barGradient} rounded-full transition-all duration-700`} style={{ width: `${Math.max(ag.pct, living.length > 0 && ag.count > 0 ? 3 : 0)}%` }}></div>
               </div>
             </div>
           ))}
@@ -5878,7 +5878,7 @@ export default function AdminDashboard({
               <div className="space-y-1.5">
                 <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-rose-500 via-rose-600 to-pink-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
+                    className="h-full bg-rose-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
                     style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
                   ></div>
                 </div>
@@ -5968,12 +5968,12 @@ export default function AdminDashboard({
               <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className={`p-2 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
                   act.category === 'ipl'
-                    ? 'bg-gradient-to-br from-amber-500 to-emerald-600'
+                    ? 'bg-amber-500'
                     : act.category === 'kegiatan'
-                    ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                    ? 'bg-blue-500'
                     : act.category === 'jadwal'
-                    ? 'bg-gradient-to-br from-purple-500 to-pink-600'
-                    : 'bg-gradient-to-br from-rose-600 to-red-700'
+                    ? 'bg-purple-500'
+                    : 'bg-rose-600'
                 }`}>
                   {act.category === 'ipl' ? (
                     <Wallet className="w-3.5 h-3.5" />
@@ -6065,7 +6065,7 @@ export default function AdminDashboard({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-gradient-to-b from-orange-50/95 via-slate-50 to-amber-50/95 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+          <aside className="relative w-72 max-w-[85vw] bg-white dark:bg-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
             <div className="p-4 border-b border-orange-200/80 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-1">
@@ -6087,7 +6087,7 @@ export default function AdminDashboard({
             </div>
 
             <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-slate-800/80 rounded-2xl border border-orange-200/80 dark:border-slate-700/60 shadow-xs flex items-center gap-3 backdrop-blur-md">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs shadow-md shadow-orange-500/20">
+              <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-black flex items-center justify-center text-xs shadow-md shadow-orange-500/20">
                 AD
               </div>
               <div className="min-w-0 flex-1">
@@ -6219,7 +6219,7 @@ export default function AdminDashboard({
       )}
 
       {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-64 bg-white dark:bg-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         {/* Brand/Logo Header */}
         <div className="p-6 border-b border-orange-200/50 dark:border-slate-800 flex items-center gap-3">
           <div className="flex items-center gap-1.5 shrink-0">
@@ -6234,7 +6234,7 @@ export default function AdminDashboard({
 
         {/* Admin Info */}
         <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-slate-900/60 rounded-2xl border border-orange-200/60 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-sm shadow-md shadow-orange-500/20">
+          <div className="w-9 h-9 rounded-xl bg-orange-500 text-white font-black flex items-center justify-center text-sm shadow-md shadow-orange-500/20">
             AD
           </div>
           <div className="min-w-0 flex-1">
@@ -6904,7 +6904,7 @@ export default function AdminDashboard({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 min-h-screen">
         
         {/* Header Ribbon */}
         <header className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-orange-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
@@ -6975,7 +6975,7 @@ export default function AdminDashboard({
           ) : (
             <>
               {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
-              <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/5 dark:from-orange-950/70 dark:via-amber-950/70 dark:to-slate-950/50 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+              <div className="bg-orange-500/10 dark:bg-orange-950/40 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
                 <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 dark:bg-orange-400/20 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="space-y-1.5 z-10">
                   <div className="flex items-center gap-2">
@@ -7017,7 +7017,7 @@ export default function AdminDashboard({
                     Sistem Portal Manajemen RT 05 Villa Mutiara Mas Cinere untuk kelancaran administrasi dan pelayanan warga.
                   </p>
                 </div>
-                <div className="px-4 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
+                <div className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
                   <Sparkles className="w-4 h-4 text-white" />
                   <span>RT 05 Modern System</span>
                 </div>
@@ -7032,8 +7032,8 @@ export default function AdminDashboard({
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                   
                   {/* 1. Total Warga */}
-                  <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-orange-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                       <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <span className="hidden" aria-hidden="true">{logsTrigger}</span>
@@ -7044,8 +7044,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 2. Total Kartu Keluarga */}
-                  <div className="bg-gradient-to-br from-blue-500/10 via-sky-500/5 to-white dark:from-blue-950/40 dark:to-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-blue-500 to-sky-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-blue-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
                       <Landmark className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7055,8 +7055,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 3. Total Rumah */}
-                  <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:from-indigo-950/40 dark:to-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
                       <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7068,8 +7068,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 4. IPL Sudah Lunas */}
-                  <div className="bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-white dark:from-emerald-950/40 dark:to-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-emerald-600 to-green-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
                       <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7081,8 +7081,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 5. IPL Belum Lunas */}
-                  <div className="bg-gradient-to-br from-amber-500/10 via-rose-500/5 to-white dark:from-amber-950/40 dark:to-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-amber-500 to-rose-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-amber-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
                       <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7094,8 +7094,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 6. Surat Masuk */}
-                  <div className="bg-gradient-to-br from-cyan-500/10 via-teal-500/5 to-white dark:from-cyan-950/40 dark:to-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-cyan-500 to-teal-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-cyan-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
                       <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7107,8 +7107,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 7. Surat Keluar */}
-                  <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-purple-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
                       <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7120,8 +7120,8 @@ export default function AdminDashboard({
                   </div>
 
                   {/* 8. Pengaduan Aktif */}
-                  <div className="bg-gradient-to-br from-rose-500/10 via-red-500/5 to-white dark:from-rose-950/40 dark:to-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                    <div className="p-2.5 sm:p-3.5 bg-gradient-to-br from-rose-500 to-red-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
+                  <div className="bg-white dark:bg-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                    <div className="p-2.5 sm:p-3.5 bg-rose-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
                       <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -7378,7 +7378,7 @@ export default function AdminDashboard({
                                       <button
                                         onClick={() => openRegisterAccountModal(r)}
                                         disabled={isCreatingAccount}
-                                        className="py-1 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50"
+                                        className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 shadow-sm disabled:opacity-50"
                                       >
                                         Registrasi Akun
                                       </button>
@@ -7676,7 +7676,7 @@ export default function AdminDashboard({
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button type="submit" className="py-2 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all">
+                  <button type="submit" className="py-2 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-all">
                     {editingAnnouncementId ? 'Simpan Perubahan' : 'Terbitkan Pengumuman'}
                   </button>
                   {editingAnnouncementId && (
@@ -7845,7 +7845,7 @@ export default function AdminDashboard({
                       <button 
                         type="submit" 
                         disabled={isSubmittingNotulen}
-                        className="py-2.5 px-5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md shadow-orange-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                        className="py-2.5 px-5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md shadow-orange-500/20 flex items-center gap-1.5 disabled:opacity-50"
                       >
                         {isSubmittingNotulen ? (
                           <>
@@ -9009,7 +9009,7 @@ export default function AdminDashboard({
                   {currentUser.role !== 'bendahara' && (
                     <button
                       onClick={() => openAddModal('warga')}
-                      className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all shrink-0"
+                      className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all shrink-0"
                       title="Tambah Data Warga Baru"
                     >
                       <Plus className="w-4 h-4" />
@@ -9237,14 +9237,14 @@ export default function AdminDashboard({
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => openAddModal('kas_income')}
-                    className="py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                    className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                   >
                     <TrendingUp className="w-4 h-4" />
                     <span>+ Catat Pemasukan</span>
                   </button>
                   <button
                     onClick={() => openAddModal('kas_expense')}
-                    className="py-2.5 px-4 bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-700 hover:to-amber-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
+                    className="py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer"
                   >
                     <TrendingDown className="w-4 h-4" />
                     <span>- Catat Pengeluaran</span>
@@ -9280,7 +9280,7 @@ export default function AdminDashboard({
 
               {/* Financial mini dashboard / Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div className="p-5 bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4" />
@@ -9298,7 +9298,7 @@ export default function AdminDashboard({
                   </p>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-transparent border border-rose-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                <div className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                       <TrendingDown className="w-4 h-4" />
@@ -9316,7 +9316,7 @@ export default function AdminDashboard({
                   </p>
                 </div>
 
-                <div className="p-5 bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-transparent border border-orange-500/20 rounded-2xl relative overflow-hidden shadow-xs">
+                <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
                     <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
                       <Wallet className="w-4 h-4" />
@@ -9511,7 +9511,7 @@ export default function AdminDashboard({
                               setTutupBukuCatatan('');
                               setModalType('tutup_buku');
                             }}
-                            className="py-1.5 px-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                            className="py-1.5 px-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                             title="Kunci & Tutup Buku Periode Kas RT"
                           >
                             <Lock className="w-3.5 h-3.5" />
@@ -9705,7 +9705,7 @@ export default function AdminDashboard({
                 <div className="space-y-6 animate-fade-in font-sans">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                     {/* Bank account details card */}
-                    <div className="p-6 bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
+                    <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
                       <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-orange-500/10 rounded-full blur-2xl"></div>
                       <div className="flex justify-between items-center">
                         <span className="font-extrabold text-xs text-orange-400 uppercase tracking-widest">KARTU DEBIT KAS RT 05</span>
@@ -10125,7 +10125,7 @@ export default function AdminDashboard({
               </div>
 
               {/* Informational Context Card */}
-              <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
+              <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
                 <div className="space-y-0.5">
                   <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400">Petugas Penerima Setoran Cash:</span>
                   <p className="font-bold text-slate-800 dark:text-slate-200">
@@ -10347,7 +10347,7 @@ export default function AdminDashboard({
                 <div className="pt-2 flex items-center justify-between">
                   <button
                     type="submit"
-                    className="py-3 px-6 bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-700 hover:to-teal-600 text-white font-black rounded-xl flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-lg shadow-emerald-600/20 text-xs sm:text-sm"
+                    className="py-3 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl flex items-center gap-2 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer shadow-lg shadow-emerald-600/20 text-xs sm:text-sm"
                   >
                     <CheckCircle2 className="w-4 h-4" />
                     <span>Terbitkan & Simpan Setoran Tunai (Lunas)</span>
@@ -10909,7 +10909,7 @@ export default function AdminDashboard({
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
                 {/* Bank account details card */}
-                <div className="p-6 bg-gradient-to-tr from-slate-900 to-slate-950 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
+                <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
                   <div className="flex justify-between items-center">
                     <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 05</span>
@@ -11143,7 +11143,7 @@ export default function AdminDashboard({
 
                 <button
                   onClick={() => openAddModal('agenda')}
-                  className="py-2.5 px-5 bg-gradient-to-r from-emerald-600 to-teal-500 dark:from-emerald-500 dark:to-teal-400 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
+                  className="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] hover:shadow-lg hover:shadow-emerald-500/10 cursor-pointer transition-all"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Agenda Baru</span>
@@ -13171,7 +13171,7 @@ export default function AdminDashboard({
           <div className="relative bg-slate-900/95 border border-slate-800/90 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-slate-100 flex flex-col max-h-[92vh] backdrop-blur-xl">
             
             {/* Modal Header */}
-            <div className="p-5 bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div className="p-5 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3.5">
                 <div className="w-11 h-11 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 flex items-center justify-center shadow-inner">
                   <CreditCard className="w-5 h-5" />
@@ -13856,7 +13856,7 @@ export default function AdminDashboard({
               <div className="flex gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
+                  className="py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
                 >
                   <Printer className="w-4 h-4" />
                   <span>Cetak Surat / Simpan PDF</span>

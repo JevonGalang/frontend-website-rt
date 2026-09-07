@@ -1,25 +1,36 @@
 import { useState } from 'react';
-import { Sun, Moon, Menu, X, Landmark, User, FileText, Wallet, PhoneCall } from 'lucide-react';
+import { 
+  Sun, Moon, Menu, X, User, LogOut, ChevronDown, Bell, 
+  Home, FileText, Wallet, PhoneCall, Landmark
+} from 'lucide-react';
 import { clearSession } from '../utils/authSession';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
 
 const menuItems = [
-  { id: 'beranda', label: 'Beranda' },
-  { id: 'profil-saya', label: 'Profil Saya' },
-  { id: 'profil', label: 'Profil RT' },
-  { id: 'agenda', label: 'Agenda' },
-  { id: 'layanan', label: 'Layanan' },
-  { id: 'data-warga', label: 'Data Warga' },
-  { id: 'kas', label: 'Kas RT' },
-  { id: 'kontak', label: 'Kontak' },
+  { id: 'beranda', label: 'Beranda', icon: Home, restricted: false },
+  { id: 'profil-saya', label: 'Profil Saya', icon: User, restricted: true },
+  { id: 'profil', label: 'Profil RT', icon: Landmark, restricted: false },
+  { id: 'layanan', label: 'Layanan', icon: FileText, restricted: true },
+  { id: 'data-warga', label: 'Data Warga', icon: User, restricted: true },
+  { id: 'kas', label: 'Kas RT', icon: Wallet, restricted: true },
+  { id: 'kontak', label: 'Kontak', icon: PhoneCall, restricted: false },
 ];
 
-export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentUser, currentPage, setCurrentPage }) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function Navbar({ 
+  darkMode, 
+  setDarkMode, 
+  currentUser, 
+  setCurrentUser, 
+  currentPage, 
+  setCurrentPage 
+}) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   const handleNavClick = (id) => {
-    setIsOpen(false);
+    setMobileMenuOpen(false);
     setCurrentPage(id);
     const forceScroll = () => {
       window.scrollTo(0, 0);
@@ -31,208 +42,280 @@ export default function Navbar({ darkMode, setDarkMode, currentUser, setCurrentU
     setTimeout(forceScroll, 100);
   };
 
+  const activeUserRole = currentUser?.role === 'admin' || currentUser?.role === 'rt' || currentUser?.role === 'sekertaris' || currentUser?.role === 'bendahara'
+    ? 'Pengurus RT'
+    : currentUser?.role === 'warga'
+      ? 'Warga - Kepala Keluarga'
+      : 'Warga / Tamu';
+
   return (
-    <nav
-      className="fixed top-0 left-0 w-full z-50 bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] py-3 transition-all duration-300"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-12 sm:h-14">
+    <>
+      {/* ═══════════════════════════════════════════════════════════════════
+          1. TOP HORIZONTAL NAVBAR (DESKTOP)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white/95 dark:bg-[#0b0f17]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 z-50 transition-all font-sans">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
           
-          {/* Logo / Brand Name */}
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => handleNavClick('beranda')}>
-            <div className="flex items-center gap-1.5 py-1">
-              <img src={logoDepok} alt="Logo Kota Depok" className="h-7 sm:h-8 w-auto object-contain drop-shadow-xs opacity-90" />
-              <img src={logoRW11} alt="Logo RW 11" className="h-8 sm:h-9 w-auto object-contain drop-shadow-xs" />
+          {/* Left: Brand Logo & Title */}
+          <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => handleNavClick('beranda')}>
+            <div className="flex items-center gap-2">
+              <img src={logoDepok} alt="Logo Depok" className="h-8 w-auto object-contain" />
+              <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain" />
             </div>
             <div className="leading-tight">
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-[var(--color-ink)] block">
+              <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white tracking-tight">
                 Villa Mutiara Mas Cinere
-              </span>
-              <span className="block text-[8px] font-bold text-[var(--color-mute)] uppercase tracking-wider leading-none mt-0.5">
-                Rukun Tetangga 05 / RW 11
-              </span>
+              </h1>
+              <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                RT 05 / RW 11
+              </p>
             </div>
           </div>
 
-          {/* Desktop Menu */}
-          <div className="hidden lg:flex items-center gap-1">
+          {/* Center: Desktop Top Navbar Links */}
+          <nav className="hidden lg:flex items-center gap-1">
             {menuItems
-              .filter(item => {
-                const restrictedTabs = ['profil-saya', 'profil', 'agenda', 'layanan', 'data-warga', 'kas'];
-                if (!currentUser && restrictedTabs.includes(item.id)) return false;
-                return true;
-              })
-              .map((item) => (
+              .filter(item => !item.restricted || !!currentUser)
+              .map((item) => {
+                const isActive = currentPage === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavClick(item.id)}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                      isActive
+                        ? 'bg-orange-500 text-white font-bold shadow-md shadow-orange-500/20'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+          </nav>
+
+          {/* Right: Theme Toggle, Notifications, Profile Dropdown */}
+          <div className="hidden lg:flex items-center gap-3">
+            
+            {/* Notifications Button */}
+            {currentUser && (
+              <div className="relative">
                 <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`px-3 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all duration-200 cursor-pointer ${
-                    currentPage === item.id
-                      ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)]'
-                      : 'text-[var(--color-body-text)] hover:text-[var(--color-ink)] hover:bg-slate-150/40 dark:hover:bg-slate-900/50'
-                  }`}
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-all relative cursor-pointer"
+                  title="Notifikasi"
                 >
-                  {item.label}
+                  <Bell className="w-4 h-4" />
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                    3
+                  </span>
                 </button>
-              ))}
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-50 animate-fade-in space-y-2 text-left">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                      <span className="font-bold text-xs text-slate-800 dark:text-slate-100">Notifikasi</span>
+                      <span className="text-[10px] text-orange-500 font-semibold cursor-pointer">Tandai dibaca</span>
+                    </div>
+                    <div className="space-y-2 text-xs">
+                      <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-slate-800/60 border border-orange-100 dark:border-slate-800">
+                        <p className="font-bold text-slate-800 dark:text-slate-200">Pengumuman Kerja Bakti</p>
+                        <p className="text-[10px] text-slate-500">Kerja bakti hari Minggu pukul 07:00 WIB.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Dark Mode Toggle */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="ml-3 p-2 rounded-sm border border-[var(--color-hairline)] bg-[var(--color-canvas)] text-[var(--color-body-text)] hover:text-[var(--color-ink)] hover:bg-slate-50 dark:hover:bg-slate-900 transition-all cursor-pointer"
-              aria-label="Toggle Dark Mode"
+              className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700 transition-all cursor-pointer"
+              title="Toggle Theme"
             >
-              {darkMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
+              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
 
-            {/* Auth Controls */}
+            {/* User Account Pill */}
             {currentUser && (
-              <div className="flex items-center gap-3 ml-2 border-l border-[var(--color-hairline)] pl-3">
-                <span className="text-xs font-bold text-[var(--color-body-text)]">
-                  Hi, {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
-                </span>
+              <div className="relative pl-2 border-l border-slate-200 dark:border-slate-800">
                 <button
-                  onClick={() => {
-                    clearSession();
-                    setCurrentUser(null);
-                    setCurrentPage('beranda');
-                  }}
-                  className="px-3 py-1.5 bg-[var(--color-canvas)] hover:bg-rose-600 hover:text-white border border-rose-500/30 text-rose-500 font-bold text-xs rounded-sm cursor-pointer transition-all"
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all cursor-pointer"
                 >
-                  Keluar
+                  <div className="w-7 h-7 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+                  </div>
+                  <div className="text-left hidden xl:block">
+                    <span className="block font-bold text-xs text-slate-800 dark:text-slate-100 leading-tight">
+                      {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
+                    </span>
+                    <span className="block text-[10px] text-slate-500 dark:text-slate-400 leading-none">
+                      {activeUserRole}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
                 </button>
+
+                {showUserDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 z-50 animate-fade-in space-y-1">
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        handleNavClick('profil-saya');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
+                    >
+                      <User className="w-3.5 h-3.5 text-orange-500" />
+                      <span>Profil Saya</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowUserDropdown(false);
+                        clearSession();
+                        setCurrentUser(null);
+                        setCurrentPage('beranda');
+                      }}
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl flex items-center gap-2"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Keluar Portal</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
+
           </div>
 
-          {/* Mobile Menu & Dark Mode Controls */}
+          {/* Mobile Header Controls */}
           <div className="flex lg:hidden items-center gap-2">
-            {/* Theme Toggle for Mobile */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-sm text-[var(--color-body-text)] hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer"
+              className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
+              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
             </button>
-
-            {/* Hamburger Button */}
+            
             <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-sm text-[var(--color-ink)] hover:bg-slate-100 dark:hover:bg-slate-900 focus:outline-none cursor-pointer"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-lg text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
             >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
+
         </div>
-      </div>
 
-      {/* Mobile Menu Drawer */}
-      <div
-        className={`lg:hidden absolute top-[100%] left-0 w-full bg-[var(--color-canvas)] border-b border-[var(--color-hairline)] shadow-lg transition-all duration-300 origin-top ${
-          isOpen ? 'scale-y-100 opacity-100 visible' : 'scale-y-0 opacity-0 invisible h-0 pointer-events-none'
-        }`}
-      >
-        <div className="px-4 py-4 space-y-1 sm:px-5">
-          {menuItems
-            .filter(item => {
-              const restrictedTabs = ['profil-saya', 'profil', 'agenda', 'layanan', 'data-warga', 'kas'];
-              if (!currentUser && restrictedTabs.includes(item.id)) return false;
-              return true;
-            })
-            .map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavClick(item.id)}
-                className={`block w-full text-left px-4 py-2.5 rounded-sm text-sm font-bold transition-all cursor-pointer ${
-                  currentPage === item.id
-                    ? 'bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)]'
-                    : 'text-[var(--color-body-text)] hover:bg-slate-50 dark:hover:bg-slate-900'
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
+        {/* Mobile Drawer Menu (Synced with menuItems) */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden fixed inset-0 top-16 bg-slate-950/60 backdrop-blur-xs z-40 animate-fade-in" onClick={() => setMobileMenuOpen(false)}>
+            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 space-y-2 shadow-2xl" onClick={e => e.stopPropagation()}>
+              {menuItems
+                .filter(item => !item.restricted || !!currentUser)
+                .map((item) => {
+                  const isActive = currentPage === item.id;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        isActive ? 'bg-orange-500 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
 
-          {/* Auth Controls for Mobile */}
-          {currentUser && (
-            <div className="pt-3 mt-3 border-t border-[var(--color-hairline)] px-4 space-y-3">
-              <div className="text-xs font-bold text-[var(--color-ink)]">
-                Nama Sesi: {currentUser.name}
-              </div>
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  clearSession();
-                  setCurrentUser(null);
-                  setCurrentPage('beranda');
-                }}
-                className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-sm cursor-pointer text-center block transition-all"
-              >
-                Keluar Portal
-              </button>
+              {currentUser && (
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      clearSession();
+                      setCurrentUser(null);
+                      setCurrentPage('beranda');
+                    }}
+                    className="w-full py-2.5 bg-rose-600 text-white font-bold text-xs rounded-xl text-center flex items-center justify-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Keluar Portal</span>
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </header>
 
-      {/* Interactive Mobile Bottom Floating Dock Bar (Portrait Mode Optimized) */}
-      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-lg text-white px-3 py-2 rounded-full border border-orange-500/30 shadow-2xl flex items-center gap-1.5 max-w-[94vw] overflow-x-auto no-scrollbar font-sans">
+      {/* ═══════════════════════════════════════════════════════════════════
+          2. FLOATING MOBILE BOTTOM NAVIGATION DOCK (100% Synced)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-2 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xl flex items-center justify-around w-[92vw] max-w-sm font-sans">
+        
+        {/* Beranda */}
         <button
           onClick={() => handleNavClick('beranda')}
-          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'beranda' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+          className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+            currentPage === 'beranda' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
           }`}
         >
-          <Landmark className="w-3.5 h-3.5" />
+          <Home className="w-4 h-4" />
           <span>Beranda</span>
         </button>
 
-        {currentUser && (
-          <button
-            onClick={() => handleNavClick('profil-saya')}
-            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'profil-saya' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>Profil</span>
-          </button>
-        )}
+        {/* Profil */}
+        <button
+          onClick={() => handleNavClick(currentUser ? 'profil-saya' : 'profil')}
+          className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+            currentPage === 'profil-saya' || currentPage === 'profil' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span>Profil</span>
+        </button>
 
+        {/* Layanan */}
         {currentUser && (
           <button
             onClick={() => handleNavClick('layanan')}
-            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'layanan' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+              currentPage === 'layanan' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Surat</span>
+            <FileText className="w-4 h-4" />
+            <span>Layanan</span>
           </button>
         )}
 
+        {/* Kas RT */}
         {currentUser && (
           <button
             onClick={() => handleNavClick('kas')}
-            className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-              currentPage === 'kas' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+            className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+              currentPage === 'kas' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
             }`}
           >
-            <Wallet className="w-3.5 h-3.5" />
+            <Wallet className="w-4 h-4" />
             <span>Kas RT</span>
           </button>
         )}
 
+        {/* Kontak */}
         <button
           onClick={() => handleNavClick('kontak')}
-          className={`flex flex-col items-center py-1 px-3 rounded-full transition-all text-[9px] font-bold cursor-pointer ${
-            currentPage === 'kontak' ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm scale-105' : 'text-slate-300 hover:text-white'
+          className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
+            currentPage === 'kontak' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
           }`}
         >
-          <PhoneCall className="w-3.5 h-3.5" />
+          <PhoneCall className="w-4 h-4" />
           <span>Kontak</span>
         </button>
       </div>
-    </nav>
+    </>
   );
 }

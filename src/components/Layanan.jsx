@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
+import Swal from 'sweetalert2';
 import { getSessionToken } from '../utils/authSession';
 import { API_BASE_URL } from '../config/api';
 import SuratPengantarPrintable from './SuratPengantarPrintable';
@@ -161,7 +162,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         setSubmittedData(newSubmission);
         fetchResidentSubmissions();
       } catch (err) {
-        alert(`Gagal mengirim pengajuan: ${err.message}`);
+        Swal.fire({ title: 'Gagal', text: `Gagal mengirim pengajuan: ${err.message}`, icon: 'error' });
       } finally {
         setIsSubmitting(false);
         setFormData((prev) => ({
@@ -669,7 +670,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                   <span>Cetak Surat</span>
                 </button>
                 <button
-                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat || 'Surat_Pengantar'}.docx`)}
+                  onClick={() => Swal.fire({ title: 'Simulasi Unduh', text: `Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat || 'Surat_Pengantar'}.docx`, icon: 'info' })}
                   className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Download className="w-3.5 h-3.5" />

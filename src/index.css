@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -15,16 +15,16 @@
   --color-hairline: #e2e8f0;
   --color-canvas: #f8fafc;
 
-  --color-accent-purple: #7a3dff;
-  --color-accent-pink: #ed52cb;
-  --color-accent-blue: #2563eb;
+  --color-accent-purple: #8b5cf6;
+  --color-accent-pink: #ec4899;
+  --color-accent-blue: #3b82f6;
   --color-accent-blue-deep: #1d4ed8;
   --color-accent-blue-info: #0284c7;
-  --color-accent-orange: #f97316;
+  --color-accent-orange: #ea580c;
   --color-accent-green: #10b981;
-  --color-accent-teal: #0d9488;
-  --color-accent-yellow: #d97706;
-  --color-accent-red: #dc2626;
+  --color-accent-teal: #14b8a6;
+  --color-accent-yellow: #f59e0b;
+  --color-accent-red: #ef4444;
 
   --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   
@@ -50,7 +50,7 @@
   --color-mute: #64748b;
   --color-mute-soft: #475569;
   --color-hairline: #1e293b;
-  --color-canvas: #020617;
+  --color-canvas: #0b0f17;
 }
 
 html {
@@ -79,19 +79,22 @@ body {
   display: block !important;
 }
 .sidebar-scrollbar::-webkit-scrollbar-track {
-  background: rgba(2, 6, 23, 0.3) !important;
+  background: rgba(241, 245, 249, 0.5) !important;
   border-radius: 9999px;
 }
+.dark .sidebar-scrollbar::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5) !important;
+}
 .sidebar-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(249, 115, 22, 0.5) !important;
+  background: rgba(249, 115, 22, 0.4) !important;
   border-radius: 9999px;
 }
 .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(249, 115, 22, 0.85) !important;
+  background: rgba(249, 115, 22, 0.8) !important;
 }
 .sidebar-scrollbar {
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(249, 115, 22, 0.5) rgba(2, 6, 23, 0.3) !important;
+  scrollbar-color: rgba(249, 115, 22, 0.4) rgba(241, 245, 249, 0.5) !important;
 }
 
 /* Light Mode Enhancement Helpers */
@@ -102,21 +105,50 @@ body {
 }
 
 .dark .light-mode-card {
-  background-color: #0f172a;
+  background-color: #151d2a;
   border-color: #1e293b;
   box-shadow: none;
 }
 
+/* Rounded Soft Card Base Class */
+.rt-card {
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  border-radius: 1rem;
+  box-shadow: 0 4px 15px -3px rgba(0, 0, 0, 0.03), 0 2px 6px -2px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .rt-card {
+  background-color: #131b29;
+  border-color: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.5);
+}
+
+/* Solid Orange Button */
+.btn-orange-gradient, .btn-orange-solid {
+  background-color: #f97316;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.25);
+  transition: all 0.2s ease;
+}
+.btn-orange-gradient:hover, .btn-orange-solid:hover {
+  background-color: #ea580c;
+  box-shadow: 0 6px 16px rgba(249, 115, 22, 0.35);
+  transform: translateY(-1px);
+}
+
 /* Single clean primary scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
 .dark ::-webkit-scrollbar-track {
-  background: #020617;
+  background: #0b0f17;
 }
 ::-webkit-scrollbar-thumb {
   background: #f97316;
@@ -205,7 +237,6 @@ body {
     visibility: hidden !important;
   }
 
-  /* Reset all modal backdrops and containers so dark backgrounds never bleed */
   .fixed,
   [class*="backdrop"],
   [class*="overflow-y-auto"],
