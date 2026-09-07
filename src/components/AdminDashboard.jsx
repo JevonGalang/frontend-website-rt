@@ -8,7 +8,7 @@ import {
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
   Building2, RotateCcw, Key, Menu, UserCheck, Phone, Shield, ShieldCheck,
   Mail, RefreshCw, ExternalLink, ZoomIn, ZoomOut, RotateCw, XCircle, CreditCard, Bell, History,
-  PieChart, Home
+  PieChart, Home, Printer
 } from 'lucide-react';
 import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
@@ -711,6 +711,12 @@ export default function AdminDashboard({
   const [suratMasukList, setSuratMasukList] = useState([]);
   const [suratKeluarList, setSuratKeluarList] = useState([]);
   const [notulenList, setNotulenList] = useState([]);
+  const [isLoadingNotulen, setIsLoadingNotulen] = useState(false);
+  const [isSubmittingNotulen, setIsSubmittingNotulen] = useState(false);
+  const [editingNotulen, setEditingNotulen] = useState(null);
+  const [viewingNotulenDetail, setViewingNotulenDetail] = useState(null);
+  const [notulenPagination, setNotulenPagination] = useState({ page: 1, limit: 20, total: 0, total_pages: 1 });
+  const [notulenFilterDate, setNotulenFilterDate] = useState({ date_from: '', date_to: '' });
   const [arsipFileList, setArsipFileList] = useState([]);
 
   // Surat Masuk UI States
@@ -732,7 +738,11 @@ export default function AdminDashboard({
   const [suratKeluarSubmitLoading, setSuratKeluarSubmitLoading] = useState(false);
 
   // Secretary Form States
-  const [notulenForm, setNotulenForm] = useState({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
+  const [notulenForm, setNotulenForm] = useState({
+    tanggal_rapat: new Date().toISOString().split('T')[0],
+    topik: '',
+    hasil_keputusan: ''
+  });
   const [suratMasukForm, setSuratMasukForm] = useState({
     id: '',
     nomorSurat: '',
@@ -1241,6 +1251,7 @@ export default function AdminDashboard({
   const [serverSubmissions, setServerSubmissions] = useState([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [submissionsError, setSubmissionsError] = useState('');
+  const [viewingApprovedLetter, setViewingApprovedLetter] = useState(null);
 
   const fetchServerSubmissions = async () => {
     setIsLoadingSubmissions(true);
@@ -1253,7 +1264,7 @@ export default function AdminDashboard({
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/pengajuan`, {
+      const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -1270,7 +1281,8 @@ export default function AdminDashboard({
       }
 
       const data = await response.json();
-      setServerSubmissions(Array.isArray(data) ? data : []);
+      const items = data?.output?.pesan?.items || (Array.isArray(data?.output?.pesan) ? data.output.pesan : (Array.isArray(data) ? data : []));
+      setServerSubmissions(items);
     } catch (err) {
       console.error(err);
       setSubmissionsError(err.message);
@@ -2383,6 +2395,205 @@ export default function AdminDashboard({
     }
   };
 
+  // ==========================================
+  // NOTULEN RAPAT API HANDLERS (/notulen-rapat)
+  // ==========================================
+  const fetchNotulenList = async (page = 1, dateFrom = notulenFilterDate.date_from, dateTo = notulenFilterDate.date_to) => {
+    setIsLoadingNotulen(true);
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      setIsLoadingNotulen(false);
+      return;
+    }
+
+    try {
+      const queryParams = new URLSearchParams();
+      if (page) queryParams.append('page', page);
+      queryParams.append('limit', '20');
+      if (dateFrom) queryParams.append('date_from', dateFrom);
+      if (dateTo) queryParams.append('date_to', dateTo);
+
+      const res = await fetch(`${API_BASE_URL}/notulen-rapat?${queryParams.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          console.info('[fetchNotulenList] Akses ditolak (403) — role tidak memiliki izin.');
+          return;
+        }
+        throw new Error(`Gagal memuat notulen rapat (Status: ${res.status})`);
+      }
+
+      const resData = await res.json();
+      const items = resData?.output?.pesan?.items || extractArrayFromResponse(resData) || [];
+      setNotulenList(items);
+
+      if (resData?.output?.pesan?.pagination) {
+        setNotulenPagination(resData.output.pesan.pagination);
+      }
+    } catch (err) {
+      console.error('[fetchNotulenList] Error:', err);
+    } finally {
+      setIsLoadingNotulen(false);
+    }
+  };
+
+  const handleSaveNotulen = async (e) => {
+    if (e) e.preventDefault();
+    if (!notulenForm.tanggal_rapat || !notulenForm.topik.trim() || !notulenForm.hasil_keputusan.trim()) {
+      Swal.fire('Peringatan', 'Harap lengkapi semua kolom wajib (Tanggal, Topik, Keputusan).', 'warning');
+      return;
+    }
+
+    if (notulenForm.topik.length > 200) {
+      Swal.fire('Peringatan', 'Topik musyawarah maksimal 200 karakter.', 'warning');
+      return;
+    }
+
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      Swal.fire('Error', 'Sesi login telah berakhir. Silakan login ulang.', 'error');
+      return;
+    }
+
+    setIsSubmittingNotulen(true);
+    try {
+      const isEditing = Boolean(editingNotulen?.id);
+      const url = isEditing 
+        ? `${API_BASE_URL}/notulen-rapat/${editingNotulen.id}` 
+        : `${API_BASE_URL}/notulen-rapat`;
+      const method = isEditing ? 'PATCH' : 'POST';
+
+      const payload = {
+        tanggal_rapat: notulenForm.tanggal_rapat,
+        topik: notulenForm.topik.trim(),
+        hasil_keputusan: notulenForm.hasil_keputusan.trim()
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errorMsg = resData?.pesan || resData?.message || 'Gagal menyimpan notulen rapat.';
+        throw new Error(errorMsg);
+      }
+
+      Swal.fire({
+        title: 'Berhasil!',
+        text: resData?.message || (isEditing ? 'Notulen rapat berhasil diperbarui.' : 'Notulen rapat berhasil dicatat.'),
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+
+      setNotulenForm({
+        tanggal_rapat: new Date().toISOString().split('T')[0],
+        topik: '',
+        hasil_keputusan: ''
+      });
+      setEditingNotulen(null);
+      fetchNotulenList(notulenPagination.page || 1);
+    } catch (err) {
+      console.error('[handleSaveNotulen] Error:', err);
+      Swal.fire('Gagal', err.message || 'Terjadi kesalahan sistem saat menyimpan notulen.', 'error');
+    } finally {
+      setIsSubmittingNotulen(false);
+    }
+  };
+
+  const handleDeleteNotulen = async (notulenItem) => {
+    const result = await Swal.fire({
+      title: 'Hapus Notulen?',
+      html: `Apakah Anda yakin ingin menghapus notulen rapat <b>"${notulenItem.topik}"</b>?<br/><span class="text-xs text-rose-500">Data akan dihapus permanen dari server.</span>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Ya, Hapus Permanen',
+      cancelButtonText: 'Batal'
+    });
+
+    if (!result.isConfirmed) return;
+
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) {
+      Swal.fire('Error', 'Sesi login telah berakhir. Silakan login ulang.', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/notulen-rapat/${notulenItem.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const resData = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        const errorMsg = resData?.pesan || resData?.message || 'Gagal menghapus notulen rapat.';
+        throw new Error(errorMsg);
+      }
+
+      Swal.fire({
+        title: 'Terhapus!',
+        text: resData?.message || 'Notulen rapat berhasil dihapus.',
+        icon: 'success',
+        timer: 1800,
+        showConfirmButton: false
+      });
+
+      if (editingNotulen?.id === notulenItem.id) {
+        setEditingNotulen(null);
+        setNotulenForm({
+          tanggal_rapat: new Date().toISOString().split('T')[0],
+          topik: '',
+          hasil_keputusan: ''
+        });
+      }
+
+      fetchNotulenList(notulenPagination.page || 1);
+    } catch (err) {
+      console.error('[handleDeleteNotulen] Error:', err);
+      Swal.fire('Gagal', err.message || 'Terjadi kesalahan saat menghapus notulen rapat.', 'error');
+    }
+  };
+
+  const handleEditNotulen = (notulenItem) => {
+    setEditingNotulen(notulenItem);
+    setNotulenForm({
+      tanggal_rapat: notulenItem.tanggal_rapat ? notulenItem.tanggal_rapat.split('T')[0] : new Date().toISOString().split('T')[0],
+      topik: notulenItem.topik || '',
+      hasil_keputusan: notulenItem.hasil_keputusan || ''
+    });
+    const formEl = document.getElementById('notulen-form-container');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleCancelEditNotulen = () => {
+    setEditingNotulen(null);
+    setNotulenForm({
+      tanggal_rapat: new Date().toISOString().split('T')[0],
+      topik: '',
+      hasil_keputusan: ''
+    });
+  };
+
   const fetchWargaListFromServer = async () => {
     let token = null;
     try {
@@ -3083,6 +3294,9 @@ export default function AdminDashboard({
     }
     if (activeTab === 'sek_info_pengumuman' && !isBendahara) {
       fetchServerAnnouncements();
+    }
+    if (activeTab === 'sek_info_notulen') {
+      fetchNotulenList();
     }
     if (activeTab === 'sek_warga_masuk' && !isBendahara) {
       fetchPendingWargaList();
@@ -3914,12 +4128,24 @@ export default function AdminDashboard({
 
       return {
         id: sub.id,
-        wargaNama: w ? w.name : `Keluarga #${sub.family_id}`,
-        wargaNik: w ? w.nik : 'Sensor',
-        wargaNoKk: sub.no_kk,
-        wargaAlamat: w ? w.alamat : 'Villa Mutiara Mas Cinere',
-        wargaTipeSurat: sub.jenis,
-        wargaKeperluan: sub.keperluan,
+        wargaNama: sub.nama_lengkap || (w ? w.name : `Keluarga #${sub.family_id}`),
+        wargaNik: sub.no_ktp || (w ? w.nik : 'Sensor'),
+        wargaNoKk: sub.no_kk || (w ? w.noKk : '-'),
+        wargaAlamat: sub.alamat || (w ? w.alamat : 'Villa Mutiara Mas Cinere'),
+        wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.keperluan || 'Surat Pengantar',
+        wargaKeperluan: sub.keperluan || sub.nama_kategori || '-',
+        nama_lengkap: sub.nama_lengkap || (w ? w.name : `Keluarga #${sub.family_id}`),
+        no_ktp: sub.no_ktp || (w ? w.nik : 'Sensor'),
+        alamat: sub.alamat || (w ? w.alamat : 'Villa Mutiara Mas Cinere'),
+        jenis_kelamin: sub.jenis_kelamin || (w ? w.gender : 'L'),
+        tempat_lahir: sub.tempat_lahir || (w ? w.birthPlace : 'Depok'),
+        tanggal_lahir: sub.tanggal_lahir || (w ? w.birthDate : '1990-01-01'),
+        agama: sub.agama || (w ? w.agama : 'Islam'),
+        pekerjaan: sub.pekerjaan || (w ? w.job : 'Wiraswasta'),
+        kewarganegaraan: sub.kewarganegaraan || 'WNI',
+        approved_at: sub.approved_at,
+        created_at: sub.created_at,
+        nama_kategori: sub.nama_kategori || sub.jenis || 'Surat Keterangan Pengantar',
         status: statusIndo,
         tanggal: formattedDate,
         submissionDate: formattedDate,
@@ -3940,6 +4166,16 @@ export default function AdminDashboard({
       }
       return {
         ...sub,
+        nama_lengkap: sub.wargaNama,
+        no_ktp: sub.wargaNik,
+        alamat: sub.wargaAlamat,
+        jenis_kelamin: sub.jenis_kelamin || 'L',
+        tempat_lahir: sub.tempat_lahir || 'Depok',
+        tanggal_lahir: sub.tanggal_lahir || '1990-01-01',
+        agama: sub.agama || 'Islam',
+        pekerjaan: sub.pekerjaan || 'Wiraswasta',
+        kewarganegaraan: sub.kewarganegaraan || 'WNI',
+        nama_kategori: sub.wargaTipeSurat || 'Surat Keterangan Pengantar',
         status: statusIndo,
         tanggal: formattedDate,
         submissionDate: formattedDate
@@ -4982,18 +5218,28 @@ export default function AdminDashboard({
     saveSubmissions(updatedSubmissionsList);
 
     // Update serverSubmissions state optimistically
-    setServerSubmissions(prev => prev.map(s => (s.id === id || String(s.id) === String(id)) ? { ...s, status: apiStatus } : s));
+    setServerSubmissions(prev => prev.map(s => (s.id === id || String(s.id) === String(id)) ? { 
+      ...s, 
+      status: apiStatus,
+      approved_at: isApprove ? new Date().toISOString() : s.approved_at 
+    } : s));
 
     const token = sessionStorage.getItem('rt_token');
     if (token && !(typeof id === 'string' && id.startsWith('LTR-'))) {
       try {
-        await fetch(`${API_BASE_URL}/admin/pengajuan/${id}`, {
+        let endpoint = `${API_BASE_URL}/surat-pengajuan/${id}`;
+        if (isApprove) {
+          endpoint = `${API_BASE_URL}/surat-pengajuan/${id}/approve`;
+        } else if (isReject) {
+          endpoint = `${API_BASE_URL}/surat-pengajuan/${id}/reject`;
+        }
+
+        await fetch(endpoint, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ status: apiStatus })
+          }
         });
       } catch (err) {
         console.warn('Backend update failed, using local update:', err);
@@ -7493,77 +7739,358 @@ export default function AdminDashboard({
           {/* SEKRETARIS: 8. NOTULEN RAPAT */}
           {activeTab === 'sek_info_notulen' && (
             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!notulenForm.title || !notulenForm.decisions) return;
-                  const newEntry = {
-                    id: 'NOT-' + Math.floor(Math.random() * 900 + 100),
-                    date: notulenForm.date,
-                    title: notulenForm.title,
-                    decisions: notulenForm.decisions
-                  };
-                  setNotulenList([newEntry, ...notulenList]);
-                  setNotulenForm({ title: '', date: new Date().toISOString().split('T')[0], decisions: '' });
-                  alert('Notulen rapat berhasil dicatat!');
-                }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl font-sans"
-              >
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Hasil Rapat Baru</h4>
-                <div className="space-y-3 text-xs font-sans">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Agenda / Topik Rapat *</label>
-                    <input
-                      required
-                      type="text"
-                      value={notulenForm.title}
-                      onChange={(e) => setNotulenForm({ ...notulenForm, title: e.target.value })}
-                      placeholder="Contoh: Pembahasan Anggaran 17 Agustus"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Hasil Musyawarah / Keputusan Rapat *</label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={notulenForm.decisions}
-                      onChange={(e) => setNotulenForm({ ...notulenForm, decisions: e.target.value })}
-                      placeholder="Tulis keputusan penting rapat..."
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
-                    />
-                  </div>
+              
+              {/* Header Tab */}
+              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-orange-500" />
+                    Catatan Notulen Rapat Pengurus RT 📋
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Dokumentasi resmi agenda musyawarah, tanggal rapat, dan butir keputusan rapat lingkungan.
+                  </p>
                 </div>
-                <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Notulen</button>
-              </form>
+                <button
+                  onClick={() => fetchNotulenList(notulenPagination.page || 1)}
+                  disabled={isLoadingNotulen}
+                  className="py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-orange-500 text-slate-600 dark:text-slate-400 hover:text-orange-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingNotulen ? 'animate-spin text-orange-500' : ''}`} />
+                  <span>Segarkan</span>
+                </button>
+              </div>
 
+              {/* Form Input / Edit (Hanya tampil untuk Sekretaris / Admin) */}
+              {isSekretaris && (
+                <div id="notulen-form-container">
+                  <form 
+                    onSubmit={handleSaveNotulen}
+                    className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-2xl font-sans"
+                  >
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        {editingNotulen ? (
+                          <span className="text-amber-500 flex items-center gap-1.5">
+                            <Edit className="w-3.5 h-3.5" /> Mode Edit: Perbarui Notulen #{editingNotulen.id}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                            <Plus className="w-3.5 h-3.5 text-orange-500" /> Catat Hasil Rapat Baru
+                          </span>
+                        )}
+                      </h4>
+                      {editingNotulen && (
+                        <button
+                          type="button"
+                          onClick={handleCancelEditNotulen}
+                          className="text-[10px] text-slate-400 hover:text-rose-500 font-bold underline cursor-pointer"
+                        >
+                          Batal Edit
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3.5 text-xs font-sans">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                        <div className="space-y-1">
+                          <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-orange-500" /> Tanggal Rapat *
+                          </label>
+                          <input
+                            required
+                            type="date"
+                            value={notulenForm.tanggal_rapat}
+                            onChange={(e) => setNotulenForm({ ...notulenForm, tanggal_rapat: e.target.value })}
+                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                              <FileText className="w-3.5 h-3.5 text-orange-500" /> Topik Musyawarah *
+                            </label>
+                            <span className={`text-[10px] ${notulenForm.topik.length > 180 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
+                              {notulenForm.topik.length}/200
+                            </span>
+                          </div>
+                          <input
+                            required
+                            type="text"
+                            maxLength={200}
+                            value={notulenForm.topik}
+                            onChange={(e) => setNotulenForm({ ...notulenForm, topik: e.target.value })}
+                            placeholder="Contoh: Persiapan kerja bakti lingkungan"
+                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700 dark:text-slate-300">Hasil Musyawarah / Keputusan Rapat *</label>
+                        <textarea
+                          required
+                          rows={3}
+                          value={notulenForm.hasil_keputusan}
+                          onChange={(e) => setNotulenForm({ ...notulenForm, hasil_keputusan: e.target.value })}
+                          placeholder="Tulis keputusan penting, rencana aksi, atau hasil kesepakatan rapat..."
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white leading-relaxed"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button 
+                        type="submit" 
+                        disabled={isSubmittingNotulen}
+                        className="py-2.5 px-5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-md shadow-orange-500/20 flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {isSubmittingNotulen ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Menyimpan...</span>
+                          </>
+                        ) : editingNotulen ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Perbarui Notulen</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Simpan Notulen</span>
+                          </>
+                        )}
+                      </button>
+                      {editingNotulen && (
+                        <button
+                          type="button"
+                          onClick={handleCancelEditNotulen}
+                          className="py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-all"
+                        >
+                          Batal
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* Filter Tanggal & Ringkasan */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-950/30 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-bold text-slate-500 flex items-center gap-1 text-[11px]">
+                    <Filter className="w-3.5 h-3.5 text-orange-500" /> Filter Tanggal:
+                  </span>
+                  <input
+                    type="date"
+                    value={notulenFilterDate.date_from}
+                    onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_from: e.target.value })}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
+                  />
+                  <span className="text-slate-400 text-xs">s/d</span>
+                  <input
+                    type="date"
+                    value={notulenFilterDate.date_to}
+                    onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_to: e.target.value })}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
+                  />
+                  <button
+                    onClick={() => fetchNotulenList(1, notulenFilterDate.date_from, notulenFilterDate.date_to)}
+                    className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[11px] cursor-pointer transition-all shadow-xs"
+                  >
+                    Terapkan
+                  </button>
+                  {(notulenFilterDate.date_from || notulenFilterDate.date_to) && (
+                    <button
+                      onClick={() => {
+                        setNotulenFilterDate({ date_from: '', date_to: '' });
+                        fetchNotulenList(1, '', '');
+                      }}
+                      className="px-2.5 py-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-600 dark:text-slate-400 font-bold rounded-lg text-[11px] cursor-pointer"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                {notulenPagination?.total !== undefined && (
+                  <span className="text-[11px] font-bold text-slate-400">
+                    Total: {notulenPagination.total} Notulen
+                  </span>
+                )}
+              </div>
+
+              {/* Tabel Notulen Rapat */}
               <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
-                      <th className="p-4">Tanggal Rapat</th>
-                      <th className="p-4">Topik Musyawarah</th>
+                      <th className="p-4 w-36">Tanggal Rapat</th>
+                      <th className="p-4 w-1/3">Topik Musyawarah</th>
                       <th className="p-4">Hasil / Keputusan Rapat</th>
+                      <th className="p-4 text-center w-28">Aksi</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {notulenList.map((n) => (
-                      <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-mono font-bold text-slate-500">{formatDateIndo(n.date)}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{n.title}</td>
-                        <td className="p-4 text-slate-500 max-w-sm truncate" title={n.decisions}>{n.decisions}</td>
-                      </tr>
-                    ))}
-                    {notulenList.length === 0 && (
+                    {isLoadingNotulen ? (
                       <tr>
-                        <td colSpan={3} className="p-8 text-center text-slate-400 dark:text-slate-500 italic font-semibold">
+                        <td colSpan={4} className="p-12 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="w-7 h-7 text-orange-500 animate-spin" />
+                            <span className="text-xs text-slate-400 font-bold">Memuat daftar notulen rapat dari server...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : notulenList.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="p-8 text-center text-slate-400 dark:text-slate-500 italic font-semibold">
                           Belum ada catatan notulen rapat yang tersimpan.
                         </td>
                       </tr>
+                    ) : (
+                      notulenList.map((n) => {
+                        const rawDate = n.tanggal_rapat || n.tanggal || n.date;
+                        const formattedDate = rawDate ? formatDateIndo(rawDate) : '-';
+                        const topikText = n.topik || n.title || '-';
+                        const decisionText = n.hasil_keputusan || n.decisions || '-';
+
+                        return (
+                          <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">
+                              {formattedDate}
+                            </td>
+                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                              {topikText}
+                            </td>
+                            <td className="p-4 text-slate-600 dark:text-slate-400 text-xs">
+                              <div className="line-clamp-2 max-w-md cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => setViewingNotulenDetail(n)} title="Klik untuk membaca detail lengkap">
+                                {decisionText}
+                              </div>
+                            </td>
+                            <td className="p-4 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  onClick={() => setViewingNotulenDetail(n)}
+                                  title="Lihat Detail Lengkap"
+                                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                {isSekretaris && (
+                                  <>
+                                    <button
+                                      onClick={() => handleEditNotulen(n)}
+                                      title="Edit Notulen"
+                                      className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteNotulen(n)}
+                                      title="Hapus Notulen Permanen"
+                                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
+
+                {/* Kontrol Paginasi */}
+                {notulenPagination && notulenPagination.total_pages > 1 && (
+                  <div className="p-4 flex items-center justify-between border-t border-slate-200/60 dark:border-slate-800 text-xs font-bold text-slate-500">
+                    <span>
+                      Halaman {notulenPagination.page} dari {notulenPagination.total_pages} ({notulenPagination.total} Total Notulen)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        disabled={notulenPagination.page <= 1 || isLoadingNotulen}
+                        onClick={() => fetchNotulenList(notulenPagination.page - 1)}
+                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                      >
+                        Sebelumnya
+                      </button>
+                      <button
+                        disabled={notulenPagination.page >= notulenPagination.total_pages || isLoadingNotulen}
+                        onClick={() => fetchNotulenList(notulenPagination.page + 1)}
+                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                      >
+                        Selanjutnya
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {/* Modal Detail Notulen Rapat */}
+              {viewingNotulenDetail && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up font-sans">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Detail Notulen Rapat</h4>
+                          <p className="text-[10px] text-slate-400">ID #{viewingNotulenDetail.id}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setViewingNotulenDetail(null)}
+                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3.5 text-xs">
+                      <div>
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Tanggal Pelaksanaan</label>
+                        <div className="mt-1 font-mono font-bold text-slate-800 dark:text-slate-200">
+                          {formatDateIndo(viewingNotulenDetail.tanggal_rapat || viewingNotulenDetail.date)}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Agenda / Topik Musyawarah</label>
+                        <div className="mt-1 font-bold text-slate-900 dark:text-white text-sm">
+                          {viewingNotulenDetail.topik || viewingNotulenDetail.title}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Hasil / Keputusan Musyawarah</label>
+                        <div className="mt-1 p-3.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-xl whitespace-pre-wrap text-slate-700 dark:text-slate-300 leading-relaxed max-h-60 overflow-y-auto">
+                          {viewingNotulenDetail.hasil_keputusan || viewingNotulenDetail.decisions}
+                        </div>
+                      </div>
+                      {(viewingNotulenDetail.created_at || viewingNotulenDetail.updated_at) && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                          <span>Dibuat: {viewingNotulenDetail.created_at ? new Date(viewingNotulenDetail.created_at).toLocaleString('id-ID') : '-'}</span>
+                          <span>Diperbarui: {viewingNotulenDetail.updated_at ? new Date(viewingNotulenDetail.updated_at).toLocaleString('id-ID') : '-'}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        onClick={() => setViewingNotulenDetail(null)}
+                        className="py-2 px-5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-all"
+                      >
+                        Tutup
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -10753,6 +11280,15 @@ export default function AdminDashboard({
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* Pratinjau / Cetak Surat Pengantar (A4) */}
+                              <button
+                                onClick={() => setViewingApprovedLetter(sub)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700"
+                                title="Pratinjau / Cetak Surat Pengantar (A4)"
+                              >
+                                <Printer className="w-3 h-3 text-orange-500" />
+                                <span>Cetak</span>
+                              </button>
                               {/* If Pending / Menunggu, can Approve (Disetujui) or Reject (Ditolak) */}
                               {(!sub.status || sub.status === 'Pending' || sub.status === 'Menunggu') && (
                                 <>
@@ -13356,6 +13892,168 @@ export default function AdminDashboard({
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. MODAL PRATINJAU & CETAK SURAT PENGANTAR RESMI RT (A4) */}
+      {viewingApprovedLetter && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[90vh]">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 no-print"></div>
+
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center no-print">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 05 / RW 11</h3>
+                  <p className="text-[11px] text-slate-400 font-medium">Format cetak A4 dokumen surat pengantar warga</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingApprovedLetter(null)} 
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <XIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
+              {/* Printable A4 Paper Simulator */}
+              <div id="printable-letter-container" className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative leading-relaxed">
+                {/* KOP SURAT HEADER */}
+                <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
+                  <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
+                  <h3 className="font-extrabold text-sm uppercase text-slate-900">PAGUYUBAN WARGA VILLA MUTIARA MAS CINERE</h3>
+                  <p className="text-[9px] font-bold text-slate-500 leading-normal">
+                    Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat 16514
+                  </p>
+                  <p className="text-[8px] text-slate-400 font-medium">Email: rt05rw11villamutiaramas@gmail.com | Kontak: +62 812-3456-7890</p>
+                </div>
+
+                {/* LETTER CONTENT */}
+                <div className="pt-8 space-y-6">
+                  {/* Letter Title */}
+                  <div className="text-center font-sans">
+                    <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
+                      {viewingApprovedLetter.wargaTipeSurat || viewingApprovedLetter.nama_kategori || 'SURAT PENGANTAR'}
+                    </h5>
+                    <span className="text-[10px] font-bold text-slate-700 tracking-wider">
+                      Nomor : ....................................................
+                    </span>
+                  </div>
+
+                  {/* Body Text */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Yang bertanda tangan di bawah ini Pengurus Rukun Tetangga (RT) 05 RW 11 Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Cinere, Kota Depok, dengan ini menerangkan bahwa:
+                  </p>
+
+                  {/* Citizen Biodata Table */}
+                  <table className="w-11/12 mx-auto text-left font-serif text-slate-800 leading-loose">
+                    <tbody>
+                      <tr>
+                        <td className="w-1/3 font-bold">Nama Lengkap</td>
+                        <td className="w-4">:</td>
+                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.nama_lengkap || viewingApprovedLetter.wargaNama || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Jenis Kelamin</td>
+                        <td>:</td>
+                        <td>
+                          {viewingApprovedLetter.jenis_kelamin === 'L' || viewingApprovedLetter.jenis_kelamin === 'Laki-laki' 
+                            ? 'Laki-laki' 
+                            : viewingApprovedLetter.jenis_kelamin === 'P' || viewingApprovedLetter.jenis_kelamin === 'Perempuan' 
+                            ? 'Perempuan' 
+                            : (viewingApprovedLetter.jenis_kelamin || 'Laki-laki')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Tempat/Tgl Lahir</td>
+                        <td>:</td>
+                        <td>
+                          {viewingApprovedLetter.tempat_lahir ? `${viewingApprovedLetter.tempat_lahir}, ` : ''}
+                          {viewingApprovedLetter.tanggal_lahir ? formatDateIndo(viewingApprovedLetter.tanggal_lahir) : '01 Januari 1990'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">NIK / No. KTP</td>
+                        <td>:</td>
+                        <td className="font-mono">{viewingApprovedLetter.no_ktp || viewingApprovedLetter.wargaNik || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Alamat Lengkap</td>
+                        <td>:</td>
+                        <td className="leading-snug">
+                          {viewingApprovedLetter.alamat || viewingApprovedLetter.wargaAlamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Agama</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.agama || 'Islam'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Pekerjaan</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.pekerjaan || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Warga Negara</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.kewarganegaraan || 'WNI'}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {/* Purpose Paragraph */}
+                  <p className="indent-8 text-slate-800 leading-relaxed text-justify">
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan || viewingApprovedLetter.keperluan}"</span>.
+                  </p>
+
+                  <p className="text-slate-800 leading-relaxed text-justify">
+                    Demikian surat pengantar ini kami sampaikan agar dapat digunakan sebagaimana mestinya. Atas perhatian dan kerja samanya, kami ucapkan terima kasih.
+                  </p>
+                </div>
+
+                {/* SIGNATURE BLOCK */}
+                <div className="pt-12 grid grid-cols-2 text-center text-slate-800 font-sans text-[10px] leading-snug">
+                  <div>
+                    <span className="block">Mengetahui,</span>
+                    <span className="block font-bold">Sekretaris RT 05</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">( ........................................ )</span>
+                  </div>
+                  <div>
+                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.approved_at || viewingApprovedLetter.created_at || viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
+                    <span className="block font-bold">Ketua RT 05 RW 11</span>
+                    <div className="h-16"></div>
+                    <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11 (A4)</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Surat / Simpan PDF</span>
+                </button>
+                <button
+                  onClick={() => setViewingApprovedLetter(null)}
+                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>

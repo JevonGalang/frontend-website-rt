@@ -174,3 +174,32 @@ body {
 .animate-bounce-slow {
   animation: bounce-slow 2.5s ease-in-out infinite;
 }
+
+/* Print styles for official RT letter A4 printing */
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm 20mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #printable-letter-container, #printable-letter-container * {
+    visibility: visible;
+  }
+  #printable-letter-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

@@ -4,7 +4,7 @@ import {
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
   Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, X as XIcon, Edit2, Save,
-  Loader2, Search, Menu, Camera, Shield, ShieldCheck
+  Loader2, Search, Menu, Camera, Shield, ShieldCheck, Printer
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../config/api';
@@ -55,35 +55,36 @@ const formatDateIndo = (dateStr) => {
   }
 };
 
-const getTemplatesForType = (type) => {
-  const templates = {
-    'Surat Pengantar Pengurusan KTP': [
-      { label: 'KTP Baru (Pindah)', text: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Cinere dikarenakan baru pindah domisili ke wilayah RT 05 / RW 11.' },
-      { label: 'KK Baru (Keluarga)', text: 'Syarat pembaruan Kartu Keluarga (KK) dikarenakan adanya penambahan anggota keluarga baru.' },
-      { label: 'KTP Hilang', text: 'Syarat pembuatan duplikat KTP baru di Kelurahan dikarenakan KTP lama hilang.' }
-    ],
-    'Surat Keterangan Domisili': [
-      { label: 'Buka Rekening Bank', text: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
-      { label: 'Melamar Pekerjaan', text: 'Syarat keterangan tempat tinggal sementara untuk kelengkapan administrasi melamar pekerjaan.' },
-      { label: 'Pendaftaran Sekolah', text: 'Keterangan domisili tinggal untuk syarat pendaftaran sekolah anak (PPDB jalur zonasi).' }
-    ],
-    'Surat Keterangan Catatan Kepolisian (SKCK)': [
-      { label: 'Melamar Kerja Swasta', text: 'Sebagai syarat pembuatan SKCK baru guna melamar pekerjaan di sektor swasta.' },
-      { label: 'Seleksi CPNS / BUMN', text: 'Sebagai syarat pembuatan/perpanjangan SKCK guna mengikuti seleksi penerimaan CPNS / BUMN.' },
-      { label: 'Pemberkasan Paspor', text: 'Sebagai kelengkapan berkas pembuatan SKCK untuk keperluan pengurusan paspor/visa ke luar negeri.' }
-    ],
-    'Surat Keterangan Tidak Mampu (SKTM)': [
-      { label: 'Keringanan RS', text: 'Sebagai syarat pengajuan keringanan biaya rawat inap/pengobatan di Rumah Sakit.' },
-      { label: 'Beasiswa Sekolah', text: 'Sebagai kelengkapan berkas pengajuan beasiswa pendidikan kurang mampu untuk anak sekolah.' }
-    ],
-    'Surat Pengantar Izin Keramaian': [
+const getTemplatesForType = (type = '') => {
+  const lower = String(type).toLowerCase();
+  if (lower.includes('domisili')) {
+    return [
+      { label: 'Buka Rekening Bank', text: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di dekat perumahan.' },
+      { label: 'Melamar Pekerjaan', text: 'Syarat keterangan domisili tempat tinggal sementara untuk kelengkapan administrasi melamar pekerjaan.' },
+      { label: 'Pendaftaran Sekolah', text: 'Keterangan domisili tinggal untuk syarat pendaftaran sekolah anak (PPDB zonasi).' }
+    ];
+  }
+  if (lower.includes('nikah') || lower.includes('rujukan')) {
+    return [
+      { label: 'Pengantar Nikah KUA', text: 'Syarat surat pengantar pendaftaran pernikahan ke KUA / Kelurahan Cinere.' },
+      { label: 'Rujukan Kelurahan', text: 'Surat pengantar rekomendasi pengurusan dokumen pernikahan di tingkat Kelurahan.' }
+    ];
+  }
+  if (lower.includes('tidak mampu') || lower.includes('sktm')) {
+    return [
+      { label: 'Keringanan RS', text: 'Sebagai syarat pengajuan keringanan biaya rawat inap / pengobatan di Rumah Sakit.' },
+      { label: 'Beasiswa Pendidikan', text: 'Sebagai kelengkapan berkas pengajuan beasiswa pendidikan kurang mampu untuk anak sekolah.' }
+    ];
+  }
+  if (lower.includes('keramaian') || lower.includes('izin')) {
+    return [
       { label: 'Syukuran Pernikahan', text: 'Pemberitahuan penyelenggaraan acara syukuran pernikahan keluarga di halaman rumah warga.' },
       { label: 'HUT RI Lingkungan', text: 'Pemberitahuan izin keramaian untuk pelaksanaan rangkaian perlombaan HUT RI warga RT 05.' }
-    ]
-  };
-
-  return templates[type] || [
-    { label: 'Keperluan Umum', text: 'Untuk keperluan pengurusan administrasi kependudukan di tingkat kelurahan.' }
+    ];
+  }
+  return [
+    { label: 'Pengurusan Dokumen', text: 'Sebagai kelengkapan berkas pengurusan administrasi warga di tingkat kelurahan.' },
+    { label: 'Pindah Sekolah', text: 'Mengurus surat pengantar pindah sekolah anak.' }
   ];
 };
 
@@ -158,9 +159,14 @@ export default function ProfilWarga({
   const [ktpTab, setKtpTab] = useState('asli');
 
   // Letter Request Form States
+  const [letterCategories, setLetterCategories] = useState([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [letterForm, setLetterForm] = useState({
-    tipeSurat: 'Surat Pengantar Pengurusan KTP',
-    keperluan: ''
+    kategori_id: '',
+    keperluan: '',
+    agama: 'Islam',
+    pekerjaan: '',
+    kewarganegaraan: 'WNI'
   });
 
   // Arrears Payment Form States
@@ -571,12 +577,51 @@ export default function ProfilWarga({
     }
   };
 
+  const fetchSuratKategori = async () => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingCategories(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/surat-kategori`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const cats = data?.output?.pesan || data?.output || data?.data || [];
+        const sortedCats = Array.isArray(cats) 
+          ? [...cats].sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99))
+          : [];
+        setLetterCategories(sortedCats);
+        if (sortedCats.length > 0) {
+          setLetterForm(prev => {
+            if (!prev.kategori_id) {
+              const firstCat = sortedCats[0];
+              const isLainLain = firstCat.nama_kategori?.toLowerCase().includes('lain');
+              return {
+                ...prev,
+                kategori_id: firstCat.id,
+                keperluan: isLainLain ? '' : (firstCat.nama_kategori || '')
+              };
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching surat-kategori:', err);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
   const fetchCitizenSubmissions = async () => {
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
     setIsLoadingSubmissions(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
+      const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -584,7 +629,8 @@ export default function ProfilWarga({
       });
       if (response.ok) {
         const data = await response.json();
-        setServerSubmissions(parseArrayResponse(data));
+        const items = data?.output?.pesan?.items || data?.output?.pesan || parseArrayResponse(data);
+        setServerSubmissions(Array.isArray(items) ? items : []);
       }
     } catch (err) {
       console.error('Error fetching citizen submissions:', err);
@@ -766,6 +812,7 @@ export default function ProfilWarga({
     fetchCitizenComplaints();
     fetchWargaAnnouncements();
     fetchCitizenSubmissions();
+    fetchSuratKategori();
     fetchWargaPayments();
     fetchIplBills();
     if (activeTab === 'voting_karyawan') {
@@ -954,8 +1001,32 @@ export default function ProfilWarga({
 
   const handleLetterSubmit = async (e) => {
     e.preventDefault();
+    if (!letterForm.kategori_id) {
+      alert('Silakan pilih jenis surat pengantar.');
+      return;
+    }
     if (!letterForm.keperluan.trim()) {
-      alert('Silakan tulis keperluan pengajuan surat.');
+      alert('Silakan tulis keperluan / alasan pengajuan surat.');
+      return;
+    }
+    if (!letterForm.agama.trim()) {
+      alert('Silakan isi kolom agama.');
+      return;
+    }
+    if (letterForm.agama.length > 50) {
+      alert('Kolom agama maksimal 50 karakter.');
+      return;
+    }
+    if (!letterForm.pekerjaan.trim()) {
+      alert('Silakan isi kolom pekerjaan.');
+      return;
+    }
+    if (letterForm.pekerjaan.length > 100) {
+      alert('Kolom pekerjaan maksimal 100 karakter.');
+      return;
+    }
+    if (!letterForm.kewarganegaraan.trim()) {
+      alert('Silakan pilih atau isi status kewarganegaraan.');
       return;
     }
 
@@ -966,29 +1037,32 @@ export default function ProfilWarga({
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/resident/pengajuan`, {
+      const response = await fetch(`${API_BASE_URL}/surat-pengajuan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          keperluan: letterForm.keperluan,
-          jenis: letterForm.tipeSurat
+          kategori_id: Number(letterForm.kategori_id),
+          keperluan: letterForm.keperluan.trim(),
+          agama: letterForm.agama.trim(),
+          pekerjaan: letterForm.pekerjaan.trim(),
+          kewarganegaraan: letterForm.kewarganegaraan.trim()
         })
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
         alert(data.message || 'Pengajuan surat pengantar berhasil dikirim!');
-        setLetterForm({
-          tipeSurat: 'Surat Pengantar Pengurusan KTP',
+        setLetterForm(prev => ({
+          ...prev,
           keperluan: ''
-        });
+        }));
         fetchCitizenSubmissions();
         setActiveTab('layanan_status');
       } else {
-        alert(data.message || data.pesan || 'Gagal mengirim pengajuan.');
+        alert(data.message || data.pesan || 'Gagal mengirim pengajuan surat.');
       }
     } catch (err) {
       alert(`Gagal menghubungi server: ${err.message}`);
@@ -1703,9 +1777,27 @@ export default function ProfilWarga({
 
       return {
         id: sub.id,
-        wargaNama: currentUser.name || `Keluarga #${sub.family_id}`,
-        wargaTipeSurat: sub.jenis,
+        family_id: sub.family_id,
+        kategori_id: sub.kategori_id,
+        wargaNama: sub.nama_lengkap || currentUser.name || `Keluarga #${sub.family_id}`,
+        nama_lengkap: sub.nama_lengkap || currentUser.name,
+        wargaNik: sub.no_ktp || currentUser.nik || '',
+        no_ktp: sub.no_ktp || currentUser.nik || '',
+        wargaAlamat: sub.alamat || currentUser.alamat || 'Villa Mutiara Mas Cinere',
+        alamat: sub.alamat || currentUser.alamat || 'Villa Mutiara Mas Cinere',
+        wargaTipeSurat: sub.nama_kategori || sub.jenis || 'Surat Pengantar',
+        nama_kategori: sub.nama_kategori || sub.jenis || 'Surat Pengantar',
         wargaKeperluan: sub.keperluan,
+        keperluan: sub.keperluan,
+        gender: sub.jenis_kelamin || currentUser.gender || 'Laki-laki',
+        jenis_kelamin: sub.jenis_kelamin || currentUser.gender || 'Laki-laki',
+        tempat_lahir: sub.tempat_lahir,
+        tanggal_lahir: sub.tanggal_lahir,
+        agama: sub.agama || currentUser.agama || 'Islam',
+        pekerjaan: sub.pekerjaan || currentUser.pekerjaan || '-',
+        kewarganegaraan: sub.kewarganegaraan || 'WNI',
+        approved_at: sub.approved_at,
+        created_at: sub.created_at,
         status: statusIndo,
         tanggal: formattedDate,
         submissionDate: formattedDate,
@@ -4729,33 +4821,104 @@ export default function ProfilWarga({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Pilih Jenis Surat Pengantar *</label>
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Pilih Jenis Surat Pengantar *</label>
+                    {isLoadingCategories && (
+                      <span className="text-[10px] text-orange-500 flex items-center gap-1 font-bold">
+                        <Loader2 className="w-3 h-3 animate-spin" /> Memuat kategori...
+                      </span>
+                    )}
+                  </div>
                   <select
-                    value={letterForm.tipeSurat}
-                    onChange={(e) => setLetterForm({ ...letterForm, tipeSurat: e.target.value })}
+                    required
+                    value={letterForm.kategori_id}
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      const selectedCat = letterCategories.find(c => c.id === selectedId);
+                      const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain');
+                      setLetterForm(prev => ({
+                        ...prev,
+                        kategori_id: selectedId,
+                        keperluan: isLainLain ? '' : (selectedCat?.nama_kategori || prev.keperluan)
+                      }));
+                    }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                   >
-                    <option value="Surat Pengantar Pengurusan KTP">Surat Pengantar Pengurusan KTP / KK</option>
-                    <option value="Surat Keterangan Domisili">Surat Keterangan Domisili Warga</option>
-                    <option value="Surat Keterangan Catatan Kepolisian (SKCK)">Surat Keterangan Pengantar SKCK</option>
-                    <option value="Surat Keterangan Tidak Mampu (SKTM)">Surat Keterangan Tidak Mampu (SKTM)</option>
-                    <option value="Surat Pengantar Izin Keramaian">Surat Pengantar Izin Acara / Keramaian</option>
+                    {letterCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.nama_kategori}
+                      </option>
+                    ))}
+                    {letterCategories.length === 0 && (
+                      <option value="">Pilih Kategori Surat...</option>
+                    )}
                   </select>
+                </div>
+
+                {/* 3 Manual Fields Wajib (Agama, Pekerjaan, Kewarganegaraan) */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Agama Pemohon *</label>
+                      <span className="text-[9px] text-slate-400">{letterForm.agama.length}/50</span>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      maxLength={50}
+                      placeholder="Islam / Kristen / dll"
+                      value={letterForm.agama}
+                      onChange={(e) => setLetterForm({ ...letterForm, agama: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center">
+                      <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Pekerjaan Pemohon *</label>
+                      <span className="text-[9px] text-slate-400">{letterForm.pekerjaan.length}/100</span>
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      maxLength={100}
+                      placeholder="Karyawan / Mahasiswa"
+                      value={letterForm.pekerjaan}
+                      onChange={(e) => setLetterForm({ ...letterForm, pekerjaan: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Kewarganegaraan *</label>
+                    <select
+                      required
+                      value={letterForm.kewarganegaraan}
+                      onChange={(e) => setLetterForm({ ...letterForm, kewarganegaraan: e.target.value })}
+                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                    >
+                      <option value="WNI">WNI</option>
+                      <option value="WNA">WNA</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
                   <div className="flex flex-wrap gap-2">
-                    {getTemplatesForType(letterForm.tipeSurat).map((tmpl, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setLetterForm({ ...letterForm, keperluan: tmpl.text })}
-                        className="px-3 py-2 bg-slate-100 hover:bg-emerald-50 dark:bg-slate-800 dark:hover:bg-emerald-950/40 text-slate-750 dark:text-slate-350 hover:text-emerald-600 dark:hover:text-emerald-400 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
-                      >
-                        {tmpl.label}
-                      </button>
-                    ))}
+                    {(() => {
+                      const selectedCat = letterCategories.find(c => c.id === Number(letterForm.kategori_id));
+                      return getTemplatesForType(selectedCat?.nama_kategori || '').map((tmpl, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setLetterForm({ ...letterForm, keperluan: tmpl.text })}
+                          className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 dark:bg-slate-800 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 border border-slate-200/60 dark:border-slate-800 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                        >
+                          {tmpl.label}
+                        </button>
+                      ));
+                    })()}
                   </div>
                 </div>
 
@@ -4767,7 +4930,7 @@ export default function ProfilWarga({
                     placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Cinere karena pindah domisili..."
                     value={letterForm.keperluan}
                     onChange={(e) => setLetterForm({ ...letterForm, keperluan: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-xs"
                   />
                 </div>
 
@@ -5682,7 +5845,7 @@ export default function ProfilWarga({
 
             <div className="p-6 overflow-y-auto max-h-[70vh] bg-slate-100 dark:bg-slate-950 flex justify-center p-4 sm:p-8">
               {/* Printable A4 Paper Simulator */}
-              <div className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative select-none leading-relaxed">
+              <div id="printable-letter-container" className="bg-white text-slate-900 w-full max-w-xl shadow-lg border border-slate-200 p-8 sm:p-12 font-serif text-[10px] relative leading-relaxed">
                 {/* KOP SURAT HEADER */}
                 <div className="text-center space-y-1 pb-4 border-b-4 border-double border-slate-900 font-sans">
                   <h4 className="font-black text-xs uppercase tracking-wider text-slate-900">RUKUN TETANGGA 05 RW 11</h4>
@@ -5698,10 +5861,10 @@ export default function ProfilWarga({
                   {/* Letter Title */}
                   <div className="text-center font-sans">
                     <h5 className="font-black text-sm uppercase underline decoration-1 tracking-wider text-slate-900">
-                      {viewingApprovedLetter.wargaTipeSurat}
+                      {viewingApprovedLetter.wargaTipeSurat || viewingApprovedLetter.nama_kategori || 'SURAT PENGANTAR'}
                     </h5>
-                    <span className="text-[10px] font-bold text-slate-600 tracking-wider">
-                      No. {viewingApprovedLetter.id.startsWith('SRT-') ? viewingApprovedLetter.id.replace('SRT-', '102/') : `102/${viewingApprovedLetter.id}`} / RT05-RW11 / VII / 2026
+                    <span className="text-[10px] font-bold text-slate-700 tracking-wider">
+                      Nomor : ....................................................
                     </span>
                   </div>
 
@@ -5716,31 +5879,54 @@ export default function ProfilWarga({
                       <tr>
                         <td className="w-1/3 font-bold">Nama Lengkap</td>
                         <td className="w-4">:</td>
-                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.wargaNama || currentUser.name}</td>
-                      </tr>
-                      <tr>
-                        <td className="font-bold">NIK / No. KTP</td>
-                        <td>:</td>
-                        <td className="font-mono">{viewingApprovedLetter.wargaNik || currentUser.nik}</td>
+                        <td className="font-semibold uppercase tracking-wider">{viewingApprovedLetter.nama_lengkap || viewingApprovedLetter.wargaNama || currentUser.name}</td>
                       </tr>
                       <tr>
                         <td className="font-bold">Jenis Kelamin</td>
                         <td>:</td>
-                        <td>{currentUser.gender || 'Laki-laki'}</td>
+                        <td>{viewingApprovedLetter.jenis_kelamin || viewingApprovedLetter.gender || currentUser.gender || 'Laki-laki'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Tempat/Tgl Lahir</td>
+                        <td>:</td>
+                        <td>
+                          {viewingApprovedLetter.tempat_lahir ? `${viewingApprovedLetter.tempat_lahir}, ` : ''}
+                          {viewingApprovedLetter.tanggal_lahir ? formatDateIndo(viewingApprovedLetter.tanggal_lahir) : (currentUser.tglLahir || '01 Januari 1990')}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">NIK / No. KTP</td>
+                        <td>:</td>
+                        <td className="font-mono">{viewingApprovedLetter.no_ktp || viewingApprovedLetter.wargaNik || currentUser.nik}</td>
                       </tr>
                       <tr>
                         <td className="font-bold">Alamat Lengkap</td>
                         <td>:</td>
                         <td className="leading-snug">
-                          {viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
+                          {viewingApprovedLetter.alamat || viewingApprovedLetter.wargaAlamat || currentUser.alamat || 'Perumahan Villa Mutiara Mas Cinere, RT 05 RW 11, Kel. Cinere, Kec. Cinere, Kota Depok.'}
                         </td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Agama</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.agama || currentUser.agama || 'Islam'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Pekerjaan</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.pekerjaan || currentUser.pekerjaan || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="font-bold">Warga Negara</td>
+                        <td>:</td>
+                        <td>{viewingApprovedLetter.kewarganegaraan || 'WNI'}</td>
                       </tr>
                     </tbody>
                   </table>
 
                   {/* Purpose Paragraph */}
                   <p className="indent-8 text-slate-800 leading-relaxed text-justify">
-                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan}"</span>.
+                    Adapun nama tersebut di atas adalah benar merupakan warga yang bertempat tinggal di lingkungan RT 05 RW 11 Perumahan Villa Mutiara Mas Cinere. Surat keterangan pengantar ini dibuat sebagai kelengkapan berkas untuk keperluan: <span className="font-bold underline">"{viewingApprovedLetter.wargaKeperluan || viewingApprovedLetter.keperluan}"</span>.
                   </p>
 
                   <p className="text-slate-800 leading-relaxed text-justify">
@@ -5757,7 +5943,7 @@ export default function ProfilWarga({
                     <span className="font-bold block underline">( ........................................ )</span>
                   </div>
                   <div>
-                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
+                    <span className="block">Depok, {formatDateIndo(viewingApprovedLetter.approved_at || viewingApprovedLetter.created_at || viewingApprovedLetter.submissionDate || new Date().toISOString().split('T')[0])}</span>
                     <span className="block font-bold">Ketua RT 05 RW 11</span>
                     <div className="h-16"></div>
                     <span className="font-bold block underline">Bpk. Ahmad Mulyono</span>
@@ -5766,14 +5952,15 @@ export default function ProfilWarga({
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11</span>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
+              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 05 / RW 11 (A4)</span>
               <div className="flex gap-2">
                 <button
-                  onClick={() => alert(`Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat}.docx`)}
+                  onClick={() => window.print()}
                   className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
                 >
-                  <span>Unduh Dokumen</span>
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Surat / Simpan PDF</span>
                 </button>
                 <button
                   onClick={() => setViewingApprovedLetter(null)}
