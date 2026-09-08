@@ -28,6 +28,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     wargaAlamat: currentUser && currentUser.role === 'warga' ? currentUser.alamat : '',
     wargaKeperluan: '',
     wargaTipeSurat: 'Surat Pengantar Pembuatan KTP',
+    customTipeSurat: '',
   }));
 
   const [submittedData, setSubmittedData] = useState(null);
@@ -83,6 +84,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     'Surat Pengantar Domisili Tinggal',
     'Surat Keterangan Tidak Mampu (SKTM)',
     'Surat Pengantar Nikah',
+    'Lain-lain (isi sendiri)',
   ];
 
   const [serverSubmissions, setServerSubmissions] = useState([]);
@@ -122,6 +124,18 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
     e.preventDefault();
     setIsSubmitting(true);
 
+    const isLainLain = formData.wargaTipeSurat === 'Lain-lain (isi sendiri)' || formData.wargaTipeSurat.toLowerCase().includes('lain');
+    const customName = (formData.customTipeSurat || '').trim();
+    if (isLainLain && !customName && !formData.wargaKeperluan.trim()) {
+      Swal.fire({ title: 'Perhatian', text: 'Silakan isi jenis surat atau keperluan pengajuan surat.', icon: 'warning' });
+      setIsSubmitting(false);
+      return;
+    }
+
+    const finalTipeSurat = isLainLain && customName
+      ? (customName.toLowerCase().startsWith('surat') ? customName : `Surat ${customName}`)
+      : formData.wargaTipeSurat;
+
     const token = getSessionToken();
 
     if (token) {
@@ -133,7 +147,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            jenis: formData.wargaTipeSurat,
+            jenis: finalTipeSurat,
             keperluan: formData.wargaKeperluan
           })
         });
@@ -149,7 +163,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
           wargaNik: currentUser && currentUser.role === 'warga' ? (currentUser.nik || '3276051508980004') : (formData.wargaNik || '3276051508980004'),
           wargaNoKk: currentUser && currentUser.role === 'warga' ? currentUser.noKk : formData.wargaNoKk,
           wargaAlamat: formData.wargaAlamat,
-          wargaTipeSurat: formData.wargaTipeSurat,
+          wargaTipeSurat: finalTipeSurat,
           wargaKeperluan: formData.wargaKeperluan,
           status: 'Pending',
           submissionDate: formatDateIndo(new Date()),
@@ -168,6 +182,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         setFormData((prev) => ({
           ...prev,
           wargaKeperluan: '',
+          customTipeSurat: '',
         }));
       }
     } else {
@@ -177,7 +192,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         wargaNik: currentUser && currentUser.role === 'warga' ? currentUser.nik : formData.wargaNik,
         wargaNoKk: currentUser && currentUser.role === 'warga' ? currentUser.noKk : formData.wargaNoKk,
         wargaAlamat: formData.wargaAlamat,
-        wargaTipeSurat: formData.wargaTipeSurat,
+        wargaTipeSurat: finalTipeSurat,
         wargaKeperluan: formData.wargaKeperluan,
         status: 'Pending',
         submissionDate: formatDateIndo(new Date()),
@@ -192,6 +207,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
       setFormData((prev) => ({
         ...prev,
         wargaKeperluan: '',
+        customTipeSurat: '',
       }));
     }
   };
@@ -327,6 +343,24 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                     ))}
                   </select>
                 </div>
+
+                {formData.wargaTipeSurat === 'Lain-lain (isi sendiri)' && (
+                  <div className="space-y-2 animate-fade-in">
+                    <label htmlFor="customTipeSurat" className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                      Sebutkan Jenis Surat yang Diperlukan (Isi Sendiri) *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      id="customTipeSurat"
+                      name="customTipeSurat"
+                      value={formData.customTipeSurat}
+                      onChange={handleInputChange}
+                      placeholder="kategori surat"
+                      className="w-full px-4 py-3 rounded-xl border border-orange-400 dark:border-orange-500 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all font-semibold text-xs"
+                    />
+                  </div>
+                )}
 
                 {/* Alamat Input */}
                 <div className="space-y-2">

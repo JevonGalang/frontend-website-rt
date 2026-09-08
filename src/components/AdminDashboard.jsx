@@ -550,25 +550,19 @@ export default function AdminDashboard({
 
   const cleanNameStr = (str) => String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  // Persistent registry of created accounts across refreshes & backend syncs
-  const getCreatedAccountsMap = () => {
-    try {
-      const saved = localStorage.getItem('rt_created_accounts');
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) {
-      return {};
-    }
-  };
+  // In-memory registry of created accounts across refreshes & backend syncs
+  const [createdAccountsMap, setCreatedAccountsMap] = useState({});
+
+  const getCreatedAccountsMap = () => createdAccountsMap || {};
 
   const saveCreatedAccount = (citizen, familyId, username, password, options = {}) => {
     if (!citizen && !familyId) return;
-    try {
-      const accounts = getCreatedAccountsMap();
-      const citizenId = citizen?.id || citizen?.warga_id;
-      const nik = citizen?.nik;
-      const cName = cleanNameStr(citizen?.name || citizen?.nama);
+    const citizenId = citizen?.id || citizen?.warga_id;
+    const nik = citizen?.nik;
+    const cName = cleanNameStr(citizen?.name || citizen?.nama);
 
-      // Find existing record to preserve data
+    setCreatedAccountsMap(prev => {
+      const accounts = { ...prev };
       const existingRecord = (citizenId && accounts[`citizen_${citizenId}`]) ||
                              (nik && accounts[`nik_${nik}`]) ||
                              (cName && accounts[`name_${cName}`]) ||
@@ -589,8 +583,8 @@ export default function AdminDashboard({
       if (cName && cName.length > 0) accounts[`name_${cName}`] = record;
       if (familyId && !citizenId) accounts[`family_${familyId}`] = record;
 
-      localStorage.setItem('rt_created_accounts', JSON.stringify(accounts));
-    } catch (e) {}
+      return accounts;
+    });
   };
 
   // Helper function to accurately detect account status across name, NIK, family, local storage, & state
@@ -846,10 +840,6 @@ export default function AdminDashboard({
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('rt_access_logs');
-    if (stored) {
-      try { setAccessLogs(JSON.parse(stored)); } catch (e) { setAccessLogs([]); }
-    }
     // Only RT/admin can access access-logs endpoint
     const role = currentUser?.role || '';
     if (role === 'rt' || role === 'admin') {
@@ -1296,8 +1286,7 @@ export default function AdminDashboard({
   const [buktiBayarWarga, setBuktiBayarWarga] = useState([]);
 
   const fetchBuktiBayarWarga = () => {
-    const saved = localStorage.getItem('rt_warga_bukti_bayar');
-    setBuktiBayarWarga(saved ? JSON.parse(saved) : []);
+    // In-memory state maintained via setBuktiBayarWarga
   };
 
   const defaultMockPendingWarga = [
@@ -2146,15 +2135,12 @@ export default function AdminDashboard({
   }, [activeTab]);
 
   const handleVerifyManualReceipt = (receiptId, isApproved) => {
-    const saved = localStorage.getItem('rt_warga_bukti_bayar');
-    if (!saved) return;
-
-    let list = JSON.parse(saved);
-    const receipt = list.find(r => r.id === receiptId);
+    const receipt = buktiBayarWarga.find(r => r.id === receiptId);
     if (!receipt) return;
 
+    let updatedList;
     if (isApproved) {
-      list = list.map(r => r.id === receiptId ? { ...r, status: 'Disetujui' } : r);
+      updatedList = buktiBayarWarga.map(r => r.id === receiptId ? { ...r, status: 'Disetujui' } : r);
       const updatedWarga = wargaList.map(w => w.id === receipt.wargaId ? { ...w, statusIuran: 'Lunas' } : w);
       saveWarga(updatedWarga);
 
@@ -2170,12 +2156,11 @@ export default function AdminDashboard({
 
       alert('Bukti transfer pembayaran berhasil disetujui! Status iuran warga diubah menjadi Lunas.');
     } else {
-      list = list.map(r => r.id === receiptId ? { ...r, status: 'Ditolak' } : r);
+      updatedList = buktiBayarWarga.map(r => r.id === receiptId ? { ...r, status: 'Ditolak' } : r);
       alert('Bukti transfer pembayaran ditolak.');
     }
 
-    localStorage.setItem('rt_warga_bukti_bayar', JSON.stringify(list));
-    setBuktiBayarWarga(list);
+    setBuktiBayarWarga(updatedList);
   };
 
   const [residentServerList, setResidentServerList] = useState([]);
@@ -2245,7 +2230,7 @@ export default function AdminDashboard({
     try {
       token = sessionStorage.getItem('rt_token');
     } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
+      console.warn('sessionStorage is blocked or unavailable:', e);
     }
     if (!token) {
       setIsLoadingKepalaKeluarga(false);
@@ -2332,19 +2317,12 @@ export default function AdminDashboard({
         throw new Error('Endpoint server belum aktif atau mengembalikan error.');
       }
     } catch (err) {
-      console.warn('Gagal mengambil surat masuk dari server, menggunakan local storage/state:', err.message);
-      const saved = localStorage.getItem('rt_surat_masuk_mock');
-      if (saved) {
-        setSuratMasukList(JSON.parse(saved));
-      } else {
-        const mock = [
-          { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Cinere', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
-          { id: '2', nomorSurat: '120/KEC-CNR/2026', asalSurat: 'Kecamatan Cinere', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
-          { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Cinere', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
-        ];
-        setSuratMasukList(mock);
-        localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(mock));
-      }
+      console.warn('Gagal mengambil surat masuk dari server, menggunakan in-memory state:', err.message);
+      setSuratMasukList(prev => prev.length > 0 ? prev : [
+        { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Cinere', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
+        { id: '2', nomorSurat: '120/KEC-CNR/2026', asalSurat: 'Kecamatan Cinere', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
+        { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Cinere', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
+      ]);
     } finally {
       setSuratMasukLoading(false);
     }
@@ -2378,19 +2356,12 @@ export default function AdminDashboard({
         throw new Error('Endpoint server belum aktif atau mengembalikan error.');
       }
     } catch (err) {
-      console.warn('Gagal mengambil surat keluar dari server, menggunakan local storage/state:', err.message);
-      const saved = localStorage.getItem('rt_surat_keluar_mock');
-      if (saved) {
-        setSuratKeluarList(JSON.parse(saved));
-      } else {
-        const mock = [
-          { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Cinere (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
-          { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Cinere (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
-          { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Cinere', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
-        ];
-        setSuratKeluarList(mock);
-        localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(mock));
-      }
+      console.warn('Gagal mengambil surat keluar dari server, menggunakan in-memory state:', err.message);
+      setSuratKeluarList(prev => prev.length > 0 ? prev : [
+        { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Cinere (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
+        { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Cinere (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
+        { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Cinere', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
+      ]);
     } finally {
       setSuratKeluarLoading(false);
     }
@@ -2600,7 +2571,7 @@ export default function AdminDashboard({
     try {
       token = sessionStorage.getItem('rt_token');
     } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
+      console.warn('sessionStorage is blocked or unavailable:', e);
     }
     if (!token) {
       console.warn('[Dashboard Debug] Tidak ada rt_token; data dashboard tidak akan di-fetch.');
@@ -2703,9 +2674,6 @@ export default function AdminDashboard({
 
         console.log('%c[fetchWargaListFromServer] Normalized warga list:', 'color: #10b981; font-weight: bold;', normalized);
         setWargaList(normalized);
-        try {
-          localStorage.setItem('rt_wargalist', JSON.stringify(normalized));
-        } catch (e) {}
       } else {
         console.error(`[fetchWargaListFromServer] HTTP Error: ${response.status} ${response.statusText}`);
       }
@@ -2917,7 +2885,6 @@ export default function AdminDashboard({
         // langsung mengembalikan ledger terbaru (eventual consistency).
         if (mapped.length > 0 || !customParams.preserveOnEmpty) {
           setTransaksiKasList(mapped);
-          localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
         }
       } else {
         throw new Error('Gagal memuat transaksi kas.');
@@ -2931,7 +2898,6 @@ export default function AdminDashboard({
           if (data.output?.ledger) {
             const mapped = data.output.ledger.map(t => normalizeKasTransaction(t));
             setTransaksiKasList(mapped);
-            localStorage.setItem('rt_kaslist', JSON.stringify(mapped));
           }
         }
       } catch (e) {
@@ -3357,7 +3323,7 @@ export default function AdminDashboard({
     try {
       token = sessionStorage.getItem('rt_token');
     } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
+      console.warn('sessionStorage is blocked or unavailable:', e);
     }
     if (!token) {
       console.warn('[Dashboard Debug] Tidak ada rt_token; bootstrap dashboard dibatalkan.');
@@ -3685,9 +3651,6 @@ export default function AdminDashboard({
         return item;
       });
       setWargaList(updatedWargaList);
-      try {
-        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
-      } catch (e) {}
 
       if (fetchResidentServerList) fetchResidentServerList();
       if (fetchWargaListFromServer) fetchWargaListFromServer();
@@ -3843,9 +3806,6 @@ export default function AdminDashboard({
       });
 
       setWargaList(updatedWargaList);
-      try {
-        localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
-      } catch (e) {}
 
       setModalType('');
 
@@ -4048,9 +4008,6 @@ export default function AdminDashboard({
     });
 
     setWargaList(updatedWargaList);
-    try {
-      localStorage.setItem('rt_wargalist', JSON.stringify(updatedWargaList));
-    } catch (e) {}
 
     if (typeof fetchResidentServerList === 'function') fetchResidentServerList();
     if (typeof fetchWargaListFromServer === 'function') fetchWargaListFromServer();
@@ -4069,9 +4026,6 @@ export default function AdminDashboard({
   // Auto-sync functions for CRUD
   const saveWarga = (updatedList) => {
     setWargaList(updatedList);
-    try {
-      localStorage.setItem('rt_wargalist', JSON.stringify(updatedList));
-    } catch (e) {}
   };
 
   const handleUpdateIuranStatus = (id, newStatus) => {
@@ -4091,17 +4045,14 @@ export default function AdminDashboard({
 
   const saveKas = (updatedList) => {
     setTransaksiKasList(updatedList);
-    localStorage.setItem('rt_kaslist', JSON.stringify(updatedList));
   };
 
   const saveAgenda = (updatedList) => {
     setAgendaList(updatedList);
-    localStorage.setItem('rt_agendalist', JSON.stringify(updatedList));
   };
 
   const saveSubmissions = (updatedList) => {
     setSubmissionsList(updatedList);
-    localStorage.setItem('rt_submissions', JSON.stringify(updatedList));
   };
 
   const displaySubmissions = [
@@ -4789,7 +4740,6 @@ export default function AdminDashboard({
         setTransaksiKasList(previous => {
           const withoutDuplicate = previous.filter(item => String(item.id) !== String(optimisticTransaction.id));
           const updated = [optimisticTransaction, ...withoutDuplicate];
-          localStorage.setItem('rt_kaslist', JSON.stringify(updated));
           return updated;
         });
 
@@ -5006,7 +4956,6 @@ export default function AdminDashboard({
       console.warn('Gagal menghapus di server, menghapus secara lokal:', err.message);
       const updated = suratMasukList.filter(s => s.id !== id);
       setSuratMasukList(updated);
-      localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(updated));
       Swal.fire('Terhapus Lokal!', 'Data dihapus secara lokal.', 'success');
     }
   };
@@ -5043,7 +4992,6 @@ export default function AdminDashboard({
       console.warn('Gagal menghapus di server, menghapus secara lokal:', err.message);
       const updated = suratKeluarList.filter(s => s.id !== id);
       setSuratKeluarList(updated);
-      localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(updated));
       Swal.fire('Terhapus Lokal!', 'Data dihapus secara lokal.', 'success');
     }
   };
@@ -5112,7 +5060,6 @@ export default function AdminDashboard({
         updatedList = [newEntry, ...suratMasukList];
       }
       setSuratMasukList(updatedList);
-      localStorage.setItem('rt_surat_masuk_mock', JSON.stringify(updatedList));
       Swal.fire({
         title: 'Disimpan Lokal',
         text: `Data berhasil disimpan secara lokal (Server offline: ${err.message}).`,
@@ -5182,7 +5129,6 @@ export default function AdminDashboard({
         updatedList = [newEntry, ...suratKeluarList];
       }
       setSuratKeluarList(updatedList);
-      localStorage.setItem('rt_surat_keluar_mock', JSON.stringify(updatedList));
       Swal.fire({
         title: 'Disimpan Lokal',
         text: `Data berhasil disimpan secara lokal (Server offline: ${err.message}).`,
@@ -5329,73 +5275,139 @@ export default function AdminDashboard({
   const renderQuickActions = (customClasses = "col-span-12 lg:col-span-3 p-4 sm:p-5 lg:p-6") => (
     <div className={`bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6 ${customClasses}`}>
       <div className="space-y-1">
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">Quick Action Operasional RT</h3>
-        <p className="text-[11px] sm:text-xs text-slate-400">Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.</p>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">
+          {isBendahara ? 'Quick Action Keuangan RT' : 'Quick Action Operasional RT'}
+        </h3>
+        <p className="text-[11px] sm:text-xs text-slate-400">
+          {isBendahara ? 'Pilih pintasan modul kas dan setoran iuran warga.' : 'Pilih modul pintasan untuk mempercepat pelayanan & entry data Anda.'}
+        </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
-        {/* 1. Tambah Warga */}
-        <button
-          onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
-          className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
-              <Users className="w-5 h-5 sm:w-4 sm:h-4" />
-            </div>
-            <span className="text-[11px] sm:text-xs leading-tight">Tambah Warga Baru</span>
-          </div>
-          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-        </button>
+        {isBendahara ? (
+          <>
+            {/* 1. Catat Bayar IPL */}
+            <button
+              onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
+                  <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Catat Bayar IPL</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
 
-        {/* 2. Persetujuan Surat */}
-        <button
-          onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-          className="w-full p-3 sm:py-3 sm:px-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
-              <FileCheck className="w-5 h-5 sm:w-4 sm:h-4" />
-            </div>
-            <span className="text-[11px] sm:text-xs leading-tight">Persetujuan Surat</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {pendingSubmissionsCount > 0 && (
-              <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
-                {pendingSubmissionsCount}
-              </span>
-            )}
-            <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-          </div>
-        </button>
+            {/* 2. Verifikasi Setoran */}
+            <button
+              onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
+                  <CheckCircle2 className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Verifikasi Setoran</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
 
-        {/* 3. Pembayaran IPL */}
-        <button
-          onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-          className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
-              <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
-            </div>
-            <span className="text-[11px] sm:text-xs leading-tight">Bayar IPL</span>
-          </div>
-          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-        </button>
+            {/* 3. Monitoring Kas */}
+            <button
+              onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-emerald-500 text-white rounded-xl shadow-xs shrink-0">
+                  <Landmark className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Buku Kas RT</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
 
-        {/* 4. Pengaduan */}
-        <button
-          onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
-          className="w-full p-3 sm:py-3 sm:px-3.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
-        >
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
-            <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
-              <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
-            </div>
-            <span className="text-[11px] sm:text-xs leading-tight">Kelola Pengaduan</span>
-          </div>
-          <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
-        </button>
+            {/* 4. Tunggakan Iuran */}
+            <button
+              onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500 text-amber-600 dark:text-amber-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0">
+                  <AlertCircle className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Daftar Tunggakan</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
+          </>
+        ) : (
+          <>
+            {/* 1. Tambah Warga */}
+            <button
+              onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
+                  <Users className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Tambah Warga Baru</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
+
+            {/* 2. Persetujuan Surat */}
+            <button
+              onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
+                  <FileCheck className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Persetujuan Surat</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {pendingSubmissionsCount > 0 && (
+                  <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-extrabold animate-pulse">
+                    {pendingSubmissionsCount}
+                  </span>
+                )}
+                <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+              </div>
+            </button>
+
+            {/* 3. Pembayaran IPL */}
+            <button
+              onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
+                  <Wallet className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Bayar IPL</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
+
+            {/* 4. Pengaduan */}
+            <button
+              onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+            >
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
+                <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
+                  <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
+                </div>
+                <span className="text-[11px] sm:text-xs leading-tight">Kelola Pengaduan</span>
+              </div>
+              <ChevronRight className="w-4 h-4 hidden sm:block transition-transform group-hover:translate-x-1" />
+            </button>
+          </>
+        )}
       </div>
       
       <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
@@ -6985,7 +6997,7 @@ export default function AdminDashboard({
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">● Live Sync</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
-                    {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 05 📋' : 'Dasbor Kontrol Pengurus RT 05 👋')}
+                    {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 05 📋' : isBendahara ? 'Dasbor Keuangan & Kas RT 05 💰' : 'Dasbor Kontrol Pengurus RT 05 👋')}
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
                     {activeTab === 'kas' && 'Monitoring Keuangan & Transparansi Kas RT 💰'}
                     {activeTab === 'sek_warga_kk' && 'Kelola Data Kartu Keluarga (KK) 📄'}
@@ -7027,8 +7039,8 @@ export default function AdminDashboard({
           {activeTab === 'overview' && (
             <div className="space-y-8 animate-fade-in">
               
-              {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) */}
-              {!isSekretaris && (
+              {/* 1. Dashboard Statistik Grid (8 Cards - 2 Columns on Portrait/Mobile) - Khusus RT / Admin */}
+              {!isSekretaris && !isBendahara && (
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                   
                   {/* 1. Total Warga */}
@@ -8715,7 +8727,6 @@ export default function AdminDashboard({
                               if (check) {
                                 const updated = wargaList.map(item => item.id === w.id ? { ...item, password: `${w.username}123` } : item);
                                 setWargaList(updated);
-                                localStorage.setItem('rt_wargalist', JSON.stringify(updated));
                                 alert(`Sandi ${w.name} berhasil direset menjadi '${w.username}123'!`);
                               }
                             }}
@@ -8820,7 +8831,6 @@ export default function AdminDashboard({
                   <button
                     onClick={() => {
                       if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
-                        localStorage.setItem('rt_access_logs', JSON.stringify([]));
                         setAccessLogs([]);
                       }
                     }}
@@ -11461,7 +11471,6 @@ export default function AdminDashboard({
                 <button
                   onClick={() => {
                     if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
-                      localStorage.setItem('rt_access_logs', JSON.stringify([]));
                       setAccessLogs([]);
                     }
                   }}
@@ -11566,8 +11575,7 @@ export default function AdminDashboard({
                 <button
                   onClick={() => {
                     if (confirm('Apakah Anda yakin ingin membersihkan seluruh log akses?')) {
-                      localStorage.setItem('rt_access_logs', JSON.stringify([]));
-                      setLogsTrigger(t => t + 1);
+                      setAccessLogs([]);
                     }
                   }}
                   className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"

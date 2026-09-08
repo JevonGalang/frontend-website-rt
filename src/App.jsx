@@ -50,24 +50,18 @@ export default function App() {
   const [publicStats, setPublicStats] = useState(null);
   const [publicLedger, setPublicLedger] = useState([]);
 
-  // One-time cleanup: hapus semua data localStorage lama yang sudah tidak dipakai
-  // agar tidak konflik dengan data dari database
+  // Pembersihan menyeluruh: hapus semua data localStorage bisnis/mock lama agar tidak konflik dengan data database server
   useEffect(() => {
-    if (!localStorage.getItem('rt_cleanup_v1')) {
-      const staleKeys = [
-        'rt_wargalist', 'rt_kaslist', 'rt_agendalist', 'rt_submissions',
-        'rt_access_logs', 'rt_created_accounts', 'rt_dummy_cleared_v3',
-        'rt_warga_bukti_bayar', 'rt_warga_pengaduan_list', 'rt_warga_documents',
-        'rt_uploaded_docs', 'rt_user_email', 'rt_surat_masuk_mock', 'rt_surat_keluar_mock'
-      ];
-      // Juga hapus key dinamis rt_user_ktp_*
+    try {
+      const allowedKeys = new Set(['rt_theme']);
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('rt_user_ktp_') || staleKeys.includes(key)) {
+        if (key.startsWith('rt_') && !allowedKeys.has(key)) {
           localStorage.removeItem(key);
         }
       });
-      localStorage.setItem('rt_cleanup_v1', 'true');
-      console.log('✅ Stale localStorage data cleared');
+      console.log('✅ Stale localStorage data purged');
+    } catch (e) {
+      console.warn('localStorage cleanup error:', e);
     }
   }, []);
 

@@ -89,6 +89,16 @@ const getTemplatesForType = (type = '') => {
   ];
 };
 
+const DEFAULT_LETTER_CATEGORIES = [
+  { id: 1, nama_kategori: 'Surat Pengantar KTP' },
+  { id: 2, nama_kategori: 'Surat Pengantar Kartu Keluarga (KK)' },
+  { id: 3, nama_kategori: 'Surat Pengantar SKCK' },
+  { id: 4, nama_kategori: 'Surat Keterangan Domisili' },
+  { id: 5, nama_kategori: 'Surat Keterangan Tidak Mampu (SKTM)' },
+  { id: 6, nama_kategori: 'Surat Pengantar Nikah' },
+  { id: 99, nama_kategori: 'Lain-lain (isi sendiri)' }
+];
+
 export default function ProfilWarga({ 
   currentUser, 
   setCurrentUser,
@@ -149,7 +159,8 @@ export default function ProfilWarga({
     foto: currentUser ? currentUser.foto || currentUser.avatar || '' : ''
   });
 
-  const [revealPassword, setRevealPassword] = useState(false);
+  const [revealNik, setRevealNik] = useState(false);
+  const [revealNoKk, setRevealNoKk] = useState(false);
   const [showPasswordPrompt, setShowPasswordPrompt] = useState(false);
   const [promptPasswordInput, setPromptPasswordInput] = useState('');
   const [promptError, setPromptError] = useState('');
@@ -160,10 +171,11 @@ export default function ProfilWarga({
   const [ktpTab, setKtpTab] = useState('asli');
 
   // Letter Request Form States
-  const [letterCategories, setLetterCategories] = useState([]);
+  const [letterCategories, setLetterCategories] = useState(DEFAULT_LETTER_CATEGORIES);
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [letterForm, setLetterForm] = useState({
-    kategori_id: '',
+    kategori_id: 1,
+    custom_nama_kategori: '',
     keperluan: '',
     agama: 'Islam',
     pekerjaan: '',
@@ -591,9 +603,21 @@ export default function ProfilWarga({
       if (res.ok) {
         const data = await res.json();
         const cats = data?.output?.pesan || data?.output || data?.data || [];
-        const sortedCats = Array.isArray(cats) 
+        let sortedCats = Array.isArray(cats) && cats.length > 0
           ? [...cats].sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99))
-          : [];
+          : [...DEFAULT_LETTER_CATEGORIES];
+        
+        const hasLain = sortedCats.some(c => String(c.nama_kategori || '').toLowerCase().includes('lain'));
+        sortedCats = sortedCats.map(c => {
+          if (String(c.nama_kategori || '').toLowerCase().includes('lain')) {
+            return { ...c, nama_kategori: 'Lain-lain (isi sendiri)' };
+          }
+          return c;
+        });
+        if (!hasLain) {
+          sortedCats.push({ id: 99, nama_kategori: 'Lain-lain (isi sendiri)' });
+        }
+
         setLetterCategories(sortedCats);
         if (sortedCats.length > 0) {
           setLetterForm(prev => {
@@ -663,19 +687,6 @@ export default function ProfilWarga({
         }
       }
     }
-
-    // 3. Merge local cached submissions from localStorage if available
-    try {
-      const savedLocal = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
-      if (Array.isArray(savedLocal) && savedLocal.length > 0) {
-        const existingIds = new Set(items.map(i => String(i.id)));
-        savedLocal.forEach(loc => {
-          if (loc && loc.id && !existingIds.has(String(loc.id))) {
-            items.push(loc);
-          }
-        });
-      }
-    } catch (e) {}
 
     setServerSubmissions(Array.isArray(items) ? items : []);
     setIsLoadingSubmissions(false);
@@ -1079,16 +1090,32 @@ export default function ProfilWarga({
     }
 
     const token = sessionStorage.getItem('rt_token');
-    const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
-    const selectedCat = safeCats.find(c => c.id === Number(kategoriId));
-    const namaKategori = selectedCat?.nama_kategori || 'Surat Pengantar';
+    const safeCats = Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES;
+    const selectedCat = safeCats.find(c => String(c.id) === String(kategoriId));
+    const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain') || String(kategoriId) === '99' || String(kategoriId) === 'lain_lain';
+
+    const customName = (letterForm?.custom_nama_kategori || '').trim();
+    if (isLainLain && !customName && !keperluan) {
+      alert('Silakan sebutkan jenis surat yang diperlukan pada kolom isian atau tulis keperluan pengajuan.');
+      return;
+    }
+
+    let namaKategori = selectedCat?.nama_kategori || 'Surat Pengantar';
+    if (isLainLain && customName) {
+      namaKategori = customName.toLowerCase().startsWith('surat') ? customName : `Surat ${customName}`;
+    }
+
+    const catIdNum = Number(kategoriId);
+    const validKategoriId = (!isNaN(catIdNum) && catIdNum > 0 && catIdNum !== 99)
+      ? catIdNum
+      : (safeCats.find(c => !String(c.nama_kategori).toLowerCase().includes('lain'))?.id || 1);
 
     // Buat objek submission lengkap untuk preview & penyimpanan instan
     const tempId = 'SRT-' + Date.now();
     const newSubmission = {
       id: tempId,
       family_id: currentUser?.familyId || currentUser?.family_id || 1,
-      kategori_id: Number(kategoriId),
+      kategori_id: validKategoriId,
       wargaId: currentUser?.id,
       wargaNama: currentUser?.name || 'Warga RT 05',
       nama_lengkap: currentUser?.name || 'Warga RT 05',
@@ -1126,7 +1153,7 @@ export default function ProfilWarga({
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            kategori_id: Number(kategoriId),
+            kategori_id: validKategoriId,
             keperluan,
             agama,
             pekerjaan,
@@ -1162,7 +1189,7 @@ export default function ProfilWarga({
           }
         }
       } catch (err) {
-        console.warn('Gagal menghubungi server untuk surat-pengajuan, beralih ke penyimpanan lokal:', err);
+        console.warn('Gagal menghubungi server untuk surat-pengajuan:', err);
       }
     }
 
@@ -1178,25 +1205,20 @@ export default function ProfilWarga({
     // 2. Simpan ke serverSubmissions state agar langsung tampil di tab status
     setServerSubmissions(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
 
-    // 3. Persist di localStorage agar tidak hilang saat reload
-    try {
-      const existing = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
-      localStorage.setItem('rt_warga_submissions', JSON.stringify([newSubmission, ...(Array.isArray(existing) ? existing : [])]));
-    } catch (e) {}
-
-    // 4. Reset form keperluan
+    // 3. Reset form
     setLetterForm(prev => ({
       ...prev,
-      keperluan: ''
+      keperluan: '',
+      custom_nama_kategori: ''
     }));
 
-    // 5. Pindah ke tab status pengajuan
+    // 4. Pindah ke tab status pengajuan
     setActiveTab('layanan_status');
 
-    // 6. Langsung buka modal pratinjau surat agar warga bisa cetak surat / simpan PDF seketika
+    // 5. Langsung buka modal pratinjau surat agar warga bisa cetak surat / simpan PDF seketika
     setViewingApprovedLetter(newSubmission);
 
-    // 7. Refresh data dari server di background
+    // 6. Refresh data dari server di background
     if (token) {
       fetchCitizenSubmissions();
     }
@@ -1897,7 +1919,7 @@ export default function ProfilWarga({
     setPgStage('success');
   };
 
-  // Derived properties: gabungan riwayat server, submissionsList, dan localStorage dengan deduplikasi ID
+  // Derived properties: gabungan riwayat server dan submissionsList aktif dengan deduplikasi ID
   const mySubmissions = (() => {
     const list = [];
     const seenIds = new Set();
@@ -1986,32 +2008,6 @@ export default function ProfilWarga({
       if (item.id) seenIds.add(String(item.id));
       list.push(item);
     });
-
-    // 3. Gabungkan dari localStorage (rt_warga_submissions)
-    try {
-      const savedLocal = JSON.parse(localStorage.getItem('rt_warga_submissions') || '[]');
-      if (Array.isArray(savedLocal)) {
-        savedLocal.forEach(sub => {
-          if (!sub || !sub.id || seenIds.has(String(sub.id))) return;
-          const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
-          const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
-          const rawStatus = (sub.status || '').toLowerCase();
-          let statusIndo = 'Menunggu';
-          if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
-          else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
-          else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
-
-          const item = {
-            ...sub,
-            status: statusIndo,
-            tanggal: formattedDate,
-            submissionDate: formattedDate
-          };
-          seenIds.add(String(item.id));
-          list.push(item);
-        });
-      }
-    } catch(e) {}
 
     return list;
   })();
@@ -4983,21 +4979,23 @@ export default function ProfilWarga({
                     required
                     value={letterForm?.kategori_id || ''}
                     onChange={(e) => {
-                      const selectedId = Number(e.target.value);
-                      const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
-                      const selectedCat = safeCats.find(c => c.id === selectedId);
-                      const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain');
+                      const selectedVal = e.target.value;
+                      const selectedId = isNaN(Number(selectedVal)) ? selectedVal : Number(selectedVal);
+                      const safeCats = Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES;
+                      const selectedCat = safeCats.find(c => String(c.id) === String(selectedVal));
+                      const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain') || String(selectedVal) === '99';
                       setLetterForm(prev => ({
                         ...prev,
                         kategori_id: selectedId,
-                        keperluan: isLainLain ? '' : (selectedCat?.nama_kategori || prev?.keperluan || '')
+                        keperluan: isLainLain ? (prev?.keperluan || '') : (selectedCat?.nama_kategori || prev?.keperluan || ''),
+                        custom_nama_kategori: isLainLain ? (prev?.custom_nama_kategori || '') : ''
                       }));
                     }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
                   >
-                    {(Array.isArray(letterCategories) ? letterCategories : []).map((cat) => (
+                    {(Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES).map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.nama_kategori}
+                        {cat.nama_kategori?.toLowerCase().includes('lain') ? 'Lain-lain (isi sendiri)' : cat.nama_kategori}
                       </option>
                     ))}
                     {(!Array.isArray(letterCategories) || letterCategories.length === 0) && (
@@ -5005,6 +5003,34 @@ export default function ProfilWarga({
                     )}
                   </select>
                 </div>
+
+                {/* Input Khusus jika memilih opsi "Lain-lain (isi sendiri)" */}
+                {(() => {
+                  const safeCats = Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES;
+                  const selectedCat = safeCats.find(c => String(c.id) === String(letterForm?.kategori_id));
+                  const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain') || String(letterForm?.kategori_id) === '99';
+                  if (!isLainLain) return null;
+                  return (
+                    <div className="space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <label className="font-bold text-slate-700 dark:text-slate-300 font-sans text-xs">
+                          Sebutkan Jenis Surat yang Diperlukan (Isi Sendiri) *
+                        </label>
+                        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-800">
+                          ✍️ Mandiri
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="kategori surat"
+                        value={letterForm?.custom_nama_kategori || ''}
+                        onChange={(e) => setLetterForm(prev => ({ ...prev, custom_nama_kategori: e.target.value }))}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-orange-400 dark:border-orange-500 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs focus:ring-2 focus:ring-orange-500/20"
+                      />
+                    </div>
+                  );
+                })()}
 
                 {/* 3 Manual Fields Wajib (Agama, Pekerjaan, Kewarganegaraan) */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
@@ -5054,25 +5080,29 @@ export default function ProfilWarga({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
-                  <div className="flex flex-wrap gap-2">
-                    {(() => {
-                      const safeCats = Array.isArray(letterCategories) ? letterCategories : [];
-                      const selectedCat = safeCats.find(c => c.id === Number(letterForm?.kategori_id));
-                      return getTemplatesForType(selectedCat?.nama_kategori || '').map((tmpl, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => setLetterForm(prev => ({ ...prev, keperluan: tmpl.text }))}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 dark:bg-slate-800 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 border border-slate-200/60 dark:border-slate-800 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
-                        >
-                          {tmpl.label}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                </div>
+                {(() => {
+                  const safeCats = Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES;
+                  const selectedCat = safeCats.find(c => String(c.id) === String(letterForm?.kategori_id));
+                  const isLainLain = selectedCat?.nama_kategori?.toLowerCase().includes('lain') || String(letterForm?.kategori_id) === '99';
+                  if (isLainLain) return null;
+                  return (
+                    <div className="space-y-2">
+                      <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
+                      <div className="flex flex-wrap gap-2">
+                        {getTemplatesForType(selectedCat?.nama_kategori || '').map((tmpl, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setLetterForm(prev => ({ ...prev, keperluan: tmpl.text }))}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 dark:bg-slate-800 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 border border-slate-200/60 dark:border-slate-800 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                          >
+                            {tmpl.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="space-y-1.5">
                   <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Tulis Keperluan / Alasan Pengajuan *</label>
@@ -5147,32 +5177,33 @@ export default function ProfilWarga({
                           Diajukan: {sub.tanggal || sub.submissionDate || 'Terbaru'}
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setViewingApprovedLetter(sub)}
-                            className="flex-1 py-2 border border-orange-500 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"
-                          >
-                            <Printer className="w-3.5 h-3.5" />
-                            <span>{sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai' ? 'Cetak Surat Resmi' : 'Pratinjau & Cetak'}</span>
-                          </button>
-                          {(sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai') ? (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                          {sub.status === 'Rejected' || sub.status === 'Ditolak' ? (
+                            <div className="py-2 px-3 bg-red-50/80 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-xl text-center">
+                              <p className="text-[10px] font-bold text-red-600 dark:text-red-400 leading-tight">
+                                ❌ Pengajuan Ditolak
+                              </p>
+                              <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                Silakan hubungi / temui pengurus RT secara langsung.
+                              </p>
+                            </div>
+                          ) : sub.status === 'Approved' || sub.status === 'Disetujui' || sub.status === 'Completed' || sub.status === 'Selesai' ? (
                             <button
                               type="button"
-                              onClick={() => {
-                                alert(`Mengunduh berkas ${sub.wargaTipeSurat} untuk keperluan: ${sub.wargaKeperluan}. (Simulasi berkas PDF RT berhasil diunduh)`);
-                              }}
-                              className="flex-1 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-[10px] rounded-xl transition-all cursor-pointer text-center block shadow-md shadow-orange-500/20"
+                              onClick={() => setViewingApprovedLetter(sub)}
+                              className="w-full py-2.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2 shadow-md shadow-orange-500/20"
                             >
-                              Unduh Format
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>Cetak Surat Resmi / Simpan PDF</span>
                             </button>
                           ) : (
                             <button
                               type="button"
                               onClick={() => setViewingApprovedLetter(sub)}
-                              className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-[10px] rounded-xl transition-all cursor-pointer text-center"
+                              className="w-full py-2.5 border border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 bg-orange-50/50 dark:bg-orange-950/10 font-extrabold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
                             >
-                              Detail Form
+                              <Printer className="w-3.5 h-3.5" />
+                              <span>Pratinjau Detail Pengajuan</span>
                             </button>
                           )}
                         </div>
