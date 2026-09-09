@@ -32,16 +32,16 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
   return (
     <section
       id="kas"
-      className="pt-24 sm:pt-28 pb-16 bg-slate-50 dark:bg-slate-900 border-t border-slate-200/60 dark:border-slate-800"
+      className="pt-24 sm:pt-28 pb-16 bg-slate-50 border-t border-slate-200/60"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-orange-600 uppercase tracking-widest">
             Transparansi Kas
           </h2>
-          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
+          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900">
             Laporan Keuangan & Kas RT
           </p>
           <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
@@ -51,40 +51,40 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 mb-8 sm:mb-12">
           
           {/* Card 1: Total Pemasukan */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
-            <div className="p-3.5 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-2xl shrink-0">
+          <div className="bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3.5 bg-emerald-500/10 text-emerald-600 rounded-2xl shrink-0">
               <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pemasukan</span>
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 block truncate">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 block truncate">
                 {formatCurrency(totalPemasukan)}
               </span>
             </div>
           </div>
 
           {/* Card 2: Total Pengeluaran */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
-            <div className="p-3.5 bg-rose-500/10 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-2xl shrink-0">
+          <div className="bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-sm flex items-center gap-4">
+            <div className="p-3.5 bg-rose-500/10 text-rose-600 rounded-2xl shrink-0">
               <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Pengeluaran</span>
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 block truncate">
+              <span className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 block truncate">
                 {formatCurrency(totalPengeluaran)}
               </span>
             </div>
           </div>
 
           {/* Card 3: Sisa Kas (Balance) */}
-          <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md flex items-center gap-4 relative overflow-hidden col-span-1 sm:col-span-2 md:col-span-1">
+          <div className="bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md flex items-center gap-4 relative overflow-hidden col-span-1 sm:col-span-2 md:col-span-1">
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
-            <div className="p-3.5 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-2xl shrink-0">
+            <div className="p-3.5 bg-amber-500/10 text-amber-600 rounded-2xl shrink-0">
               <Wallet className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
             <div className="min-w-0 flex-1">
               <span className="block text-[10px] sm:text-xs font-semibold text-slate-400 uppercase tracking-wider">Sisa Saldo Kas</span>
-              <span className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5 block truncate">
+              <span className="text-xl sm:text-2xl font-black text-emerald-600 mt-0.5 block truncate">
                 {formatCurrency(sisaKas)}
               </span>
             </div>
@@ -92,11 +92,11 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
         </div>
 
         {/* Transaction Table Controls */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-lg">
+        <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-lg">
           
           {/* Controls Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h3 className="font-extrabold text-slate-900 dark:text-white text-lg">
+            <h3 className="font-extrabold text-slate-900 text-lg">
               Rincian Transaksi Kas Terbaru
             </h3>
             
@@ -109,20 +109,20 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
                   placeholder="Cari transaksi..."
                   value={searchTerm}
                   onChange={handleSearchChange}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                 />
               </div>
 
               {/* Filter tabs */}
-              <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl gap-1">
+              <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
                 {['Semua', 'Pemasukan', 'Pengeluaran'].map((filter) => (
                   <button
                     key={filter}
                     onClick={() => setActiveFilter(filter)}
                     className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                       activeFilter === filter
-                        ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     {filter}
@@ -136,31 +136,31 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <tr className="border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <th className="py-4 px-4">Tanggal</th>
                   <th className="py-4 px-4">Deskripsi Transaksi</th>
                   <th className="py-4 px-4">Kategori</th>
                   <th className="py-4 px-4 text-right">Jumlah</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700 text-sm">
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredTransactions.length > 0 ? (
                   filteredTransactions.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/20 transition-colors">
-                      <td className="py-4 px-4 font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap flex items-center gap-2">
+                    <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-4 px-4 font-medium text-slate-500 whitespace-nowrap flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-slate-400" />
                         {formatDateToDDMMYYYY(item.date)}
                       </td>
-                      <td className="py-4 px-4 font-bold text-slate-800 dark:text-white">
+                      <td className="py-4 px-4 font-bold text-slate-800">
                         {item.description}
                       </td>
                       <td className="py-4 px-4">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 uppercase">
                           {item.category}
                         </span>
                       </td>
                       <td className={`py-4 px-4 text-right font-black ${
-                        item.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                        item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
                       }`}>
                         {item.type === 'income' ? '+' : '-'} {formatCurrency(item.amount)}
                       </td>
@@ -168,7 +168,7 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="py-8 text-center text-slate-400 dark:text-slate-500">
+                    <td colSpan="4" className="py-8 text-center text-slate-400">
                       Tidak ada transaksi kas ditemukan.
                     </td>
                   </tr>

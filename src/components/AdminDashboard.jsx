@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Users, Wallet, Calendar, FileCheck, LogOut, 
   Search, Plus, Edit, Trash2, Check, X, X as XIcon, Landmark, 
-  Sun, Moon, TrendingUp, TrendingDown, CheckCircle2, 
+  TrendingUp, TrendingDown, CheckCircle2, 
   AlertCircle, Sparkles, Filter, Activity, Eye, EyeOff, Wand2,
   FileText, Volume2, AlertTriangle, FolderOpen, Settings, User, BarChart3,
   Database, Lock, ChevronLeft, ChevronRight, Upload, Download, File, Loader2,
@@ -233,7 +233,7 @@ const isTabAllowedForRole = (tab, role) => {
   
   const secretaryAllowedTabs = [
     'overview', 'pengaturan', 'warga', 'sek_warga_kk', 'sek_warga_masuk',
-    'layanan', 'sek_surat_template', 'sek_info_pengumuman', 'agenda',
+    'layanan', 'sek_info_pengumuman', 'agenda',
     'sek_info_notulen', 'sek_pengaduan', 'sek_arsip', 'sek_laporan',
     'sek_akun_manage', 'iuran_pembayaran'
   ];
@@ -256,8 +256,6 @@ export default function AdminDashboard({
   setAgendaList, 
   submissionsList, 
   setSubmissionsList,
-  darkMode,
-  setDarkMode,
   fetchAgendas,
   dashboardStats,
   fetchDashboardStats
@@ -409,7 +407,6 @@ export default function AdminDashboard({
   const [adminServerNotifs, setAdminServerNotifs] = useState([]);
   const [adminUnreadCount, setAdminUnreadCount] = useState(null);
   
-  const [selectedKtpWarga, setSelectedKtpWarga] = useState(null);
   const [selectedProofModal, setSelectedProofModal] = useState(null);
   const monthNamesIndo = [
     '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -1352,15 +1349,44 @@ export default function AdminDashboard({
       }
       if (!response.ok) throw new Error('Gagal mengambil daftar warga pending dari server.');
       const data = await response.json();
-      let items = [];
+      let rawItems = [];
       if (Array.isArray(data)) {
-        items = data;
+        rawItems = data;
+      } else if (data && Array.isArray(data.output?.pesan?.items)) {
+        rawItems = data.output.pesan.items;
+      } else if (data && Array.isArray(data.output?.pesan)) {
+        rawItems = data.output.pesan;
       } else if (data && Array.isArray(data.output)) {
-        items = data.output;
+        rawItems = data.output;
       } else if (data && Array.isArray(data.data)) {
-        items = data.data;
+        rawItems = data.data;
       }
-      setPendingWargaList(items);
+
+      // Deduplikasi ketat berdasarkan warga_id / id / nik
+      const uniqueItems = [];
+      const seenIds = new Set();
+      rawItems.forEach(item => {
+        if (!item) return;
+        const key = String(item.warga_id || item.id || item.nik || '');
+        if (key && !seenIds.has(key)) {
+          seenIds.add(key);
+          uniqueItems.push(item);
+        }
+      });
+
+      // Sort: Yang paling baru ditaruh di paling atas (reverse / descending sorting)
+      const sortedItems = [...uniqueItems].reverse();
+      sortedItems.sort((a, b) => {
+        const dateA = a.created_at || a.createdAt ? new Date(a.created_at || a.createdAt).getTime() : 0;
+        const dateB = b.created_at || b.createdAt ? new Date(b.created_at || b.createdAt).getTime() : 0;
+        if (dateA && dateB && dateA !== dateB) return dateB - dateA;
+        const idA = Number(a.warga_id || a.id) || 0;
+        const idB = Number(b.warga_id || b.id) || 0;
+        if (idA && idB && idA !== idB) return idB - idA;
+        return 0;
+      });
+
+      setPendingWargaList(sortedItems);
     } catch (err) {
       console.warn('Fetch pending warga error:', err);
       setPendingWargaError(err.message || 'Gagal memuat daftar warga pending.');
@@ -1368,37 +1394,6 @@ export default function AdminDashboard({
     } finally {
       setIsLoadingPendingWarga(false);
     }
-  };
-
-  const handleViewKtp = async (w) => {
-    const token = sessionStorage.getItem('rt_token');
-    let ktpImage = w.foto_ktp || w.fotoKtp || w.ktp_url || null;
-
-    const docId = w.ktp_document_id || w.warga_id || w.id;
-    if (docId && token) {
-      try {
-        const res = await fetch(`${API_BASE_URL}/admin/sensitifdata/file/${docId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          ktpImage = URL.createObjectURL(blob);
-        }
-      } catch (err) {
-        console.warn('Fetch secure KTP image error:', err);
-      }
-    }
-
-    setSelectedKtpWarga({
-      nama: w.nama || w.name,
-      nik: w.nik,
-      house_alamat: w.house_alamat || w.alamat,
-      jenis_kelamin: w.jenis_kelamin || w.gender,
-      foto_ktp: ktpImage || w.foto_ktp || w.fotoKtp,
-      foto: w.foto || w.avatar,
-      tgl_lahir: w.created_at ? `Tgl Daftar: ${w.created_at}` : 'DEPOK, 15-08-1998',
-      pekerjaan: w.pekerjaan || 'Wiraswasta'
-    });
   };
 
   const handleVerifyPendingWarga = async (targetItemOrId, statusAction) => {
@@ -1426,6 +1421,9 @@ export default function AdminDashboard({
     }
 
     const targetWarga = pendingWargaList.find(w => w.warga_id === targetId || w.id === targetId || String(w.warga_id) === String(targetId) || String(w.id) === String(targetId));
+
+    // Optimistically remove from pending list immediately
+    setPendingWargaList(prev => prev.filter(w => String(w.warga_id || w.id) !== String(targetId)));
 
     try {
       const response = await fetch(`${API_BASE_URL}/admin/pending-warga/${targetId}`, {
@@ -3515,8 +3513,8 @@ export default function AdminDashboard({
       confirmButtonText: 'Selesai & Tutup',
       confirmButtonColor: '#10b981',
       customClass: {
-        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-        title: 'text-lg font-black text-slate-900 dark:text-white'
+        popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+        title: 'text-lg font-black text-slate-900'
       },
       allowOutsideClick: false
     });
@@ -3548,8 +3546,8 @@ export default function AdminDashboard({
       confirmButtonText: 'Ya, Buat Akun',
       cancelButtonText: 'Batal',
       customClass: {
-        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-        title: 'text-lg font-black text-slate-900 dark:text-white',
+        popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+        title: 'text-lg font-black text-slate-900',
         confirmButton: 'font-bold text-xs px-4 py-2.5 rounded-xl',
         cancelButton: 'font-bold text-xs px-4 py-2.5 rounded-xl'
       }
@@ -3570,8 +3568,8 @@ export default function AdminDashboard({
         Swal.showLoading();
       },
       customClass: {
-        popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-        title: 'text-lg font-black text-slate-900 dark:text-white'
+        popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+        title: 'text-lg font-black text-slate-900'
       }
     });
 
@@ -3598,8 +3596,8 @@ export default function AdminDashboard({
           icon: 'warning',
           confirmButtonColor: '#f59e0b',
           customClass: {
-            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-            title: 'text-lg font-black text-slate-900 dark:text-white'
+            popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+            title: 'text-lg font-black text-slate-900'
           }
         });
         return;
@@ -3614,8 +3612,8 @@ export default function AdminDashboard({
           icon: 'error',
           confirmButtonColor: '#ef4444',
           customClass: {
-            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-            title: 'text-lg font-black text-slate-900 dark:text-white'
+            popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+            title: 'text-lg font-black text-slate-900'
           }
         });
         return;
@@ -3662,8 +3660,8 @@ export default function AdminDashboard({
         icon: 'error',
         confirmButtonColor: '#ef4444',
         customClass: {
-          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-          title: 'text-lg font-black text-slate-900 dark:text-white'
+          popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+          title: 'text-lg font-black text-slate-900'
         }
       });
     } finally {
@@ -3815,8 +3813,8 @@ export default function AdminDashboard({
         icon: 'success',
         confirmButtonColor: '#10b981',
         customClass: {
-          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-          title: 'text-lg font-black text-slate-900 dark:text-white'
+          popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+          title: 'text-lg font-black text-slate-900'
         }
       });
     } catch (err) {
@@ -3826,8 +3824,8 @@ export default function AdminDashboard({
         icon: 'error',
         confirmButtonColor: '#ef4444',
         customClass: {
-          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-          title: 'text-lg font-black text-slate-900 dark:text-white'
+          popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+          title: 'text-lg font-black text-slate-900'
         }
       });
     } finally {
@@ -3909,8 +3907,8 @@ export default function AdminDashboard({
             icon: 'warning',
             confirmButtonColor: '#f59e0b',
             customClass: {
-              popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-              title: 'text-lg font-black text-slate-900 dark:text-white'
+              popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+              title: 'text-lg font-black text-slate-900'
             }
           });
         }
@@ -3926,8 +3924,8 @@ export default function AdminDashboard({
           icon: 'error',
           confirmButtonColor: '#ef4444',
           customClass: {
-            popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-            title: 'text-lg font-black text-slate-900 dark:text-white'
+            popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+            title: 'text-lg font-black text-slate-900'
           }
         });
         return;
@@ -3961,8 +3959,8 @@ export default function AdminDashboard({
         icon: 'error',
         confirmButtonColor: '#ef4444',
         customClass: {
-          popup: 'rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white',
-          title: 'text-lg font-black text-slate-900 dark:text-white'
+          popup: 'rounded-3xl border border-slate-200 bg-white text-slate-900',
+          title: 'text-lg font-black text-slate-900'
         }
       });
     } finally {
@@ -5273,9 +5271,9 @@ export default function AdminDashboard({
 
   // Render Quick Actions Widget
   const renderQuickActions = (customClasses = "col-span-12 lg:col-span-3 p-4 sm:p-5 lg:p-6") => (
-    <div className={`bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6 ${customClasses}`}>
+    <div className={`bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl shadow-xs flex flex-col justify-between space-y-4 sm:space-y-6 ${customClasses}`}>
       <div className="space-y-1">
-        <h3 className="text-base font-bold text-slate-900 dark:text-white">
+        <h3 className="text-base font-bold text-slate-900">
           {isBendahara ? 'Quick Action Keuangan RT' : 'Quick Action Operasional RT'}
         </h3>
         <p className="text-[11px] sm:text-xs text-slate-400">
@@ -5289,7 +5287,7 @@ export default function AdminDashboard({
             {/* 1. Catat Bayar IPL */}
             <button
               onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5303,7 +5301,7 @@ export default function AdminDashboard({
             {/* 2. Verifikasi Setoran */}
             <button
               onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5317,7 +5315,7 @@ export default function AdminDashboard({
             {/* 3. Monitoring Kas */}
             <button
               onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 hover:border-emerald-500 text-emerald-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-emerald-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5331,7 +5329,7 @@ export default function AdminDashboard({
             {/* 4. Tunggakan Iuran */}
             <button
               onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500 text-amber-600 dark:text-amber-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-500 text-amber-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-amber-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5347,7 +5345,7 @@ export default function AdminDashboard({
             {/* 1. Tambah Warga */}
             <button
               onClick={() => { setActiveTab('warga'); openAddModal('warga'); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 dark:text-blue-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 hover:border-blue-500 text-blue-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-blue-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5361,7 +5359,7 @@ export default function AdminDashboard({
             {/* 2. Persetujuan Surat */}
             <button
               onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 dark:text-purple-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-500 text-purple-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-purple-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5382,7 +5380,7 @@ export default function AdminDashboard({
             {/* 3. Pembayaran IPL */}
             <button
               onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 dark:text-teal-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/20 hover:border-teal-500 text-teal-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-teal-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5396,7 +5394,7 @@ export default function AdminDashboard({
             {/* 4. Pengaduan */}
             <button
               onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
-              className="w-full p-3 sm:py-3 sm:px-3.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 dark:text-rose-400 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+              className="w-full p-3 sm:py-3 sm:px-3.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500 text-rose-600 font-bold text-xs rounded-2xl flex flex-col sm:flex-row items-center justify-center sm:justify-between text-center sm:text-left gap-2 group transition-all active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
             >
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3">
                 <div className="p-2 sm:p-1.5 bg-rose-500 text-white rounded-xl shadow-xs shrink-0">
@@ -5410,14 +5408,14 @@ export default function AdminDashboard({
         )}
       </div>
       
-      <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400 font-medium text-center">
+      <div className="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400 font-medium text-center">
         Klik pintasan di atas untuk membuka formulir operasional langsung.
       </div>
     </div>
   );
 
   // Render Demografi Kependudukan Widget (Bagan Donut Rasio Gender, Status Hunian, Tunggakan Aktif, dan Distribusi Usia)
-  const renderDemografiKependudukan = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", showTunggakan = false) => {
+  const renderDemografiKependudukan = (cardClassName = "bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", showTunggakan = false) => {
     if (isBendahara) return null;
     const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
     const totalPop = living.length || 1;
@@ -5496,11 +5494,11 @@ export default function AdminDashboard({
 
     // Donut Rasio Gender
     const genderBlock = (
-      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl h-full">
-        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO GENDER</span>
+      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 border border-slate-100 rounded-2xl h-full">
+        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-wider">RASIO GENDER</span>
         <div className="relative my-auto">
           <svg className="w-24 h-24 sm:w-28 sm:h-28 transform -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="" />
             <circle cx="50" cy="50" r="38" fill="transparent" stroke="#2563eb" strokeWidth="10"
               strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
               strokeLinecap="round"
@@ -5512,7 +5510,7 @@ export default function AdminDashboard({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{living.length}</span>
+            <span className="text-lg sm:text-xl font-black text-slate-900">{living.length}</span>
             <span className="text-[9px] font-bold text-slate-400 uppercase">Jiwa</span>
           </div>
         </div>
@@ -5520,16 +5518,16 @@ export default function AdminDashboard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-xs bg-[#2563eb]"></div>
-              <span className="text-slate-600 dark:text-slate-300">Laki-laki</span>
+              <span className="text-slate-600">Laki-laki</span>
             </div>
-            <span className="text-slate-900 dark:text-white font-bold">{male} ({malePct}%)</span>
+            <span className="text-slate-900 font-bold">{male} ({malePct}%)</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-xs bg-[#ed52cb]"></div>
-              <span className="text-slate-600 dark:text-slate-300">Perempuan</span>
+              <span className="text-slate-600">Perempuan</span>
             </div>
-            <span className="text-slate-900 dark:text-white font-bold">{female} ({femalePct}%)</span>
+            <span className="text-slate-900 font-bold">{female} ({femalePct}%)</span>
           </div>
         </div>
       </div>
@@ -5537,11 +5535,11 @@ export default function AdminDashboard({
 
     // Donut Status Hunian
     const hunianBlock = (
-      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl h-full">
-        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">STATUS HUNIAN</span>
+      <div className="flex flex-col items-center justify-between space-y-3 p-4 sm:p-5 bg-slate-50/70 border border-slate-100 rounded-2xl h-full">
+        <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-wider">STATUS HUNIAN</span>
         <div className="relative my-auto">
           <svg className="w-24 h-24 sm:w-28 sm:h-28 transform -rotate-90" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="" />
             <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="10"
               strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
               strokeLinecap="round"
@@ -5561,16 +5559,16 @@ export default function AdminDashboard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-xs bg-[#10b981]"></div>
-              <span className="text-slate-600 dark:text-slate-300">Tetap</span>
+              <span className="text-slate-600">Tetap</span>
             </div>
-            <span className="text-slate-900 dark:text-white font-bold">{tetap} ({tetapPct}%)</span>
+            <span className="text-slate-900 font-bold">{tetap} ({tetapPct}%)</span>
           </div>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-xs bg-[#f97316]"></div>
-              <span className="text-slate-600 dark:text-slate-300">Kontrak</span>
+              <span className="text-slate-600">Kontrak</span>
             </div>
-            <span className="text-slate-900 dark:text-white font-bold">{kontrak} ({kontrakPct}%)</span>
+            <span className="text-slate-900 font-bold">{kontrak} ({kontrakPct}%)</span>
           </div>
         </div>
       </div>
@@ -5578,23 +5576,23 @@ export default function AdminDashboard({
 
     // Widget Tunggakan Aktif
     const tunggakanBlock = (
-      <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between space-y-3 h-full">
+      <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col justify-between space-y-3 h-full">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="p-2.5 bg-rose-500/10 dark:bg-rose-950/40 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
+            <div className="p-2.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
               <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-md tracking-wider">
+            <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-md tracking-wider">
               IPL RT 05
             </span>
           </div>
 
           <div>
-            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+            <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">
               TUNGGAKAN AKTIF
             </span>
             <div className="flex items-baseline gap-2 mt-0.5">
-              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+              <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
                 {tunggakanPct}%
               </span>
               <span className="text-[11px] font-bold text-rose-500">
@@ -5605,24 +5603,24 @@ export default function AdminDashboard({
 
           {/* Progress bar */}
           <div className="space-y-1.5">
-            <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
               <div 
                 className="h-full bg-rose-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
                 style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
               ></div>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight">
+            <p className="text-[11px] text-slate-500 font-medium leading-tight">
               Warga dengan tunggakan belum terbayar
             </p>
           </div>
         </div>
 
         {/* Quick Link */}
-        <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
-          <span className="text-slate-500 dark:text-slate-400 font-medium">Status Kepatuhan:</span>
+        <div className="pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+          <span className="text-slate-500 font-medium">Status Kepatuhan:</span>
           <button
             onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
-            className="font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+            className="font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
           >
             <span>{kepatuhanPct}% Lunas</span>
             <ChevronRight className="w-3 h-3" />
@@ -5635,7 +5633,7 @@ export default function AdminDashboard({
     const ageBars = (
       <div className="space-y-3 font-sans">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+          <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-wider block">
             DISTRIBUSI KELOMPOK USIA
           </span>
           <span className="text-[10px] text-slate-400 font-semibold">
@@ -5651,14 +5649,14 @@ export default function AdminDashboard({
             { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, dotColor: 'bg-amber-500', barGradient: 'bg-amber-500' },
           ].map((ag, i) => (
             <div key={i} className="space-y-1">
-              <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-400">
+              <div className="flex justify-between items-center text-[11px] sm:text-xs font-bold text-slate-600">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${ag.dotColor}`}></span>
                   <span>{ag.label}</span>
                 </div>
-                <span className="text-slate-900 dark:text-white font-extrabold">{ag.count} orang ({ag.pct}%)</span>
+                <span className="text-slate-900 font-extrabold">{ag.count} orang ({ag.pct}%)</span>
               </div>
-              <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div className={`h-full ${ag.barGradient} rounded-full transition-all duration-700`} style={{ width: `${Math.max(ag.pct, living.length > 0 && ag.count > 0 ? 3 : 0)}%` }}></div>
               </div>
             </div>
@@ -5671,18 +5669,18 @@ export default function AdminDashboard({
       <div className={cardClassName}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <PieChart className="w-5 h-5 text-purple-600" />
               {showTunggakan ? 'Demografi Kependudukan & Kepatuhan Warga' : 'Demografi Kependudukan'}
             </h3>
-            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
               {showTunggakan
                 ? 'Statistik komposisi kependudukan berdasarkan gender, status hunian, kepatuhan iuran IPL, dan kelompok usia.'
                 : 'Statistik komposisi warga berdasarkan gender, usia, dan status hunian.'}
             </p>
           </div>
           {showTunggakan && (
-            <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 rounded-xl w-fit">
+            <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-purple-500/10 text-purple-600 border border-purple-500/20 rounded-xl w-fit">
               Data Terintegrasi RT 05
             </span>
           )}
@@ -5698,7 +5696,7 @@ export default function AdminDashboard({
             </div>
 
             {/* Bottom: Age Distribution in 2 Columns */}
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-4 border-t border-slate-100">
               {ageBars}
             </div>
           </div>
@@ -5708,7 +5706,7 @@ export default function AdminDashboard({
               {genderBlock}
               {hunianBlock}
             </div>
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+            <div className="pt-4 border-t border-slate-100">
               {ageBars}
             </div>
           </div>
@@ -5718,7 +5716,7 @@ export default function AdminDashboard({
   };
 
   // Render Arus Keuangan Kas RT Widget (Khusus Role Bendahara)
-  const renderArusKeuanganKasRT = (cardClassName = "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans") => {
+  const renderArusKeuanganKasRT = (cardClassName = "bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans") => {
     const dynIncome = totalPemasukan || 0;
     const dynExpense = totalPengeluaran || 0;
     const dynBalance = sisaKasRT ?? (dynIncome - dynExpense);
@@ -5737,17 +5735,17 @@ export default function AdminDashboard({
       <div className={cardClassName}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Activity className="w-5 h-5 text-emerald-500" />
               Arus Keuangan Kas RT
             </h3>
-            <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-1">
               Data keuangan diperbarui secara real-time dari database transaksi.
             </p>
           </div>
           <button
             onClick={() => setActiveTab('kas')}
-            className="text-[10px] font-bold uppercase px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer w-fit"
+            className="text-[10px] font-bold uppercase px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 border border-emerald-500/20 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer w-fit"
           >
             <span>Buku Kas RT</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -5756,32 +5754,32 @@ export default function AdminDashboard({
 
         {/* 3 Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 font-sans">
-          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 border border-slate-200/70 rounded-2xl text-center shadow-2xs">
             <TrendingUp className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
-            <span className="block text-sm sm:text-base md:text-lg font-black text-emerald-600 dark:text-emerald-400 truncate">
+            <span className="block text-sm sm:text-base md:text-lg font-black text-emerald-600 truncate">
               {formatRupiah(dynIncome)}
             </span>
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">
               PEMASUKAN
             </span>
           </div>
 
-          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 border border-slate-200/70 rounded-2xl text-center shadow-2xs">
             <TrendingDown className="w-5 h-5 text-rose-500 mx-auto mb-1" />
-            <span className="block text-sm sm:text-base md:text-lg font-black text-rose-500 dark:text-rose-400 truncate">
+            <span className="block text-sm sm:text-base md:text-lg font-black text-rose-500 truncate">
               {formatRupiah(dynExpense)}
             </span>
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">
               PENGELUARAN
             </span>
           </div>
 
-          <div className="p-3.5 sm:p-4 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/70 dark:border-slate-800 rounded-2xl text-center shadow-2xs">
+          <div className="p-3.5 sm:p-4 bg-slate-50/70 border border-slate-200/70 rounded-2xl text-center shadow-2xs">
             <Wallet className="w-5 h-5 text-sky-500 mx-auto mb-1" />
-            <span className={`block text-sm sm:text-base md:text-lg font-black truncate ${dynBalance >= 0 ? 'text-sky-600 dark:text-sky-400' : 'text-rose-500 dark:text-rose-400'}`}>
+            <span className={`block text-sm sm:text-base md:text-lg font-black truncate ${dynBalance >= 0 ? 'text-sky-600' : 'text-rose-500'}`}>
               {formatRupiah(dynBalance)}
             </span>
-            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5 block">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5 block">
               SALDO AKTIF
             </span>
           </div>
@@ -5790,21 +5788,21 @@ export default function AdminDashboard({
         {/* Progress bars */}
         <div className="space-y-3 font-sans">
           <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300">
+            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600">
               <span>PEMASUKAN (ARUS MASUK)</span>
               <span className="text-emerald-500 font-extrabold">{dynInPct}%</span>
             </div>
-            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${dynInPct}%` }}></div>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300">
+            <div className="flex justify-between text-[10px] sm:text-xs font-bold text-slate-600">
               <span>PENGELUARAN (ARUS KELUAR)</span>
               <span className="text-rose-500 font-extrabold">{dynOutPct}%</span>
             </div>
-            <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
               <div className="h-full bg-rose-500 rounded-full transition-all duration-700" style={{ width: `${dynOutPct}%` }}></div>
             </div>
           </div>
@@ -5813,13 +5811,13 @@ export default function AdminDashboard({
         {/* 2 Kolom Sejajar: Bagan Rasio (Kiri) & Card Tunggakan Aktif (Kanan) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-stretch pt-2 font-sans">
           {/* Kiri: Bagan Rasio Arus Keuangan */}
-          <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col items-center justify-between space-y-3 h-full">
-            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+          <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col items-center justify-between space-y-3 h-full">
+            <span className="text-[10px] sm:text-xs font-extrabold text-slate-400 uppercase tracking-wider">
               RASIO ARUS KEUANGAN
             </span>
             <div className="relative my-auto py-1">
               <svg className="w-28 h-28 sm:w-32 sm:h-32 transform -rotate-90" viewBox="0 0 100 100">
-                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="dark:stroke-slate-800" />
+                <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="" />
                 {dynInPct > 0 && (
                   <circle cx="50" cy="50" r="38" fill="transparent" stroke="#10b981" strokeWidth="9"
                     strokeDasharray={`${2.39 * dynInPct} ${239 - 2.39 * dynInPct}`}
@@ -5838,46 +5836,46 @@ export default function AdminDashboard({
                 )}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">RASIO</span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white mt-0.5">{dynInPct}:{dynOutPct}</span>
+                <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">RASIO</span>
+                <span className="text-xs sm:text-sm font-black text-slate-900 mt-0.5">{dynInPct}:{dynOutPct}</span>
               </div>
             </div>
             <div className="space-y-1.5 text-[10px] sm:text-xs w-full font-semibold mt-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-xs bg-emerald-500"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Pemasukan</span>
+                  <span className="text-slate-600">Pemasukan</span>
                 </div>
-                <span className="text-slate-900 dark:text-white font-bold">{dynInPct}%</span>
+                <span className="text-slate-900 font-bold">{dynInPct}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <div className="w-2.5 h-2.5 rounded-xs bg-rose-500"></div>
-                  <span className="text-slate-600 dark:text-slate-300">Pengeluaran</span>
+                  <span className="text-slate-600">Pengeluaran</span>
                 </div>
-                <span className="text-slate-900 dark:text-white font-bold">{dynOutPct}%</span>
+                <span className="text-slate-900 font-bold">{dynOutPct}%</span>
               </div>
             </div>
           </div>
 
           {/* Kanan: Card Tunggakan Aktif */}
-          <div className="p-4 sm:p-5 bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex flex-col justify-between space-y-3 h-full">
+          <div className="p-4 sm:p-5 bg-slate-50/70 border border-slate-100 rounded-2xl flex flex-col justify-between space-y-3 h-full">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="p-2.5 bg-rose-500/10 dark:bg-rose-950/40 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
+                <div className="p-2.5 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-xl w-fit shadow-xs">
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
-                <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 rounded-md tracking-wider">
+                <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-md tracking-wider">
                   IPL RT 05
                 </span>
               </div>
 
               <div>
-                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-wider block">
                   TUNGGAKAN AKTIF
                 </span>
                 <div className="flex items-baseline gap-2 mt-0.5">
-                  <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                  <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
                     {tunggakanPct}%
                   </span>
                   <span className="text-[11px] font-bold text-rose-500">
@@ -5888,24 +5886,24 @@ export default function AdminDashboard({
 
               {/* Progress bar */}
               <div className="space-y-1.5">
-                <div className="w-full h-2 bg-slate-200/80 dark:bg-slate-700/80 rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-slate-200/80 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-rose-500 rounded-full transition-all duration-700 shadow-xs shadow-rose-500/30"
                     style={{ width: `${Math.max(tunggakanPct, calcIplBelumLunas > 0 ? 5 : 0)}%` }}
                   ></div>
                 </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-tight">
+                <p className="text-[11px] text-slate-500 font-medium leading-tight">
                   Warga dengan tunggakan belum terbayar
                 </p>
               </div>
             </div>
 
             {/* Quick Link */}
-            <div className="pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Status Kepatuhan:</span>
+            <div className="pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
+              <span className="text-slate-500 font-medium">Status Kepatuhan:</span>
               <button
                 onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
-                className="font-bold text-rose-600 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
+                className="font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <span>{kepatuhanPct}% Lunas</span>
                 <ChevronRight className="w-3 h-3" />
@@ -5919,15 +5917,15 @@ export default function AdminDashboard({
 
   // Render Pusat Notifikasi & Perubahan RT Widget
   const renderPusatNotifikasi = (customClasses = "col-span-12 lg:col-span-4 p-5 sm:p-6") => (
-    <div className={`bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xs flex flex-col justify-between space-y-4 font-sans ${customClasses}`}>
+    <div className={`bg-white border border-slate-200/60 rounded-3xl shadow-xs flex flex-col justify-between space-y-4 font-sans ${customClasses}`}>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+          <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
             <Bell className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">Pusat Notifikasi & Perubahan RT</h3>
+            <h3 className="text-base font-extrabold text-slate-900">Pusat Notifikasi & Perubahan RT</h3>
             <p className="text-[10px] text-slate-400">Log operasional real-time IPL, Kegiatan, Jadwal, dan Data Kematian</p>
           </div>
         </div>
@@ -5955,7 +5953,7 @@ export default function AdminDashboard({
             className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
               adminNotifCategory === flt.id
                 ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
             {flt.label}
@@ -5973,8 +5971,8 @@ export default function AdminDashboard({
               onClick={() => setActiveTab(act.targetTab || 'overview')}
               className={`p-3.5 rounded-2xl border transition-all duration-200 flex items-start justify-between gap-3 cursor-pointer hover:scale-[1.01] group ${
                 act.isUrgent
-                  ? 'bg-rose-500/10 dark:bg-rose-950/20 border-rose-500/30'
-                  : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800 hover:border-emerald-500/40'
+                  ? 'bg-rose-500/10 border-rose-500/30'
+                  : 'bg-slate-50 border-slate-200/60 hover:border-emerald-500/40'
               }`}
             >
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -5999,19 +5997,19 @@ export default function AdminDashboard({
                 </div>
                 <div className="min-w-0 flex-1 space-y-0.5">
                   <div className="flex items-center justify-between gap-1.5">
-                    <h5 className="font-extrabold text-slate-900 dark:text-white text-xs group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                    <h5 className="font-extrabold text-slate-900 text-xs group-hover:text-emerald-600 transition-colors truncate">
                       {act.title}
                     </h5>
                     <span className="text-[9px] font-mono text-slate-400 shrink-0">{act.time}</span>
                   </div>
-                  <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 leading-relaxed line-clamp-2">
+                  <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed line-clamp-2">
                     {act.message}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center self-center shrink-0">
-                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                <span className="text-[10px] font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">
                   ↗
                 </span>
               </div>
@@ -6025,7 +6023,7 @@ export default function AdminDashboard({
         )}
       </div>
 
-      <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+      <div className="pt-2 text-[10px] text-slate-400 font-bold flex justify-between items-center border-t border-slate-100">
         <span>🟢 Live Real-Time Feed</span>
         <span>Klik item untuk menuju modul terkait</span>
       </div>
@@ -6033,17 +6031,17 @@ export default function AdminDashboard({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden">
       {/* Premium ambient glows */}
-      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 dark:bg-orange-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* Mobile Sticky Header Bar (< md) */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-orange-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-orange-200/60 px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer"
             aria-label="Buka Menu Navigasi"
           >
             <Menu className="w-5 h-5" />
@@ -6054,19 +6052,10 @@ export default function AdminDashboard({
               <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas Cinere</h1>
-              <span className="text-[9px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">RT 05 / RW 11</span>
+              <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas Cinere</h1>
+              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">RT 05 / RW 11</span>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
-            title="Ganti Mode Tampilan"
-          >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
-          </button>
         </div>
       </header>
 
@@ -6077,34 +6066,34 @@ export default function AdminDashboard({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-white dark:bg-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
-            <div className="p-4 border-b border-orange-200/80 dark:border-slate-800 flex items-center justify-between">
+          <aside className="relative w-72 max-w-[85vw] bg-white text-slate-800 h-full flex flex-col shadow-2xl z-10 overflow-y-auto">
+            <div className="p-4 border-b border-orange-200/80 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-1">
                   <img src={logoDepok} alt="Logo Depok" className="h-7 w-auto object-contain drop-shadow-xs" />
                   <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
                 </div>
                 <div>
-                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas</h1>
-                  <span className="text-[8px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Admin Portal • RT 05 / RW 11</span>
+                  <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas</h1>
+                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Admin Portal • RT 05 / RW 11</span>
                 </div>
               </div>
               <button
                 onClick={() => setIsMobileDrawerOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 cursor-pointer"
                 aria-label="Tutup Menu"
               >
                 <XIcon className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-slate-800/80 rounded-2xl border border-orange-200/80 dark:border-slate-700/60 shadow-xs flex items-center gap-3 backdrop-blur-md">
+            <div className="p-3 mx-3 my-3 bg-white/90 rounded-2xl border border-orange-200/80 shadow-xs flex items-center gap-3 backdrop-blur-md">
               <div className="w-8 h-8 rounded-xl bg-orange-500 text-white font-black flex items-center justify-center text-xs shadow-md shadow-orange-500/20">
                 AD
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-                <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">
+                <p className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</p>
+                <p className="text-[9px] text-orange-600 font-extrabold uppercase tracking-wider">
                   {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
                 </p>
               </div>
@@ -6117,8 +6106,8 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'overview'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -6130,8 +6119,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         activeTab === 'warga'
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                          ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                          : 'text-slate-600 hover:bg-slate-50'
                       }`}
                     >
                       <Users className="w-4 h-4 text-sky-400" />
@@ -6141,8 +6130,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                         activeTab === 'sek_warga_masuk'
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                          ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                          : 'text-slate-600 hover:bg-slate-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
@@ -6161,8 +6150,8 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'kas'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Wallet className="w-4 h-4 text-amber-400" />
@@ -6172,8 +6161,8 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'agenda'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Calendar className="w-4 h-4 text-purple-400" />
@@ -6183,8 +6172,8 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'layanan'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -6201,8 +6190,8 @@ export default function AdminDashboard({
                   onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaturan'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                      : 'text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   <Settings className="w-4 h-4 text-slate-400" />
@@ -6213,14 +6202,8 @@ export default function AdminDashboard({
 
             <div className="p-3 border-t border-slate-800 space-y-2">
               <button
-                onClick={() => { setDarkMode(!darkMode); setIsMobileDrawerOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
-              >
-                {darkMode ? <><Sun className="w-4 h-4 text-amber-400" /> Mode Terang</> : <><Moon className="w-4 h-4 text-indigo-400" /> Mode Gelap</>}
-              </button>
-              <button
                 onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Keluar Dashboard</span>
@@ -6231,27 +6214,27 @@ export default function AdminDashboard({
       )}
 
       {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-white dark:bg-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-64 bg-white text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         {/* Brand/Logo Header */}
-        <div className="p-6 border-b border-orange-200/50 dark:border-slate-800 flex items-center gap-3">
+        <div className="p-6 border-b border-orange-200/50 flex items-center gap-3">
           <div className="flex items-center gap-1.5 shrink-0">
             <img src={logoDepok} alt="Logo Kota Depok" className="h-9 w-auto object-contain drop-shadow-md" />
             <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-md" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xs text-slate-900 dark:text-white tracking-tight leading-tight">Villa Mutiara Mas</h1>
-            <span className="text-[9px] text-orange-600 dark:text-orange-400 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Admin Portal • RT 05 / RW 11</span>
+            <h1 className="font-extrabold text-xs text-slate-900 tracking-tight leading-tight">Villa Mutiara Mas</h1>
+            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Admin Portal • RT 05 / RW 11</span>
           </div>
         </div>
 
         {/* Admin Info */}
-        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-slate-900/60 rounded-2xl border border-orange-200/60 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/60 shadow-xs flex items-center gap-3 backdrop-blur-md">
           <div className="w-9 h-9 rounded-xl bg-orange-500 text-white font-black flex items-center justify-center text-sm shadow-md shadow-orange-500/20">
             AD
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-            <p className="text-[10px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">
+            <p className="text-xs font-bold text-slate-900 truncate">{currentUser.name}</p>
+            <p className="text-[10px] text-orange-600 font-extrabold uppercase tracking-wider">
               {currentUser.role === 'rt' || currentUser.role === 'admin' ? 'Ketua RT' : currentUser.role === 'sekertaris' ? 'Sekretaris' : 'Bendahara'}
             </p>
           </div>
@@ -6266,8 +6249,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -6278,7 +6261,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsIuranOpen(!isIuranOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Wallet className="w-4 h-4 text-amber-500" />
@@ -6288,67 +6271,67 @@ export default function AdminDashboard({
                 </button>
 
                 {isIuranOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('kas'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'kas' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'kas' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'kas' ? 'bg-orange-500 scale-125' : 'bg-slate-300'}`}></span>
                       <span>Monitoring & Transparansi Kas</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_jenis'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_jenis' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_jenis' ? 'bg-orange-500 scale-125' : 'bg-slate-300'}`}></span>
                       <span>Jenis Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_pembayaran' ? 'bg-orange-500 scale-125' : 'bg-slate-300'}`}></span>
                       <span>Catat Bayaran Warga</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_riwayat' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-300'}`}></span>
                       <span>Riwayat IPL</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_tunggakan' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-orange-500 scale-125' : 'bg-slate-300 dark:bg-slate-600'}`}></span>
+                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tunggakan' ? 'bg-orange-500 scale-125' : 'bg-slate-300'}`}></span>
                       <span>Tunggakan Iuran</span>
                     </button>
                     <button
                       onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_verifikasi' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6359,7 +6342,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('keuangan_qris'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'keuangan_qris' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6378,8 +6361,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -6390,7 +6373,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsWargaOpen(!isWargaOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Users className="w-4 h-4 text-sky-400" />
@@ -6400,12 +6383,12 @@ export default function AdminDashboard({
                 </button>
 
                 {isWargaOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'warga' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6416,8 +6399,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-550 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -6427,8 +6410,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-550 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -6449,7 +6432,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsSuratOpen(!isSuratOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <FileText className="w-4 h-4 text-sky-400" />
@@ -6466,13 +6449,13 @@ export default function AdminDashboard({
                 </button>
 
                 {isSuratOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'layanan' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -6485,18 +6468,6 @@ export default function AdminDashboard({
                         </span>
                       )}
                     </button>
-
-                    <button
-                      onClick={() => { setActiveTab('sek_surat_template'); setSearchQuery(''); }}
-                      className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
-                        activeTab === 'sek_surat_template' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_surat_template' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                      <span>Template Surat</span>
-                    </button>
                   </div>
                 )}
               </div>
@@ -6505,7 +6476,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Volume2 className="w-4 h-4 text-orange-500" />
@@ -6515,13 +6486,13 @@ export default function AdminDashboard({
                 </button>
 
                 {isInformasiOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_info_pengumuman' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_info_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -6531,8 +6502,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'agenda' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'agenda' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -6542,7 +6513,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_info_notulen'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_info_notulen' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6558,8 +6529,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_pengaduan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -6571,8 +6542,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_arsip'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -6584,8 +6555,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_laporan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -6597,8 +6568,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_akun_manage'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <User className="w-4 h-4 text-slate-400" />
@@ -6610,8 +6581,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'pengaturan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <Settings className="w-4 h-4 text-slate-500" />
@@ -6626,8 +6597,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('overview'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'overview'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -6638,7 +6609,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsWargaOpen(!isWargaOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Users className="w-4 h-4 text-sky-400" />
@@ -6648,13 +6619,13 @@ export default function AdminDashboard({
                 </button>
 
                 {isWargaOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('warga'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'warga' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'warga' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -6664,8 +6635,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_kk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'sek_warga_kk' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-550 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'sek_warga_kk' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -6675,8 +6646,8 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('sek_warga_masuk'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-between gap-2 ${
                         activeTab === 'sek_warga_masuk' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
-                          : 'text-slate-550 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50/30 dark:hover:bg-slate-800/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
+                          : 'text-slate-550 hover:text-slate-900 hover:bg-slate-50/30'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -6698,8 +6669,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('layanan'); setSearchQuery(''); }}
                 className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'layanan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -6719,8 +6690,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_info_pengumuman'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_info_pengumuman'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <Volume2 className="w-4 h-4 text-sky-400" />
@@ -6732,8 +6703,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('agenda'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'agenda'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <Calendar className="w-4 h-4 text-orange-500" />
@@ -6745,8 +6716,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_pengaduan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_pengaduan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -6758,8 +6729,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_arsip'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_arsip'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <FolderOpen className="w-4 h-4 text-purple-400" />
@@ -6771,8 +6742,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_laporan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_laporan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <BarChart3 className="w-4 h-4 text-pink-400" />
@@ -6783,7 +6754,7 @@ export default function AdminDashboard({
               <div>
                 <button
                   onClick={() => setIsIuranOpen(!isIuranOpen)}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3">
                     <Wallet className="w-4 h-4 text-amber-400" />
@@ -6793,12 +6764,12 @@ export default function AdminDashboard({
                 </button>
 
                 {isIuranOpen && (
-                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                  <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                     <button
                       onClick={() => { setActiveTab('iuran_pembayaran'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_pembayaran' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6809,7 +6780,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('iuran_riwayat'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_riwayat' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6820,7 +6791,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('iuran_tunggakan'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_tunggakan' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30'
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40'
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6831,7 +6802,7 @@ export default function AdminDashboard({
                       onClick={() => { setActiveTab('iuran_verifikasi'); setSearchQuery(''); }}
                       className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                         activeTab === 'iuran_verifikasi' 
-                          ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 font-bold border border-orange-200/40 dark:border-orange-500/30' 
+                          ? 'bg-orange-500/10 text-orange-600 font-bold border border-orange-200/40' 
                           : 'text-slate-400 hover:text-white hover:bg-slate-800/30'
                       }`}
                     >
@@ -6847,8 +6818,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('sek_akun_manage'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'sek_akun_manage'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <User className="w-4 h-4 text-slate-400" />
@@ -6860,8 +6831,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('rt_statistik'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'rt_statistik'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <TrendingUp className="w-4 h-4 text-teal-400" />
@@ -6873,8 +6844,8 @@ export default function AdminDashboard({
                 onClick={() => { setActiveTab('pengaturan'); setSearchQuery(''); }}
                 className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'pengaturan'
-                    ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white'
+                    ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <Settings className="w-4 h-4 text-slate-500" />
@@ -6885,29 +6856,11 @@ export default function AdminDashboard({
 
         </nav>
 
-        {/* Theme Toggle & Logout */}
-        <div className="p-4 border-t border-slate-800 space-y-2">
-          {/* Dark Mode toggle inside sidebar */}
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
-          >
-            {darkMode ? (
-              <>
-                <Sun className="w-4 h-4 text-amber-400" />
-                <span>Mode Terang</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span>Mode Gelap</span>
-              </>
-            )}
-          </button>
-
+        {/* Logout */}
+        <div className="p-4 border-t border-slate-200 space-y-2">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 dark:hover:bg-rose-900/30 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4" />
             <span>Keluar Dashboard</span>
@@ -6916,12 +6869,12 @@ export default function AdminDashboard({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 min-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 min-h-screen">
         
         {/* Header Ribbon */}
-        <header className="sticky top-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-orange-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-orange-200/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest font-mono">
+            <span className="text-xs font-bold text-orange-600 uppercase tracking-widest font-mono">
               {activeTab === 'overview' && 'KONTROL PANEL'}
               {activeTab === 'warga' && 'ADMINISTRASI PENDUDUK'}
               {activeTab === 'kas' && 'MONITORING KEUANGAN'}
@@ -6933,7 +6886,7 @@ export default function AdminDashboard({
               {activeTab.startsWith('keuangan_') && 'MANAJEMEN KEUANGAN'}
               {activeTab.startsWith('laporan_') && 'LAPORAN & EKSPOR'}
             </span>
-            <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">
               {activeTab === 'overview' && 'Ringkasan Portal Admin'}
               {activeTab === 'warga' && 'Daftar Warga & Keluarga'}
               {activeTab === 'kas' && 'Monitoring & Transparansi Kas RT'}
@@ -6955,11 +6908,11 @@ export default function AdminDashboard({
           </div>
           
           <div className="flex items-center gap-2.5 sm:gap-4">
-            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-450 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
+            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
               Live Sync
             </span>
-            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg text-xs font-bold items-center gap-1.5">
+            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 rounded-lg text-xs font-bold items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5" />
               Sesi Aktif
             </span>
@@ -6969,17 +6922,17 @@ export default function AdminDashboard({
         {/* Content body */}
         <div className="p-6 md:p-8 flex-1 space-y-6">
           {!isTabAllowedForRole(activeTab, currentUser.role) ? (
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-xl mt-12 animate-fade-in font-sans">
+            <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-3xl p-12 text-center max-w-xl mx-auto space-y-4 shadow-xl mt-12 animate-fade-in font-sans">
               <div className="w-16 h-16 bg-rose-500/10 text-rose-500 rounded-full flex items-center justify-center mx-auto">
                 <Lock className="w-8 h-8 animate-bounce-slow" />
               </div>
-              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">Akses Ditolak / Dibatasi</h3>
+              <h3 className="text-xl font-extrabold text-slate-900">Akses Ditolak / Dibatasi</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Peran Anda sebagai <span className="font-extrabold text-rose-500 capitalize">{currentUser.role === 'sekertaris' ? 'Sekretaris' : currentUser.role}</span> tidak diizinkan mengakses panel data ini. Fitur ini dibatasi ketat untuk mematuhi kedaulatan peran kepengurusan RT.
               </p>
               <button
                 onClick={() => setActiveTab('overview')}
-                className="py-2.5 px-6 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl cursor-pointer"
+                className="py-2.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
               >
                 Kembali ke Dashboard
               </button>
@@ -6987,16 +6940,16 @@ export default function AdminDashboard({
           ) : (
             <>
               {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
-              <div className="bg-orange-500/10 dark:bg-orange-950/40 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
-                <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 dark:bg-orange-400/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div className="bg-orange-500/10 border border-orange-500/20 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+                <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 <div className="space-y-1.5 z-10">
                   <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 bg-orange-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 dark:text-orange-200 border border-orange-500/20 dark:border-white/20">
+                    <span className="px-2.5 py-0.5 bg-orange-500/15 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 border border-orange-500/20">
                       Villa Mutiara Mas Cinere • RT 05 / RW 11
                     </span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-300 font-mono font-bold">● Live Sync</span>
+                    <span className="text-[10px] text-emerald-600 font-mono font-bold">● Live Sync</span>
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
+                  <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 capitalize">
                     {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 05 📋' : isBendahara ? 'Dasbor Keuangan & Kas RT 05 💰' : 'Dasbor Kontrol Pengurus RT 05 👋')}
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
                     {activeTab === 'kas' && 'Monitoring Keuangan & Transparansi Kas RT 💰'}
@@ -7004,7 +6957,6 @@ export default function AdminDashboard({
                     {activeTab === 'sek_warga_masuk' && 'Verifikasi Registrasi Warga Baru ✨'}
                     {activeTab === 'data_wizard' && 'Pendaftaran Rumah, KK & Warga ⚡'}
                     {activeTab === 'layanan' && 'Loket Persetujuan Surat Pengantar Warga 📝'}
-                    {activeTab === 'sek_surat_template' && 'Simulator & Pratinjau Kop Surat Resmi A4 📜'}
                     {activeTab === 'iuran_jenis' && 'Pengaturan Tarif & Nominal Iuran Bulanan IPL 💳'}
                     {activeTab === 'iuran_pembayaran' && 'Form Pencatatan Pembayaran Manual Warga ✍️'}
                     {activeTab === 'iuran_riwayat' && 'Riwayat & Log Setoran Pembayaran Iuran 📊'}
@@ -7025,7 +6977,7 @@ export default function AdminDashboard({
                     {activeTab === 'logs' && 'Log Audit Akses Pengurus 🛡️'}
                     {activeTab === 'pengaturan' && 'Pengaturan Keuangan & Kata Sandi ⚙️'}
                   </h3>
-                  <p className="text-xs text-slate-600 dark:text-orange-100 max-w-2xl leading-relaxed font-medium">
+                  <p className="text-xs text-slate-600 max-w-2xl leading-relaxed font-medium">
                     Sistem Portal Manajemen RT 05 Villa Mutiara Mas Cinere untuk kelancaran administrasi dan pelayanan warga.
                   </p>
                 </div>
@@ -7044,103 +6996,103 @@ export default function AdminDashboard({
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
                   
                   {/* 1. Total Warga */}
-                  <div className="bg-white dark:bg-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-orange-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                       <Users className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <span className="hidden" aria-hidden="true">{logsTrigger}</span>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{totalWarga}</span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">{totalWarga}</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
                     </div>
                   </div>
 
                   {/* 2. Total Kartu Keluarga */}
-                  <div className="bg-white dark:bg-slate-900 border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-blue-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-blue-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
                       <Landmark className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">{uniqueKKs}</span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">{uniqueKKs}</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
                     </div>
                   </div>
 
                   {/* 3. Total Rumah */}
-                  <div className="bg-white dark:bg-slate-900 border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-indigo-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
                       <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
                         {dashboardStats?.total_rumah || new Set(residentServerList.map(r => r.house_id || r.house_alamat || r.alamat).concat(wargaList.map(w => w.alamat))).size || 52}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
                     </div>
                   </div>
 
                   {/* 4. IPL Sudah Lunas */}
-                  <div className="bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-emerald-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-emerald-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
                       <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
-                        {calcIplLunas} <span className="text-xs text-emerald-600 dark:text-emerald-400 font-bold">KK</span>
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
+                        {calcIplLunas} <span className="text-xs text-emerald-600 font-bold">KK</span>
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
                     </div>
                   </div>
 
                   {/* 5. IPL Belum Lunas */}
-                  <div className="bg-white dark:bg-slate-900 border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-amber-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-amber-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
                       <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
                         {calcIplBelumLunas} <span className="text-xs text-rose-500 font-bold">KK</span>
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
                     </div>
                   </div>
 
                   {/* 6. Surat Masuk */}
-                  <div className="bg-white dark:bg-slate-900 border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-cyan-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-cyan-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
                       <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
                         {suratMasukList.length > 0 ? suratMasukList.length : (dashboardStats?.surat_masuk || 18)}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
                     </div>
                   </div>
 
                   {/* 7. Surat Keluar */}
-                  <div className="bg-white dark:bg-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-purple-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
                       <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
                         {suratKeluarList.length > 0 ? suratKeluarList.length : (dashboardStats?.surat_keluar || 34)}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
                     </div>
                   </div>
 
                   {/* 8. Pengaduan Aktif */}
-                  <div className="bg-white dark:bg-slate-900 border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="bg-white border border-rose-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                     <div className="p-2.5 sm:p-3.5 bg-rose-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
                       <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white leading-tight truncate">
+                      <span className="block text-xl sm:text-2xl font-black text-slate-900 leading-tight truncate">
                         {serverComplaints.filter(c => c.status !== 'Selesai').length || (dashboardStats?.pengaduan_aktif || 3)}
                       </span>
-                      <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
+                      <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
                     </div>
                   </div>
 
@@ -7152,7 +7104,7 @@ export default function AdminDashboard({
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                   {renderQuickActions("lg:col-span-5 p-4 sm:p-6 lg:p-8")}
                   <div className="lg:col-span-7">
-                    {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", false)}
+                    {renderDemografiKependudukan("bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", false)}
                   </div>
                 </div>
               ) : (
@@ -7166,11 +7118,11 @@ export default function AdminDashboard({
                   {/* Row 2: Demografi Kependudukan (Untuk RT/Admin) atau Arus Keuangan Kas RT (Khusus Bendahara) */}
                   {isBendahara ? (
                     <div>
-                      {renderArusKeuanganKasRT("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans")}
+                      {renderArusKeuanganKasRT("bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans")}
                     </div>
                   ) : (
                     <div>
-                      {renderDemografiKependudukan("bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", true)}
+                      {renderDemografiKependudukan("bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 font-sans", true)}
                     </div>
                   )}
                 </div>
@@ -7180,7 +7132,7 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 1. DATA KK */}
           {activeTab === 'sek_warga_kk' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               <div className="space-y-4">
                 {/* Search Bar, Account Filter & Actions */}
@@ -7191,17 +7143,17 @@ export default function AdminDashboard({
                       placeholder="Cari KK (No. KK, Nama Kepala, Username, Alamat)..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white max-w-xs w-full"
+                      className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 max-w-xs w-full"
                     />
 
                     {/* Filter Status Akun */}
-                    <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/60 dark:border-slate-700/60">
+                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
                       <button
                         onClick={() => setAccountFilter('all')}
                         className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer ${
                           accountFilter === 'all'
-                            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
-                            : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                            ? 'bg-white text-slate-900 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-900'
                         }`}
                       >
                         Semua ({residentServerList.length})
@@ -7211,7 +7163,7 @@ export default function AdminDashboard({
                         className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
                           accountFilter === 'has_account'
                             ? 'bg-emerald-500 text-white shadow-xs'
-                            : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                            : 'text-emerald-600 hover:bg-emerald-500/10'
                         }`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
@@ -7222,7 +7174,7 @@ export default function AdminDashboard({
                         className={`px-3 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
                           accountFilter === 'no_account'
                             ? 'bg-rose-500 text-white shadow-xs'
-                            : 'text-rose-600 dark:text-rose-400 hover:bg-rose-500/10'
+                            : 'text-rose-600 hover:bg-rose-500/10'
                         }`}
                       >
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-300"></span>
@@ -7234,7 +7186,7 @@ export default function AdminDashboard({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={fetchResidentServerList}
-                      className="px-3.5 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
                       title="Muat Ulang Data"
                     >
                       🔄 Refresh
@@ -7245,13 +7197,13 @@ export default function AdminDashboard({
                 {isLoadingResidents ? (
                   <div className="py-12 flex flex-col items-center justify-center gap-3">
                     <div className="w-8 h-8 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin"></div>
-                    <span className="text-slate-500 dark:text-slate-400 font-medium text-xs">Memuat data...</span>
+                    <span className="text-slate-500 font-medium text-xs">Memuat data...</span>
                   </div>
                 ) : residentError ? (
                   <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl flex flex-col items-center gap-3 text-center">
                     <AlertCircle className="w-8 h-8 text-red-500" />
                     <div className="space-y-1">
-                      <h5 className="font-bold text-slate-900 dark:text-white text-xs">Gagal Memuat Data</h5>
+                      <h5 className="font-bold text-slate-900 text-xs">Gagal Memuat Data</h5>
                       <p className="text-[10px] text-slate-400">{residentError}</p>
                     </div>
                     <button
@@ -7284,12 +7236,12 @@ export default function AdminDashboard({
 
                     if (filteredList.length === 0) {
                       return (
-                        <div className="py-12 px-4 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-3 bg-slate-50/50 dark:bg-slate-950/40">
-                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                        <div className="py-12 px-4 border border-slate-200/60 rounded-3xl text-center space-y-3 bg-slate-50/50">
+                          <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center mx-auto">
                             <Users className="w-6 h-6" />
                           </div>
                           <div className="space-y-1">
-                            <h5 className="font-extrabold text-slate-900 dark:text-white text-xs">Tidak Ada Data Kartu Keluarga</h5>
+                            <h5 className="font-extrabold text-slate-900 text-xs">Tidak Ada Data Kartu Keluarga</h5>
                             <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
                               {searchQuery || accountFilter !== 'all'
                                 ? 'Tidak ada data yang cocok dengan kriteria pencarian atau filter Anda.'
@@ -7299,7 +7251,7 @@ export default function AdminDashboard({
                           {(searchQuery || accountFilter !== 'all') && (
                             <button
                               onClick={() => { setSearchQuery(''); setAccountFilter('all'); }}
-                              className="py-1.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-white font-bold text-xs rounded-xl transition-all cursor-pointer"
+                              className="py-1.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
                             >
                               Reset Filter & Pencarian
                             </button>
@@ -7309,10 +7261,10 @@ export default function AdminDashboard({
                     }
 
                     return (
-                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                            <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                               <th className="p-4">No. Kartu Keluarga (KK)</th>
                               <th className="p-4">Kepala Keluarga</th>
                               <th className="p-4">Alamat Domisili Rumah</th>
@@ -7321,7 +7273,7 @@ export default function AdminDashboard({
                               <th className="p-4 text-right">Aksi</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          <tbody className="divide-y divide-slate-100">
                             {filteredList.map((r) => {
                               const id = r.family_id || r.id;
                               const noKK = r.no_kk || r.noKK;
@@ -7337,13 +7289,13 @@ export default function AdminDashboard({
                               const hasAccount = checkWargaHasAccount(r);
 
                               return (
-                                <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                  <td className="p-4 font-mono font-black text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                                <tr key={id} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="p-4 font-mono font-black text-slate-800 flex items-center gap-1.5">
                                     <span>{revealedKks[id] || noKK}</span>
                                     {noKK?.includes('x') && !revealedKks[id] && (
                                       <button
                                         onClick={() => handleRevealResident(id)}
-                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                        className="p-1 hover:bg-slate-100 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
                                         title="Buka Sensor KK"
                                       >
                                         <Eye className="w-3.5 h-3.5" />
@@ -7351,28 +7303,28 @@ export default function AdminDashboard({
                                     )}
                                   </td>
                                   <td className="p-4">
-                                    <div className="font-bold text-slate-700 dark:text-slate-300">{kepala}</div>
+                                    <div className="font-bold text-slate-700">{kepala}</div>
                                     <div className="text-[10px] text-slate-400">{nik}{noHp}</div>
                                   </td>
-                                  <td className="p-4 text-slate-550 dark:text-slate-400">{alamat}{blok}{nomor}</td>
+                                  <td className="p-4 text-slate-550">{alamat}{blok}{nomor}</td>
                                   <td className="p-4">
                                     <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] capitalize ${
                                       statusRumah === 'pribadi' || statusRumah === 'Tetap' || statusRumah === 'Milik Sendiri'
-                                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                        ? 'bg-emerald-500/10 text-emerald-600'
+                                        : 'bg-amber-500/10 text-amber-600'
                                     }`}>
                                       {statusRumah}
                                     </span>
                                   </td>
                                   <td className="p-4">
                                     {hasAccount ? (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
                                         <Check className="w-3 h-3 text-emerald-500" />
                                         Sudah Ada Akun
                                         {foundUsername ? ` (@${foundUsername})` : ''}
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
+                                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-500/10 text-rose-700 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
                                         <XIcon className="w-3 h-3 text-rose-500" />
                                         Belum Ada Akun
                                       </span>
@@ -7381,7 +7333,7 @@ export default function AdminDashboard({
                                   <td className="p-4 text-right flex justify-end items-center gap-1.5">
                                     <button
                                       onClick={() => setSelectedFamilyForDetail(r)}
-                                      className="py-1 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                      className="py-1 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
                                     >
                                       Detail
                                     </button>
@@ -7398,7 +7350,7 @@ export default function AdminDashboard({
 
                                     <button
                                       onClick={() => triggerPatchResidentKK(id, noKK)}
-                                      className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer"
+                                      className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-600 transition-all cursor-pointer"
                                     >
                                       Edit KK
                                     </button>
@@ -7418,15 +7370,15 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 2. PENDUDUK MASUK -> VERIFIKASI WARGA MANDIRI */}
           {activeTab === 'sek_warga_masuk' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Verifikasi Pendaftaran Warga Mandiri</h4>
+                  <h4 className="font-extrabold text-sm text-slate-900">Verifikasi Pendaftaran Warga Mandiri</h4>
                   <p className="text-[10px] text-slate-400">Tinjau dan setujui pendaftaran anggota keluarga baru yang diajukan secara mandiri oleh warga.</p>
                 </div>
                 <button
                   onClick={fetchPendingWargaList}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer"
                 >
                   🔄 Segarkan
                 </button>
@@ -7444,10 +7396,10 @@ export default function AdminDashboard({
               ) : pendingWargaList.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada pendaftaran warga baru yang menunggu verifikasi.</div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">Warga Baru</th>
                         <th className="p-4">NIK (Tersensor)</th>
                         <th className="p-4">Keluarga (KK)</th>
@@ -7456,24 +7408,24 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Tindakan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                      {pendingWargaList.map((w) => (
-                        <tr key={w.warga_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                    <tbody className="divide-y divide-slate-100">
+                      {pendingWargaList.map((w, idx) => (
+                        <tr key={w.warga_id || w.id || idx} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 space-y-1">
-                            <span className="font-bold text-slate-900 dark:text-white block">{w.nama}</span>
+                            <span className="font-bold text-slate-900 block">{w.nama}</span>
                             <span className="text-[10px] text-slate-400 block">{w.jenis_kelamin} • {w.umur} Tahun</span>
                           </td>
-                          <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400">{w.nik}</td>
+                          <td className="p-4 font-mono font-bold text-slate-600">{w.nik}</td>
                           <td className="p-4 font-sans space-y-0.5">
-                            <div className="font-bold text-slate-750 dark:text-slate-300">ID Keluarga: #{w.family_id}</div>
+                            <div className="font-bold text-slate-750">ID Keluarga: #{w.family_id}</div>
                             <div className="text-[10px] text-slate-450 font-mono">KK: {w.family_nokk}</div>
                           </td>
                           <td className="p-4 font-sans space-y-0.5">
-                            <div className="font-semibold text-slate-750 dark:text-slate-350">Blok {w.house_blok} No. {w.house_nomor}</div>
+                            <div className="font-semibold text-slate-750">Blok {w.house_blok} No. {w.house_nomor}</div>
                             <div className="text-[10px] text-slate-450 max-w-xs truncate">{w.house_alamat}</div>
                           </td>
                           <td className="p-4 text-center">
-                            <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse uppercase">
+                            <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] bg-amber-500/10 text-amber-600 animate-pulse uppercase">
                               {w.status}
                             </span>
                           </td>
@@ -7511,7 +7463,7 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 3. PENDUDUK KELUAR */}
           {activeTab === 'sek_warga_keluar' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -7528,7 +7480,7 @@ export default function AdminDashboard({
                   setPendudukKeluarForm({ name: '', date: new Date().toISOString().split('T')[0], address: '', destination: '', reason: '' });
                   alert('Catatan keluar berhasil disimpan!');
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+                className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-xl"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Catat Penduduk Keluar / Pindah</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
@@ -7540,7 +7492,7 @@ export default function AdminDashboard({
                       value={pendudukKeluarForm.name}
                       onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, name: e.target.value })}
                       placeholder="Contoh: Joni Iskandar"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                     />
                   </div>
                   <div className="space-y-1">
@@ -7549,7 +7501,7 @@ export default function AdminDashboard({
                       required
                       value={pendudukKeluarForm.date}
                       onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, date: e.target.value })}
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                     />
                   </div>
                   <div className="space-y-1">
@@ -7559,7 +7511,7 @@ export default function AdminDashboard({
                       value={pendudukKeluarForm.address}
                       onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, address: e.target.value })}
                       placeholder="Contoh: Blok A1 No. 3"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                     />
                   </div>
                   <div className="space-y-1">
@@ -7569,28 +7521,28 @@ export default function AdminDashboard({
                       value={pendudukKeluarForm.destination}
                       onChange={(e) => setPendudukKeluarForm({ ...pendudukKeluarForm, destination: e.target.value })}
                       placeholder="Contoh: Surabaya"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                     />
                   </div>
                 </div>
                 <button type="submit" className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl cursor-pointer">Simpan Warga Keluar</button>
               </form>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-405 tracking-wider">
+                    <tr className="bg-slate-50 border-b border-slate-200/60 font-extrabold uppercase text-slate-405 tracking-wider">
                       <th className="p-4">Tanggal Keluar</th>
                       <th className="p-4">Nama Penduduk</th>
                       <th className="p-4">Alamat Lama</th>
                       <th className="p-4">Tujuan / Keterangan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {pendudukKeluarList.map((p) => (
-                      <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                      <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-4 font-mono font-bold text-slate-500">{formatDateIndo(p.date)}</td>
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-205">{p.name}</td>
+                        <td className="p-4 font-bold text-slate-800">{p.name}</td>
                         <td className="p-4 text-slate-500">{p.address}</td>
                         <td className="p-4 text-slate-500">{p.destination} ({p.reason})</td>
                       </tr>
@@ -7603,53 +7555,17 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 4. SURAT MASUK */}
 
-          {/* SEKRETARIS: 6. TEMPLATE SURAT */}
-          {activeTab === 'sek_surat_template' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {[
-                  { name: 'Surat Pengantar KTP / KK', desc: 'Syarat pengurusan pembuatan KTP baru di Kelurahan Cinere dikarenakan baru pindah domisili ke wilayah RT 05.' },
-                  { name: 'Surat Keterangan Domisili Warga', desc: 'Syarat administratif pembukaan rekening bank baru dikarenakan domisili kerja di wilayah dekat perumahan.' },
-                  { name: 'Surat Pengantar Nikah', desc: 'Memberikan pengantar persetujuan pernikahan bagi warga yang bersangkutan di kantor urusan agama Kelurahan Cinere.' },
-                  { name: 'Surat Izin Keramaian', desc: 'Format permohonan izin menyelenggarakan acara / keramaian di lingkungan perumahan.' }
-                ].map((t, idx) => (
-                  <div key={idx} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
-                    <div className="space-y-1">
-                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Format Resmi RT</h4>
-                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{t.name}</h4>
-                      <p className="text-[10px] text-slate-500 leading-normal">{t.desc}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setPreviewingTemplate(t)}
-                        className="py-2 px-3.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-350 hover:text-emerald-500 font-extrabold text-[10px] rounded-xl cursor-pointer transition-colors"
-                      >
-                        Pratinjau Kop Surat
-                      </button>
-                      <button
-                        onClick={() => alert(`Mengunduh format ${t.name}.docx... (Simulasi Unduh Template)`)}
-                        className="py-2 px-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl cursor-pointer"
-                      >
-                        Unduh Format
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* SEKRETARIS: 7. KELOLA PENGUMUMAN */}
           {activeTab === 'sek_info_pengumuman' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Kelola Pengumuman RT</h4>
+                  <h4 className="font-extrabold text-sm text-slate-900">Kelola Pengumuman RT</h4>
                   <p className="text-[10px] text-slate-400">Buat, ubah, atau hapus pengumuman yang tampil di portal warga.</p>
                 </div>
                 <button
                   onClick={fetchServerAnnouncements}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer"
                 >
                   🔄 Segarkan
                 </button>
@@ -7658,7 +7574,7 @@ export default function AdminDashboard({
               {/* Create / Edit Form */}
               <form
                 onSubmit={editingAnnouncementId ? handleUpdateAnnouncement : handleCreateAnnouncement}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl"
+                className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-xl"
               >
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">
                   {editingAnnouncementId ? '✏️ Edit Pengumuman' : '📢 Buat Pengumuman Baru'}
@@ -7672,7 +7588,7 @@ export default function AdminDashboard({
                       value={announcementForm.judul}
                       onChange={(e) => setAnnouncementForm({ ...announcementForm, judul: e.target.value })}
                       placeholder="Contoh: Gotong Royong Minggu Depan"
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                     />
                   </div>
                   <div className="space-y-1">
@@ -7683,7 +7599,7 @@ export default function AdminDashboard({
                       value={announcementForm.isi}
                       onChange={(e) => setAnnouncementForm({ ...announcementForm, isi: e.target.value })}
                       placeholder="Tulis isi pengumuman secara lengkap..."
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white leading-relaxed"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 leading-relaxed"
                     />
                   </div>
                 </div>
@@ -7695,7 +7611,7 @@ export default function AdminDashboard({
                     <button
                       type="button"
                       onClick={() => { setEditingAnnouncementId(null); setAnnouncementForm({ judul: '', isi: '' }); }}
-                      className="py-2 px-4 bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold text-xs rounded-xl cursor-pointer"
+                      className="py-2 px-4 bg-slate-100 text-slate-500 font-bold text-xs rounded-xl cursor-pointer"
                     >
                       Batal
                     </button>
@@ -7719,23 +7635,23 @@ export default function AdminDashboard({
                     <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Belum ada pengumuman yang diterbitkan.</div>
                   ) : (
                     serverAnnouncements.map((a) => (
-                      <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
+                      <div key={a.id} className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-2">
                         <div className="flex justify-between items-start">
                           <div className="space-y-1 flex-1 min-w-0">
                             <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">ID #{a.id}</span>
-                            <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">{a.judul}</h4>
+                            <h4 className="font-extrabold text-sm text-slate-800">{a.judul}</h4>
                             <p className="text-[11px] text-slate-500 leading-relaxed">{a.isi}</p>
                           </div>
                           <div className="flex gap-1.5 flex-shrink-0 ml-3">
                             <button
                               onClick={() => { setEditingAnnouncementId(a.id); setAnnouncementForm({ judul: a.judul, isi: a.isi }); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                              className="py-1 px-2.5 bg-amber-50 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 hover:bg-amber-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-amber-100 dark:border-amber-900/30"
+                              className="py-1 px-2.5 bg-amber-50 text-amber-600 hover:bg-amber-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-amber-100"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeleteAnnouncement(a.id)}
-                              className="py-1 px-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100 dark:border-rose-900/30"
+                              className="py-1 px-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100"
                             >
                               Hapus
                             </button>
@@ -7751,12 +7667,12 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 8. NOTULEN RAPAT */}
           {activeTab === 'sek_info_notulen' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               {/* Header Tab */}
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-orange-500" />
                     Catatan Notulen Rapat Pengurus RT 📋
                   </h3>
@@ -7767,7 +7683,7 @@ export default function AdminDashboard({
                 <button
                   onClick={() => fetchNotulenList(notulenPagination.page || 1)}
                   disabled={isLoadingNotulen}
-                  className="py-1.5 px-3 border border-slate-200 dark:border-slate-800 hover:border-orange-500 text-slate-600 dark:text-slate-400 hover:text-orange-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                  className="py-1.5 px-3 border border-slate-200 hover:border-orange-500 text-slate-600 hover:text-orange-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 w-fit"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoadingNotulen ? 'animate-spin text-orange-500' : ''}`} />
                   <span>Segarkan</span>
@@ -7779,7 +7695,7 @@ export default function AdminDashboard({
                 <div id="notulen-form-container">
                   <form 
                     onSubmit={handleSaveNotulen}
-                    className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-2xl font-sans"
+                    className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-2xl font-sans"
                   >
                     <div className="flex items-center justify-between">
                       <h4 className="font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5">
@@ -7788,7 +7704,7 @@ export default function AdminDashboard({
                             <Edit className="w-3.5 h-3.5" /> Mode Edit: Perbarui Notulen #{editingNotulen.id}
                           </span>
                         ) : (
-                          <span className="text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
+                          <span className="text-slate-500 flex items-center gap-1.5">
                             <Plus className="w-3.5 h-3.5 text-orange-500" /> Catat Hasil Rapat Baru
                           </span>
                         )}
@@ -7807,7 +7723,7 @@ export default function AdminDashboard({
                     <div className="space-y-3.5 text-xs font-sans">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                         <div className="space-y-1">
-                          <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                          <label className="font-bold text-slate-700 flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5 text-orange-500" /> Tanggal Rapat *
                           </label>
                           <input
@@ -7815,13 +7731,13 @@ export default function AdminDashboard({
                             type="date"
                             value={notulenForm.tanggal_rapat}
                             onChange={(e) => setNotulenForm({ ...notulenForm, tanggal_rapat: e.target.value })}
-                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                           />
                         </div>
 
                         <div className="space-y-1">
                           <div className="flex justify-between items-center">
-                            <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                            <label className="font-bold text-slate-700 flex items-center gap-1">
                               <FileText className="w-3.5 h-3.5 text-orange-500" /> Topik Musyawarah *
                             </label>
                             <span className={`text-[10px] ${notulenForm.topik.length > 180 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
@@ -7835,20 +7751,20 @@ export default function AdminDashboard({
                             value={notulenForm.topik}
                             onChange={(e) => setNotulenForm({ ...notulenForm, topik: e.target.value })}
                             placeholder="Contoh: Persiapan kerja bakti lingkungan"
-                            className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                           />
                         </div>
                       </div>
 
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-700 dark:text-slate-300">Hasil Musyawarah / Keputusan Rapat *</label>
+                        <label className="font-bold text-slate-700">Hasil Musyawarah / Keputusan Rapat *</label>
                         <textarea
                           required
                           rows={3}
                           value={notulenForm.hasil_keputusan}
                           onChange={(e) => setNotulenForm({ ...notulenForm, hasil_keputusan: e.target.value })}
                           placeholder="Tulis keputusan penting, rencana aksi, atau hasil kesepakatan rapat..."
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white leading-relaxed"
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 leading-relaxed"
                         />
                       </div>
                     </div>
@@ -7880,7 +7796,7 @@ export default function AdminDashboard({
                         <button
                           type="button"
                           onClick={handleCancelEditNotulen}
-                          className="py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-all"
+                          className="py-2.5 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
                         >
                           Batal
                         </button>
@@ -7891,7 +7807,7 @@ export default function AdminDashboard({
               )}
 
               {/* Filter Tanggal & Ringkasan */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 dark:bg-slate-950/30 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold text-slate-500 flex items-center gap-1 text-[11px]">
                     <Filter className="w-3.5 h-3.5 text-orange-500" /> Filter Tanggal:
@@ -7900,14 +7816,14 @@ export default function AdminDashboard({
                     type="date"
                     value={notulenFilterDate.date_from}
                     onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_from: e.target.value })}
-                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
+                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs outline-none text-slate-800"
                   />
                   <span className="text-slate-400 text-xs">s/d</span>
                   <input
                     type="date"
                     value={notulenFilterDate.date_to}
                     onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_to: e.target.value })}
-                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs outline-none text-slate-800 dark:text-slate-200"
+                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs outline-none text-slate-800"
                   />
                   <button
                     onClick={() => fetchNotulenList(1, notulenFilterDate.date_from, notulenFilterDate.date_to)}
@@ -7921,7 +7837,7 @@ export default function AdminDashboard({
                         setNotulenFilterDate({ date_from: '', date_to: '' });
                         fetchNotulenList(1, '', '');
                       }}
-                      className="px-2.5 py-1 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-600 dark:text-slate-400 font-bold rounded-lg text-[11px] cursor-pointer"
+                      className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold rounded-lg text-[11px] cursor-pointer"
                     >
                       Reset
                     </button>
@@ -7935,17 +7851,17 @@ export default function AdminDashboard({
               </div>
 
               {/* Tabel Notulen Rapat */}
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4 w-36">Tanggal Rapat</th>
                       <th className="p-4 w-1/3">Topik Musyawarah</th>
                       <th className="p-4">Hasil / Keputusan Rapat</th>
                       <th className="p-4 text-center w-28">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {isLoadingNotulen ? (
                       <tr>
                         <td colSpan={4} className="p-12 text-center">
@@ -7957,7 +7873,7 @@ export default function AdminDashboard({
                       </tr>
                     ) : notulenList.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="p-8 text-center text-slate-400 dark:text-slate-500 italic font-semibold">
+                        <td colSpan={4} className="p-8 text-center text-slate-400 italic font-semibold">
                           Belum ada catatan notulen rapat yang tersimpan.
                         </td>
                       </tr>
@@ -7969,15 +7885,15 @@ export default function AdminDashboard({
                         const decisionText = n.hasil_keputusan || n.decisions || '-';
 
                         return (
-                          <tr key={n.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 font-mono font-bold text-slate-600 dark:text-slate-400 text-xs whitespace-nowrap">
+                          <tr key={n.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-600 text-xs whitespace-nowrap">
                               {formattedDate}
                             </td>
-                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200 text-xs">
+                            <td className="p-4 font-bold text-slate-800 text-xs">
                               {topikText}
                             </td>
-                            <td className="p-4 text-slate-600 dark:text-slate-400 text-xs">
-                              <div className="line-clamp-2 max-w-md cursor-pointer hover:text-slate-900 dark:hover:text-white" onClick={() => setViewingNotulenDetail(n)} title="Klik untuk membaca detail lengkap">
+                            <td className="p-4 text-slate-600 text-xs">
+                              <div className="line-clamp-2 max-w-md cursor-pointer hover:text-slate-900" onClick={() => setViewingNotulenDetail(n)} title="Klik untuk membaca detail lengkap">
                                 {decisionText}
                               </div>
                             </td>
@@ -7986,7 +7902,7 @@ export default function AdminDashboard({
                                 <button
                                   onClick={() => setViewingNotulenDetail(n)}
                                   title="Lihat Detail Lengkap"
-                                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 rounded-lg transition-colors cursor-pointer"
+                                  className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </button>
@@ -7995,14 +7911,14 @@ export default function AdminDashboard({
                                     <button
                                       onClick={() => handleEditNotulen(n)}
                                       title="Edit Notulen"
-                                      className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                                     >
                                       <Edit className="w-4 h-4" />
                                     </button>
                                     <button
                                       onClick={() => handleDeleteNotulen(n)}
                                       title="Hapus Notulen Permanen"
-                                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </button>
@@ -8019,7 +7935,7 @@ export default function AdminDashboard({
 
                 {/* Kontrol Paginasi */}
                 {notulenPagination && notulenPagination.total_pages > 1 && (
-                  <div className="p-4 flex items-center justify-between border-t border-slate-200/60 dark:border-slate-800 text-xs font-bold text-slate-500">
+                  <div className="p-4 flex items-center justify-between border-t border-slate-200/60 text-xs font-bold text-slate-500">
                     <span>
                       Halaman {notulenPagination.page} dari {notulenPagination.total_pages} ({notulenPagination.total} Total Notulen)
                     </span>
@@ -8027,14 +7943,14 @@ export default function AdminDashboard({
                       <button
                         disabled={notulenPagination.page <= 1 || isLoadingNotulen}
                         onClick={() => fetchNotulenList(notulenPagination.page - 1)}
-                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
                       >
                         Sebelumnya
                       </button>
                       <button
                         disabled={notulenPagination.page >= notulenPagination.total_pages || isLoadingNotulen}
                         onClick={() => fetchNotulenList(notulenPagination.page + 1)}
-                        className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                        className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
                       >
                         Selanjutnya
                       </button>
@@ -8046,20 +7962,20 @@ export default function AdminDashboard({
               {/* Modal Detail Notulen Rapat */}
               {viewingNotulenDetail && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up font-sans">
-                    <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-slate-800 pb-3">
+                  <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up font-sans">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
                       <div className="flex items-center gap-2">
                         <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
                           <FileText className="w-5 h-5" />
                         </div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Detail Notulen Rapat</h4>
+                          <h4 className="font-extrabold text-sm text-slate-900">Detail Notulen Rapat</h4>
                           <p className="text-[10px] text-slate-400">ID #{viewingNotulenDetail.id}</p>
                         </div>
                       </div>
                       <button
                         onClick={() => setViewingNotulenDetail(null)}
-                        className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg cursor-pointer"
+                        className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -8068,24 +7984,24 @@ export default function AdminDashboard({
                     <div className="space-y-3.5 text-xs">
                       <div>
                         <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Tanggal Pelaksanaan</label>
-                        <div className="mt-1 font-mono font-bold text-slate-800 dark:text-slate-200">
+                        <div className="mt-1 font-mono font-bold text-slate-800">
                           {formatDateIndo(viewingNotulenDetail.tanggal_rapat || viewingNotulenDetail.date)}
                         </div>
                       </div>
                       <div>
                         <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Agenda / Topik Musyawarah</label>
-                        <div className="mt-1 font-bold text-slate-900 dark:text-white text-sm">
+                        <div className="mt-1 font-bold text-slate-900 text-sm">
                           {viewingNotulenDetail.topik || viewingNotulenDetail.title}
                         </div>
                       </div>
                       <div>
                         <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Hasil / Keputusan Musyawarah</label>
-                        <div className="mt-1 p-3.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800 rounded-xl whitespace-pre-wrap text-slate-700 dark:text-slate-300 leading-relaxed max-h-60 overflow-y-auto">
+                        <div className="mt-1 p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl whitespace-pre-wrap text-slate-700 leading-relaxed max-h-60 overflow-y-auto">
                           {viewingNotulenDetail.hasil_keputusan || viewingNotulenDetail.decisions}
                         </div>
                       </div>
                       {(viewingNotulenDetail.created_at || viewingNotulenDetail.updated_at) && (
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[10px] text-slate-400">
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
                           <span>Dibuat: {viewingNotulenDetail.created_at ? new Date(viewingNotulenDetail.created_at).toLocaleString('id-ID') : '-'}</span>
                           <span>Diperbarui: {viewingNotulenDetail.updated_at ? new Date(viewingNotulenDetail.updated_at).toLocaleString('id-ID') : '-'}</span>
                         </div>
@@ -8095,7 +8011,7 @@ export default function AdminDashboard({
                     <div className="flex justify-end pt-2">
                       <button
                         onClick={() => setViewingNotulenDetail(null)}
-                        className="py-2 px-5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl cursor-pointer transition-all"
+                        className="py-2 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
                       >
                         Tutup
                       </button>
@@ -8109,15 +8025,15 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 9. PENGADUAN WARGA */}
           {activeTab === 'sek_pengaduan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
                 <div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Daftar Pengaduan Warga</h4>
+                  <h4 className="font-extrabold text-sm text-slate-900">Daftar Pengaduan Warga</h4>
                   <p className="text-[10px] text-slate-400">Review aspirasi, laporan, atau pengajuan surat pengantar dari KK warga.</p>
                 </div>
                 <button
                   onClick={fetchServerComplaints}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer"
                 >
                   🔄 Segarkan
                 </button>
@@ -8133,10 +8049,10 @@ export default function AdminDashboard({
                   {complaintsError}
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">ID / KK</th>
                         <th className="p-4">Kategori Laporan</th>
                         <th className="p-4">Deskripsi Aduan / Keperluan</th>
@@ -8144,28 +8060,28 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Tindakan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {serverComplaints.map((c) => (
-                        <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                        <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 font-mono font-bold space-y-1">
-                            <div className="text-slate-800 dark:text-slate-200">#ADU-{c.id}</div>
+                            <div className="text-slate-800">#ADU-{c.id}</div>
                             <div className="text-[10px] text-slate-450">KK: {c.no_kk || '-'}</div>
                           </td>
-                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">
-                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-850 text-slate-500 text-[10px]">
+                          <td className="p-4 font-bold text-slate-700">
+                            <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px]">
                               {c.jenis}
                             </span>
                           </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-350 max-w-xs truncate" title={c.keperluan}>
+                          <td className="p-4 text-slate-600 max-w-xs truncate" title={c.keperluan}>
                             {c.keperluan}
                           </td>
                           <td className="p-4 text-center">
                             <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize ${
                               c.status === 'disetujui'
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                                ? 'bg-emerald-500/10 text-emerald-600'
                                 : c.status === 'ditolak'
-                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-450'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
+                                ? 'bg-rose-500/10 text-rose-600'
+                                : 'bg-amber-500/10 text-amber-600 animate-pulse'
                             }`}>
                               {c.status}
                             </span>
@@ -8181,7 +8097,7 @@ export default function AdminDashboard({
                                 </button>
                                 <button
                                   onClick={() => handleUpdateComplaintStatus(c.id, 'ditolak')}
-                                  className="py-1 px-2.5 bg-rose-50 dark:bg-rose-950/20 text-rose-600 dark:text-rose-400 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100 dark:border-rose-900/30"
+                                  className="py-1 px-2.5 bg-rose-50 text-rose-600 hover:bg-rose-500 hover:text-white text-[9px] font-bold rounded-lg cursor-pointer transition-colors border border-rose-100"
                                 >
                                   Tolak
                                 </button>
@@ -8209,11 +8125,11 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 10. ARSIP FILE & MEDIA */}
           {activeTab === 'sek_arsip' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="text-lg font-black text-slate-800 dark:text-white">Arsip Media & Dokumentasi Kegiatan</h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  <h3 className="text-lg font-black text-slate-800">Arsip Media & Dokumentasi Kegiatan</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Unggah dokumentasi foto dan video lingkungan RT yang otomatis tampil di beranda publik.
                   </p>
                 </div>
@@ -8221,7 +8137,7 @@ export default function AdminDashboard({
                   type="button"
                   onClick={fetchArsipMediaList}
                   disabled={isArsipLoading}
-                  className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer self-start sm:self-auto"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isArsipLoading ? 'animate-spin' : ''}`} />
                   <span>Segarkan</span>
@@ -8323,7 +8239,7 @@ export default function AdminDashboard({
                     setIsArsipUploading(false);
                   }
                 }}
-                className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-2xl font-sans"
+                className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-2xl font-sans"
               >
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Unggah Dokumentasi Baru</h4>
@@ -8342,7 +8258,7 @@ export default function AdminDashboard({
                       value={arsipForm.judul || ''}
                       onChange={(e) => setArsipForm({ ...arsipForm, judul: e.target.value })}
                       placeholder="Ketik judul dokumentasi..."
-                      className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                     />
                   </div>
                   
@@ -8359,7 +8275,7 @@ export default function AdminDashboard({
                             setArsipForm({ ...arsipForm, kategori: 'Dokumentasi Umum' });
                           }
                         }}
-                        className="text-[10px] text-orange-600 dark:text-orange-400 font-bold hover:underline cursor-pointer"
+                        className="text-[10px] text-orange-600 font-bold hover:underline cursor-pointer"
                       >
                         {isCustomKategori ? '← Pilih dari Daftar' : '+ Ketik Kategori Lain'}
                       </button>
@@ -8373,7 +8289,7 @@ export default function AdminDashboard({
                         value={arsipForm.kategori || ''}
                         onChange={(e) => setArsipForm({ ...arsipForm, kategori: e.target.value })}
                         placeholder="Ketik kategori kustom..."
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-orange-500/50 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 bg-white border border-orange-500/50 rounded-xl outline-none font-bold text-xs text-slate-900"
                       />
                     ) : (
                       <select
@@ -8387,7 +8303,7 @@ export default function AdminDashboard({
                             setArsipForm({ ...arsipForm, kategori: e.target.value });
                           }
                         }}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white cursor-pointer"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900 cursor-pointer"
                       >
                         {PRESET_KATEGORI_ARSIP.map((kat) => (
                           <option key={kat} value={kat}>{kat}</option>
@@ -8414,7 +8330,7 @@ export default function AdminDashboard({
                         });
                       }
                     }}
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white text-xs"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 text-xs"
                   />
                 </div>
 
@@ -8444,10 +8360,10 @@ export default function AdminDashboard({
                   {isArsipLoading && <span className="text-orange-500 animate-pulse">Memuat data...</span>}
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse font-sans">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">ID</th>
                         <th className="p-4">Judul & Nama File</th>
                         <th className="p-4">Kategori</th>
@@ -8457,7 +8373,7 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Tindakan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {arsipFileList.length === 0 ? (
                         <tr>
                           <td colSpan={7} className="p-8 text-center text-slate-400 font-medium">
@@ -8473,22 +8389,22 @@ export default function AdminDashboard({
                             : (a.size || '-');
 
                           return (
-                            <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                            <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 font-mono font-bold text-slate-500">#{a.id}</td>
                               <td className="p-4">
-                                <div className="font-bold text-slate-800 dark:text-slate-200 line-clamp-1">{a.judul || a.name}</div>
+                                <div className="font-bold text-slate-800 line-clamp-1">{a.judul || a.name}</div>
                                 {a.original_name && <div className="text-[10px] text-slate-400 font-mono">{a.original_name}</div>}
                               </td>
                               <td className="p-4">
-                                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[10px]">
+                                <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-[10px]">
                                   {a.kategori || a.category || 'Umum'}
                                 </span>
                               </td>
                               <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded-md font-bold text-[10px] inline-flex items-center gap-1 ${
                                   isVid 
-                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20' 
-                                    : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                                    ? 'bg-purple-500/10 text-purple-600 border border-purple-500/20' 
+                                    : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'
                                 }`}>
                                   {isVid ? '🎬 Video' : '📸 Foto'}
                                 </span>
@@ -8563,14 +8479,14 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 11. LAPORAN KEPENDUDUKAN */}
           {activeTab === 'sek_laporan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 font-sans">
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-1">
-                  <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.statusHidup !== 'Meninggal').length} Orang</span>
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800">{wargaList.filter(w => w.statusHidup !== 'Meninggal').length} Orang</span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Penduduk Hidup</span>
                 </div>
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl text-center space-y-1">
-                  <span className="block text-2xl font-black text-slate-800 dark:text-white">
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800">
                     {(() => {
                       const kks = new Set(wargaList.map(w => w.noKk).filter(Boolean));
                       return kks.size;
@@ -8578,14 +8494,14 @@ export default function AdminDashboard({
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Kepala Keluarga</span>
                 </div>
-                <div className="p-5 bg-slate-50 dark:bg-slate-950/30 border border-slate-200/60 dark:border-emerald-800/80 rounded-3xl text-center space-y-1">
-                  <span className="block text-2xl font-black text-slate-800 dark:text-white">{wargaList.filter(w => w.status === 'Kontrak').length} Rumah</span>
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl text-center space-y-1">
+                  <span className="block text-2xl font-black text-slate-800">{wargaList.filter(w => w.status === 'Kontrak').length} Rumah</span>
                   <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Rumah Sewa / Kontrak</span>
                 </div>
               </div>
 
               {/* Gender and residency structure */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-200/60 dark:border-slate-800">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-200/60">
                 <div className="space-y-3">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
                   <div className="space-y-1.5">
@@ -8593,7 +8509,7 @@ export default function AdminDashboard({
                       <span>Laki-laki</span>
                       <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Warga</span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div className="bg-sky-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
                     </div>
                   </div>
@@ -8602,7 +8518,7 @@ export default function AdminDashboard({
                       <span>Perempuan</span>
                       <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Warga</span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div className="bg-pink-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
                     </div>
                   </div>
@@ -8611,11 +8527,11 @@ export default function AdminDashboard({
                 <div className="space-y-3">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Status Kependudukan</h4>
                   <div className="space-y-2">
-                    <div className="flex justify-between font-semibold border-b border-slate-100 dark:border-slate-800 pb-1">
+                    <div className="flex justify-between font-semibold border-b border-slate-100 pb-1">
                       <span className="text-slate-500">Penduduk Tetap</span>
                       <span className="font-bold">{wargaList.filter(w => w.status === 'Tetap').length} Orang</span>
                     </div>
-                    <div className="flex justify-between font-semibold border-b border-slate-100 dark:border-slate-800 pb-1">
+                    <div className="flex justify-between font-semibold border-b border-slate-100 pb-1">
                       <span className="text-slate-500">Penduduk Kontrak</span>
                       <span className="font-bold">{wargaList.filter(w => w.status === 'Kontrak').length} Orang</span>
                     </div>
@@ -8631,16 +8547,16 @@ export default function AdminDashboard({
 
           {/* SEKRETARIS: 12. MANAJEMEN KREDENSIAL LOGIN */}
           {activeTab === 'sek_akun_manage' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3">
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Manajemen Akun Portal</h4>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-3">
+                <h4 className="font-extrabold text-sm text-slate-900">Manajemen Akun Portal</h4>
                 <p className="text-[10px] text-slate-400">Atur kredensial login warga atau buat akun kepengurusan staff baru.</p>
               </div>
 
               {currentUser.role === 'rt' && (
                 <form
                   onSubmit={handleCreateStaffAccount}
-                  className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 max-w-xl text-xs sm:text-sm mb-6"
+                  className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-xl text-xs sm:text-sm mb-6"
                 >
                   <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">📢 Buat Akun Pengurus Baru (Sekretaris / Bendahara)</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -8652,7 +8568,7 @@ export default function AdminDashboard({
                         value={staffForm.username}
                         onChange={(e) => setStaffForm({ ...staffForm, username: e.target.value })}
                         placeholder="Contoh: bendahara_rt04"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                       />
                     </div>
                     <div className="space-y-1">
@@ -8663,7 +8579,7 @@ export default function AdminDashboard({
                         value={staffForm.password}
                         onChange={(e) => setStaffForm({ ...staffForm, password: e.target.value })}
                         placeholder="Minimal 8 karakter"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                       />
                     </div>
                     <div className="space-y-1">
@@ -8674,7 +8590,7 @@ export default function AdminDashboard({
                         value={staffForm.email}
                         onChange={(e) => setStaffForm({ ...staffForm, email: e.target.value })}
                         placeholder="Contoh: staff@gmail.com"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900"
                       />
                     </div>
                     <div className="space-y-1">
@@ -8682,7 +8598,7 @@ export default function AdminDashboard({
                       <select
                         value={staffForm.role}
                         onChange={(e) => setStaffForm({ ...staffForm, role: e.target.value })}
-                        className="w-full px-3 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs animate-none"
+                        className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs animate-none"
                       >
                         <option value="sekertaris">Sekretaris (sekertaris)</option>
                         <option value="bendahara">Bendahara (bendahara)</option>
@@ -8698,26 +8614,26 @@ export default function AdminDashboard({
                 </form>
               )}
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Nama Penduduk</th>
                       <th className="p-4">Username Login</th>
                       <th className="p-4">Sandi Warga (Plain)</th>
                       <th className="p-4 text-right">Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {wargaList.filter(w => w.statusHidup !== 'Meninggal').map((w) => (
-                      <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                        <td className="p-4 font-bold text-slate-800 dark:text-slate-100">{w.name}</td>
+                      <tr key={w.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-4 font-bold text-slate-800">{w.name}</td>
                         <td className="p-4 font-mono text-slate-500 font-bold">@{w.username || 'warga'}</td>
                         <td className="p-4 font-mono text-slate-400">•••••••• (Sandi: {w.password})</td>
                         <td className="p-4 text-right font-sans flex justify-end gap-1.5">
                           <button 
                             onClick={() => openRegisterAccountModal(w)}
-                            className="py-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-bold text-[9px] rounded-lg cursor-pointer"
+                            className="py-1 px-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 font-bold text-[9px] rounded-lg cursor-pointer"
                           >
                             Daftarkan Akun
                           </button>
@@ -8730,7 +8646,7 @@ export default function AdminDashboard({
                                 alert(`Sandi ${w.name} berhasil direset menjadi '${w.username}123'!`);
                               }
                             }}
-                            className="py-1 px-2.5 bg-rose-50 hover:bg-rose-105 dark:bg-rose-950/20 text-rose-600 dark:text-rose-450 font-bold text-[9px] rounded-lg cursor-pointer"
+                            className="py-1 px-2.5 bg-rose-50 hover:bg-rose-105 text-rose-600 font-bold text-[9px] rounded-lg cursor-pointer"
                           >
                             Reset Sandi
                           </button>
@@ -8745,33 +8661,33 @@ export default function AdminDashboard({
 
           {/* KETUA RT: STATISTIK & MONITORING */}
           {activeTab === 'rt_statistik' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
               <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-1">Statistik & Monitoring Portal</h3>
+                <h3 className="text-lg font-black text-slate-900 mb-1">Statistik & Monitoring Portal</h3>
                 <p className="text-xs text-slate-400">Analisis demografi kependudukan, arus keuangan, dan aktivitas pengguna.</p>
               </div>
 
               {/* Statistics Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans">
                 {/* Card 1: Demografi Kepala Keluarga */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
                   <div className="space-y-3 text-xs leading-none">
                     <div className="space-y-1.5">
                       <div className="flex justify-between font-bold">
-                        <span className="text-slate-600 dark:text-slate-350">Laki-laki</span>
+                        <span className="text-slate-600">Laki-laki</span>
                         <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Orang</span>
                       </div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                         <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex justify-between font-bold">
-                        <span className="text-slate-600 dark:text-slate-350">Perempuan</span>
+                        <span className="text-slate-600">Perempuan</span>
                         <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Orang</span>
                       </div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                         <div className="bg-pink-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
                       </div>
                     </div>
@@ -8779,41 +8695,41 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Card 2: Keuangan Kas Ringkasan */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Arus Kas RT</h4>
                   <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                       <span className="font-semibold text-slate-500">Pemasukan</span>
-                      <span className="font-black text-emerald-600 dark:text-emerald-400">+{formatRupiah(totalPemasukan)}</span>
+                      <span className="font-black text-emerald-600">+{formatRupiah(totalPemasukan)}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60 dark:border-slate-800">
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200/60">
                       <span className="font-semibold text-slate-500">Pengeluaran</span>
                       <span className="font-black text-rose-505">-{formatRupiah(totalPengeluaran)}</span>
                     </div>
                     <div className="flex justify-between items-center pt-1">
-                      <span className="font-bold text-slate-700 dark:text-slate-300">Total Saldo</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(sisaKasRT)}</span>
+                      <span className="font-bold text-slate-700">Total Saldo</span>
+                      <span className="font-black text-slate-900">{formatRupiah(sisaKasRT)}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Card 3: Statistik Keaktifan Akun */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Aktivitas Sesi</h4>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-slate-500">Total Log Akses</span>
-                      <span className="font-bold text-slate-900 dark:text-white">{accessLogs.length} Kali</span>
+                      <span className="font-bold text-slate-900">{accessLogs.length} Kali</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-slate-500">Pengguna Unik</span>
-                      <span className="font-bold text-slate-900 dark:text-white">
+                      <span className="font-bold text-slate-900">
                         {new Set(accessLogs.map(l => l.username)).size} User
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="font-semibold text-slate-500">Login Hari Ini</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-450">
+                      <span className="font-bold text-emerald-600">
                         {accessLogs.filter(l => new Date(l.loginTime).toDateString() === new Date().toDateString()).length} Sesi
                       </span>
                     </div>
@@ -8822,10 +8738,10 @@ export default function AdminDashboard({
               </div>
 
               {/* Access Logs Panel inside Statistics */}
-              <div className="space-y-4 pt-6 border-t border-slate-200/60 dark:border-slate-800">
+              <div className="space-y-4 pt-6 border-t border-slate-200/60">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h4 className="text-sm font-extrabold text-slate-800 dark:text-white">Log Aktivitas Masuk Portal</h4>
+                    <h4 className="text-sm font-extrabold text-slate-800">Log Aktivitas Masuk Portal</h4>
                     <p className="text-[10px] text-slate-400">Daftar login resmi pengurus dan warga.</p>
                   </div>
                   <button
@@ -8834,17 +8750,17 @@ export default function AdminDashboard({
                         setAccessLogs([]);
                       }
                     }}
-                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-[10px] transition-colors cursor-pointer flex items-center gap-1.5"
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-red-600 font-bold rounded-xl text-[10px] transition-colors cursor-pointer flex items-center gap-1.5"
                   >
                     <Trash2 className="w-3 h-3" />
                     <span>Bersihkan Log</span>
                   </button>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full border-collapse text-left text-xs font-sans">
                     <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-950/40 border-b border-slate-200/60 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                      <tr className="bg-slate-50 border-b border-slate-200/60 text-slate-500 font-bold uppercase tracking-wider">
                         <th className="p-4">Warga / Pengguna</th>
                         <th className="p-4">Peran (Role)</th>
                         <th className="p-4">Waktu Masuk</th>
@@ -8852,7 +8768,7 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                    <tbody className="divide-y divide-slate-200/60 text-slate-700 font-medium">
                       {accessLogs.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="p-8 text-center text-slate-400 font-semibold italic">
@@ -8861,22 +8777,22 @@ export default function AdminDashboard({
                         </tr>
                       ) : (
                         accessLogs.slice(0, 10).map((log) => (
-                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-4">
                               <div>
-                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="font-extrabold text-slate-900 block">{log.name}</span>
                                 <span className="text-[10px] text-slate-400">@{log.username}</span>
                               </div>
                             </td>
                             <td className="p-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
                                 log.role === 'rt' || log.role === 'admin'
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  ? 'bg-emerald-50 text-emerald-600'
                                   : log.role === 'sekertaris'
-                                  ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  ? 'bg-blue-50 text-blue-600'
                                   : log.role === 'bendahara'
-                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-450'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                                  ? 'bg-amber-50 text-amber-600'
+                                  : 'bg-slate-100 text-slate-600'
                               }`}>
                                 {log.role}
                               </span>
@@ -8915,7 +8831,7 @@ export default function AdminDashboard({
             const unregisteredAccountCount = totalWargaCount - registeredAccountCount;
 
             return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
                 
                 {/* Realtime Registration Status Summary Banner */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -8924,15 +8840,15 @@ export default function AdminDashboard({
                     onClick={() => setStatusFilter('All')}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                       statusFilter === 'All' 
-                        ? 'bg-slate-900 text-white dark:bg-slate-800 border-slate-700 shadow-md ring-2 ring-emerald-500/30' 
-                        : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                        ? 'bg-slate-900 text-white border-slate-700 shadow-md ring-2 ring-emerald-500/30' 
+                        : 'bg-slate-50 border-slate-200/80 hover:border-slate-300'
                     }`}
                   >
                     <div className="space-y-1">
                       <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Total Warga Terdaftar</span>
                       <div className="text-2xl font-black">{totalWargaCount} <span className="text-xs font-normal opacity-70">Jiwa</span></div>
                     </div>
-                    <div className="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+                    <div className="p-3 bg-blue-500/10 text-blue-600 rounded-xl">
                       <Users className="w-5 h-5" />
                     </div>
                   </div>
@@ -8942,19 +8858,19 @@ export default function AdminDashboard({
                     onClick={() => setStatusFilter('SudahAkun')}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                       statusFilter === 'SudahAkun' 
-                        ? 'bg-emerald-600 text-white dark:bg-emerald-600 border-emerald-500 shadow-md ring-2 ring-emerald-500/40' 
-                        : 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40 hover:border-emerald-300 dark:hover:border-emerald-800'
+                        ? 'bg-emerald-600 text-white border-emerald-500 shadow-md ring-2 ring-emerald-500/40' 
+                        : 'bg-emerald-50/50 border-emerald-200/80 hover:border-emerald-300'
                     }`}
                   >
                     <div className="space-y-1">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'SudahAkun' ? 'text-emerald-100' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'SudahAkun' ? 'text-emerald-100' : 'text-emerald-600'}`}>
                         🟢 Sudah Ada Akun
                       </span>
-                      <div className={`text-2xl font-black ${statusFilter === 'SudahAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                      <div className={`text-2xl font-black ${statusFilter === 'SudahAkun' ? 'text-white' : 'text-slate-900'}`}>
                         {registeredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
                       </div>
                     </div>
-                    <div className={`p-3 rounded-xl ${statusFilter === 'SudahAkun' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+                    <div className={`p-3 rounded-xl ${statusFilter === 'SudahAkun' ? 'bg-white/20 text-white' : 'bg-emerald-500/10 text-emerald-600'}`}>
                       <UserCheck className="w-5 h-5" />
                     </div>
                   </div>
@@ -8964,19 +8880,19 @@ export default function AdminDashboard({
                     onClick={() => setStatusFilter('BelumAkun')}
                     className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
                       statusFilter === 'BelumAkun' 
-                        ? 'bg-rose-600 text-white dark:bg-rose-600 border-rose-500 shadow-md ring-2 ring-rose-500/40' 
-                        : 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200/80 dark:border-rose-900/40 hover:border-rose-300 dark:hover:border-rose-800'
+                        ? 'bg-rose-600 text-white border-rose-500 shadow-md ring-2 ring-rose-500/40' 
+                        : 'bg-rose-50/50 border-rose-200/80 hover:border-rose-300'
                     }`}
                   >
                     <div className="space-y-1">
-                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'BelumAkun' ? 'text-rose-100' : 'text-rose-600 dark:text-rose-400'}`}>
+                      <span className={`text-[10px] font-extrabold uppercase tracking-wider ${statusFilter === 'BelumAkun' ? 'text-rose-100' : 'text-rose-600'}`}>
                         🔴 Belum Ada Akun
                       </span>
-                      <div className={`text-2xl font-black ${statusFilter === 'BelumAkun' ? 'text-white' : 'text-slate-900 dark:text-white'}`}>
+                      <div className={`text-2xl font-black ${statusFilter === 'BelumAkun' ? 'text-white' : 'text-slate-900'}`}>
                         {unregisteredAccountCount} <span className="text-xs font-normal opacity-70">Warga</span>
                       </div>
                     </div>
-                    <div className={`p-3 rounded-xl ${statusFilter === 'BelumAkun' ? 'bg-white/20 text-white' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'}`}>
+                    <div className={`p-3 rounded-xl ${statusFilter === 'BelumAkun' ? 'bg-white/20 text-white' : 'bg-rose-500/10 text-rose-600'}`}>
                       <AlertCircle className="w-5 h-5" />
                     </div>
                   </div>
@@ -8993,7 +8909,7 @@ export default function AdminDashboard({
                         placeholder="Cari warga (Nama, NIK, No. KK, Username)..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 transition-all"
                       />
                     </div>
 
@@ -9002,7 +8918,7 @@ export default function AdminDashboard({
                       <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 outline-none cursor-pointer"
+                        className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 outline-none cursor-pointer"
                       >
                         <option value="All">Semua Warga ({totalWargaCount})</option>
                         <option value="SudahAkun">🟢 Sudah Ada Akun ({registeredAccountCount})</option>
@@ -9029,9 +8945,9 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Table */}
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl max-h-[600px] overflow-y-auto custom-scrollbar">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl max-h-[600px] overflow-y-auto custom-scrollbar">
                   <table className="w-full text-left text-xs border-collapse">
-                    <thead className="sticky top-0 z-10 bg-slate-100/95 dark:bg-slate-950 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-500 dark:text-slate-400 tracking-wider text-[10px]">
+                    <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-md border-b border-slate-200/60 font-extrabold uppercase text-slate-500 tracking-wider text-[10px]">
                       <tr>
                         <th className="p-4">No. NIK / KK</th>
                         <th className="p-4">Nama Lengkap</th>
@@ -9041,7 +8957,7 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {wargaList
                         .filter(w => {
                           const q = searchQuery.toLowerCase();
@@ -9067,14 +8983,14 @@ export default function AdminDashboard({
                           const displayUsername = getWargaUsername(w) || w.username || w.account_username || null;
 
                           return (
-                            <tr key={w.id} className="hover:bg-emerald-50/40 dark:hover:bg-slate-800/40 transition-colors">
+                            <tr key={w.id} className="hover:bg-emerald-50/40 transition-colors">
                               <td className="p-4 font-mono space-y-1">
-                                <div className="font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                                <div className="font-bold text-slate-800 flex items-center gap-1.5">
                                   <span>NIK: {revealedNiks[w.id] || w.nik}</span>
                                   {w.nik?.includes('x') && !revealedNiks[w.id] && (
                                     <button
                                       onClick={() => handleRevealWarga(w.id)}
-                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                      className="p-1 hover:bg-slate-100 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
                                       title="Buka Sensor NIK"
                                     >
                                       <Eye className="w-3.5 h-3.5" />
@@ -9086,7 +9002,7 @@ export default function AdminDashboard({
                                   {w.noKk?.includes('x') && !revealedKks[w.family_id || w.fammilyId || w.id] && (
                                     <button
                                       onClick={() => handleRevealResident(w.family_id || w.fammilyId || w.id)}
-                                      className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
+                                      className="p-1 hover:bg-slate-100 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer"
                                       title="Buka Sensor KK"
                                     >
                                       <Eye className="w-3 h-3" />
@@ -9095,9 +9011,9 @@ export default function AdminDashboard({
                                 </div>
                               </td>
                               <td className="p-4 space-y-1 font-sans">
-                                <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm block">{w.name}</span>
+                                <span className="font-extrabold text-slate-900 text-sm block">{w.name}</span>
                                 <div className="flex gap-2 items-center">
-                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded font-semibold text-slate-400 font-mono">
+                                  <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 rounded font-semibold text-slate-400 font-mono">
                                     ID: {w.id}
                                   </span>
                                   {w.statusHidup === 'Meninggal' && (
@@ -9110,27 +9026,27 @@ export default function AdminDashboard({
 
                               {/* Kolom Kontak / Akun Informatif Realtime */}
                               <td className="p-4 space-y-2 font-sans">
-                                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                                  <Phone className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+                                  <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                                   <span>{w.noHp || w.no_hp || w.telepon || '081234567890'}</span>
                                 </div>
 
                                 {isAccountCreated ? (
                                   <div className="space-y-1.5 pt-0.5">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-500/20 shadow-xs">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-600 font-extrabold text-[10px] border border-emerald-500/20 shadow-xs">
                                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                       <span>🟢 Sudah Ada Akun</span>
                                     </span>
                                     {displayUsername && (
-                                      <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-md inline-block max-w-full break-all">
-                                        Username: <span className="font-extrabold text-slate-900 dark:text-white">@{displayUsername}</span>
+                                      <div className="text-[10px] text-slate-600 font-mono bg-slate-100 px-2 py-0.5 rounded-md inline-block max-w-full break-all">
+                                        Username: <span className="font-extrabold text-slate-900">@{displayUsername}</span>
                                       </div>
                                     )}
 
                                   </div>
                                 ) : (
                                   <div className="space-y-1.5 pt-0.5">
-                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 font-extrabold text-[10px] border border-rose-500/20 shadow-xs">
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-600 font-extrabold text-[10px] border border-rose-500/20 shadow-xs">
                                       <span className="w-2 h-2 rounded-full bg-rose-500"></span>
                                       <span>🔴 Belum Ada Akun</span>
                                     </span>
@@ -9162,7 +9078,7 @@ export default function AdminDashboard({
                               </td>
 
                             <td className="p-4 max-w-[220px]" title={w.alamat}>
-                              <div className="text-slate-700 dark:text-slate-300 font-medium">{w.alamat || '-'}</div>
+                              <div className="text-slate-700 font-medium">{w.alamat || '-'}</div>
                               {(w.house_blok || w.house_nomor) && (
                                 <div className="text-[10px] text-slate-400 mt-0.5">
                                   {w.house_blok ? `Blok ${w.house_blok}` : ''}{w.house_nomor ? ` No. ${w.house_nomor}` : ''}
@@ -9173,8 +9089,8 @@ export default function AdminDashboard({
                               <div className="flex items-center justify-center gap-1.5">
                                 <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
                                   w.status === 'Tetap'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                                    : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                                    ? 'bg-emerald-500/10 text-emerald-600'
+                                    : 'bg-amber-500/10 text-amber-600'
                                 }`}>
                                   {w.status}
                                 </span>
@@ -9189,19 +9105,19 @@ export default function AdminDashboard({
                             </td>
                             <td className="p-4 text-right">
                               {currentUser.role === 'bendahara' ? (
-                                <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-lg font-bold text-[9px] uppercase tracking-wider">Akses Baca</span>
+                                <span className="px-2 py-1 bg-slate-100 text-slate-500 rounded-lg font-bold text-[9px] uppercase tracking-wider">Akses Baca</span>
                               ) : (
                                 <div className="flex items-center justify-end gap-2">
                                   <button
                                     onClick={() => openEditModal('warga', w)}
-                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all cursor-pointer"
+                                    className="p-2 border border-slate-200 hover:border-emerald-500 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
                                     title="Edit Data Warga"
                                   >
                                     <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-500" />
                                   </button>
                                   <button
                                     onClick={() => handleDelete('warga', w.id)}
-                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-xl transition-all cursor-pointer"
+                                    className="p-2 border border-slate-200 hover:border-red-500 hover:bg-slate-50 rounded-xl transition-all cursor-pointer"
                                     title="Hapus Data Warga"
                                   >
                                     <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
@@ -9221,24 +9137,24 @@ export default function AdminDashboard({
 
           {/* TAB 3: MONITORING & TRANSPARANSI KAS RT */}
           {activeTab === 'kas' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               {/* Header Title & Subtitle */}
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 pb-5">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 rounded-lg text-[10px] font-extrabold uppercase tracking-wider">
+                    <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 border border-orange-200/50 rounded-lg text-[10px] font-extrabold uppercase tracking-wider">
                       Transparansi Kas RT 05 / RW 11
                     </span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono font-bold flex items-center gap-1">
+                    <span className="text-[10px] text-emerald-600 font-mono font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
                       Real-Time Live Sync
                     </span>
                   </div>
-                  <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  <h3 className="text-xl font-extrabold text-slate-900">
                     Buku Kas & Monitoring Keuangan RT
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Pusat transparansi pencatatan kas masuk & keluar, rekapitulasi saldo, serta mutasi keuangan terverifikasi Villa Mutiara Mas Cinere.
                   </p>
                 </div>
@@ -9262,7 +9178,7 @@ export default function AdminDashboard({
                   <div className="flex items-center gap-1.5">
                     <button
                       onClick={() => handleExportKas('xlsx')}
-                      className="py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-emerald-300/60 dark:border-emerald-700 transition-all cursor-pointer"
+                      className="py-2.5 px-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-emerald-300/60 transition-all cursor-pointer"
                       title="Ekspor Laporan Kas ke Excel (.xlsx)"
                     >
                       <Download className="w-3.5 h-3.5 text-emerald-600" />
@@ -9270,7 +9186,7 @@ export default function AdminDashboard({
                     </button>
                     <button
                       onClick={() => handleExportKas('pdf')}
-                      className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-rose-300/60 dark:border-rose-700 transition-all cursor-pointer"
+                      className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-rose-300/60 transition-all cursor-pointer"
                       title="Ekspor Laporan Kas ke PDF (.pdf)"
                     >
                       <Download className="w-3.5 h-3.5 text-rose-600" />
@@ -9278,7 +9194,7 @@ export default function AdminDashboard({
                     </button>
                     <button
                       onClick={handlePrintKasReport}
-                      className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer"
+                      className="py-2.5 px-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 transition-all cursor-pointer"
                       title="Cetak Laporan Transparansi Kas"
                     >
                       <FileText className="w-4 h-4 text-slate-500" />
@@ -9289,73 +9205,73 @@ export default function AdminDashboard({
               </div>
 
               {/* Financial mini dashboard / Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 dark:border-slate-800 pb-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-100 pb-6">
                 <div className="p-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-600 flex items-center gap-1.5">
                       <TrendingUp className="w-4 h-4" />
                       Total Pemasukan Kas
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-bold rounded-full">
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-700 font-bold rounded-full">
                       {isKasFilterActive 
                         ? `${filteredKasTransactions.filter(t => t.type === 'income').length} Transaksi (Filter)` 
                         : `${transaksiKasList.filter(t => t.type === 'income').length} Transaksi`}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasIncome)}</span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  <span className="block text-2xl font-black text-slate-900 font-mono">{formatRupiah(displayKasIncome)}</span>
+                  <p className="text-[11px] text-slate-500 mt-1">
                     {isKasFilterActive ? 'Akumulasi pemasukan pada rentang filter yang dipilih.' : 'Akumulasi iuran bulanan warga, donasi, subsidi & sumbangan.'}
                   </p>
                 </div>
 
                 <div className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-rose-600 flex items-center gap-1.5">
                       <TrendingDown className="w-4 h-4" />
                       Total Pengeluaran Kas
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-700 dark:text-rose-300 font-bold rounded-full">
+                    <span className="text-[10px] px-2 py-0.5 bg-rose-500/20 text-rose-700 font-bold rounded-full">
                       {isKasFilterActive 
                         ? `${filteredKasTransactions.filter(t => t.type === 'expense').length} Transaksi (Filter)` 
                         : `${transaksiKasList.filter(t => t.type === 'expense').length} Transaksi`}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasExpense)}</span>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  <span className="block text-2xl font-black text-slate-900 font-mono">{formatRupiah(displayKasExpense)}</span>
+                  <p className="text-[11px] text-slate-500 mt-1">
                     {isKasFilterActive ? 'Akumulasi pengeluaran pada rentang filter yang dipilih.' : 'Belanja operasional keamanan, kebersihan, ATK & kegiatan RT.'}
                   </p>
                 </div>
 
                 <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl relative overflow-hidden shadow-xs">
                   <div className="flex justify-between items-start mb-2">
-                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 dark:text-orange-400 flex items-center gap-1.5">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-orange-600 flex items-center gap-1.5">
                       <Wallet className="w-4 h-4" />
                       {isKasFilterActive ? 'Saldo Bersih Periode' : 'Saldo Akhir Kas RT'}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 bg-orange-500/20 text-orange-700 dark:text-orange-300 font-bold rounded-full">
+                    <span className="text-[10px] px-2 py-0.5 bg-orange-500/20 text-orange-700 font-bold rounded-full">
                       {isKasFilterActive ? 'Net Filter' : 'Kas Tersedia'}
                     </span>
                   </div>
-                  <span className="block text-2xl font-black text-slate-900 dark:text-white font-mono">{formatRupiah(displayKasSaldo)}</span>
+                  <span className="block text-2xl font-black text-slate-900 font-mono">{formatRupiah(displayKasSaldo)}</span>
                   {isKasFilterActive ? (
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-orange-500/20">
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-orange-500/20">
                       <span>Saldo Seluruh Waktu:</span>
-                      <span className="font-bold font-mono text-slate-700 dark:text-slate-200">{formatRupiah(sisaKas)}</span>
+                      <span className="font-bold font-mono text-slate-700">{formatRupiah(sisaKas)}</span>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
                   )}
                 </div>
               </div>
 
               {/* Sub-tabs Navigation */}
-              <div className="flex border-b border-slate-100 dark:border-slate-800 gap-2">
+              <div className="flex border-b border-slate-100 gap-2">
                 <button
                   onClick={() => { setKasSubTab('transaksi'); setSearchQuery(''); }}
                   className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     kasSubTab === 'transaksi'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      ? 'border-orange-500 text-orange-600 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <FileText className="w-4 h-4" />
@@ -9365,8 +9281,8 @@ export default function AdminDashboard({
                   onClick={() => { setKasSubTab('tunggakan'); setSearchQuery(''); }}
                   className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     kasSubTab === 'tunggakan'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      ? 'border-orange-500 text-orange-600 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -9376,8 +9292,8 @@ export default function AdminDashboard({
                   onClick={() => { setKasSubTab('rekening_qris'); setSearchQuery(''); }}
                   className={`py-3 px-5 text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
                     kasSubTab === 'rekening_qris'
-                      ? 'border-orange-500 text-orange-600 dark:text-orange-400 font-extrabold'
-                      : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+                      ? 'border-orange-500 text-orange-600 font-extrabold'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Wallet className="w-4 h-4" />
@@ -9389,7 +9305,7 @@ export default function AdminDashboard({
               {kasSubTab === 'transaksi' && (
                 <div className="space-y-4 animate-fade-in">
                   {/* Filter Toolbar */}
-                  <div className="space-y-3 bg-slate-50/70 dark:bg-slate-950/40 p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+                  <div className="space-y-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/60">
                     <div className="flex flex-col lg:flex-row gap-3 justify-between items-stretch lg:items-center">
                       <div className="flex flex-col sm:flex-row gap-3 flex-1">
                         {/* Search Bar */}
@@ -9400,19 +9316,19 @@ export default function AdminDashboard({
                             placeholder="Cari transaksi, ID, keperluan..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-sans"
+                            className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 transition-all font-sans"
                           />
                         </div>
 
                         {/* Type Filter Pills */}
-                        <div className="flex items-center gap-1 bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-xl">
+                        <div className="flex items-center gap-1 bg-white p-1 border border-slate-200 rounded-xl">
                           <button
                             type="button"
                             onClick={() => setKasFilterType('all')}
                             className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                               kasFilterType === 'all'
                                 ? 'bg-orange-500 text-white shadow-xs'
-                                : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                                : 'text-slate-500 hover:text-slate-800'
                             }`}
                           >
                             Semua ({transaksiKasList.length})
@@ -9423,7 +9339,7 @@ export default function AdminDashboard({
                             className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                               kasFilterType === 'income'
                                 ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                                : 'text-emerald-600 hover:bg-emerald-50'
                             }`}
                           >
                             Masuk ({transaksiKasList.filter(t => t.type === 'income').length})
@@ -9434,7 +9350,7 @@ export default function AdminDashboard({
                             className={`px-3 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
                               kasFilterType === 'expense'
                                 ? 'bg-rose-600 text-white shadow-xs'
-                                : 'text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                                : 'text-rose-600 hover:bg-rose-50'
                             }`}
                           >
                             Keluar ({transaksiKasList.filter(t => t.type === 'expense').length})
@@ -9451,7 +9367,7 @@ export default function AdminDashboard({
                             setKasFilterCategory(e.target.value);
                             fetchKasTransaksi({ kasFilterCategory: e.target.value });
                           }}
-                          className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer"
+                          className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
                         >
                           <option value="all">Semua Kategori</option>
                           {kategoriSaranList.map((cat, idx) => (
@@ -9462,14 +9378,14 @@ export default function AdminDashboard({
                     </div>
 
                     {/* Date Range Toolbar */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/50 dark:border-slate-800/60 text-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200/50 text-xs">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-bold text-slate-400">Rentang Tanggal:</span>
                         <input
                           type="date"
                           value={kasDateStart}
                           onChange={(e) => setKasDateStart(e.target.value)}
-                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-200 outline-none"
+                          className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-700 outline-none"
                           placeholder="Mulai"
                         />
                         <span className="text-slate-400">s/d</span>
@@ -9477,7 +9393,7 @@ export default function AdminDashboard({
                           type="date"
                           value={kasDateEnd}
                           onChange={(e) => setKasDateEnd(e.target.value)}
-                          className="px-2.5 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-mono text-slate-700 dark:text-slate-200 outline-none"
+                          className="px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-700 outline-none"
                           placeholder="Selesai"
                         />
                         {isKasFilterActive && (
@@ -9490,7 +9406,7 @@ export default function AdminDashboard({
                               setKasFilterType('all');
                               setSearchQuery('');
                             }}
-                            className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
+                            className="py-1.5 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
                           >
                             Reset Filter
                           </button>
@@ -9506,7 +9422,7 @@ export default function AdminDashboard({
                               fetchKasClosingHistory();
                               setModalType('riwayat_tutup_buku');
                             }}
-                            className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 dark:border-slate-800 transition-all cursor-pointer shadow-xs"
+                            className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-slate-200/60 transition-all cursor-pointer shadow-xs"
                             title="Lihat Arsip Riwayat Periode Tutup Buku"
                           >
                             <History className="w-3.5 h-3.5 text-slate-500" />
@@ -9540,10 +9456,10 @@ export default function AdminDashboard({
                   </div>
 
                   {/* Mutasi Transparansi Table */}
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Tanggal / ID</th>
                           <th className="p-4">Deskripsi / Keperluan</th>
                           <th className="p-4">Kategori Kas</th>
@@ -9552,7 +9468,7 @@ export default function AdminDashboard({
                           <th className="p-4 text-right">Aksi</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {(() => {
                           if (filteredKasTransactions.length === 0) {
                             return (
@@ -9569,12 +9485,12 @@ export default function AdminDashboard({
                           }
 
                           return filteredKasTransactions.map((t) => (
-                            <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                            <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                               <td className="p-4 space-y-1 font-mono">
                                 <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
+                                  <span className="font-bold text-slate-700">{formatDateIndo(t.date)}</span>
                                   {checkIsTransactionClosed(t) && (
-                                    <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="Tercatat dalam periode Tutup Buku">
+                                    <span className="inline-flex items-center gap-1 text-[9px] font-extrabold text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20" title="Tercatat dalam periode Tutup Buku">
                                       <Lock className="w-2.5 h-2.5" />
                                       Tutup Buku
                                     </span>
@@ -9582,26 +9498,26 @@ export default function AdminDashboard({
                                 </div>
                                 <div className="text-[10px] text-slate-400">{t.id}</div>
                               </td>
-                              <td className="p-4 font-semibold text-slate-900 dark:text-white max-w-[280px] whitespace-normal break-words">
+                              <td className="p-4 font-semibold text-slate-900 max-w-[280px] whitespace-normal break-words">
                                 {t.description}
                               </td>
-                              <td className="p-4 font-semibold text-slate-500 dark:text-slate-450">
-                                <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md font-bold text-[10px]">
+                              <td className="p-4 font-semibold text-slate-500">
+                                <span className="px-2 py-0.5 bg-slate-100 rounded-md font-bold text-[10px]">
                                   {t.category}
                                 </span>
                               </td>
                               <td className="p-4 text-center">
                                 <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] inline-flex items-center gap-1 ${
                                   t.type === 'income'
-                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                                    : 'bg-rose-500/10 text-rose-600 dark:text-rose-455 border border-rose-500/20'
+                                    ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                                    : 'bg-rose-500/10 text-rose-600 border border-rose-500/20'
                                 }`}>
                                   {t.type === 'income' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                                   <span>{t.type === 'income' ? 'Masuk' : 'Keluar'}</span>
                                 </span>
                               </td>
                               <td className={`p-4 text-right font-bold text-sm font-mono ${
-                                t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-455'
+                                t.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
                               }`}>
                                 {t.type === 'income' ? '+' : '-'}{formatRupiah(t.amount).replace('Rp', 'Rp ')}
                               </td>
@@ -9609,14 +9525,14 @@ export default function AdminDashboard({
                                 <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => openEditModal('kas', t)}
-                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-orange-500 dark:hover:border-orange-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                    className="p-2 border border-slate-200 hover:border-orange-500 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"
                                     title="Edit Transaksi"
                                   >
                                     <Edit className="w-3.5 h-3.5 text-slate-500 hover:text-orange-500" />
                                   </button>
                                   <button
                                     onClick={() => handleDelete('kas', t.id, t)}
-                                    className="p-2 border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg transition-all cursor-pointer"
+                                    className="p-2 border border-slate-200 hover:border-red-500 hover:bg-slate-50 rounded-lg transition-all cursor-pointer"
                                     title="Hapus Transaksi"
                                   >
                                     <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-500" />
@@ -9642,37 +9558,37 @@ export default function AdminDashboard({
                       placeholder="Cari nama warga atau alamat..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 transition-all"
                     />
                   </div>
 
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Nama Warga</th>
                           <th className="p-4">Alamat Rumah</th>
                           <th className="p-4 text-center">Status Iuran</th>
                           <th className="p-4 text-right">Aksi Tindakan</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {wargaList
                           .filter(w => w.statusHidup === 'Hidup' && ((w.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (w.alamat || '').toLowerCase().includes(searchQuery.toLowerCase())))
                           .map((w) => (
-                            <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                              <td className="p-4 font-bold text-slate-900 dark:text-white">
+                            <tr key={w.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-bold text-slate-900">
                                 {w.name}
                                 <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
                               </td>
-                              <td className="p-4 text-slate-600 dark:text-slate-350 italic">
+                              <td className="p-4 text-slate-600 italic">
                                 {w.alamat}
                               </td>
                               <td className="p-4 text-center">
                                 <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${
                                   w.statusIuran?.includes('Menunggak')
                                     ? 'bg-rose-500/10 text-rose-500'
-                                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450'
+                                    : 'bg-emerald-500/10 text-emerald-600'
                                 }`}>
                                   {w.statusIuran || 'Lunas'}
                                 </span>
@@ -9689,13 +9605,13 @@ export default function AdminDashboard({
                                   <div className="inline-flex gap-1.5">
                                     <button
                                       onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 50.000)')}
-                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-50 dark:bg-slate-800 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-50 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40"
                                     >
                                       Set Menunggak 50rb
                                     </button>
                                     <button
                                       onClick={() => handleUpdateIuranStatus(w.id, 'Menunggak (Rp 100.000)')}
-                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-55 dark:bg-slate-800 dark:hover:bg-rose-900/30 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40 dark:border-slate-800"
+                                      className="py-1.5 px-2 bg-slate-100 hover:bg-rose-55 text-slate-500 hover:text-rose-500 font-bold text-[10px] rounded-lg transition-colors cursor-pointer border border-slate-200/40"
                                     >
                                       Set Menunggak 100rb
                                     </button>
@@ -9735,7 +9651,7 @@ export default function AdminDashboard({
                     </div>
 
                     {/* Stylized QRIS Placeholder */}
-                    <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
                       <div className="p-1.5 bg-white rounded-2xl border-4 border-orange-500 shadow-lg">
                         <div className="w-40 h-40 bg-slate-100 flex flex-col items-center justify-center p-2 relative overflow-hidden select-none">
                           <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-slate-900"></div>
@@ -9747,7 +9663,7 @@ export default function AdminDashboard({
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 11</h5>
+                        <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 05 / RW 11</h5>
                         <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                       </div>
                     </div>
@@ -9766,36 +9682,36 @@ export default function AdminDashboard({
           {activeTab === 'iuran_jenis' && (
             <div className="space-y-8 animate-fade-in font-sans">
               {/* Bagian 1: Pengaturan Tarif & Saldo Kas */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Jenis Iuran Warga</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Daftar Jenis Iuran Warga</h3>
                     <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 05 Villa Mutiara Mas Cinere.</p>
                   </div>
 
                   {(currentUser.role === 'bendahara' || currentUser.role === 'admin' || currentUser.role === 'rt') && (
                     <form
                       onSubmit={handleUpdateIplSetting}
-                      className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs"
+                      className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs"
                     >
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-550 dark:text-slate-400">Set Tarif IPL (Rp):</span>
+                        <span className="font-bold text-slate-550">Set Tarif IPL (Rp):</span>
                         <input
                           required
                           type="number"
                           value={iplAmountInput}
                           onChange={(e) => setIplAmountInput(e.target.value)}
-                          className="w-24 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
+                          className="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-800"
                         />
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-550 dark:text-slate-400">Saldo Awal (Rp):</span>
+                        <span className="font-bold text-slate-550">Saldo Awal (Rp):</span>
                         <input
                           required
                           type="number"
                           value={previousBalanceInput}
                           onChange={(e) => setPreviousBalanceInput(e.target.value)}
-                          className="w-28 px-2 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg outline-none font-bold text-slate-800 dark:text-white"
+                          className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-800"
                         />
                       </div>
                       <button
@@ -9809,20 +9725,20 @@ export default function AdminDashboard({
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {jenisIuranList.map((j) => (
-                    <div key={j.id} className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 hover:shadow-md transition-shadow">
+                    <div key={j.id} className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 hover:shadow-md transition-shadow">
                       <div className="flex justify-between items-start">
-                        <div className="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                        <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-2xl">
                           <Wallet className="w-5 h-5" />
                         </div>
-                        <span className="px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-md text-[10px] font-bold font-mono">{j.frequency}</span>
+                        <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold font-mono">{j.frequency}</span>
                       </div>
                       <div className="space-y-1">
-                        <h4 className="font-bold text-sm text-slate-900 dark:text-white">{j.name}</h4>
+                        <h4 className="font-bold text-sm text-slate-900">{j.name}</h4>
                         <p className="text-[10px] text-slate-450 leading-relaxed">{j.desc}</p>
                       </div>
-                      <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
+                      <div className="pt-3 border-t border-slate-100 flex justify-between items-center">
                         <span className="text-xs text-slate-400">Tarif/KK</span>
-                        <span className="font-black text-sm text-emerald-600 dark:text-emerald-400">{formatRupiah(j.amount)}</span>
+                        <span className="font-black text-sm text-emerald-600">{formatRupiah(j.amount)}</span>
                       </div>
                     </div>
                   ))}
@@ -9830,31 +9746,31 @@ export default function AdminDashboard({
               </div>
 
               {/* Bagian 2: Buat Draft Periode Tagihan IPL Baru (Guideline 8 Bagian A #1) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-                <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Buat Periode Tagihan IPL Baru 📅</h3>
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="border-b border-slate-100 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900">Buat Periode Tagihan IPL Baru 📅</h3>
                   <p className="text-xs text-slate-400">Buat draft periode tagihan bulanan baru sebelum di-publish (generate invoice) ke seluruh warga.</p>
                 </div>
 
                 <form onSubmit={handleCreateBillPeriod} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs sm:text-sm">
                   <div className="space-y-1.5 sm:col-span-2 md:col-span-1">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Judul Periode *</label>
+                    <label className="font-bold text-slate-600">Judul Periode *</label>
                     <input
                       required
                       type="text"
                       placeholder="Contoh: IPL Periode Maret 2026"
                       value={billPeriodForm.title}
                       onChange={(e) => setBillPeriodForm({ ...billPeriodForm, title: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-semibold text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Bulan Periode *</label>
+                    <label className="font-bold text-slate-600">Bulan Periode *</label>
                     <select
                       value={billPeriodForm.periodMonth}
                       onChange={(e) => setBillPeriodForm({ ...billPeriodForm, periodMonth: parseInt(e.target.value) })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold text-xs text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs text-slate-900"
                     >
                       {['Januari (1)', 'Februari (2)', 'Maret (3)', 'April (4)', 'Mei (5)', 'Juni (6)', 'Juli (7)', 'Agustus (8)', 'September (9)', 'Oktober (10)', 'November (11)', 'Desember (12)'].map((m, i) => (
                         <option key={i + 1} value={i + 1}>{m}</option>
@@ -9863,34 +9779,34 @@ export default function AdminDashboard({
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Tahun Periode *</label>
+                    <label className="font-bold text-slate-600">Tahun Periode *</label>
                     <input
                       required
                       type="number"
                       value={billPeriodForm.periodYear}
                       onChange={(e) => setBillPeriodForm({ ...billPeriodForm, periodYear: parseInt(e.target.value) || 2026 })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-semibold text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Nominal Tagihan Default (Rp) *</label>
+                    <label className="font-bold text-slate-600">Nominal Tagihan Default (Rp) *</label>
                     <input
                       required
                       type="number"
                       value={billPeriodForm.defaultAmount}
                       onChange={(e) => setBillPeriodForm({ ...billPeriodForm, defaultAmount: parseInt(e.target.value) || 0 })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-semibold text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-900"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-600 dark:text-slate-400">Batas Jatuh Tempo *</label>
+                    <label className="font-bold text-slate-600">Batas Jatuh Tempo *</label>
                     <DateInput
                       required
                       value={billPeriodForm.dueDate}
                       onChange={(e) => setBillPeriodForm({ ...billPeriodForm, dueDate: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-semibold text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold text-slate-900"
                     />
                   </div>
 
@@ -9907,15 +9823,15 @@ export default function AdminDashboard({
               </div>
 
               {/* Bagian 3: Daftar Seluruh Periode Tagihan IPL (Guideline 8 Bagian A #2) */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-                <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Daftar Periode Tagihan IPL 📋</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Daftar Periode Tagihan IPL 📋</h3>
                     <p className="text-xs text-slate-400">Kelola draft dan periode tagihan yang telah dipublish.</p>
                   </div>
                   <button
                     onClick={fetchBillPeriods}
-                    className="py-1 px-3 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"
+                    className="py-1 px-3 border border-slate-200 hover:border-emerald-500 rounded-lg text-xs font-bold text-slate-600 cursor-pointer"
                   >
                     🔄 Segarkan
                   </button>
@@ -9929,10 +9845,10 @@ export default function AdminDashboard({
                 ) : billPeriodsList.length === 0 ? (
                   <div className="py-8 text-center text-slate-400 font-bold italic text-xs">Belum ada periode tagihan IPL yang dibuat.</div>
                 ) : (
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Judul Periode</th>
                           <th className="p-4">Bulan / Tahun</th>
                           <th className="p-4">Nominal Default</th>
@@ -9941,18 +9857,18 @@ export default function AdminDashboard({
                           <th className="p-4 text-right">Aksi</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {billPeriodsList.map((p) => {
                           const isDraft = p.status === 'draft';
                           return (
-                            <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                              <td className="p-4 font-bold text-slate-900 dark:text-white">
+                            <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-bold text-slate-900">
                                 {p.title || `IPL Bulan ${p.period_month}/${p.period_year}`}
                               </td>
-                              <td className="p-4 font-mono text-slate-600 dark:text-slate-300">
+                              <td className="p-4 font-mono text-slate-600">
                                 {p.period_month} / {p.period_year}
                               </td>
-                              <td className="p-4 font-bold text-emerald-600 dark:text-emerald-400 font-mono">
+                              <td className="p-4 font-bold text-emerald-600 font-mono">
                                 {formatRupiah(p.default_amount || 200000)}
                               </td>
                               <td className="p-4 font-mono text-slate-500">
@@ -9980,7 +9896,7 @@ export default function AdminDashboard({
                                   )}
                                   <button
                                     onClick={() => handleViewPeriodSummary(p.id)}
-                                    className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                                    className="py-1 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
                                   >
                                     📊 Rekap & Tagihan
                                   </button>
@@ -9998,10 +9914,10 @@ export default function AdminDashboard({
               {/* Modal Rekap & Tagihan Detail Periode (Guideline 8 Bagian A #4 & #5) */}
               {isPeriodDetailModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in font-sans">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl">
-                    <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-800 pb-4">
+                  <div className="bg-white border border-slate-200 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 shadow-2xl">
+                    <div className="flex justify-between items-start border-b border-slate-100 pb-4">
                       <div>
-                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        <h3 className="text-lg font-bold text-slate-900">
                           Rekap Periode: {selectedPeriodSummary?.title || 'Detail Tagihan'}
                         </h3>
                         <p className="text-xs text-slate-400">
@@ -10010,7 +9926,7 @@ export default function AdminDashboard({
                       </div>
                       <button
                         onClick={() => setIsPeriodDetailModalOpen(false)}
-                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -10026,21 +9942,21 @@ export default function AdminDashboard({
                         {/* Summary Cards */}
                         {selectedPeriodSummary && (
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl">
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                               <span className="text-[10px] font-bold text-slate-400 uppercase">Total Tagihan</span>
-                              <div className="text-lg font-black text-slate-900 dark:text-white">{selectedPeriodSummary.total_bills || selectedPeriodBills.length || 0}</div>
+                              <div className="text-lg font-black text-slate-900">{selectedPeriodSummary.total_bills || selectedPeriodBills.length || 0}</div>
                             </div>
                             <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl">
-                              <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Lunas (Paid)</span>
-                              <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">{selectedPeriodSummary.paid_bills || selectedPeriodBills.filter(b => b.status === 'paid').length || 0}</div>
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase">Lunas (Paid)</span>
+                              <div className="text-lg font-black text-emerald-600">{selectedPeriodSummary.paid_bills || selectedPeriodBills.filter(b => b.status === 'paid').length || 0}</div>
                             </div>
                             <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-2xl">
-                              <span className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase">Tunggakan</span>
-                              <div className="text-lg font-black text-rose-600 dark:text-rose-400">{selectedPeriodSummary.unpaid_bills || selectedPeriodBills.filter(b => b.status === 'unpaid' || b.status === 'overdue').length || 0}</div>
+                              <span className="text-[10px] font-bold text-rose-600 uppercase">Tunggakan</span>
+                              <div className="text-lg font-black text-rose-600">{selectedPeriodSummary.unpaid_bills || selectedPeriodBills.filter(b => b.status === 'unpaid' || b.status === 'overdue').length || 0}</div>
                             </div>
                             <div className="p-4 bg-purple-500/5 border border-purple-500/20 rounded-2xl">
-                              <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase">Bebas (Exempt)</span>
-                              <div className="text-lg font-black text-purple-600 dark:text-purple-400">{selectedPeriodSummary.exempt_bills || selectedPeriodBills.filter(b => b.status === 'exempt').length || 0}</div>
+                              <span className="text-[10px] font-bold text-purple-600 uppercase">Bebas (Exempt)</span>
+                              <div className="text-lg font-black text-purple-600">{selectedPeriodSummary.exempt_bills || selectedPeriodBills.filter(b => b.status === 'exempt').length || 0}</div>
                             </div>
                           </div>
                         )}
@@ -10048,10 +9964,10 @@ export default function AdminDashboard({
                         {/* Bills List */}
                         <div className="space-y-3">
                           <h4 className="font-extrabold text-xs text-slate-500 uppercase tracking-wider">Daftar Tagihan Per Warga</h4>
-                          <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl max-h-80 overflow-y-auto">
+                          <div className="overflow-x-auto border border-slate-200/60 rounded-2xl max-h-80 overflow-y-auto">
                             <table className="w-full text-left text-xs border-collapse">
-                              <thead className="sticky top-0 bg-slate-100 dark:bg-slate-950 z-10">
-                                <tr className="border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 text-[10px]">
+                              <thead className="sticky top-0 bg-slate-100 z-10">
+                                <tr className="border-b border-slate-200/60 font-extrabold uppercase text-slate-400 text-[10px]">
                                   <th className="p-3">Warga / KK</th>
                                   <th className="p-3">Rumah / Blok</th>
                                   <th className="p-3">Nominal</th>
@@ -10059,16 +9975,16 @@ export default function AdminDashboard({
                                   <th className="p-3 text-right">Aksi</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                              <tbody className="divide-y divide-slate-100">
                                 {selectedPeriodBills.map((b) => (
-                                  <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20">
-                                    <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                                  <tr key={b.id} className="hover:bg-slate-50/50">
+                                    <td className="p-3 font-bold text-slate-800">
                                       {b.warga_nama || b.kepala_keluarga_nama || `Keluarga #${b.family_id || b.id_family}`}
                                     </td>
                                     <td className="p-3 text-slate-500 font-mono text-[11px]">
                                       {b.house_blok || b.blok ? `Blok ${b.house_blok || b.blok} No. ${b.house_nomor || b.nomor || ''}` : '-'}
                                     </td>
-                                    <td className="p-3 font-bold font-mono text-emerald-600 dark:text-emerald-400">
+                                    <td className="p-3 font-bold font-mono text-emerald-600">
                                       {formatRupiah(b.amount || 200000)}
                                     </td>
                                     <td className="p-3 text-center">
@@ -10119,16 +10035,16 @@ export default function AdminDashboard({
 
           {/* IURAN: 2. Pembayaran Form (Manual Payment - Guideline 8 Bagian C #2) */}
           {activeTab === 'iuran_pembayaran' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               {/* Header */}
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center font-bold text-lg">
                     💵
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white">Pencatatan Setoran Tunai / Cash Warga</h3>
+                    <h3 className="text-lg font-black text-slate-900">Pencatatan Setoran Tunai / Cash Warga</h3>
                     <p className="text-xs text-slate-400">Catat penerimaan uang cash dari warga yang membayar langsung ke Pak RT, Sekretaris, atau Bendahara (Offline).</p>
                   </div>
                 </div>
@@ -10137,12 +10053,12 @@ export default function AdminDashboard({
               {/* Informational Context Card */}
               <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
                 <div className="space-y-0.5">
-                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600 dark:text-emerald-400">Petugas Penerima Setoran Cash:</span>
-                  <p className="font-bold text-slate-800 dark:text-slate-200">
+                  <span className="text-[10px] uppercase font-black tracking-wider text-emerald-600">Petugas Penerima Setoran Cash:</span>
+                  <p className="font-bold text-slate-800">
                     {currentUser?.username || 'Pengurus RT'} • <span className="uppercase text-emerald-500 font-extrabold">{currentUser?.role === 'rt' ? 'Ketua RT' : currentUser?.role === 'bendahara' ? 'Bendahara' : currentUser?.role === 'sekretaris' ? 'Sekretaris' : 'Admin'}</span>
                   </p>
                 </div>
-                <div className="px-3 py-1.5 bg-emerald-600/10 border border-emerald-500/30 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold text-[11px] flex items-center gap-1.5">
+                <div className="px-3 py-1.5 bg-emerald-600/10 border border-emerald-500/30 rounded-xl text-emerald-600 font-bold text-[11px] flex items-center gap-1.5">
                   <span>✓ Jalur Pembayaran Tunai Langsung</span>
                 </div>
               </div>
@@ -10152,11 +10068,11 @@ export default function AdminDashboard({
                 {/* 1. Pilih Kepala Keluarga */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center">
-                    <label className="font-bold text-slate-700 dark:text-slate-300">Pilih Kepala Keluarga / Warga Pembayar *</label>
+                    <label className="font-bold text-slate-700">Pilih Kepala Keluarga / Warga Pembayar *</label>
                     <button
                       type="button"
                       onClick={fetchKepalaKeluargaList}
-                      className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       🔄 Segarkan List Warga
                     </button>
@@ -10169,7 +10085,7 @@ export default function AdminDashboard({
                       setManualPaymentForm(prev => ({ ...prev, familyId: fId }));
                       fetchUnpaidBillsForFamily(fId);
                     }}
-                    className="w-full px-3.5 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs"
                   >
                     <option value="">-- {isLoadingKepalaKeluarga ? 'Memuat data warga...' : 'Pilih Nama Kepala Keluarga yang Menyerahkan Uang Cash'} --</option>
                     {(kepalaKeluargaList.length > 0 ? kepalaKeluargaList : wargaList.filter(w => w.statusHidup === 'Hidup'))
@@ -10187,11 +10103,11 @@ export default function AdminDashboard({
                 {/* 2. Jenis Iuran & Nominal */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-700 dark:text-slate-300">Jenis Pembayaran Cash *</label>
+                    <label className="font-bold text-slate-700">Jenis Pembayaran Cash *</label>
                     <select
                       value={manualPaymentForm.jenis_iuran}
                       onChange={(e) => setManualPaymentForm(prev => ({ ...prev, jenis_iuran: e.target.value }))}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs"
                     >
                       <option value="ipl">IPL Bulanan (Bisa Rapel)</option>
                       <option value="kas">Uang Kas / Sumbangan Sosial</option>
@@ -10200,11 +10116,11 @@ export default function AdminDashboard({
 
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="font-bold text-slate-700 dark:text-slate-300">
+                      <label className="font-bold text-slate-700">
                         {manualPaymentForm.jenis_iuran === 'ipl' ? 'Total Tagihan Dipilih' : 'Total Uang Cash Diterima (Rp) *'}
                       </label>
                       {manualPaymentForm.jenis_iuran === 'ipl' && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-extrabold">
+                        <span className="text-[10px] text-emerald-600 font-extrabold">
                           {manualPaymentForm.billIds.length} tagihan dipilih
                         </span>
                       )}
@@ -10215,8 +10131,8 @@ export default function AdminDashboard({
                       readOnly={manualPaymentForm.jenis_iuran === 'ipl'}
                       value={manualPaymentForm.amount}
                       onChange={(e) => setManualPaymentForm(prev => ({ ...prev, amount: parseInt(e.target.value) || 0 }))}
-                      className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-black font-mono text-sm ${
-                        manualPaymentForm.jenis_iuran === 'ipl' ? 'opacity-90 bg-slate-100 dark:bg-slate-900/60 cursor-default' : ''
+                      className={`w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-black font-mono text-sm ${
+                        manualPaymentForm.jenis_iuran === 'ipl' ? 'opacity-90 bg-slate-100 cursor-default' : ''
                       }`}
                     />
                   </div>
@@ -10224,10 +10140,10 @@ export default function AdminDashboard({
 
                 {/* 3. Detail Tagihan IPL (Checklist Rapel) */}
                 {manualPaymentForm.jenis_iuran === 'ipl' && (
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-3">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Pilih Periode Tagihan Yang Dibayar Tunai:</span>
+                        <span className="text-xs font-bold text-slate-800 block">Pilih Periode Tagihan Yang Dibayar Tunai:</span>
                         <span className="text-[10px] text-slate-400">Centang 1 atau beberapa tagihan sekaligus jika warga membayar rapel.</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -10246,7 +10162,7 @@ export default function AdminDashboard({
                                 }));
                               }
                             }}
-                            className="px-2.5 py-1 text-[10px] font-bold bg-slate-200 dark:bg-slate-800 hover:bg-emerald-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-lg transition-all cursor-pointer"
+                            className="px-2.5 py-1 text-[10px] font-bold bg-slate-200 hover:bg-emerald-600 hover:text-white text-slate-700 rounded-lg transition-all cursor-pointer"
                           >
                             {manualPaymentForm.billIds.length === familyUnpaidBills.length ? 'Batal Pilih Semua' : 'Pilih Semua (Rapel)'}
                           </button>
@@ -10278,8 +10194,8 @@ export default function AdminDashboard({
                               }}
                               className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
                                 isChecked
-                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200 shadow-xs'
-                                  : 'border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900'
+                                  ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 shadow-xs'
+                                  : 'border-slate-200 hover:bg-slate-100'
                               }`}
                             >
                               <div className="flex items-center gap-3">
@@ -10290,7 +10206,7 @@ export default function AdminDashboard({
                                   className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                                 />
                                 <div>
-                                  <p className="font-bold text-xs text-slate-900 dark:text-white">
+                                  <p className="font-bold text-xs text-slate-900">
                                     {b.period_title}
                                   </p>
                                   <span className="text-[10px] text-slate-400">
@@ -10299,7 +10215,7 @@ export default function AdminDashboard({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <span className="font-mono font-black text-xs text-slate-900 dark:text-white block">
+                                <span className="font-mono font-black text-xs text-slate-900 block">
                                   {formatRupiah(b.amount)}
                                 </span>
                                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 font-bold uppercase">
@@ -10317,7 +10233,7 @@ export default function AdminDashboard({
                     )}
 
                     {familyUnpaidBills.length > 0 && (
-                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+                      <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-2 text-[11px] text-emerald-700">
                         <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
                         <span>Server akan menghitung total resmi dan memvalidasi penguncian database secara otomatis.</span>
                       </div>
@@ -10329,11 +10245,11 @@ export default function AdminDashboard({
                 {manualPaymentForm.jenis_iuran === 'kas' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700 dark:text-slate-300">Kategori Kas Sosial *</label>
+                      <label className="font-bold text-slate-700">Kategori Kas Sosial *</label>
                       <select
                         value={manualPaymentForm.category}
                         onChange={(e) => setManualPaymentForm(prev => ({ ...prev, category: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs"
                       >
                         <option value="sosial">Kas Sosial</option>
                         <option value="kematian">Kas Kematian / Duka Cita</option>
@@ -10342,13 +10258,13 @@ export default function AdminDashboard({
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-700 dark:text-slate-300">Keterangan Sumbangan Cash</label>
+                      <label className="font-bold text-slate-700">Keterangan Sumbangan Cash</label>
                       <input
                         type="text"
                         placeholder="Contoh: Titipan santunan duka cita warga Blok B"
                         value={manualPaymentForm.description}
                         onChange={(e) => setManualPaymentForm(prev => ({ ...prev, description: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                       />
                     </div>
                   </div>
@@ -10369,19 +10285,19 @@ export default function AdminDashboard({
 
 {/* IURAN: 3. Riwayat & Audit Trail (Guideline 8 Bagian B #5) */}
           {activeTab === 'iuran_riwayat' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat & Audit Log Pembayaran 📊</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Riwayat & Audit Log Pembayaran 📊</h3>
                   <p className="text-xs text-slate-400">Rekam jejak seluruh transaksi pembayaran IPL, sumbangan kas, dan verifikasi.</p>
                 </div>
 
                 {/* Subtab Switcher */}
-                <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-950 p-1.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-xs">
+                <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/60 text-xs">
                   <button
                     onClick={() => setAuditTab('ipl')}
                     className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                      auditTab === 'ipl' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      auditTab === 'ipl' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     Audit IPL ({auditIplList.length})
@@ -10389,7 +10305,7 @@ export default function AdminDashboard({
                   <button
                     onClick={() => setAuditTab('kas')}
                     className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                      auditTab === 'kas' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      auditTab === 'kas' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     Audit Kas ({auditKasList.length})
@@ -10397,7 +10313,7 @@ export default function AdminDashboard({
                   <button
                     onClick={() => setAuditTab('ledger')}
                     className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                      auditTab === 'ledger' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                      auditTab === 'ledger' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     Buku Kas RT
@@ -10411,10 +10327,10 @@ export default function AdminDashboard({
                   <p className="text-xs text-slate-400 font-bold">Memuat log audit...</p>
                 </div>
               ) : auditTab === 'ipl' ? (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">ID / Tanggal</th>
                         <th className="p-4">Warga / KK</th>
                         <th className="p-4">Periode & Metode</th>
@@ -10423,21 +10339,21 @@ export default function AdminDashboard({
                         <th className="p-4">Verifikator & Catatan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {auditIplList.map((a) => (
-                        <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                        <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 font-mono space-y-1">
-                            <span className="font-bold text-slate-800 dark:text-slate-200 block">#{a.id}</span>
+                            <span className="font-bold text-slate-800 block">#{a.id}</span>
                             <span className="text-[10px] text-slate-400">{a.payment_date ? formatDateIndo(a.payment_date) : '-'}</span>
                           </td>
-                          <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                          <td className="p-4 font-bold text-slate-800">
                             {a.warga_nama || `Keluarga #${a.family_id || a.id_family}`}
                           </td>
                           <td className="p-4 space-y-0.5">
-                            <div className="font-semibold text-slate-700 dark:text-slate-300">Bulan {a.month} / {a.year}</div>
-                            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-slate-500 uppercase">{a.payment_method || 'transfer'}</span>
+                            <div className="font-semibold text-slate-700">Bulan {a.month} / {a.year}</div>
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-100 rounded text-slate-500 uppercase">{a.payment_method || 'transfer'}</span>
                           </td>
-                          <td className="p-4 font-black font-mono text-emerald-600 dark:text-emerald-400">
+                          <td className="p-4 font-black font-mono text-emerald-600">
                             {formatRupiah(a.amount || 200000)}
                           </td>
                           <td className="p-4 text-center">
@@ -10449,7 +10365,7 @@ export default function AdminDashboard({
                               {a.status}
                             </span>
                           </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400 space-y-0.5">
+                          <td className="p-4 text-slate-600 space-y-0.5">
                             <div>Oleh: <span className="font-bold">{a.verified_by || a.verifiedBy || '-'}</span></div>
                             {a.rejection_reason && (
                               <div className="text-[10px] text-rose-500 italic">Alasan tolak: {a.rejection_reason}</div>
@@ -10466,10 +10382,10 @@ export default function AdminDashboard({
                   </table>
                 </div>
               ) : auditTab === 'kas' ? (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">ID / Tanggal</th>
                         <th className="p-4">Warga / KK</th>
                         <th className="p-4">Kategori & Keterangan</th>
@@ -10478,21 +10394,21 @@ export default function AdminDashboard({
                         <th className="p-4">Verifikator & Catatan</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {auditKasList.map((a) => (
-                        <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                        <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 font-mono space-y-1">
-                            <span className="font-bold text-slate-800 dark:text-slate-200 block">#{a.id}</span>
+                            <span className="font-bold text-slate-800 block">#{a.id}</span>
                             <span className="text-[10px] text-slate-400">{a.created_at || a.payment_date ? formatDateIndo(a.created_at || a.payment_date) : '-'}</span>
                           </td>
-                          <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                          <td className="p-4 font-bold text-slate-800">
                             {a.warga_nama || `Keluarga #${a.family_id || a.id_family}`}
                           </td>
                           <td className="p-4 space-y-0.5">
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400 uppercase text-[10px] tracking-wider block">[{a.category || 'Kas'}]</span>
-                            <div className="text-slate-700 dark:text-slate-300 font-medium">{a.description || '-'}</div>
+                            <span className="font-bold text-emerald-600 uppercase text-[10px] tracking-wider block">[{a.category || 'Kas'}]</span>
+                            <div className="text-slate-700 font-medium">{a.description || '-'}</div>
                           </td>
-                          <td className="p-4 font-black font-mono text-emerald-600 dark:text-emerald-400">
+                          <td className="p-4 font-black font-mono text-emerald-600">
                             {formatRupiah(a.amount || 0)}
                           </td>
                           <td className="p-4 text-center">
@@ -10504,7 +10420,7 @@ export default function AdminDashboard({
                               {a.status}
                             </span>
                           </td>
-                          <td className="p-4 text-slate-600 dark:text-slate-400 space-y-0.5">
+                          <td className="p-4 text-slate-600 space-y-0.5">
                             <div>Oleh: <span className="font-bold">{a.verified_by || a.verifiedBy || '-'}</span></div>
                             {a.rejection_reason && (
                               <div className="text-[10px] text-rose-500 italic">Alasan tolak: {a.rejection_reason}</div>
@@ -10521,28 +10437,28 @@ export default function AdminDashboard({
                   </table>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">Tanggal / ID</th>
                         <th className="p-4">Deskripsi Pembayaran</th>
                         <th className="p-4 text-right">Jumlah Uang</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {transaksiKasList
                         .filter(t => t.category === 'Iuran Warga' || t.type === 'income')
                         .map((t) => (
-                          <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                          <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-4 font-mono space-y-1">
-                              <span className="font-bold text-slate-700 dark:text-slate-350">{formatDateIndo(t.date)}</span>
+                              <span className="font-bold text-slate-700">{formatDateIndo(t.date)}</span>
                               <div className="text-[10px] text-slate-400">{t.id}</div>
                             </td>
-                            <td className="p-4 font-semibold text-slate-900 dark:text-white font-sans">
+                            <td className="p-4 font-semibold text-slate-900 font-sans">
                               {t.description}
                             </td>
-                            <td className="p-4 text-right font-black text-sm text-emerald-600 dark:text-emerald-400 font-mono">
+                            <td className="p-4 text-right font-black text-sm text-emerald-600 font-mono">
                               +{formatRupiah(t.amount)}
                             </td>
                           </tr>
@@ -10561,10 +10477,10 @@ export default function AdminDashboard({
 
           {/* IURAN: 4. Tunggakan */}
           {activeTab === 'iuran_tunggakan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemetaan & Tracking Tunggakan IPL Warga</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Pemetaan & Tracking Tunggakan IPL Warga</h3>
                   <p className="text-xs text-slate-400">Daftar kartu keluarga dan status pembayaran iuran bulanan (IPL) sesuai bulan target.</p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -10573,7 +10489,7 @@ export default function AdminDashboard({
                     <select
                       value={trackingMonth}
                       onChange={(e) => setTrackingMonth(parseInt(e.target.value))}
-                      className="px-2 py-1 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                      className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                     >
                       {Array.from({ length: 12 }, (_, i) => (
                         <option key={i + 1} value={i + 1}>{i + 1}</option>
@@ -10585,7 +10501,7 @@ export default function AdminDashboard({
                     <select
                       value={trackingYear}
                       onChange={(e) => setTrackingYear(parseInt(e.target.value))}
-                      className="px-2 py-1 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                      className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold"
                     >
                       {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map(y => (
                         <option key={y} value={y}>{y}</option>
@@ -10594,7 +10510,7 @@ export default function AdminDashboard({
                   </div>
                   <button
                     onClick={fetchFinanceTracking}
-                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
+                    className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 cursor-pointer animate-none"
                   >
                     🔄 Segarkan
                   </button>
@@ -10613,10 +10529,10 @@ export default function AdminDashboard({
               ) : financeTrackingList.length === 0 ? (
                 <div className="py-12 text-center text-slate-400 font-bold italic text-xs">Tidak ada data tracking tunggakan iuran untuk periode ini.</div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl font-sans">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">No. KK</th>
                         <th className="p-4">Nama Kepala Keluarga</th>
                         <th className="p-4">Target Bulan</th>
@@ -10626,18 +10542,18 @@ export default function AdminDashboard({
                         <th className="p-4 text-right">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {financeTrackingList.map((h) => {
                         const isMenunggak = h.status === 'Nunggak';
                         return (
-                          <tr key={h.family_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                            <td className="p-4 font-mono font-bold text-slate-800 dark:text-slate-200">
+                          <tr key={h.family_id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 font-mono font-bold text-slate-800">
                               <div className="flex items-center gap-1.5">
                                 <span>{revealedKks[h.family_id] || h.no_kk || 'Tidak Diketahui'}</span>
                                 {h.no_kk?.includes('x') && !revealedKks[h.family_id] && (
                                   <button
                                     onClick={() => handleRevealResident(h.family_id)}
-                                    className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer inline-flex items-center"
+                                    className="p-1 hover:bg-slate-100 rounded text-emerald-600 hover:text-emerald-700 transition-colors cursor-pointer inline-flex items-center"
                                     title="Buka Sensor KK"
                                   >
                                     <Eye className="w-3.5 h-3.5" />
@@ -10645,13 +10561,13 @@ export default function AdminDashboard({
                                 )}
                               </div>
                             </td>
-                            <td className="p-4 font-bold text-slate-700 dark:text-slate-350">
+                            <td className="p-4 font-bold text-slate-700">
                               {h.kepala_keluarga_nama}
                             </td>
                             <td className="p-4 font-mono text-slate-500">
                               {h.target_bulan}
                             </td>
-                            <td className="p-4 font-black font-mono text-slate-850 dark:text-white">
+                            <td className="p-4 font-black font-mono text-slate-850">
                               {formatRupiah(h.nominal_tagihan || 200000)}
                             </td>
                             <td className="p-4 text-center">
@@ -10663,7 +10579,7 @@ export default function AdminDashboard({
                                 {h.status}
                               </span>
                             </td>
-                            <td className="p-4 text-center text-slate-550 dark:text-slate-400 font-semibold">
+                            <td className="p-4 text-center text-slate-550 font-semibold">
                               {h.ketepatan_waktu || '-'}
                             </td>
                             <td className="p-4 text-right font-sans">
@@ -10705,15 +10621,15 @@ export default function AdminDashboard({
 
           {/* IURAN: 5. Verifikasi Transfer Manual */}
           {activeTab === 'iuran_verifikasi' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Verifikasi Bukti Transfer Warga</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Verifikasi Bukti Transfer Warga</h3>
                   <p className="text-xs text-slate-400">Verifikasi setoran iuran bulanan (IPL) dan uang kas insidental yang dilaporkan warga.</p>
                 </div>
                 <button
                   onClick={fetchPendingPayments}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer animate-none"
+                  className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-550 cursor-pointer animate-none"
                 >
                   🔄 Segarkan
                 </button>
@@ -10733,10 +10649,10 @@ export default function AdminDashboard({
                   {/* Table 1: IPL approvals */}
                   <div>
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">1. Verifikasi Iuran Bulanan (IPL)</h4>
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                          <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
                             <th className="p-4">Warga / KK</th>
                             <th className="p-4">Waktu Upload</th>
                             <th className="p-4">Periode Tagihan</th>
@@ -10746,7 +10662,7 @@ export default function AdminDashboard({
                             <th className="p-4 text-right">Aksi</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                           {pendingPayments.ipl && pendingPayments.ipl.map((b) => {
                             const matchingResident = residentServerList.find(r => 
                               (r.family_id !== undefined && (r.family_id === b.family_id || r.family_id === b.id_family)) ||
@@ -10757,27 +10673,27 @@ export default function AdminDashboard({
                               : (matchingResident ? matchingResident.kepala_keluarga_nama : (b.warga_nama || 'Warga'));
 
                             return (
-                              <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                              <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="p-4 space-y-0.5">
-                                  <span className="font-bold text-slate-900 dark:text-white block text-xs">
+                                  <span className="font-bold text-slate-900 block text-xs">
                                     {residentName}
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-mono block">ID Transaksi: #{b.id}</span>
                                 </td>
-                                <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
+                                <td className="p-4 text-slate-600 font-mono text-[11px]">
                                   {formatDateTimeIndo(b.payment_date || b.created_at)}
                                 </td>
-                                <td className="p-4 font-bold text-emerald-600 dark:text-emerald-400">
+                                <td className="p-4 font-bold text-emerald-600">
                                   {formatPeriodLabel(b, 'ipl')}
                                 </td>
-                                <td className="p-4 font-black font-mono text-slate-900 dark:text-white">
+                                <td className="p-4 font-black font-mono text-slate-900">
                                   {formatRupiah(b.amount)}
                                 </td>
                                 <td className="p-4 max-w-xs truncate text-slate-400 font-mono text-[11px]" title={b.payment_proof}>
                                   {b.payment_proof || '-'}
                                 </td>
                                 <td className="p-4 text-center">
-                                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse border border-amber-500/20">
+                                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-amber-500/10 text-amber-600 animate-pulse border border-amber-500/20">
                                     {b.status || 'Pending'}
                                   </span>
                                 </td>
@@ -10820,10 +10736,10 @@ export default function AdminDashboard({
                   {/* Table 2: Kas approvals */}
                   <div>
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">2. Verifikasi Uang Kas / Sumbangan</h4>
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                          <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
                             <th className="p-4">Warga / KK</th>
                             <th className="p-4">Waktu Upload</th>
                             <th className="p-4">Kategori & Keterangan</th>
@@ -10833,7 +10749,7 @@ export default function AdminDashboard({
                             <th className="p-4 text-right">Aksi</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                           {pendingPayments.kas && pendingPayments.kas.map((b) => {
                             const matchingResident = residentServerList.find(r => 
                               (r.family_id !== undefined && (r.family_id === b.family_id || r.family_id === b.id_family)) ||
@@ -10844,28 +10760,28 @@ export default function AdminDashboard({
                               : (matchingResident ? matchingResident.kepala_keluarga_nama : (b.warga_nama || 'Warga'));
 
                             return (
-                              <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                              <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
                                 <td className="p-4 space-y-0.5">
-                                  <span className="font-bold text-slate-900 dark:text-white block text-xs">
+                                  <span className="font-bold text-slate-900 block text-xs">
                                     {residentName}
                                   </span>
                                   <span className="text-[10px] text-slate-400 font-mono block">ID Transaksi: #{b.id}</span>
                                 </td>
-                                <td className="p-4 text-slate-600 dark:text-slate-300 font-mono text-[11px]">
+                                <td className="p-4 text-slate-600 font-mono text-[11px]">
                                   {formatDateTimeIndo(b.payment_date || b.created_at)}
                                 </td>
                                 <td className="p-4">
-                                  <span className="font-bold text-slate-800 dark:text-slate-200 block capitalize">{b.category}</span>
+                                  <span className="font-bold text-slate-800 block capitalize">{b.category}</span>
                                   <span className="text-[10px] text-slate-400 block italic">"{b.description}"</span>
                                 </td>
-                                <td className="p-4 font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                                <td className="p-4 font-black text-emerald-600 font-mono">
                                   +{formatRupiah(b.amount)}
                                 </td>
                                 <td className="p-4 max-w-xs truncate text-slate-455 font-mono text-[11px]" title={b.payment_proof}>
                                   {b.payment_proof || '-'}
                                 </td>
                                 <td className="p-4 text-center">
-                                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse border border-amber-500/20">
+                                  <span className="px-2.5 py-0.5 rounded-full font-bold text-[9px] uppercase bg-amber-500/10 text-amber-600 animate-pulse border border-amber-500/20">
                                     {b.status || 'Pending'}
                                   </span>
                                 </td>
@@ -10911,9 +10827,9 @@ export default function AdminDashboard({
 
           {/* KEUANGAN: 4. Transfer Bank / QRIS */}
           {activeTab === 'keuangan_qris' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Rekening Transfer & QRIS RT 05</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Rekening Transfer & QRIS RT 05</h3>
                 <p className="text-xs text-slate-400">Informasi pembayaran resmi untuk warga mentransfer iuran bulanan.</p>
               </div>
 
@@ -10939,7 +10855,7 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Stylized QRIS Placeholder */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
                   <div className="p-1.5 bg-white rounded-2xl border-4 border-emerald-500 shadow-lg">
                     {/* Simulated QR Grid with CSS */}
                     <div className="w-40 h-40 bg-slate-100 flex flex-col items-center justify-center p-2 relative overflow-hidden select-none">
@@ -10952,7 +10868,7 @@ export default function AdminDashboard({
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-extrabold text-xs text-slate-900 dark:text-white">QRIS RT 05 / RW 11</h5>
+                    <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 05 / RW 11</h5>
                     <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                   </div>
                 </div>
@@ -10962,24 +10878,24 @@ export default function AdminDashboard({
 
           {/* LAPORAN: 1. Bulanan */}
           {activeTab === 'laporan_bulanan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Keuangan Bulanan Kas RT</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Laporan Keuangan Bulanan Kas RT</h3>
                 <p className="text-xs text-slate-400">Rangkuman transaksi kas bulanan berjalan (Juli 2026).</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Income categories summary */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-xs text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Breakdown Pemasukan</h4>
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-xs text-emerald-600 uppercase tracking-wider">Breakdown Pemasukan</h4>
                   <div className="space-y-3 text-xs">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
                       <span className="text-slate-500 font-bold">Iuran Wajib Bulanan</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Iuran Warga').reduce((a,c) => a+c.amount,0))}</span>
+                      <span className="font-black text-slate-900">{formatRupiah(transaksiKasList.filter(t => t.category === 'Iuran Warga').reduce((a,c) => a+c.amount,0))}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
                       <span className="text-slate-500 font-bold">Sumbangan & Donasi</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Donasi').reduce((a,c) => a+c.amount,0))}</span>
+                      <span className="font-black text-slate-900">{formatRupiah(transaksiKasList.filter(t => t.category === 'Donasi').reduce((a,c) => a+c.amount,0))}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 font-black text-emerald-650">
                       <span>Total Pemasukan Bulan Ini</span>
@@ -10989,16 +10905,16 @@ export default function AdminDashboard({
                 </div>
 
                 {/* Expense categories summary */}
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-xs text-rose-600 dark:text-rose-455 uppercase tracking-wider">Breakdown Pengeluaran</h4>
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-xs text-rose-600 uppercase tracking-wider">Breakdown Pengeluaran</h4>
                   <div className="space-y-3 text-xs">
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
                       <span className="text-slate-500 font-bold">Honor Keamanan (Satpam)</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Keamanan').reduce((a,c) => a+c.amount,0))}</span>
+                      <span className="font-black text-slate-900">{formatRupiah(transaksiKasList.filter(t => t.category === 'Keamanan').reduce((a,c) => a+c.amount,0))}</span>
                     </div>
-                    <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                    <div className="flex justify-between items-center py-2 border-b border-slate-100">
                       <span className="text-slate-500 font-bold">Operasional Kebersihan</span>
-                      <span className="font-black text-slate-900 dark:text-white">{formatRupiah(transaksiKasList.filter(t => t.category === 'Kebersihan').reduce((a,c) => a+c.amount,0))}</span>
+                      <span className="font-black text-slate-900">{formatRupiah(transaksiKasList.filter(t => t.category === 'Kebersihan').reduce((a,c) => a+c.amount,0))}</span>
                     </div>
                     <div className="flex justify-between items-center py-2 font-black text-rose-600">
                       <span>Total Pengeluaran Bulan Ini</span>
@@ -11012,28 +10928,28 @@ export default function AdminDashboard({
 
           {/* LAPORAN: 2. Tahunan */}
           {activeTab === 'laporan_tahunan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Keuangan Tahunan Kas RT (2026)</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Laporan Keuangan Tahunan Kas RT (2026)</h3>
                 <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 05.</p>
               </div>
               
-              <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+              <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 05</h4>
                 <div className="space-y-4 text-xs font-sans">
-                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-slate-500 font-bold">Januari - Juni 2026 (Saldo Awal Terakumulasi)</span>
-                    <span className="font-black text-slate-900 dark:text-white">{formatRupiah(7500000)}</span>
+                    <span className="font-black text-slate-900">{formatRupiah(7500000)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-slate-500 font-bold">Pemasukan Berjalan (Juli)</span>
                     <span className="font-black text-emerald-600">{formatRupiah(totalPemasukan)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-slate-850">
+                  <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-slate-500 font-bold">Pengeluaran Berjalan (Juli)</span>
                     <span className="font-black text-rose-500">-{formatRupiah(totalPengeluaran)}</span>
                   </div>
-                  <div className="flex justify-between items-center py-2 font-black text-sm text-emerald-600 dark:text-emerald-400">
+                  <div className="flex justify-between items-center py-2 font-black text-sm text-emerald-600">
                     <span>Proyeksi Saldo Bersih Kumulatif Akhir Tahun</span>
                     <span>{formatRupiah(7500000 + sisaKas)}</span>
                   </div>
@@ -11044,16 +10960,16 @@ export default function AdminDashboard({
 
           {/* LAPORAN: 3. Rekap Iuran */}
           {activeTab === 'laporan_rekap' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
                 <p className="text-xs text-slate-400">Daftar status lunas warga RT 05 Villa Mutiara Mas Cinere per bulan.</p>
               </div>
 
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4 min-w-[120px]">Nama Warga</th>
                       <th className="p-2 text-center">Mei</th>
                       <th className="p-2 text-center">Juni</th>
@@ -11061,12 +10977,12 @@ export default function AdminDashboard({
                       <th className="p-2 text-center">Agustus</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
+                  <tbody className="divide-y divide-slate-100 font-medium">
                     {wargaList
                       .filter(w => w.statusHidup === 'Hidup')
                       .map((w) => (
-                        <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                          <td className="p-4 font-bold text-slate-900 dark:text-white font-sans">
+                        <tr key={w.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-bold text-slate-900 font-sans">
                             {w.name}
                             <span className="block text-[9px] text-slate-400 font-mono mt-0.5">ID: {w.id}</span>
                           </td>
@@ -11090,15 +11006,15 @@ export default function AdminDashboard({
 
           {/* LAPORAN: 4. Export Excel/PDF */}
           {activeTab === 'laporan_export' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Ekspor & Cetak Laporan Keuangan</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Ekspor & Cetak Laporan Keuangan</h3>
                 <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 05.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas RT (PDF & Cetak)</h4>
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900">Buku Kas RT (PDF & Cetak)</h4>
                   <p className="text-xs text-slate-400">Unduh dokumen PDF atau cetak lembar fisik transaksi kas masuk & keluar RT secara formal.</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -11110,15 +11026,15 @@ export default function AdminDashboard({
                     </button>
                     <button
                       onClick={handlePrintKasReport}
-                      className="py-2.5 px-4 bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      className="py-2.5 px-4 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <FileText className="w-4 h-4" />
                       <span>Cetak Lembar Kas</span>
                     </button>
                   </div>
                 </div>
-                <div className="p-6 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Buku Kas & Rekapitulasi (Ekspor Excel)</h4>
+                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
+                  <h4 className="font-extrabold text-sm text-slate-900">Buku Kas & Rekapitulasi (Ekspor Excel)</h4>
                   <p className="text-xs text-slate-400">Ekspor seluruh rekapan transaksi buku kas RT ke file spreadsheet Microsoft Excel (.xlsx).</p>
                   <button
                     onClick={() => handleExportKas('xlsx')}
@@ -11134,7 +11050,7 @@ export default function AdminDashboard({
 
           {/* TAB 4: MANAJEMEN AGENDA */}
           {activeTab === 'agenda' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center font-sans">
                 <div className="relative flex-1 max-w-md">
@@ -11147,7 +11063,7 @@ export default function AdminDashboard({
                       setSearchQuery(e.target.value);
                       if (fetchAgendas) fetchAgendas(e.target.value);
                     }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 transition-all"
                   />
                 </div>
 
@@ -11165,7 +11081,7 @@ export default function AdminDashboard({
                 {agendaList
                   .filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()) || a.category.toLowerCase().includes(searchQuery.toLowerCase()))
                   .map((a) => (
-                    <div key={a.id} className="relative bg-slate-50 dark:bg-slate-900/50 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
+                    <div key={a.id} className="relative bg-slate-50 border border-slate-200/60 rounded-3xl p-6 shadow-xs hover:shadow-sm transition-all flex flex-col justify-between overflow-hidden">
                       {/* Top Accent line */}
                       <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500"></div>
                       
@@ -11173,42 +11089,42 @@ export default function AdminDashboard({
                         {/* Title & Badge */}
                         <div className="flex justify-between items-start gap-3">
                           <div>
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-450 uppercase font-black tracking-widest">{a.category}</span>
-                            <h4 className="text-sm font-extrabold text-slate-900 dark:text-white mt-0.5 leading-tight">{a.title}</h4>
+                            <span className="text-[10px] text-emerald-600 uppercase font-black tracking-widest">{a.category}</span>
+                            <h4 className="text-sm font-extrabold text-slate-900 mt-0.5 leading-tight">{a.title}</h4>
                           </div>
-                          <span className="text-[9px] px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-500 font-mono rounded font-semibold">{a.id}</span>
+                          <span className="text-[9px] px-2 py-0.5 bg-slate-200 text-slate-500 font-mono rounded font-semibold">{a.id}</span>
                         </div>
 
                         {/* Description */}
-                        <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed line-clamp-3">
+                        <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
                           {a.description}
                         </p>
 
                         {/* Meta info Grid */}
-                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/60 dark:border-slate-800 text-[10px]">
+                        <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200/60 text-[10px]">
                           <div>
                             <span className="block text-slate-400 font-bold uppercase tracking-wider">Tanggal & Waktu</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDateIndo(a.date)} ({a.time})</span>
+                            <span className="font-semibold text-slate-800">{formatDateIndo(a.date)} ({a.time})</span>
                           </div>
                           <div>
                             <span className="block text-slate-400 font-bold uppercase tracking-wider">Tempat</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block" title={a.location}>{a.location}</span>
+                            <span className="font-semibold text-slate-800 truncate block" title={a.location}>{a.location}</span>
                           </div>
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-200/60 dark:border-slate-800">
+                      <div className="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-200/60">
                         <button
                           onClick={() => openEditModal('agenda', a)}
-                          className="px-3.5 py-1.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-900 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 flex items-center gap-1.5 cursor-pointer transition-all"
+                          className="px-3.5 py-1.5 border border-slate-200 hover:border-emerald-500 hover:bg-slate-100 text-xs font-bold rounded-xl text-slate-600 hover:text-emerald-600 flex items-center gap-1.5 cursor-pointer transition-all"
                         >
                           <Edit className="w-3.5 h-3.5" />
                           <span>Edit</span>
                         </button>
                         <button
                           onClick={() => handleDelete('agenda', a.id)}
-                          className="px-3.5 py-1.5 border border-slate-200 dark:border-slate-800 hover:border-red-500 hover:bg-slate-100 dark:hover:bg-slate-900 text-xs font-bold rounded-xl text-slate-600 dark:text-slate-300 hover:text-red-655 dark:hover:text-red-400 flex items-center gap-1.5 cursor-pointer transition-all"
+                          className="px-3.5 py-1.5 border border-slate-200 hover:border-red-500 hover:bg-slate-100 text-xs font-bold rounded-xl text-slate-600 hover:text-red-655 flex items-center gap-1.5 cursor-pointer transition-all"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                           <span>Hapus</span>
@@ -11223,7 +11139,7 @@ export default function AdminDashboard({
 
           {/* TAB 5: LAYANAN WARGA */}
           {activeTab === 'layanan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               {/* Search Toolbar */}
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center font-sans">
@@ -11234,16 +11150,16 @@ export default function AdminDashboard({
                     placeholder="Cari pengajuan berdasarkan nama warga..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 transition-all"
                   />
                 </div>
               </div>
 
               {/* List table for Submissions */}
-              <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                    <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                       <th className="p-4">Tanggal</th>
                       <th className="p-4">Data Warga Pemohon</th>
                       <th className="p-4">Jenis Surat Pengantar</th>
@@ -11252,35 +11168,35 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Aksi Tindakan</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {displaySubmissions
                       .filter(s => s.wargaNama.toLowerCase().includes(searchQuery.toLowerCase()))
                       .map((sub) => (
-                        <tr key={sub.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                        <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="p-4 font-mono">
-                            <span className="font-semibold text-slate-800 dark:text-slate-200">{sub.tanggal || sub.submissionDate}</span>
+                            <span className="font-semibold text-slate-800">{sub.tanggal || sub.submissionDate}</span>
                           </td>
                           <td className="p-4 space-y-1">
-                            <span className="font-bold text-slate-905 dark:text-slate-100">{sub.wargaNama}</span>
+                            <span className="font-bold text-slate-905">{sub.wargaNama}</span>
                             <div className="text-[10px] text-slate-400 font-mono">NIK: {sub.wargaNik} | KK: {sub.wargaNoKk}</div>
                             <div className="text-[10px] text-slate-500">Alamat: {sub.wargaAlamat}</div>
                           </td>
-                          <td className="p-4 font-bold text-emerald-600 dark:text-emerald-450">
+                          <td className="p-4 font-bold text-emerald-600">
                             {sub.wargaTipeSurat}
                           </td>
-                          <td className="p-4 italic max-w-[200px] whitespace-normal break-words text-slate-600 dark:text-slate-300">
+                          <td className="p-4 italic max-w-[200px] whitespace-normal break-words text-slate-600">
                             "{sub.wargaKeperluan}"
                           </td>
                           <td className="p-4 text-center">
                             <div className="flex flex-col items-center gap-1">
                               <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg inline-block ${
                                 (sub.status === 'Disetujui' || sub.status === 'Approved')
-                                  ? 'bg-emerald-50 dark:bg-emerald-950/20 text-emerald-600'
+                                  ? 'bg-emerald-50 text-emerald-600'
                                   : (sub.status === 'Ditolak' || sub.status === 'Rejected')
-                                  ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
+                                  ? 'bg-red-50 text-red-600'
                                   : (sub.status === 'Selesai' || sub.status === 'Completed')
-                                  ? 'bg-blue-50 dark:bg-blue-950/20 text-blue-600'
-                                  : 'bg-amber-50 dark:bg-amber-950/20 text-amber-600 animate-pulse'
+                                  ? 'bg-blue-50 text-blue-600'
+                                  : 'bg-amber-50 text-amber-600 animate-pulse'
                               }`}>
                                 {sub.status || 'Menunggu'}
                               </span>
@@ -11294,7 +11210,7 @@ export default function AdminDashboard({
                               {/* Pratinjau / Cetak Surat Pengantar (A4) */}
                               <button
                                 onClick={() => setViewingApprovedLetter(sub)}
-                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-200 dark:border-slate-700"
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-all border border-slate-200"
                                 title="Pratinjau / Cetak Surat Pengantar (A4)"
                               >
                                 <Printer className="w-3 h-3 text-orange-500" />
@@ -11351,9 +11267,9 @@ export default function AdminDashboard({
 
           {/* TAB: PENGATURAN ADMIN */}
           {activeTab === 'pengaturan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
-              <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-black text-slate-900 dark:text-white">Pengaturan Portal & Sistem</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+              <div className="border-b border-slate-100 pb-4">
+                <h3 className="text-lg font-black text-slate-900">Pengaturan Portal & Sistem</h3>
                 <p className="text-xs text-slate-400">Konfigurasi akun pengurus, detail lingkungan RT, dan preferensi portal.</p>
               </div>
 
@@ -11361,7 +11277,7 @@ export default function AdminDashboard({
                 {/* Left Side: Account Password Form */}
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Keamanan Akun</h4>
+                    <h4 className="font-extrabold text-sm text-slate-900">Keamanan Akun</h4>
                     <p className="text-[10px] text-slate-400">Ubah kata sandi akun pengurus Anda secara berkala.</p>
                   </div>
 
@@ -11374,7 +11290,7 @@ export default function AdminDashboard({
                         required
                         value={adminOldPassword}
                         onChange={(e) => setAdminOldPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 font-semibold" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -11385,7 +11301,7 @@ export default function AdminDashboard({
                         required
                         value={adminNewPassword}
                         onChange={(e) => setAdminNewPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 font-semibold" 
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -11396,7 +11312,7 @@ export default function AdminDashboard({
                         required
                         value={adminConfirmPassword}
                         onChange={(e) => setAdminConfirmPassword(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 dark:text-white font-semibold" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-505 text-slate-900 font-semibold" 
                       />
                     </div>
                     <button 
@@ -11412,37 +11328,37 @@ export default function AdminDashboard({
                 {/* Right Side: RT Environment Profile */}
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Profil Lingkungan RT</h4>
+                    <h4 className="font-extrabold text-sm text-slate-900">Profil Lingkungan RT</h4>
                     <p className="text-[10px] text-slate-400">Konfigurasi data wilayah hukum administrasi RT.</p>
                   </div>
 
-                  <div className="p-6 bg-slate-50 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 text-xs font-sans">
+                  <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 text-xs font-sans">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Tetangga</span>
-                        <p className="font-bold text-slate-900 dark:text-white">RT 05</p>
+                        <p className="font-bold text-slate-900">RT 05</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Warga</span>
-                        <p className="font-bold text-slate-900 dark:text-white">RW 11</p>
+                        <p className="font-bold text-slate-900">RW 11</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kelurahan</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Cinere</p>
+                        <p className="font-bold text-slate-900">Cinere</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kecamatan</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Cinere</p>
+                        <p className="font-bold text-slate-900">Cinere</p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Perumahan / Lokasi</span>
-                        <p className="font-bold text-slate-900 dark:text-white">Villa Mutiara Mas Cinere</p>
+                        <p className="font-bold text-slate-900">Villa Mutiara Mas Cinere</p>
                       </div>
                     </div>
 
                     <button 
                       onClick={() => alert('Fitur edit wilayah memerlukan konfirmasi dari kelurahan.')} 
-                      className="w-full py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs hover:bg-slate-200 dark:hover:bg-slate-750 transition-all cursor-pointer"
+                      className="w-full py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs hover:bg-slate-200 transition-all cursor-pointer"
                     >
                       Ajukan Perubahan Data Wilayah
                     </button>
@@ -11455,7 +11371,7 @@ export default function AdminDashboard({
 
           {/* TAB 6: LOG AKSES WARGA */}
           {activeTab === 'logs' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
                 <div className="relative flex-1 max-w-md">
@@ -11465,7 +11381,7 @@ export default function AdminDashboard({
                     placeholder="Cari aktivitas berdasarkan nama/username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 transition-all"
                   />
                 </div>
                 <button
@@ -11474,7 +11390,7 @@ export default function AdminDashboard({
                       setAccessLogs([]);
                     }
                   }}
-                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Hapus Semua Log</span>
@@ -11482,10 +11398,10 @@ export default function AdminDashboard({
               </div>
 
               {/* Table rendering logs */}
-              <div className="overflow-x-auto border border-slate-100 dark:border-slate-805 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                 <table className="w-full border-collapse text-left text-xs font-sans">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
                       <th className="p-4">ID Log</th>
                       <th className="p-4">Warga / Pengguna</th>
                       <th className="p-4">Peran (Role)</th>
@@ -11495,7 +11411,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                     {accessLogs.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold italic">
@@ -11509,23 +11425,23 @@ export default function AdminDashboard({
                           log.username.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((log) => (
-                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
                             <td className="p-4">
                               <div>
-                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="font-extrabold text-slate-900 block">{log.name}</span>
                                 <span className="text-[10px] text-slate-400">@{log.username}</span>
                               </div>
                             </td>
                             <td className="p-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
                                 log.role === 'rt' || log.role === 'admin'
-                                  ? 'bg-emerald-105 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  ? 'bg-emerald-105 text-emerald-600'
                                   : log.role === 'sekertaris'
-                                  ? 'bg-blue-105 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  ? 'bg-blue-105 text-blue-600'
                                   : log.role === 'bendahara'
-                                  ? 'bg-amber-105 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-400'
+                                  ? 'bg-amber-105 text-amber-600'
+                                  : 'bg-slate-100 text-slate-655'
                               }`}>
                                 {log.role}
                               </span>
@@ -11559,7 +11475,7 @@ export default function AdminDashboard({
 
           {/* TAB 6: LOG AKSES WARGA (DUPLICATE) */}
           {activeTab === 'logs' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-stretch sm:items-center">
                 <div className="relative flex-1 max-w-md">
@@ -11569,7 +11485,7 @@ export default function AdminDashboard({
                     placeholder="Cari aktivitas berdasarkan nama/username..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 transition-all"
                   />
                 </div>
                 <button
@@ -11578,7 +11494,7 @@ export default function AdminDashboard({
                       setAccessLogs([]);
                     }
                   }}
-                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Hapus Semua Log</span>
@@ -11586,10 +11502,10 @@ export default function AdminDashboard({
               </div>
 
               {/* Table rendering logs */}
-              <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+              <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                 <table className="w-full border-collapse text-left text-xs font-sans">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 text-slate-500 font-bold uppercase tracking-wider">
+                    <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
                       <th className="p-4">ID Log</th>
                       <th className="p-4">Warga / Pengguna</th>
                       <th className="p-4">Peran (Role)</th>
@@ -11599,7 +11515,7 @@ export default function AdminDashboard({
                       <th className="p-4 text-right">Aksi</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+                  <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
                     {accessLogs.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold italic">
@@ -11613,23 +11529,23 @@ export default function AdminDashboard({
                           log.username.toLowerCase().includes(searchQuery.toLowerCase())
                         )
                         .map((log) => (
-                          <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                          <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-4 font-mono font-bold text-slate-500">{log.id}</td>
                             <td className="p-4">
                               <div>
-                                <span className="font-extrabold text-slate-900 dark:text-white block">{log.name}</span>
+                                <span className="font-extrabold text-slate-900 block">{log.name}</span>
                                 <span className="text-[10px] text-slate-400">@{log.username}</span>
                               </div>
                             </td>
                             <td className="p-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-block uppercase ${
                                 log.role === 'rt' || log.role === 'admin'
-                                  ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400'
+                                  ? 'bg-emerald-100 text-emerald-600'
                                   : log.role === 'sekertaris'
-                                  ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
+                                  ? 'bg-blue-100 text-blue-600'
                                   : log.role === 'bendahara'
-                                  ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-655 dark:text-slate-400'
+                                  ? 'bg-amber-100 text-amber-600'
+                                  : 'bg-slate-100 text-slate-655'
                               }`}>
                                 {log.role}
                               </span>
@@ -11676,11 +11592,11 @@ export default function AdminDashboard({
             onClick={() => setModalType('')}
           ></div>
 
-          <div className={`relative bg-white dark:bg-slate-900 w-full ${modalType === 'register_account' ? 'max-w-lg' : 'max-w-md'} rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col`}>
+          <div className={`relative bg-white w-full ${modalType === 'register_account' ? 'max-w-lg' : 'max-w-md'} rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col`}>
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
 
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 text-base">
                 {modalType === 'add_warga' && 'Tambah Warga Baru'}
                 {modalType === 'edit_warga' && 'Edit Data Warga'}
                 {modalType === 'add_kas' && 'Catat Kas Masuk/Keluar'}
@@ -11692,7 +11608,7 @@ export default function AdminDashboard({
               </h3>
               <button 
                 onClick={() => setModalType('')}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
               </button>
@@ -11700,7 +11616,7 @@ export default function AdminDashboard({
 
             <div className="p-6 overflow-y-auto flex-1 font-sans text-xs">
               {formError && (
-                <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl text-red-600 dark:text-red-400 font-semibold flex items-center gap-2">
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{formError}</span>
                 </div>
@@ -11725,10 +11641,10 @@ export default function AdminDashboard({
                 return (
                   <div className="space-y-6 font-sans text-xs">
                     {/* SECTION 1: Informasi Warga (Readonly Card) */}
-                    <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
-                      <div className="flex items-center gap-2 border-b border-slate-200/60 dark:border-slate-800 pb-2.5">
-                        <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs uppercase tracking-wider">
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2 border-b border-slate-200/60 pb-2.5">
+                        <UserCheck className="w-4 h-4 text-emerald-600" />
+                        <h4 className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">
                           Informasi Warga
                         </h4>
                       </div>
@@ -11736,35 +11652,35 @@ export default function AdminDashboard({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Nama Lengkap</span>
-                          <span className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
+                          <span className="font-extrabold text-slate-900 text-sm">
                             {selectedCitizenForAccount?.name || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">NIK (KTP)</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                          <span className="font-bold text-slate-800 font-mono">
                             {selectedCitizenForAccount?.nik || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Nomor KK</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200 font-mono">
+                          <span className="font-bold text-slate-800 font-mono">
                             {selectedCitizenForAccount?.noKk || selectedCitizenForAccount?.no_kk || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Kepala Keluarga</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800">
                             {selectedCitizenForAccount?.kepalaKeluarga || selectedCitizenForAccount?.kepala_keluarga_nama || selectedCitizenForAccount?.name || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Blok & Nomor Rumah</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800">
                             {selectedCitizenForAccount?.house_blok ? `Blok ${selectedCitizenForAccount.house_blok}` : ''}
                             {selectedCitizenForAccount?.house_nomor ? ` No. ${selectedCitizenForAccount.house_nomor}` : '-'}
                           </span>
@@ -11772,14 +11688,14 @@ export default function AdminDashboard({
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Nomor HP</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800">
                             {selectedCitizenForAccount?.noHp || selectedCitizenForAccount?.no_hp || selectedCitizenForAccount?.telepon || '-'}
                           </span>
                         </div>
 
                         <div>
                           <span className="text-slate-400 font-bold block text-[10px] uppercase">Email Warga</span>
-                          <span className="font-bold text-slate-800 dark:text-slate-200">
+                          <span className="font-bold text-slate-800">
                             {selectedCitizenForAccount?.email || selectedCitizenForAccount?.emailWarga || '-'}
                           </span>
                         </div>
@@ -11787,7 +11703,7 @@ export default function AdminDashboard({
 
                       <div className="pt-1">
                         <span className="text-slate-400 font-bold block text-[10px] uppercase">Alamat Lengkap</span>
-                        <span className="font-medium text-slate-700 dark:text-slate-300">
+                        <span className="font-medium text-slate-700">
                           {selectedCitizenForAccount?.alamat || '-'}
                         </span>
                       </div>
@@ -11795,21 +11711,21 @@ export default function AdminDashboard({
 
                     {/* Divider Visual */}
                     <div className="relative flex items-center justify-center">
-                      <div className="border-t border-slate-200 dark:border-slate-800 w-full"></div>
-                      <span className="bg-white dark:bg-slate-900 px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest absolute">
+                      <div className="border-t border-slate-200 w-full"></div>
+                      <span className="bg-white px-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest absolute">
                         {isEditMode ? '⚙️ Edit Akun Warga' : '🔐 Informasi Akun Baru'}
                       </span>
                     </div>
 
                     {/* SECTION 1.5: Data Akun Saat Ini (Only in Edit Mode) */}
                     {isEditMode && (
-                      <div className="bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
-                        <div className="flex items-center gap-2 border-b border-emerald-200/50 dark:border-emerald-900/30 pb-2.5">
-                          <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <h4 className="font-extrabold text-emerald-800 dark:text-emerald-300 text-xs uppercase tracking-wider">
+                      <div className="bg-emerald-50/60 border border-emerald-200/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+                        <div className="flex items-center gap-2 border-b border-emerald-200/50 pb-2.5">
+                          <Shield className="w-4 h-4 text-emerald-600" />
+                          <h4 className="font-extrabold text-emerald-800 text-xs uppercase tracking-wider">
                             Data Akun Saat Ini
                           </h4>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 rounded-full font-extrabold text-[9px] ml-auto">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-full font-extrabold text-[9px] ml-auto">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                             Aktif
                           </span>
@@ -11818,16 +11734,16 @@ export default function AdminDashboard({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                           {/* Username Saat Ini */}
                           <div>
-                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Username Saat Ini</span>
-                            <span className="font-extrabold text-emerald-900 dark:text-emerald-100 text-sm font-mono">
+                            <span className="text-emerald-600/70 font-bold block text-[10px] uppercase">Username Saat Ini</span>
+                            <span className="font-extrabold text-emerald-900 text-sm font-mono">
                               @{accountForm.username || '-'}
                             </span>
                           </div>
 
                           {/* Tanggal Pembuatan Akun */}
                           <div>
-                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Tanggal Pembuatan Akun</span>
-                            <span className="font-bold text-emerald-800 dark:text-emerald-200 text-xs">
+                            <span className="text-emerald-600/70 font-bold block text-[10px] uppercase">Tanggal Pembuatan Akun</span>
+                            <span className="font-bold text-emerald-800 text-xs">
                               {existingAccountCreatedAt
                                 ? new Date(existingAccountCreatedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                                 : 'Terdaftar pada registrasi'}
@@ -11835,10 +11751,10 @@ export default function AdminDashboard({
                           </div>
 
                           {/* Tanggal Pergantian Password Terakhir */}
-                          <div className="sm:col-span-2 bg-emerald-500/5 dark:bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-500/10 flex items-center justify-between">
+                          <div className="sm:col-span-2 bg-emerald-500/5 p-2.5 rounded-xl border border-emerald-500/10 flex items-center justify-between">
                             <div>
-                              <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase">Tanggal Pergantian Password Terakhir</span>
-                              <span className="font-extrabold text-emerald-900 dark:text-emerald-100 text-xs font-mono">
+                              <span className="text-emerald-600/70 font-bold block text-[10px] uppercase">Tanggal Pergantian Password Terakhir</span>
+                              <span className="font-extrabold text-emerald-900 text-xs font-mono">
                                 {existingPasswordChangedAt
                                   ? new Date(existingPasswordChangedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })
                                   : (existingAccountCreatedAt 
@@ -11850,10 +11766,10 @@ export default function AdminDashboard({
 
                           {/* Password Saat Ini */}
                           <div className="sm:col-span-2">
-                            <span className="text-emerald-600/70 dark:text-emerald-400/70 font-bold block text-[10px] uppercase mb-1">Password Saat Ini</span>
+                            <span className="text-emerald-600/70 font-bold block text-[10px] uppercase mb-1">Password Saat Ini</span>
                             {existingAccountPassword ? (
                               <div className="flex items-center gap-2">
-                                <div className="flex-1 px-3 py-2 bg-white/80 dark:bg-slate-900/60 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl font-mono font-bold text-emerald-900 dark:text-emerald-100 text-sm select-all break-all shadow-xs">
+                                <div className="flex-1 px-3 py-2 bg-white/80 border border-emerald-200/60 rounded-xl font-mono font-bold text-emerald-900 text-sm select-all break-all shadow-xs">
                                   {showExistingPassword ? existingAccountPassword : '•'.repeat(Math.max(existingAccountPassword.length, 8))}
                                 </div>
                                 <button
@@ -11867,7 +11783,7 @@ export default function AdminDashboard({
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-slate-400 dark:text-slate-500 italic font-semibold text-[11px]">
+                              <span className="text-slate-400 italic font-semibold text-[11px]">
                                 Password tersimpan di server (masukkan password baru di bawah jika ingin mengubah)
                               </span>
                             )}
@@ -11881,13 +11797,13 @@ export default function AdminDashboard({
                       {/* Username Field */}
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center">
-                          <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                          <label className="font-bold text-slate-700 text-xs">
                             Username Login *
                           </label>
                           <button
                             type="button"
                             onClick={() => handleGenerateUsername()}
-                            className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-500/10 px-2.5 py-1 rounded-lg hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
+                            className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1 cursor-pointer bg-emerald-500/10 px-2.5 py-1 rounded-lg hover:bg-emerald-500/20 active:scale-95 transition-all shadow-xs"
                             title="Klik untuk membuat rekomendasi username baru secara acak"
                           >
                             <Wand2 className="w-3.5 h-3.5 animate-bounce" />
@@ -11910,9 +11826,9 @@ export default function AdminDashboard({
                               setUsernameFieldError('');
                             }
                           }}
-                          className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border ${
-                            usernameFieldError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/20 focus:border-emerald-500'
-                          } rounded-xl outline-none focus:ring-2 text-slate-900 dark:text-white font-mono font-semibold transition-all disabled:opacity-50`}
+                          className={`w-full px-3.5 py-2.5 bg-slate-50 border ${
+                            usernameFieldError ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                          } rounded-xl outline-none focus:ring-2 text-slate-900 font-mono font-semibold transition-all disabled:opacity-50`}
                         />
                         {usernameFieldError && (
                           <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1">
@@ -11925,10 +11841,10 @@ export default function AdminDashboard({
                       {/* Email Field */}
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center">
-                          <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                          <label className="font-bold text-slate-700 text-xs">
                             Email Warga *
                           </label>
-                          <span className="text-[10px] font-semibold text-rose-500 dark:text-rose-400">
+                          <span className="text-[10px] font-semibold text-rose-500">
                             (Wajib Diisi)
                           </span>
                         </div>
@@ -11942,11 +11858,11 @@ export default function AdminDashboard({
                             setAccountForm({ ...accountForm, email: e.target.value });
                             if (emailFieldError) setEmailFieldError('');
                           }}
-                          className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border ${
+                          className={`w-full px-3.5 py-2.5 bg-slate-50 border ${
                             emailFieldError 
                               ? 'border-rose-500 focus:ring-rose-500/20' 
-                              : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/20 focus:border-emerald-500'
-                          } rounded-xl outline-none focus:ring-2 text-slate-900 dark:text-white transition-all disabled:opacity-50`}
+                              : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                          } rounded-xl outline-none focus:ring-2 text-slate-900 transition-all disabled:opacity-50`}
                         />
                         {emailFieldError && (
                           <p className="text-[10px] text-rose-500 font-bold flex items-center gap-1">
@@ -11958,7 +11874,7 @@ export default function AdminDashboard({
 
                       {/* Password Field */}
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                        <label className="font-bold text-slate-700 text-xs">
                           {isEditMode ? 'Password Baru (Kosongkan jika tidak ingin mengubah)' : 'Password *'}
                         </label>
                         <div className="relative">
@@ -11969,12 +11885,12 @@ export default function AdminDashboard({
                             placeholder={isEditMode ? 'Kosongkan jika tidak ada perubahan' : 'Masukkan kata sandi (min. 8 karakter)'}
                             value={accountForm.password}
                             onChange={(e) => setAccountForm({ ...accountForm, password: e.target.value })}
-                            className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono transition-all disabled:opacity-50"
+                            className="w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-mono transition-all disabled:opacity-50"
                           />
                           <button
                             type="button"
                             onClick={() => setShowAccountPassword(!showAccountPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                             title={showAccountPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
                           >
                             {showAccountPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -11984,7 +11900,7 @@ export default function AdminDashboard({
 
                       {/* Konfirmasi Password Field */}
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-700 dark:text-slate-200 text-xs">
+                        <label className="font-bold text-slate-700 text-xs">
                           {isEditMode ? 'Konfirmasi Password Baru' : 'Konfirmasi Password *'}
                         </label>
                         <div className="relative">
@@ -11995,16 +11911,16 @@ export default function AdminDashboard({
                             placeholder={isEditMode ? 'Ulangi kata sandi baru (jika diubah)' : 'Ulangi kata sandi di atas'}
                             value={accountForm.confirmPassword}
                             onChange={(e) => setAccountForm({ ...accountForm, confirmPassword: e.target.value })}
-                            className={`w-full pl-3.5 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900/50 border ${
+                            className={`w-full pl-3.5 pr-10 py-2.5 bg-slate-50 border ${
                               accountForm.confirmPassword && accountForm.confirmPassword !== accountForm.password
                                 ? 'border-rose-500 focus:ring-rose-500/20'
-                                : 'border-slate-200 dark:border-slate-800 focus:ring-emerald-500/20 focus:border-emerald-500'
-                            } rounded-xl outline-none focus:ring-2 text-slate-900 dark:text-white font-mono transition-all disabled:opacity-50`}
+                                : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500'
+                            } rounded-xl outline-none focus:ring-2 text-slate-900 font-mono transition-all disabled:opacity-50`}
                           />
                           <button
                             type="button"
                             onClick={() => setShowAccountConfirmPassword(!showAccountConfirmPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-1"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                             title={showAccountConfirmPassword ? 'Sembunyikan Password' : 'Tampilkan Password'}
                           >
                             {showAccountConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -12024,7 +11940,7 @@ export default function AdminDashboard({
                           type="button"
                           disabled={isCreatingAccount}
                           onClick={() => setModalType('')}
-                          className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
+                          className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors cursor-pointer disabled:opacity-50"
                         >
                           Batal
                         </button>
@@ -12061,7 +11977,7 @@ export default function AdminDashboard({
               {(modalType === 'add_warga' || modalType === 'edit_warga') && (
                 <form onSubmit={handleWargaSubmit} className="space-y-4 text-xs font-sans" autoComplete="one-time-code">
                   <div className="grid grid-cols-3 gap-3">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Nama Lengkap *</label>
+                    <label className="font-bold text-slate-655">Nama Lengkap *</label>
                     <input
                       required
                       type="text"
@@ -12069,7 +11985,7 @@ export default function AdminDashboard({
                       placeholder="Nama lengkap warga"
                       value={wargaForm.name}
                       onChange={(e) => setWargaForm({ ...wargaForm, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
                     />
                   </div>
 
@@ -12077,7 +11993,7 @@ export default function AdminDashboard({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">NIK (16 Digit) *</label>
+                      <label className="font-bold text-slate-655">NIK (16 Digit) *</label>
                       <input
                         required
                         type="text"
@@ -12086,11 +12002,11 @@ export default function AdminDashboard({
                         placeholder="Nomor NIK"
                         value={wargaForm.nik}
                         onChange={(e) => setWargaForm({ ...wargaForm, nik: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-mono"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">No. KK (16 Digit) *</label>
+                      <label className="font-bold text-slate-655">No. KK (16 Digit) *</label>
                       <input
                         required
                         type="text"
@@ -12099,14 +12015,14 @@ export default function AdminDashboard({
                         placeholder="Nomor KK"
                         value={wargaForm.noKk}
                         onChange={(e) => setWargaForm({ ...wargaForm, noKk: e.target.value.replace(/\D/g, '') })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-mono"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Nomor HP *</label>
+                      <label className="font-bold text-slate-655">Nomor HP *</label>
                       <input
                         required
                         type="text"
@@ -12114,11 +12030,11 @@ export default function AdminDashboard({
                         placeholder="Contoh: 081234567890"
                         value={wargaForm.noHp || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, noHp: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Lahir *</label>
+                      <label className="font-bold text-slate-655">Tanggal Lahir *</label>
                       <DateInput
                         required
                         value={wargaForm.tglLahir || ''}
@@ -12127,25 +12043,25 @@ export default function AdminDashboard({
                           const calculatedAge = calculateAge(birthDate);
                           setWargaForm({ ...wargaForm, tglLahir: birthDate, usia: calculatedAge });
                         }}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white text-xs"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 text-xs"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3">
                     <div className="space-y-1.5 col-span-2">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Jenis Kelamin</label>
+                      <label className="font-bold text-slate-655">Jenis Kelamin</label>
                       <select
                         value={wargaForm.gender}
                         onChange={(e) => setWargaForm({ ...wargaForm, gender: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       >
                         <option value="Laki-laki">Laki-laki</option>
                         <option value="Perempuan">Perempuan</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350 flex items-center justify-between">
+                      <label className="font-bold text-slate-655 flex items-center justify-between">
                         <span>Usia (Thn) *</span>
                         <span className="text-[10px] text-slate-400 font-normal">(Otomatis)</span>
                       </label>
@@ -12154,7 +12070,7 @@ export default function AdminDashboard({
                         type="number"
                         placeholder="Otomatis"
                         value={wargaForm.usia !== undefined && wargaForm.usia !== null ? wargaForm.usia : ''}
-                        className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 rounded-xl outline-none text-slate-500 dark:text-slate-400 font-bold cursor-not-allowed select-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl outline-none text-slate-500 font-bold cursor-not-allowed select-none"
                         title="Usia dihitung otomatis dari Tanggal Lahir"
                       />
                     </div>
@@ -12162,11 +12078,11 @@ export default function AdminDashboard({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Status Rumah</label>
+                      <label className="font-bold text-slate-655">Status Rumah</label>
                       <select
                         value={wargaForm.status}
                         onChange={(e) => setWargaForm({ ...wargaForm, status: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       >
                         <option value="Tetap">Tetap</option>
                         <option value="Kontrak">Kontrak</option>
@@ -12174,11 +12090,11 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Status Hidup</label>
+                      <label className="font-bold text-slate-655">Status Hidup</label>
                       <select
                         value={wargaForm.statusHidup}
                         onChange={(e) => setWargaForm({ ...wargaForm, statusHidup: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       >
                         <option value="Hidup">Hidup (Aktif)</option>
                         <option value="Meninggal">Meninggal Dunia</option>
@@ -12188,7 +12104,7 @@ export default function AdminDashboard({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Blok Rumah *</label>
+                      <label className="font-bold text-slate-655">Blok Rumah *</label>
                       <input
                         required
                         type="text"
@@ -12196,11 +12112,11 @@ export default function AdminDashboard({
                         placeholder="Contoh: A"
                         value={wargaForm.blok || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, blok: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Nomor Rumah *</label>
+                      <label className="font-bold text-slate-655">Nomor Rumah *</label>
                       <input
                         required
                         type="number"
@@ -12209,27 +12125,27 @@ export default function AdminDashboard({
                         placeholder="Contoh: 12"
                         value={wargaForm.nomor || ''}
                         onChange={(e) => setWargaForm({ ...wargaForm, nomor: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Alamat Rumah *</label>
+                    <label className="font-bold text-slate-655">Alamat Rumah *</label>
                     <textarea
                       required
                       rows={2}
                       placeholder="Villa Mutiara Mas Cinere Blok X No Y"
                       value={wargaForm.alamat}
                       onChange={(e) => setWargaForm({ ...wargaForm, alamat: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={isSubmittingWarga}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 dark:disabled:bg-emerald-800 text-white font-bold rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed text-xs flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-bold rounded-xl transition-colors cursor-pointer disabled:cursor-not-allowed text-xs flex items-center justify-center gap-2 shadow-sm"
                   >
                     {isSubmittingWarga ? (
                       <>
@@ -12248,11 +12164,11 @@ export default function AdminDashboard({
                 <form onSubmit={handleKasSubmit} className="space-y-4 text-xs font-sans">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Jenis Transaksi</label>
+                      <label className="font-bold text-slate-655">Jenis Transaksi</label>
                       <select
                         value={kasForm.type}
                         onChange={(e) => setKasForm({ ...kasForm, type: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-bold"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold"
                       >
                         <option value="income">Masuk (Pemasukan)</option>
                         <option value="expense">Keluar (Pengeluaran)</option>
@@ -12260,7 +12176,7 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
+                      <label className="font-bold text-slate-655">Kategori Kas RT *</label>
                       <input
                         required
                         list="kategori-kas-suggestions"
@@ -12268,7 +12184,7 @@ export default function AdminDashboard({
                         placeholder="Pilih atau ketik kategori..."
                         value={kasForm.category || ''}
                         onChange={(e) => setKasForm({ ...kasForm, category: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       />
                       <datalist id="kategori-kas-suggestions">
                         {kategoriSaranList.map((cat, idx) => (
@@ -12280,7 +12196,7 @@ export default function AdminDashboard({
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Uang (Rp) *</label>
+                      <label className="font-bold text-slate-655">Nominal Uang (Rp) *</label>
                       <input
                         required
                         type="number"
@@ -12288,30 +12204,30 @@ export default function AdminDashboard({
                         placeholder="Contoh: 150000"
                         value={kasForm.amount}
                         onChange={(e) => setKasForm({ ...kasForm, amount: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono text-sm"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono text-sm"
                       />
                     </div>
                     
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Transaksi *</label>
+                      <label className="font-bold text-slate-655">Tanggal Transaksi *</label>
                       <DateInput
                         required
                         value={kasForm.date}
                         onChange={(e) => setKasForm({ ...kasForm, date: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Deskripsi / Keperluan Transaksi *</label>
+                    <label className="font-bold text-slate-655">Deskripsi / Keperluan Transaksi *</label>
                     <textarea
                       required
                       rows={3}
                       placeholder="Tulis uraian atau keperluan transaksi secara jelas..."
                       value={kasForm.description}
                       onChange={(e) => setKasForm({ ...kasForm, description: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
                     />
                   </div>
 
@@ -12336,24 +12252,24 @@ export default function AdminDashboard({
               {(modalType === 'add_agenda' || modalType === 'edit_agenda') && (
                 <form onSubmit={handleAgendaSubmit} className="space-y-4 text-xs font-sans">
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Judul Kegiatan / Rapat *</label>
+                    <label className="font-bold text-slate-655">Judul Kegiatan / Rapat *</label>
                     <input
                       required
                       type="text"
                       placeholder="Kerja bakti, Rapat bulanan..."
                       value={agendaForm.title}
                       onChange={(e) => setAgendaForm({ ...agendaForm, title: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kegiatan</label>
+                      <label className="font-bold text-slate-655">Kategori Kegiatan</label>
                       <select
                         value={agendaForm.category}
                         onChange={(e) => setAgendaForm({ ...agendaForm, category: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       >
                         <option value="Kerja Bakti">Kerja Bakti</option>
                         <option value="Rapat Warga">Rapat Warga</option>
@@ -12366,63 +12282,63 @@ export default function AdminDashboard({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Target Peserta *</label>
+                      <label className="font-bold text-slate-655">Target Peserta *</label>
                       <input
                         required
                         type="text"
                         placeholder="Contoh: Seluruh Warga Blok A - E"
                         value={agendaForm.participants}
                         onChange={(e) => setAgendaForm({ ...agendaForm, participants: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Tanggal Pelaksanaan *</label>
+                      <label className="font-bold text-slate-655">Tanggal Pelaksanaan *</label>
                       <DateInput
                         required
                         value={agendaForm.date}
                         onChange={(e) => setAgendaForm({ ...agendaForm, date: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-slate-655 dark:text-slate-350">Waktu Pelaksanaan *</label>
+                      <label className="font-bold text-slate-655">Waktu Pelaksanaan *</label>
                       <input
                         required
                         type="text"
                         placeholder="Contoh: 07:00 - 11:00 WIB"
                         value={agendaForm.time}
                         onChange={(e) => setAgendaForm({ ...agendaForm, time: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none font-mono"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-mono"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Lokasi / Tempat Rapat *</label>
+                    <label className="font-bold text-slate-655">Lokasi / Tempat Rapat *</label>
                     <input
                       required
                       type="text"
                       placeholder="Contoh: Balai Warga RT 05"
                       value={agendaForm.location}
                       onChange={(e) => setAgendaForm({ ...agendaForm, location: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Deskripsi Kegiatan Lengkap *</label>
+                    <label className="font-bold text-slate-655">Deskripsi Kegiatan Lengkap *</label>
                     <textarea
                       required
                       rows={3}
                       placeholder="Jelaskan detail agenda kegiatan atau rapat..."
                       value={agendaForm.description}
                       onChange={(e) => setAgendaForm({ ...agendaForm, description: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none"
                     />
                   </div>
 
@@ -12447,14 +12363,14 @@ export default function AdminDashboard({
             onClick={() => setViewingCitizenProfile(null)}
           ></div>
           
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+          <div className="relative bg-white w-full max-w-md rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Profil Lengkap Warga</h3>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 text-base">Profil Lengkap Warga</h3>
               <button 
                 onClick={() => setViewingCitizenProfile(null)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
               </button>
@@ -12467,56 +12383,56 @@ export default function AdminDashboard({
                   {viewingCitizenProfile.name ? viewingCitizenProfile.name.charAt(0) : 'W'}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-900 dark:text-white text-base">{viewingCitizenProfile.name}</h4>
+                  <h4 className="font-black text-slate-900 text-base">{viewingCitizenProfile.name}</h4>
                   <span className="text-[10px] text-slate-400">ID Warga: {viewingCitizenProfile.id}</span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                 <div className="flex justify-between items-center py-1">
                   <span className="text-slate-500 font-semibold">Username Login</span>
-                  <span className="font-bold text-slate-900 dark:text-white">@{viewingCitizenProfile.username}</span>
+                  <span className="font-bold text-slate-900">@{viewingCitizenProfile.username}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Email Warga</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{viewingCitizenProfile.email || '-'}</span>
+                  <span className="font-bold text-slate-900">{viewingCitizenProfile.email || '-'}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">NIK (Tersensor)</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  <span className="font-bold text-slate-900 font-mono">
                     {viewingCitizenProfile.nik ? viewingCitizenProfile.nik.slice(0, 6) + '******' + viewingCitizenProfile.nik.slice(12) : '-'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">No. KK (Tersensor)</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  <span className="font-bold text-slate-900 font-mono">
                     {viewingCitizenProfile.noKk ? viewingCitizenProfile.noKk.slice(0, 6) + '******' + viewingCitizenProfile.noKk.slice(12) : '-'}
                   </span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-semibold">Jenis Kelamin</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.gender}</span>
+                  <span className="font-bold text-slate-800">{viewingCitizenProfile.gender}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Usia</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.usia} Tahun</span>
+                  <span className="font-bold text-slate-800">{viewingCitizenProfile.usia} Tahun</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Status Rumah</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-450">{viewingCitizenProfile.status}</span>
+                  <span className="font-bold text-emerald-600">{viewingCitizenProfile.status}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Status Hidup</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' : 'bg-red-50 dark:bg-red-950/30 text-red-600'}`}>{viewingCitizenProfile.statusHidup}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>{viewingCitizenProfile.statusHidup}</span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
-                <span className="text-slate-850 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
+                <span className="text-slate-850 italic font-medium leading-relaxed block text-xs">
                   "{viewingCitizenProfile.alamat}"
                 </span>
               </div>
@@ -12540,14 +12456,14 @@ export default function AdminDashboard({
             onClick={() => setViewingCitizenProfile(null)}
           ></div>
           
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+          <div className="relative bg-white w-full max-w-md rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Profil Lengkap Warga</h3>
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 text-base">Profil Lengkap Warga</h3>
               <button 
                 onClick={() => setViewingCitizenProfile(null)}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
               </button>
@@ -12560,56 +12476,56 @@ export default function AdminDashboard({
                   {viewingCitizenProfile.name ? viewingCitizenProfile.name.charAt(0) : 'W'}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-900 dark:text-white text-base">{viewingCitizenProfile.name}</h4>
+                  <h4 className="font-black text-slate-900 text-base">{viewingCitizenProfile.name}</h4>
                   <span className="text-[10px] text-slate-400">ID Warga: {viewingCitizenProfile.id}</span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                 <div className="flex justify-between items-center py-1">
                   <span className="text-slate-500 font-semibold">Username Login</span>
-                  <span className="font-bold text-slate-900 dark:text-white">@{viewingCitizenProfile.username}</span>
+                  <span className="font-bold text-slate-900">@{viewingCitizenProfile.username}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-505 font-semibold">Email Warga</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{viewingCitizenProfile.email || '-'}</span>
+                  <span className="font-bold text-slate-900">{viewingCitizenProfile.email || '-'}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">NIK (Tersensor)</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  <span className="font-bold text-slate-900 font-mono">
                     {viewingCitizenProfile.nik ? viewingCitizenProfile.nik.slice(0, 6) + '******' + viewingCitizenProfile.nik.slice(12) : '-'}
                   </span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-550 font-semibold">No. KK (Tersensor)</span>
-                  <span className="font-bold text-slate-900 dark:text-white font-mono">
+                  <span className="font-bold text-slate-900 font-mono">
                     {viewingCitizenProfile.noKk ? viewingCitizenProfile.noKk.slice(0, 6) + '******' + viewingCitizenProfile.noKk.slice(12) : '-'}
                   </span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-slate-500 font-semibold">Jenis Kelamin</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-205">{viewingCitizenProfile.gender}</span>
+                  <span className="font-bold text-slate-800">{viewingCitizenProfile.gender}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Usia</span>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{viewingCitizenProfile.usia} Tahun</span>
+                  <span className="font-bold text-slate-800">{viewingCitizenProfile.usia} Tahun</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-550 font-semibold">Status Rumah</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-450">{viewingCitizenProfile.status}</span>
+                  <span className="font-bold text-emerald-600">{viewingCitizenProfile.status}</span>
                 </div>
-                <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800/40">
+                <div className="flex justify-between items-center py-1 border-t border-slate-100">
                   <span className="text-slate-500 font-semibold">Status Hidup</span>
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-650' : 'bg-red-50 dark:bg-red-950/30 text-red-655'}`}>{viewingCitizenProfile.statusHidup}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${viewingCitizenProfile.statusHidup === 'Hidup' ? 'bg-emerald-50 text-emerald-650' : 'bg-red-50 text-red-655'}`}>{viewingCitizenProfile.statusHidup}</span>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 rounded-2xl border border-slate-100 dark:border-slate-800">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                 <span className="text-slate-500 font-semibold block mb-1 text-xs">Alamat Rumah Lengkap</span>
-                <span className="text-slate-800 dark:text-slate-200 italic font-medium leading-relaxed block text-xs">
+                <span className="text-slate-800 italic font-medium leading-relaxed block text-xs">
                   "{viewingCitizenProfile.alamat}"
                 </span>
               </div>
@@ -12628,21 +12544,21 @@ export default function AdminDashboard({
       {/* SUDO PASSWORD VERIFICATION MODAL */}
       {showSudoPrompt && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
+          <div className="bg-white border border-slate-200/60 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+              <h4 className="font-extrabold text-sm text-slate-900">
                 {sudoActionType === 'patch_kk' ? 'Edit Nomor Kartu Keluarga' : 'Verifikasi Sandi Keamanan'}
               </h4>
               <button 
                 onClick={() => setShowSudoPrompt(false)} 
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer"
               >
                 <XIcon className="w-4 h-4 text-slate-400" />
               </button>
             </div>
 
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
+            <p className="text-[11px] text-slate-500 leading-relaxed font-sans">
               {sudoActionType === 'patch_kk' 
                 ? 'Masukkan nomor KK baru dan sandi Ketua RT/Admin Anda untuk menyimpan perubahan.' 
                 : 'Masukkan sandi Ketua RT/Admin Anda untuk membuka sensor data sensitif.'
@@ -12650,7 +12566,7 @@ export default function AdminDashboard({
             </p>
 
             {sudoPromptError && (
-              <div className="p-2.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-200/50 dark:border-rose-900/50 rounded-xl text-rose-600 dark:text-rose-400 font-semibold text-[10px] flex items-center gap-2">
+              <div className="p-2.5 bg-rose-50 border border-rose-200/50 rounded-xl text-rose-600 font-semibold text-[10px] flex items-center gap-2">
                 <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 <span>{sudoPromptError}</span>
               </div>
@@ -12659,7 +12575,7 @@ export default function AdminDashboard({
             <form onSubmit={handleSudoSubmit} className="space-y-4 text-xs font-sans">
               {sudoActionType === 'patch_kk' && (
                 <div className="space-y-1.5 font-sans">
-                  <label className="font-bold text-slate-655 dark:text-slate-350">Nomor KK Baru *</label>
+                  <label className="font-bold text-slate-655">Nomor KK Baru *</label>
                   <input
                     required
                     type="text"
@@ -12667,13 +12583,13 @@ export default function AdminDashboard({
                     placeholder="Masukkan 16 digit nomor KK"
                     value={sudoNewKkInput}
                     onChange={(e) => setSudoNewKkInput(e.target.value.replace(/\D/g, ''))}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-805 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-mono font-bold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-mono font-bold"
                   />
                 </div>
               )}
 
               <div className="space-y-1.5 font-sans">
-                <label className="font-bold text-slate-655 dark:text-slate-350">Sandi RT / Admin *</label>
+                <label className="font-bold text-slate-655">Sandi RT / Admin *</label>
                 <input
                   required
                   autoFocus
@@ -12681,7 +12597,7 @@ export default function AdminDashboard({
                   placeholder="Masukkan kata sandi Anda..."
                   value={sudoPasswordInput}
                   onChange={(e) => setSudoPasswordInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-805 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-semibold"
                 />
               </div>
 
@@ -12695,7 +12611,7 @@ export default function AdminDashboard({
                 <button
                   type="button"
                   onClick={() => setShowSudoPrompt(false)}
-                  className="px-4 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                  className="px-4 py-2.5 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
                 >
                   Batal
                 </button>
@@ -12709,14 +12625,14 @@ export default function AdminDashboard({
       {(modalType === 'add_surat_keluar' || modalType === 'edit_surat_keluar') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+          <div className="relative bg-white w-full max-w-lg rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+              <h3 className="font-extrabold text-slate-900 text-base">
                 {modalType === 'add_surat_keluar' ? 'Pencatatan Surat Keluar Baru' : 'Edit Surat Keluar'}
               </h3>
-              <button onClick={() => setModalType('')} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+              <button onClick={() => setModalType('')} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
@@ -12731,7 +12647,7 @@ export default function AdminDashboard({
                     value={suratKeluarForm.nomorSurat}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, nomorSurat: e.target.value })}
                     placeholder="Contoh: 104/RT05/VII/2026"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono font-bold"
                   />
                 </div>
                 <div className="space-y-1">
@@ -12739,7 +12655,7 @@ export default function AdminDashboard({
                   <select
                     value={suratKeluarForm.jenisSurat}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, jenisSurat: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-700 font-extrabold cursor-pointer"
                   >
                     <option value="Surat Pengantar KTP">Surat Pengantar KTP</option>
                     <option value="Surat Pengantar KK">Surat Pengantar KK</option>
@@ -12760,7 +12676,7 @@ export default function AdminDashboard({
                     value={suratKeluarForm.namaPemohon}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, namaPemohon: e.target.value })}
                     placeholder="Contoh: Ahmad Subarjo"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                   />
                 </div>
                 <div className="space-y-1">
@@ -12772,7 +12688,7 @@ export default function AdminDashboard({
                     value={suratKeluarForm.nik}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, nik: e.target.value.replace(/\D/g, '') })}
                     placeholder="Masukkan 16 digit NIK"
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono font-bold"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono font-bold"
                   />
                 </div>
               </div>
@@ -12785,7 +12701,7 @@ export default function AdminDashboard({
                   value={suratKeluarForm.tujuan}
                   onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tujuan: e.target.value })}
                   placeholder="Contoh: Kelurahan Cinere (Pengurusan E-KTP)"
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                 />
               </div>
 
@@ -12797,7 +12713,7 @@ export default function AdminDashboard({
                     type="date"
                     value={suratKeluarForm.tanggalSurat}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tanggalSurat: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold cursor-pointer"
                   />
                 </div>
                 <div className="space-y-1">
@@ -12805,7 +12721,7 @@ export default function AdminDashboard({
                   <select
                     value={suratKeluarForm.status}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, status: e.target.value })}
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-700 dark:text-slate-200 font-extrabold cursor-pointer"
+                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-700 font-extrabold cursor-pointer"
                   >
                     <option value="Draft">Draft</option>
                     <option value="Diproses">Diproses</option>
@@ -12833,7 +12749,7 @@ export default function AdminDashboard({
                 <button
                   type="button"
                   onClick={() => setModalType('')}
-                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                  className="px-5 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
                 >
                   Batal
                 </button>
@@ -12847,61 +12763,61 @@ export default function AdminDashboard({
       {suratKeluarDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setSuratKeluarDetail(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+          <div className="relative bg-white w-full max-w-md rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
             
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center font-sans">
               <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Detail Surat Keluar</h3>
+                <h3 className="font-extrabold text-slate-900 text-base">Detail Surat Keluar</h3>
                 <span className="text-[10px] text-slate-400 font-bold font-mono block mt-0.5">{suratKeluarDetail.nomorSurat}</span>
               </div>
-              <button onClick={() => setSuratKeluarDetail(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
+              <button onClick={() => setSuratKeluarDetail(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer">
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-6 space-y-5 text-xs font-sans">
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 grid grid-cols-2 gap-4">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Jenis Surat</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200">{suratKeluarDetail.jenisSurat}</span>
+                  <span className="font-bold text-slate-700">{suratKeluarDetail.jenisSurat}</span>
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Status</span>
                   <span className={`px-2 py-0.5 rounded-full font-bold text-[8px] uppercase inline-block mt-1 ${
                     suratKeluarDetail.status === 'Draft' 
-                      ? 'bg-slate-500/10 text-slate-600 dark:text-slate-405' 
+                      ? 'bg-slate-500/10 text-slate-600' 
                       : suratKeluarDetail.status === 'Diproses' 
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' 
+                        ? 'bg-amber-500/10 text-amber-600' 
                         : suratKeluarDetail.status === 'Disetujui'
-                          ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                          : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          ? 'bg-blue-500/10 text-blue-600'
+                          : 'bg-emerald-500/10 text-emerald-600'
                   }`}>
                     {suratKeluarDetail.status}
                   </span>
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Nama Pemohon</span>
-                  <span className="font-bold text-slate-805 dark:text-white">{suratKeluarDetail.namaPemohon}</span>
+                  <span className="font-bold text-slate-805">{suratKeluarDetail.namaPemohon}</span>
                 </div>
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">NIK Pemohon</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{suratKeluarDetail.nik}</span>
+                  <span className="font-bold text-slate-700 font-mono">{suratKeluarDetail.nik}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Tujuan / Keperluan</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-200 leading-normal block">{suratKeluarDetail.tujuan}</span>
+                  <span className="font-bold text-slate-700 leading-normal block">{suratKeluarDetail.tujuan}</span>
                 </div>
                 <div className="col-span-2">
                   <span className="text-[9px] font-bold text-slate-400 block uppercase">Tanggal Cetak Surat</span>
-                  <span className="font-bold text-slate-600 dark:text-slate-350">{formatDateIndo(suratKeluarDetail.tanggalSurat)}</span>
+                  <span className="font-bold text-slate-600">{formatDateIndo(suratKeluarDetail.tanggalSurat)}</span>
                 </div>
               </div>
 
               {/* MOCK PREVIEW LETTER GENERATOR */}
-              <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-slate-50 dark:bg-slate-950/20 text-center flex flex-col items-center justify-center gap-2">
+              <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50 text-center flex flex-col items-center justify-center gap-2">
                 <FileText className="w-8 h-8 text-emerald-500" />
-                <h4 className="font-extrabold text-[10px] text-slate-700 dark:text-slate-300 uppercase">Dokumen Preview Pengantar</h4>
+                <h4 className="font-extrabold text-[10px] text-slate-700 uppercase">Dokumen Preview Pengantar</h4>
                 <p className="text-[9px] text-slate-400 max-w-[240px] font-bold leading-normal font-sans">
                   Pratinjau draft surat pengantar resmi yang akan dikirimkan ke pihak kelurahan.
                 </p>
@@ -12916,7 +12832,7 @@ export default function AdminDashboard({
                   <button 
                     type="button"
                     onClick={() => alert(`Simulasi mengunduh berkas surat: ${suratKeluarDetail.nomorSurat}.pdf`)}
-                    className="py-1.5 px-3 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-bold text-[9px] rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    className="py-1.5 px-3 border border-slate-200 text-slate-700 font-bold text-[9px] rounded-lg hover:bg-slate-100 cursor-pointer"
                   >
                     Unduh PDF
                   </button>
@@ -12924,7 +12840,7 @@ export default function AdminDashboard({
               </div>
 
               <div className="flex justify-end pt-2">
-                <button type="button" onClick={() => setSuratKeluarDetail(null)} className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-extrabold rounded-xl cursor-pointer">
+                <button type="button" onClick={() => setSuratKeluarDetail(null)} className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl cursor-pointer">
                   Tutup
                 </button>
               </div>
@@ -12951,23 +12867,23 @@ export default function AdminDashboard({
               onClick={() => setSelectedFamilyForDetail(null)}
             ></div>
 
-            <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col font-sans">
+            <div className="relative bg-white w-full max-w-2xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[90vh] flex flex-col font-sans">
               <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
 
               {/* Modal Header */}
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                    <h3 className="font-extrabold text-slate-900 text-base">
                       Detail Kartu Keluarga (KK)
                     </h3>
                     {hasAccount ? (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-emerald-500/10 text-emerald-700 border border-emerald-500/30 rounded-full font-extrabold text-[9px]">
                         <Check className="w-3 h-3 text-emerald-500" />
                         Sudah Ada Akun {foundUsername ? `(@${foundUsername})` : ''}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-rose-500/10 text-rose-700 border border-rose-500/30 rounded-full font-extrabold text-[9px]">
                         <XIcon className="w-3 h-3 text-rose-500" />
                         Belum Ada Akun
                       </span>
@@ -12979,7 +12895,7 @@ export default function AdminDashboard({
                 </div>
                 <button 
                   onClick={() => setSelectedFamilyForDetail(null)}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   <XIcon className="w-4 h-4" />
                 </button>
@@ -12989,16 +12905,16 @@ export default function AdminDashboard({
               <div className="p-6 overflow-y-auto flex-1 text-xs space-y-6">
                 
                 {/* Information Grid Cards */}
-                <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Kepala Keluarga</span>
-                    <span className="font-extrabold text-slate-800 dark:text-slate-200 block text-xs">
+                    <span className="font-extrabold text-slate-800 block text-xs">
                       {kepalaNama}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Alamat Domisili Rumah</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300 block">
+                    <span className="font-bold text-slate-700 block">
                       {selectedFamilyForDetail.house_alamat || selectedFamilyForDetail.alamat || 'Tidak Diketahui'}
                       {selectedFamilyForDetail.house_blok ? ` (Blok ${selectedFamilyForDetail.house_blok}` : ''}
                       {selectedFamilyForDetail.house_nomor ? ` No. ${selectedFamilyForDetail.house_nomor})` : ''}
@@ -13006,7 +12922,7 @@ export default function AdminDashboard({
                   </div>
                   <div>
                     <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Rumah</span>
-                    <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] capitalize bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 inline-block mt-0.5">
+                    <span className="px-2 py-0.5 rounded-full font-extrabold text-[9px] capitalize bg-emerald-500/10 text-emerald-600 inline-block mt-0.5">
                       {selectedFamilyForDetail.house_status || selectedFamilyForDetail.status || 'Milik Sendiri'}
                     </span>
                   </div>
@@ -13014,7 +12930,7 @@ export default function AdminDashboard({
                     <span className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Status Akun Login</span>
                     <span className="font-bold text-xs block mt-0.5">
                       {hasAccount ? (
-                        <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">
+                        <span className="text-emerald-600 font-extrabold">
                           Aktif {foundUsername ? `(@${foundUsername})` : ''}
                         </span>
                       ) : (
@@ -13027,15 +12943,15 @@ export default function AdminDashboard({
                 {/* Anggota Keluarga Table */}
                 <div className="space-y-3 font-sans">
                   <div className="flex justify-between items-center">
-                    <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
+                    <h4 className="font-extrabold text-slate-900 text-xs">
                       Daftar Anggota Keluarga Terdaftar ({familyWarga.length})
                     </h4>
                   </div>
                   
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-3">Nama Lengkap</th>
                           <th className="p-3">NIK</th>
                           <th className="p-3">Peran / Hubungan</th>
@@ -13043,13 +12959,13 @@ export default function AdminDashboard({
                           <th className="p-3">Usia</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {familyWarga.length > 0 ? (
                           familyWarga.map((w) => {
                             const isKepala = w.name === kepalaNama || w.nama === kepalaNama;
                             return (
-                              <tr key={w.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
+                              <tr key={w.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3 font-bold text-slate-800">
                                   {w.name || w.nama}
                                 </td>
                                 <td className="p-3 font-mono font-bold text-slate-500">
@@ -13064,10 +12980,10 @@ export default function AdminDashboard({
                                     {isKepala ? 'Kepala Keluarga' : 'Anggota Keluarga'}
                                   </span>
                                 </td>
-                                <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                <td className="p-3 text-slate-600 font-medium">
                                   {w.gender || w.jenisKelamin || '-'}
                                 </td>
-                                <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">
+                                <td className="p-3 text-slate-600 font-medium">
                                   {w.umur ? `${w.umur} Thn` : formatDateIndo(w.tgl_lahir || w.tglLahir)}
                                 </td>
                               </tr>
@@ -13087,7 +13003,7 @@ export default function AdminDashboard({
               </div>
 
               {/* Modal Footer */}
-              <div className="p-4 px-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center gap-3">
+              <div className="p-4 px-6 border-t border-slate-100 flex justify-between items-center gap-3">
                 {!hasAccount ? (
                   <button
                     onClick={() => {
@@ -13102,7 +13018,7 @@ export default function AdminDashboard({
                     Registrasi Akun Login
                   </button>
                 ) : (
-                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-extrabold flex items-center gap-1">
+                  <div className="text-[11px] text-emerald-600 font-extrabold flex items-center gap-1">
                     <Check className="w-3.5 h-3.5" />
                     Akun Login Resmi Terdaftar
                   </div>
@@ -13110,7 +13026,7 @@ export default function AdminDashboard({
 
                 <button 
                   onClick={() => setSelectedFamilyForDetail(null)}
-                  className="py-2 px-5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-white font-bold text-xs rounded-xl cursor-pointer"
+                  className="py-2 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
                 >
                   Tutup
                 </button>
@@ -13124,17 +13040,17 @@ export default function AdminDashboard({
       {previewingTemplate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setPreviewingTemplate(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
+          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 no-print"></div>
             
-            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans no-print shrink-0">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Kop Surat Resmi RT 006 / RW 011</h3>
-              <button onClick={() => setPreviewingTemplate(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print shrink-0">
+              <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Kop Surat Resmi RT 006 / RW 011</h3>
+              <button onClick={() => setPreviewingTemplate(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
               <SuratPengantarPrintable
                 letter={{
                   id: '001',
@@ -13152,7 +13068,7 @@ export default function AdminDashboard({
               />
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs">
+            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs">
               <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011</span>
               <div className="flex gap-2">
                 <button
@@ -13164,7 +13080,7 @@ export default function AdminDashboard({
                 </button>
                 <button
                   onClick={() => setPreviewingTemplate(null)}
-                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
                 >
                   Tutup
                 </button>
@@ -13175,124 +13091,124 @@ export default function AdminDashboard({
       )}
       {/* MODAL PRATINJAU BUKTI TRANSFER & STRUK PEMBAYARAN */}
       {selectedProofModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
-          <div className="relative bg-slate-900/95 border border-slate-800/90 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-slate-100 flex flex-col max-h-[92vh] backdrop-blur-xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-900/50 backdrop-blur-xs overflow-y-auto animate-fade-in font-sans">
+          <div className="relative bg-white border border-slate-200 w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-slate-800 flex flex-col max-h-[92vh]">
             
             {/* Modal Header */}
-            <div className="p-5 bg-slate-900 border-b border-slate-800 flex justify-between items-center shrink-0">
+            <div className="p-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3.5">
-                <div className="w-11 h-11 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20 flex items-center justify-center shadow-inner">
+                <div className="w-11 h-11 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-200 flex items-center justify-center shadow-xs">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <h3 className="font-black text-base text-white tracking-tight">
+                    <h3 className="font-black text-base text-slate-900 tracking-tight">
                       Verifikasi Bukti Transfer
                     </h3>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
                       selectedProofModal.type === 'ipl' 
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                        : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-amber-50 text-amber-700 border border-amber-200'
                     }`}>
                       {selectedProofModal.type === 'ipl' ? 'IPL Bulanan' : 'Uang Kas'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Periksa rincian setoran dan keaslian struk pembayaran warga
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedProofModal(null)}
-                className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl cursor-pointer transition-all border border-transparent hover:border-slate-700"
+                className="p-2 hover:bg-slate-200/70 text-slate-400 hover:text-slate-700 rounded-xl cursor-pointer transition-all border border-transparent hover:border-slate-300"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Transaction Summary 4-Grid Cards */}
-            <div className="p-4 sm:p-5 bg-slate-950/40 border-b border-slate-800/80 grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs shrink-0">
-              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
-                  <User className="w-3.5 h-3.5 text-sky-400" />
+            <div className="p-4 sm:p-5 bg-slate-50/50 border-b border-slate-200 grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs shrink-0">
+              <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-extrabold uppercase tracking-wider">
+                  <User className="w-3.5 h-3.5 text-sky-600" />
                   <span>Warga / KK</span>
                 </div>
-                <p className="font-bold text-slate-100 text-xs truncate" title={selectedProofModal.residentName}>
+                <p className="font-bold text-slate-900 text-xs truncate" title={selectedProofModal.residentName}>
                   {selectedProofModal.residentName}
                 </p>
-                <span className="text-[10px] font-mono text-slate-500 block">ID: #{selectedProofModal.id}</span>
+                <span className="text-[10px] font-mono text-slate-400 block">ID: #{selectedProofModal.id}</span>
               </div>
 
-              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
-                  <Wallet className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-extrabold uppercase tracking-wider">
+                  <Wallet className="w-3.5 h-3.5 text-emerald-600" />
                   <span>Nominal Setor</span>
                 </div>
-                <p className="font-mono font-black text-emerald-400 text-sm">
+                <p className="font-mono font-black text-emerald-600 text-sm">
                   {formatRupiah(selectedProofModal.amount)}
                 </p>
-                <span className="text-[10px] text-emerald-500/80 font-bold block">Menunggu Konfirmasi</span>
+                <span className="text-[10px] text-emerald-600 font-bold block">Menunggu Konfirmasi</span>
               </div>
 
-              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
-                  <Calendar className="w-3.5 h-3.5 text-purple-400" />
+              <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-extrabold uppercase tracking-wider">
+                  <Calendar className="w-3.5 h-3.5 text-purple-600" />
                   <span>Periode / Kategori</span>
                 </div>
-                <p className="font-bold text-slate-200 text-xs truncate" title={selectedProofModal.periodText}>
+                <p className="font-bold text-slate-800 text-xs truncate" title={selectedProofModal.periodText}>
                   {selectedProofModal.periodText}
                 </p>
-                <span className="text-[10px] text-slate-500 font-mono block">
+                <span className="text-[10px] text-slate-400 font-mono block">
                   {selectedProofModal.date ? formatDateIndo(selectedProofModal.date) : '-'}
                 </span>
               </div>
 
-              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-1">
-                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
-                  <FileText className="w-3.5 h-3.5 text-amber-400" />
+              <div className="p-3 bg-white border border-slate-200/80 rounded-2xl space-y-1 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-extrabold uppercase tracking-wider">
+                  <FileText className="w-3.5 h-3.5 text-amber-600" />
                   <span>Berkas Struk</span>
                 </div>
-                <p className="font-mono font-bold text-slate-300 text-xs truncate" title={selectedProofModal.fileName}>
+                <p className="font-mono font-bold text-slate-700 text-xs truncate" title={selectedProofModal.fileName}>
                   {selectedProofModal.fileName}
                 </p>
-                <span className="text-[10px] text-slate-500 uppercase font-mono block">
+                <span className="text-[10px] text-slate-400 uppercase font-mono block">
                   {selectedProofModal.isPdf ? 'Dokumen PDF' : 'Gambar Struk'}
                 </span>
               </div>
             </div>
 
             {/* Center Interactive Viewer */}
-            <div className="relative flex-1 bg-slate-950/90 p-4 sm:p-6 overflow-hidden flex flex-col items-center justify-center min-h-[350px]">
+            <div className="relative flex-1 bg-slate-100/70 p-4 sm:p-6 overflow-hidden flex flex-col items-center justify-center min-h-[350px]">
               
               {/* Floating Toolbar (Controls) */}
               {!selectedProofModal.isLoading && !selectedProofModal.hasImgError && (
-                <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 p-1.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl shadow-xl">
+                <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 p-1.5 bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl shadow-md">
                   {!selectedProofModal.isPdf && (
                     <>
                       <button
                         type="button"
                         onClick={() => setSelectedProofModal(prev => ({ ...prev, zoomLevel: Math.max(0.5, prev.zoomLevel - 0.25) }))}
-                        className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-colors cursor-pointer"
+                        className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors cursor-pointer"
                         title="Perkecil (-)"
                       >
                         <ZoomOut className="w-4 h-4" />
                       </button>
-                      <span className="text-[10px] font-mono font-bold px-1.5 text-slate-400 min-w-[36px] text-center">
+                      <span className="text-[10px] font-mono font-bold px-1.5 text-slate-600 min-w-[36px] text-center">
                         {Math.round(selectedProofModal.zoomLevel * 100)}%
                       </span>
                       <button
                         type="button"
                         onClick={() => setSelectedProofModal(prev => ({ ...prev, zoomLevel: Math.min(3, prev.zoomLevel + 0.25) }))}
-                        className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-colors cursor-pointer"
+                        className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors cursor-pointer"
                         title="Perbesar (+)"
                       >
                         <ZoomIn className="w-4 h-4" />
                       </button>
-                      <div className="h-4 w-[1px] bg-slate-700 mx-1" />
+                      <div className="h-4 w-[1px] bg-slate-200 mx-1" />
                       <button
                         type="button"
                         onClick={() => setSelectedProofModal(prev => ({ ...prev, rotation: (prev.rotation + 90) % 360 }))}
-                        className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl transition-colors cursor-pointer"
+                        className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-xl transition-colors cursor-pointer"
                         title="Putar 90°"
                       >
                         <RotateCw className="w-4 h-4" />
@@ -13300,12 +13216,12 @@ export default function AdminDashboard({
                       <button
                         type="button"
                         onClick={() => setSelectedProofModal(prev => ({ ...prev, zoomLevel: 1, rotation: 0 }))}
-                        className="py-1 px-2 text-[10px] font-bold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                        className="py-1 px-2 text-[10px] font-bold text-slate-500 hover:text-slate-900 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
                         title="Reset Ukuran"
                       >
                         Reset
                       </button>
-                      <div className="h-4 w-[1px] bg-slate-700 mx-1" />
+                      <div className="h-4 w-[1px] bg-slate-200 mx-1" />
                     </>
                   )}
                   <a
@@ -13326,25 +13242,25 @@ export default function AdminDashboard({
                 {selectedProofModal.isLoading ? (
                   <div className="p-12 text-center flex flex-col items-center justify-center space-y-3">
                     <div className="w-9 h-9 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-                    <p className="text-xs text-slate-300 font-bold">Mengunduh & memuat berkas bukti transfer...</p>
-                    <span className="text-[10px] text-slate-500">Membuka stream berkas dari secure_uploads</span>
+                    <p className="text-xs text-slate-700 font-bold">Mengunduh & memuat berkas bukti transfer...</p>
+                    <span className="text-[10px] text-slate-400">Membuka stream berkas dari secure_uploads</span>
                   </div>
                 ) : selectedProofModal.isPdf ? (
                   <iframe
                     src={selectedProofModal.fileUrl}
                     title="Pratinjau PDF Bukti Transfer"
-                    className="w-full h-96 rounded-2xl border border-slate-800 bg-white shadow-2xl"
+                    className="w-full h-96 rounded-2xl border border-slate-200 bg-white shadow-lg"
                   />
                 ) : selectedProofModal.hasImgError ? (
-                  <div className="p-8 text-center space-y-4 max-w-md mx-auto bg-slate-900/90 border border-slate-800 rounded-3xl shadow-xl animate-fade-in">
-                    <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-3xl flex items-center justify-center mx-auto border border-amber-500/20">
+                  <div className="p-8 text-center space-y-4 max-w-md mx-auto bg-white border border-slate-200 rounded-3xl shadow-lg animate-fade-in">
+                    <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-3xl flex items-center justify-center mx-auto border border-amber-200">
                       <FileText className="w-8 h-8" />
                     </div>
                     <div className="space-y-1.5">
-                      <h4 className="font-black text-sm text-slate-100 font-mono truncate px-2" title={selectedProofModal.fileName}>
+                      <h4 className="font-black text-sm text-slate-900 font-mono truncate px-2" title={selectedProofModal.fileName}>
                         {selectedProofModal.fileName}
                       </h4>
-                      <p className="text-xs text-slate-400 leading-relaxed">
+                      <p className="text-xs text-slate-500 leading-relaxed">
                         Berkas bukti transfer tidak dapat ditampilkan langsung di viewer ini atau memerlukan izin akses khusus.
                       </p>
                     </div>
@@ -13372,7 +13288,7 @@ export default function AdminDashboard({
                       onError={() => {
                         setSelectedProofModal(prev => prev ? ({ ...prev, hasImgError: true }) : null);
                       }}
-                      className="max-h-[46vh] max-w-full object-contain rounded-2xl shadow-2xl border border-slate-800/80 ring-1 ring-white/5"
+                      className="max-h-[46vh] max-w-full object-contain rounded-2xl shadow-lg border border-slate-200 ring-1 ring-slate-100"
                     />
                   </div>
                 )}
@@ -13381,10 +13297,10 @@ export default function AdminDashboard({
             </div>
 
             {/* Modal Action Footer */}
-            <div className="p-4 sm:p-5 bg-slate-900 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
+            <div className="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 shrink-0">
               <button
                 onClick={() => setSelectedProofModal(null)}
-                className="w-full sm:w-auto py-2.5 px-5 bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-white font-bold text-xs rounded-xl cursor-pointer transition-all border border-slate-700/60"
+                className="w-full sm:w-auto py-2.5 px-5 bg-white hover:bg-slate-100 text-slate-700 hover:text-slate-900 font-bold text-xs rounded-xl cursor-pointer transition-all border border-slate-200 shadow-2xs"
               >
                 Tutup Pratinjau
               </button>
@@ -13396,7 +13312,7 @@ export default function AdminDashboard({
                     setSelectedProofModal(null);
                     await handleVerifyPendingPayment(type, paymentId, 'ditolak');
                   }}
-                  className="flex-1 sm:flex-initial py-2.5 px-5 bg-rose-600/90 hover:bg-rose-600 text-white font-black text-xs rounded-xl cursor-pointer shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex-1 sm:flex-initial py-2.5 px-5 bg-rose-600 hover:bg-rose-700 text-white font-black text-xs rounded-xl cursor-pointer shadow-lg shadow-rose-600/20 transition-all flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
                 >
                   <XCircle className="w-4 h-4" />
                   <span>Tolak Bukti Transfer</span>
@@ -13420,194 +13336,28 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* MODAL PREVIEW E-KTP RESMI */}
-      {selectedKtpWarga && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
-          <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border-b border-sky-800 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-sky-500/20 text-sky-300 rounded-xl border border-sky-400/30">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
-                  <p className="text-[10px] text-sky-200">Verifikasi Dokumen Resmi RT 05 / RW 11</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedKtpWarga(null)}
-                className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Tabs: [1. Foto Berkas KTP Asli] & [2. Kartu Digital e-KTP] */}
-            <div className="p-5 space-y-5">
-              <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setKtpTab('asli')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                >
-                  📸 Foto Berkas KTP Asli
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setKtpTab('digital')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-sky-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-                >
-                  💳 Kartu Digital e-KTP
-                </button>
-              </div>
-
-              {ktpTab === 'asli' ? (
-                <div className="space-y-3">
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col items-center justify-center p-3 min-h-[220px]">
-                    {selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp ? (
-                      <img
-                        src={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
-                        alt={`Foto KTP Asli - ${selectedKtpWarga.nama || selectedKtpWarga.name}`}
-                        className="max-h-80 w-auto object-contain rounded-xl shadow-lg border border-slate-800"
-                      />
-                    ) : (
-                      <div className="py-8 text-center space-y-2">
-                        <FileText className="w-12 h-12 text-slate-600 mx-auto" />
-                        <p className="text-xs text-slate-400 font-semibold">Warga belum mengunggah foto fisik berkas KTP.</p>
-                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full inline-block font-bold">Tampilkan Kartu Digital e-KTP di tab sebelah</span>
-                      </div>
-                    )}
-                  </div>
-                  {(selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp) && (
-                    <div className="flex justify-end gap-2">
-                      <a
-                        href={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="py-1.5 px-4 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
-                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-sky-300 via-sky-200 to-cyan-300 dark:from-slate-800 dark:via-sky-950 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-sky-400/50 shadow-2xl space-y-3 font-sans">
-                  <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
-                    <Landmark className="w-48 h-48" />
-                  </div>
-
-                  <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
-                    <h4 className="text-xs sm:text-sm font-black text-sky-900 dark:text-sky-300">PROVINSI JAWA BARAT</h4>
-                    <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
-                  </div>
-
-                  <div className="flex items-center gap-3 bg-sky-950/80 text-emerald-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-sky-700/50">
-                    <span className="text-sky-300 text-xs">NIK :</span>
-                    <span>{selectedKtpWarga.nik || selectedKtpWarga.wargaNik || '3276051508980004'}</span>
-                  </div>
-
-                  <div className="grid grid-cols-12 gap-3 text-[11px] items-start">
-                    <div className="col-span-8 space-y-1 font-semibold leading-relaxed">
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Nama</span>
-                        <span className="col-span-8 font-black uppercase text-slate-900 dark:text-white truncate">{selectedKtpWarga.nama || selectedKtpWarga.name}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Tempat/Tgl Lahir</span>
-                        <span className="col-span-8 font-bold">{selectedKtpWarga.tgl_lahir || selectedKtpWarga.tglLahir || 'DEPOK, 15-08-1998'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Jenis Kelamin</span>
-                        <span className="col-span-8 font-bold">{selectedKtpWarga.jenis_kelamin || selectedKtpWarga.gender || 'Laki-laki'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
-                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || selectedKtpWarga.alamat || 'Villa Mutiara Mas Cinere'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
-                        <span className="col-span-8 font-bold">005 / 011</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
-                        <span className="col-span-8 font-bold">CINERE</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
-                        <span className="col-span-8 font-bold">CINERE</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>
-                        <span className="col-span-8 font-bold capitalize">{selectedKtpWarga.pekerjaan || 'Karyawan Swasta'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Kewarganegaraan</span>
-                        <span className="col-span-8 font-bold">WNI</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Berlaku Hingga</span>
-                        <span className="col-span-8 font-black text-emerald-600 dark:text-emerald-400">SEUMUR HIDUP</span>
-                      </div>
-                    </div>
-
-                    <div className="col-span-4 flex flex-col items-center gap-2">
-                      <div className="w-24 h-32 rounded-xl overflow-hidden border-2 border-red-500/80 shadow-md bg-slate-200 dark:bg-slate-800">
-                        <img
-                          src={selectedKtpWarga.foto_ktp || selectedKtpWarga.foto || selectedKtpWarga.avatar || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
-                          alt="Pasfoto KTP"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                          VERIFIED RT 05
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs">
-              <span className="text-slate-400 text-[10px]">Pemeriksaan Berkas e-KTP Terdaftar</span>
-              <button
-                onClick={() => setSelectedKtpWarga(null)}
-                className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
-              >
-                Tutup Pratinjau
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* 5. MODAL TUTUP BUKU KAS */}
       {modalType === 'tutup_buku' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => !isClosingKas && setModalType('')}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up">
+          <div className="relative bg-white w-full max-w-lg rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
 
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                   <Lock className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Tutup Buku Kas RT</h3>
+                  <h3 className="font-extrabold text-slate-900 text-base">Tutup Buku Kas RT</h3>
                   <p className="text-[11px] text-slate-400 font-medium">Kunci & arsipkan snapshot saldo kas periode ini</p>
                 </div>
               </div>
               <button
                 disabled={isClosingKas}
                 onClick={() => setModalType('')}
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer disabled:opacity-50"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer disabled:opacity-50"
               >
                 <XIcon className="w-4 h-4" />
               </button>
@@ -13616,33 +13366,33 @@ export default function AdminDashboard({
             {/* Modal Body */}
             <form onSubmit={handleExecuteTutupBuku} className="p-6 space-y-4 text-xs font-sans">
               {/* Snapshot Cards */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/50 rounded-2xl border border-slate-200/60 dark:border-slate-800/80 space-y-3">
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/60 space-y-3">
                 <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
                   Snapshot Kas Yang Akan Dikunci
                 </span>
                 <div className="grid grid-cols-3 gap-2">
-                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-center">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/60 text-center">
                     <span className="text-[10px] text-slate-400 block font-semibold">Total Masuk</span>
-                    <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">{formatRupiah(totalPemasukan)}</span>
+                    <span className="text-xs font-mono font-black text-emerald-600">{formatRupiah(totalPemasukan)}</span>
                   </div>
-                  <div className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/60 dark:border-slate-800 text-center">
+                  <div className="p-2.5 bg-white rounded-xl border border-slate-200/60 text-center">
                     <span className="text-[10px] text-slate-400 block font-semibold">Total Keluar</span>
-                    <span className="text-xs font-mono font-black text-rose-600 dark:text-rose-400">{formatRupiah(totalPengeluaran)}</span>
+                    <span className="text-xs font-mono font-black text-rose-600">{formatRupiah(totalPengeluaran)}</span>
                   </div>
-                  <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/20 rounded-xl border border-amber-500/30 text-center">
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400 block font-bold">Saldo Akhir</span>
-                    <span className="text-xs font-mono font-black text-amber-700 dark:text-amber-300">{formatRupiah(sisaKas)}</span>
+                  <div className="p-2.5 bg-amber-500/10 rounded-xl border border-amber-500/30 text-center">
+                    <span className="text-[10px] text-amber-600 block font-bold">Saldo Akhir</span>
+                    <span className="text-xs font-mono font-black text-amber-700">{formatRupiah(sisaKas)}</span>
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-[11px] text-slate-500 pt-1">
                   <span>Total Transaksi Kas:</span>
-                  <span className="font-bold text-slate-700 dark:text-slate-300 font-mono">{transaksiKasList.length} Transaksi</span>
+                  <span className="font-bold text-slate-700 font-mono">{transaksiKasList.length} Transaksi</span>
                 </div>
               </div>
 
               {/* Notice Banner */}
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-800 dark:text-amber-300">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-[11px] text-amber-800">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-600" />
                 <span>
                   <strong>Perhatian:</strong> Sistem akan mengunci mutasi dan menyimpan snapshot resmi secara atomik ke basis data. Pastikan seluruh transaksi kas periode ini telah diverifikasi.
                 </span>
@@ -13650,7 +13400,7 @@ export default function AdminDashboard({
 
               {/* Catatan Input */}
               <div className="space-y-1.5">
-                <label className="font-bold text-slate-655 dark:text-slate-350 block">
+                <label className="font-bold text-slate-655 block">
                   Catatan / Keterangan Penutupan Buku <span className="text-slate-400 font-normal">(Opsional)</span>
                 </label>
                 <textarea
@@ -13658,14 +13408,14 @@ export default function AdminDashboard({
                   value={tutupBukuCatatan}
                   onChange={(e) => setTutupBukuCatatan(e.target.value)}
                   placeholder="Contoh: Tutup buku kas periode Agustus 2026 - Kas seimbang dan tervalidasi"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none resize-none text-slate-900 dark:text-white"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none resize-none text-slate-900"
                 />
               </div>
 
               {/* Petugas info */}
-              <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1 border-t border-slate-100">
                 <span>Petugas:</span>
-                <span className="font-bold text-slate-700 dark:text-slate-300">
+                <span className="font-bold text-slate-700">
                   {currentUser?.username || 'Bendahara'} ({currentUser?.role || 'bendahara'})
                 </span>
               </div>
@@ -13693,7 +13443,7 @@ export default function AdminDashboard({
                   type="button"
                   disabled={isClosingKas}
                   onClick={() => setModalType('')}
-                  className="px-5 py-3 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer disabled:opacity-50"
+                  className="px-5 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer disabled:opacity-50"
                 >
                   Batal
                 </button>
@@ -13707,17 +13457,17 @@ export default function AdminDashboard({
       {modalType === 'riwayat_tutup_buku' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs" onClick={() => setModalType('')}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[85vh] flex flex-col">
+          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up max-h-[85vh] flex flex-col">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
 
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <div className="p-6 border-b border-slate-100 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                   <History className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Riwayat Periode Tutup Buku</h3>
+                  <h3 className="font-extrabold text-slate-900 text-base">Riwayat Periode Tutup Buku</h3>
                   <p className="text-[11px] text-slate-400 font-medium">Arsip snapshot saldo dan mutasi kas yang telah dikunci</p>
                 </div>
               </div>
@@ -13726,14 +13476,14 @@ export default function AdminDashboard({
                   type="button"
                   onClick={fetchKasClosingHistory}
                   disabled={isLoadingClosingHistory}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
                   title="Segarkan Riwayat"
                 >
                   <RefreshCw className={`w-4 h-4 ${isLoadingClosingHistory ? 'animate-spin' : ''}`} />
                 </button>
                 <button
                   onClick={() => setModalType('')}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-655 cursor-pointer"
                 >
                   <XIcon className="w-4 h-4" />
                 </button>
@@ -13750,14 +13500,14 @@ export default function AdminDashboard({
               ) : tutupBukuHistoryList.length === 0 ? (
                 <div className="py-12 flex flex-col items-center justify-center gap-2 text-center text-slate-400">
                   <Lock className="w-8 h-8 opacity-40 text-amber-500" />
-                  <p className="font-bold text-slate-600 dark:text-slate-300">Belum Ada Riwayat Tutup Buku</p>
+                  <p className="font-bold text-slate-600">Belum Ada Riwayat Tutup Buku</p>
                   <p className="text-[11px]">Ketika penutupan buku dilakukan oleh Bendahara atau RT, arsip snapshot resmi akan muncul di sini.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-3.5">Waktu Penutupan</th>
                         <th className="p-3.5 text-right">Saldo Terkunci</th>
                         <th className="p-3.5 text-right">Pemasukan</th>
@@ -13767,7 +13517,7 @@ export default function AdminDashboard({
                         <th className="p-3.5 text-center">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {tutupBukuHistoryList.map((rec, idx) => {
                         const closingDate = rec.tanggal_tutup || rec.tanggal_penutupan || rec.closed_at || rec.created_at || rec.tanggal;
                         const closingBalance = rec.saldo_akhir ?? rec.saldoAkhir ?? rec.nominal ?? rec.balance ?? 0;
@@ -13777,23 +13527,23 @@ export default function AdminDashboard({
                         const closingNotes = rec.catatan || rec.keterangan || rec.notes || '-';
 
                         return (
-                          <tr key={rec.id || idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
+                          <tr key={rec.id || idx} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-3.5 font-mono">
-                              <span className="font-bold text-slate-700 dark:text-slate-300 block">
+                              <span className="font-bold text-slate-700 block">
                                 {formatDateTimeIndo(closingDate)}
                               </span>
                               <span className="text-[10px] text-slate-400">ID: {rec.id || `#${idx + 1}`}</span>
                             </td>
-                            <td className="p-3.5 text-right font-mono font-black text-amber-600 dark:text-amber-400 text-sm">
+                            <td className="p-3.5 text-right font-mono font-black text-amber-600 text-sm">
                               {formatRupiah(closingBalance)}
                             </td>
-                            <td className="p-3.5 text-right font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                            <td className="p-3.5 text-right font-mono font-semibold text-emerald-600">
                               {formatRupiah(closingIncome)}
                             </td>
-                            <td className="p-3.5 text-right font-mono font-semibold text-rose-600 dark:text-rose-400">
+                            <td className="p-3.5 text-right font-mono font-semibold text-rose-600">
                               {formatRupiah(closingExpense)}
                             </td>
-                            <td className="p-3.5 font-semibold text-slate-700 dark:text-slate-300">
+                            <td className="p-3.5 font-semibold text-slate-700">
                               {closingOfficer}
                             </td>
                             <td className="p-3.5 max-w-[200px] whitespace-normal break-words text-slate-500">
@@ -13815,13 +13565,13 @@ export default function AdminDashboard({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center text-xs">
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs">
               <span className="text-slate-400 text-[11px]">
                 Total {tutupBukuHistoryList.length} arsip penutupan buku tercatat
               </span>
               <button
                 onClick={() => setModalType('')}
-                className="py-2 px-5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold rounded-xl transition-all cursor-pointer"
+                className="py-2 px-5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-extrabold rounded-xl transition-all cursor-pointer"
               >
                 Tutup
               </button>
@@ -13834,32 +13584,32 @@ export default function AdminDashboard({
       {viewingApprovedLetter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[92vh] my-4">
+          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[92vh] my-4">
             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 no-print"></div>
 
-            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center no-print shrink-0">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center no-print shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center shrink-0">
                   <Printer className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                  <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
                   <p className="text-[11px] text-slate-400 font-medium">Format cetak A4 dokumen surat pengantar warga Kota Depok</p>
                 </div>
               </div>
               <button 
                 onClick={() => setViewingApprovedLetter(null)} 
-                className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
               <SuratPengantarPrintable letter={viewingApprovedLetter} />
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
+            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
               <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
               <div className="flex gap-2">
                 <button
@@ -13871,7 +13621,7 @@ export default function AdminDashboard({
                 </button>
                 <button
                   onClick={() => setViewingApprovedLetter(null)}
-                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
                 >
                   Tutup
                 </button>

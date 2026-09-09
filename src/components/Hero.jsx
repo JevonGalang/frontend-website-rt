@@ -8,11 +8,8 @@ import {
   Camera, Play, Video, Image, Sparkles, Filter, Maximize2, X,
   Award, Heart
 } from 'lucide-react';
-import dummyImg1 from '../assets/dummy/dummy_1.png';
-import dummyImg2 from '../assets/dummy/dummy_2.png';
-import dummyImg3 from '../assets/dummy/dummy_3.jpg';
-import dummyImg4 from '../assets/dummy/dummy_4.jpg';
-import dummyImg5 from '../assets/dummy/dummy_5.jpg';
+import menaraImg from '../assets/menara_vila_mutiara.png';
+import cameraPlaceholderSvg from '../assets/camera-svgrepo-com.svg';
 import OtpVerificationModal from './OtpVerificationModal';
 import { setSession } from '../utils/authSession';
 import { API_BASE_URL } from '../config/api';
@@ -28,7 +25,7 @@ const DUMMY_DOKUMENTASI = [
     type: 'image',
     date: '20 Agustus 2026',
     location: 'Taman Utama & Jalur Hijau RT 05',
-    thumbnail: dummyImg1,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Kegiatan gotong royong rutin warga dalam merapikan fasilitas umum, pembersihan saluran drainase, dan penanaman pohon peneduh di lingkungan komplek.'
   },
   {
@@ -39,7 +36,7 @@ const DUMMY_DOKUMENTASI = [
     duration: '03:24',
     date: '17 Agustus 2026',
     location: 'Lapangan Serbaguna RT 05 / RW 11',
-    thumbnail: dummyImg2,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Dokumentasi video kemeriahan lomba anak-anak, karnaval kostum daerah, serta malam panggung gembira perayaan kemerdekaan RI warga Villa Mutiara Mas Cinere.'
   },
   {
@@ -49,7 +46,7 @@ const DUMMY_DOKUMENTASI = [
     type: 'image',
     date: '10 Agustus 2026',
     location: 'Area Bundaran Utama Komplek',
-    thumbnail: dummyImg3,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Aktivitas kebugaran jasmani bersama instruktur profesional dilanjutkan jalan santai keluarga untuk mempererat tali silaturahmi antarwarga.'
   },
   {
@@ -59,7 +56,7 @@ const DUMMY_DOKUMENTASI = [
     type: 'image',
     date: '05 Agustus 2026',
     location: 'Balai Warga RW 011',
-    thumbnail: dummyImg4,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Pemeriksaan kesehatan berkala, imunisasi balita, penimbangan berat badan, dan cek tensi/gula darah gratis untuk lansia bekerjasama dengan Puskesmas Cinere.'
   },
   {
@@ -69,7 +66,7 @@ const DUMMY_DOKUMENTASI = [
     type: 'image',
     date: '28 Juli 2026',
     location: 'Gedung Olahraga (GOR) Komunitas',
-    thumbnail: dummyImg5,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Kompetisi bulutangkis ganda putra dan campuran yang diikuti perwakilan warga RT 001 hingga RT 009 dalam rangka menjunjung sportivitas.'
   },
   {
@@ -80,7 +77,7 @@ const DUMMY_DOKUMENTASI = [
     duration: '01:50',
     date: '15 Juli 2026',
     location: 'Ruang Pertemuan Balai Warga',
-    thumbnail: dummyImg3,
+    thumbnail: cameraPlaceholderSvg,
     description: 'Musyawarah keterbukaan anggaran kas RT, evaluasi program kebersihan lingkungan, serta pembahasan rencana perbaikan pos keamanan portal.'
   }
 ];
@@ -417,13 +414,13 @@ export default function Hero({
           
           {/* Welcoming Text Column */}
           <div className="lg:col-span-7 text-center lg:text-left space-y-6">
-            <div className="text-orange-600 dark:text-orange-400 text-xs sm:text-sm font-extrabold tracking-wider uppercase">
+            <div className="text-orange-600 text-xs sm:text-sm font-extrabold tracking-wider uppercase">
               Portal Informasi & Layanan Mandiri RT 05
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
               Selamat Datang di Portal <br className="hidden sm:inline" />
-              <span className="text-orange-600 dark:text-orange-400">
+              <span className="text-orange-600">
                 Villa Mutiara Cinere
               </span>
             </h1>
@@ -433,16 +430,16 @@ export default function Hero({
             </p>
 
             {/* Characteristics Card (Option 3: 2-Column Split with Individual Lucide Icons) */}
-            <div className="w-full p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs text-left space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+            <div className="w-full p-5 sm:p-6 rounded-2xl bg-white border border-slate-200/80 shadow-xs text-left space-y-4">
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                <div className="p-2.5 rounded-xl bg-orange-500/10 text-orange-600 shrink-0">
                   <Building2 className="w-5 h-5" />
                 </div>
                 <div>
-                  <span className="block text-[11px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <span className="block text-[11px] font-extrabold text-slate-400 uppercase tracking-wider">
                     Karakteristik & Fasilitas Wilayah
                   </span>
-                  <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100">
+                  <span className="text-sm sm:text-base font-black text-slate-900">
                     Villa Mutiara Cinere
                   </span>
                 </div>
@@ -452,41 +449,41 @@ export default function Hero({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 
                 {/* 1. Kawasan Perumahan */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
-                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 shrink-0">
                     <Building2 className="w-4 h-4" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                     Kawasan perumahan menengah terdiri dari 9 RT
                   </p>
                 </div>
 
                 {/* 2. Sarana Ibadah */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
-                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 shrink-0">
                     <Landmark className="w-4 h-4" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                     Memiliki sarana ibadah
                   </p>
                 </div>
 
                 {/* 3. Fasilitas Olahraga */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
-                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 shrink-0">
                     <Activity className="w-4 h-4" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                     Memiliki fasilitas olahraga
                   </p>
                 </div>
 
                 {/* 4. Sarana Pendidikan */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800/80">
-                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-50/70 border border-slate-100">
+                  <div className="p-2 rounded-lg bg-orange-500/10 text-orange-600 shrink-0">
                     <GraduationCap className="w-4 h-4" />
                   </div>
-                  <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 leading-snug">
+                  <p className="text-xs sm:text-sm font-bold text-slate-900 leading-snug">
                     Terdapat pendidikan anak usia dini dan TKIT
                   </p>
                 </div>
@@ -503,7 +500,7 @@ export default function Hero({
                 
                 {/* Main Access Header (Shown if guest) */}
                 {!currentUser ? (
-                  <div className="flex bg-slate-50 dark:bg-slate-950 p-2 rounded-sm border border-[var(--color-hairline)] text-xs font-bold font-sans items-center justify-center gap-2 text-[var(--color-ink)]">
+                  <div className="flex bg-slate-50 p-2 rounded-sm border border-[var(--color-hairline)] text-xs font-bold font-sans items-center justify-center gap-2 text-[var(--color-ink)]">
                     <Lock className="w-4 h-4 text-[var(--color-primary-wf)]" />
                     <span>Portal Login Warga & Staf</span>
                   </div>
@@ -523,6 +520,23 @@ export default function Hero({
                 {/* TAB CONTENT: DIRECT LOGIN PANEL */}
                 {!currentUser && (
                   <div className="space-y-4 animate-fade-in font-sans">
+                    {/* Visual Banner for Login Card */}
+                    <div className="relative rounded-xl overflow-hidden border border-slate-200/80 h-28 sm:h-32 shadow-xs group">
+                      <img 
+                        src={menaraImg} 
+                        alt="Villa Mutiara Cinere" 
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex flex-col justify-end p-3 text-white">
+                        <span className="text-[9px] font-black uppercase tracking-wider text-orange-400">
+                          RT 05 / RW 11
+                        </span>
+                        <span className="text-xs sm:text-sm font-extrabold leading-tight">
+                          Villa Mutiara Cinere
+                        </span>
+                      </div>
+                    </div>
+
                     <div className="space-y-1">
                       <h3 className="text-base font-extrabold text-[var(--color-ink)]">Gerbang Masuk Warga & Staf</h3>
                       <p className="text-[10px] text-[var(--color-body-mid)]">Silakan login untuk mengakses layanan mandiri & administrasi RT.</p>
@@ -650,7 +664,7 @@ export default function Hero({
 
                         <div className="space-y-3">
                           {/* KK Count */}
-                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50">
                             <div className="p-2 bg-[var(--color-accent-purple)]/10 text-[var(--color-accent-purple)] rounded-sm">
                               <Users className="w-4 h-4" />
                             </div>
@@ -665,7 +679,7 @@ export default function Hero({
                           </div>
 
                           {/* Agendas count */}
-                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50">
                             <div className="p-2 bg-[var(--color-accent-blue)]/10 text-[var(--color-accent-blue)] rounded-sm">
                               <Calendar className="w-4 h-4" />
                             </div>
@@ -676,7 +690,7 @@ export default function Hero({
                           </div>
 
                           {/* Cash Balance */}
-                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50 dark:bg-slate-900/30">
+                          <div className="flex items-center gap-4 p-3 border border-[var(--color-hairline)] rounded-sm bg-slate-50/50">
                             <div className="p-2 bg-[var(--color-accent-orange)]/10 text-[var(--color-accent-orange)] rounded-sm">
                               <Wallet className="w-4 h-4" />
                             </div>
@@ -707,7 +721,7 @@ export default function Hero({
                               <span>PEMASUKAN</span>
                               <span className="text-[var(--color-accent-green)] font-extrabold">{incomePct}% ({formatCurrency(income)})</span>
                             </div>
-                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-sm overflow-hidden">
+                            <div className="w-full h-2 bg-slate-100 rounded-sm overflow-hidden">
                               <div className="h-full bg-[var(--color-accent-green)] rounded-sm" style={{ width: `${incomePct}%` }}></div>
                             </div>
                           </div>
@@ -718,7 +732,7 @@ export default function Hero({
                               <span>PENGELUARAN</span>
                               <span className="text-[var(--color-accent-red)] font-extrabold">{expensePct}% ({formatCurrency(expense)})</span>
                             </div>
-                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-sm overflow-hidden">
+                            <div className="w-full h-2 bg-slate-100 rounded-sm overflow-hidden">
                               <div className="h-full bg-[var(--color-accent-red)] rounded-sm" style={{ width: `${expensePct}%` }}></div>
                             </div>
                           </div>
@@ -726,7 +740,7 @@ export default function Hero({
                           {/* Center SVG Circle gauge */}
                           <div className="flex flex-col items-center justify-center pt-2 relative">
                             <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
-                              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e2e8f0" strokeWidth="8" className="dark:stroke-slate-800" />
+                              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#e2e8f0" strokeWidth="8" className="" />
                               <circle cx="50" cy="50" r="40" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="8"
                                 strokeDasharray={`${2.51 * incomePct} ${251 - 2.51 * incomePct}`}
                                 strokeLinecap="round"
@@ -754,7 +768,7 @@ export default function Hero({
 
                         <div className="space-y-3">
                           {displayLedger.map((item) => (
-                            <div key={item.id} className="p-3 bg-slate-55/40 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm flex items-center justify-between transition-colors hover:bg-slate-50">
+                            <div key={item.id} className="p-3 bg-slate-55/40 border border-[var(--color-hairline)] rounded-sm flex items-center justify-between transition-colors hover:bg-slate-50">
                               <div className="space-y-0.5">
                                 <span className="font-extrabold text-[var(--color-ink-strong)] block truncate max-w-[190px]">{item.description}</span>
                                 <span className="text-[8px] text-[var(--color-mute)] font-mono block">{item.transaction_date ? item.transaction_date.substring(0, 10) : ''} • {item.source_type?.toUpperCase()}</span>
@@ -790,7 +804,7 @@ export default function Hero({
             {/* Section Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 text-left">
               <div className="space-y-2">
-                <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center gap-1.5 w-fit">
+                <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center gap-1.5 w-fit">
                   <Camera className="w-3.5 h-3.5 text-orange-500" /> Galeri & Momen Lingkungan
                 </span>
                 <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight">
@@ -802,7 +816,7 @@ export default function Hero({
               </div>
 
               {/* Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-900/80 p-1.5 rounded-xl border border-[var(--color-hairline)] text-xs font-bold">
+              <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 p-1.5 rounded-xl border border-[var(--color-hairline)] text-xs font-bold">
                 {[
                   { id: 'all', label: 'Semua' },
                   { id: 'image', label: 'Foto' },
@@ -813,8 +827,8 @@ export default function Hero({
                     onClick={() => setSelectedCategory(tab.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                       selectedCategory === tab.id
-                        ? 'bg-white dark:bg-slate-800 text-orange-600 dark:text-orange-400 shadow-xs font-black'
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                        ? 'bg-white text-orange-600 shadow-xs font-black'
+                        : 'text-slate-500 hover:text-slate-800'
                     }`}
                   >
                     {tab.label}
@@ -829,7 +843,7 @@ export default function Hero({
                 <div
                   key={item.id}
                   onClick={() => setSelectedMedia(item)}
-                  className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 overflow-hidden shadow-xs hover:shadow-lg hover:border-orange-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between text-left"
+                  className="group bg-white rounded-2xl border border-slate-200/80 overflow-hidden shadow-xs hover:shadow-lg hover:border-orange-500/40 transition-all duration-300 cursor-pointer flex flex-col justify-between text-left"
                 >
                   {/* Thumbnail Container */}
                   <div className="relative aspect-video w-full overflow-hidden bg-slate-950">
@@ -847,30 +861,31 @@ export default function Hero({
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
                         </div>
                       ) : (
-                        <div className="w-full h-full relative">
+                        <div className="w-full h-full relative flex items-center justify-center bg-slate-900">
                           <img
-                            src={item.thumbnail || dummyImg3}
+                            src={item.thumbnail || cameraPlaceholderSvg}
                             alt={item.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            className={`w-full h-full ${item.thumbnail && item.thumbnail !== cameraPlaceholderSvg ? 'object-cover' : 'object-contain p-8 opacity-70'} group-hover:scale-105 transition-transform duration-500`}
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30"></div>
                         </div>
                       )
                     ) : (
-                      <>
+                      <div className="w-full h-full relative flex items-center justify-center bg-slate-900">
                         <img
-                          src={item.thumbnail || item.media_url}
+                          src={item.thumbnail || item.media_url || cameraPlaceholderSvg}
                           alt={item.title}
                           crossOrigin="anonymous"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          className={`w-full h-full ${(item.thumbnail || item.media_url) && item.thumbnail !== cameraPlaceholderSvg && item.media_url !== cameraPlaceholderSvg ? 'object-cover' : 'object-contain p-8 opacity-70'} group-hover:scale-105 transition-transform duration-500`}
                           loading="lazy"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = dummyImg1;
+                            e.target.src = cameraPlaceholderSvg;
+                            e.target.className = "w-full h-full object-contain p-8 opacity-70";
                           }}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20"></div>
-                      </>
+                      </div>
                     )}
 
                     {/* Top Badges */}
@@ -906,7 +921,7 @@ export default function Hero({
                   {/* Body Content */}
                   <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
                     <div className="space-y-1.5">
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 font-semibold">
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 font-semibold">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3 text-orange-500" />
                           {item.date}
@@ -918,16 +933,16 @@ export default function Hero({
                         </span>
                       </div>
 
-                      <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors line-clamp-1">
+                      <h3 className="text-sm font-extrabold text-slate-900 group-hover:text-orange-600 transition-colors line-clamp-1">
                         {item.title}
                       </h3>
 
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium">
+                      <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed font-medium">
                         {item.description}
                       </p>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-bold text-orange-600 dark:text-orange-400">
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-orange-600">
                       <span>Lihat Dokumentasi</span>
                       <Maximize2 className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
                     </div>
@@ -948,12 +963,12 @@ export default function Hero({
               </div>
 
               {/* Clean Single Profile Card */}
-              <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 p-6 sm:p-8 space-y-3 shadow-xs text-left max-w-4xl mx-auto">
-                <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400 font-extrabold text-xs uppercase tracking-wider">
+              <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 space-y-3 shadow-xs text-left max-w-4xl mx-auto">
+                <div className="flex items-center gap-2 text-orange-600 font-extrabold text-xs uppercase tracking-wider">
                   <Landmark className="w-4 h-4" />
                   <span>Profil Perumahan</span>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
                   Villa Mutiara Mas Cinere merupakan kawasan hunian perumahan menengah yang terletak di Kelurahan Grogol, Kecamatan Limo, Kota Depok. Memadukan kenyamanan kehidupan perumahan asri, tertib, dan aman dengan sistem tata kelola lingkungan RT 05 yang transparan dan berbasis digital demi kemudahan pelayanan mandiri seluruh warga.
                 </p>
               </div>
@@ -963,10 +978,10 @@ export default function Hero({
                   ═══════════════════════════════════════════════════════════════════ */}
               <div className="pt-6 space-y-8 max-w-4xl mx-auto">
                 <div className="text-center space-y-1.5">
-                  <span className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 dark:text-orange-400 text-[10px] font-extrabold uppercase tracking-wider">
+                  <span className="px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 text-[10px] font-extrabold uppercase tracking-wider">
                     Struktur Organisasi
                   </span>
-                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                     Bagan Pengurus RT 006  RW 011
                   </h3>
                 </div>
@@ -976,29 +991,29 @@ export default function Hero({
                   
                   {/* Level 1: Ketua RT */}
                   <div className="relative flex flex-col items-center z-10">
-                    <div className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-orange-500/40 shadow-md shadow-orange-500/5 hover:border-orange-500 transition-all min-w-[260px] sm:min-w-[290px]">
+                    <div className="flex items-center gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-white border-2 border-orange-500/40 shadow-md shadow-orange-500/5 hover:border-orange-500 transition-all min-w-[260px] sm:min-w-[290px]">
                       <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center font-black text-sm shadow-md shrink-0">
                         <User className="w-6 h-6" />
                       </div>
                       <div className="text-left space-y-0.5">
-                        <span className="block text-[10px] font-extrabold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+                        <span className="block text-[10px] font-extrabold text-orange-600 uppercase tracking-wider">
                           Ketua RT 006 / RW 011
                         </span>
-                        <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white leading-tight">
+                        <h4 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
                           Wartono SE
                         </h4>
                       </div>
                     </div>
 
                     {/* Connector line down from Ketua */}
-                    <div className="w-0.5 h-8 bg-orange-500/40 dark:bg-orange-500/30"></div>
+                    <div className="w-0.5 h-8 bg-orange-500/40"></div>
                   </div>
 
                   {/* Horizontal Crossbar Connector (Desktop) */}
                   <div className="relative w-full max-w-xl">
-                    <div className="hidden sm:block absolute top-0 left-1/4 right-1/4 h-0.5 bg-orange-500/40 dark:bg-orange-500/30"></div>
-                    <div className="hidden sm:block absolute top-0 left-1/4 w-0.5 h-6 bg-orange-500/40 dark:bg-orange-500/30"></div>
-                    <div className="hidden sm:block absolute top-0 right-1/4 w-0.5 h-6 bg-orange-500/40 dark:bg-orange-500/30"></div>
+                    <div className="hidden sm:block absolute top-0 left-1/4 right-1/4 h-0.5 bg-orange-500/40"></div>
+                    <div className="hidden sm:block absolute top-0 left-1/4 w-0.5 h-6 bg-orange-500/40"></div>
+                    <div className="hidden sm:block absolute top-0 right-1/4 w-0.5 h-6 bg-orange-500/40"></div>
 
                     {/* Level 2: Sekretaris & Bendahara Columns */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8 pt-0 sm:pt-6 w-full">
@@ -1006,18 +1021,18 @@ export default function Hero({
                       {/* Branch 1: Sekretaris */}
                       <div className="flex flex-col items-center space-y-3">
                         {/* Group Header Badge */}
-                        <div className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                        <div className="px-3 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-600 text-[10px] font-extrabold uppercase tracking-wider w-fit">
                           Sekretariat
                         </div>
 
                         {/* Member: Yulia Sutianti */}
-                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:border-blue-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
                             <User className="w-5 h-5" />
                           </div>
                           <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Sekretaris</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Yulia Sutianti</span>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Sekretaris</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block">Yulia Sutianti</span>
                           </div>
                         </div>
                       </div>
@@ -1025,18 +1040,18 @@ export default function Hero({
                       {/* Branch 2: Bendahara */}
                       <div className="flex flex-col items-center space-y-3">
                         {/* Group Header Badge */}
-                        <div className="px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] font-extrabold uppercase tracking-wider w-fit">
+                        <div className="px-3 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[10px] font-extrabold uppercase tracking-wider w-fit">
                           Bendahara / Keuangan
                         </div>
 
                         {/* Member: Arief Kurniawan */}
-                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
-                          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs shrink-0">
+                        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-xs hover:border-amber-500/50 transition-all w-full max-w-[260px]">
+                          <div className="w-10 h-10 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-xs shrink-0">
                             <User className="w-5 h-5" />
                           </div>
                           <div className="text-left min-w-0 flex-1">
-                            <span className="block text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Bendahara</span>
-                            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate block">Arief Kurniawan</span>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Bendahara</span>
+                            <span className="text-xs sm:text-sm font-bold text-slate-900 truncate block">Arief Kurniawan</span>
                           </div>
                         </div>
                       </div>
@@ -1058,7 +1073,7 @@ export default function Hero({
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto space-y-3">
-            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center justify-center gap-1.5 w-fit mx-auto">
+            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase inline-flex items-center justify-center gap-1.5 w-fit mx-auto">
               <Megaphone className="w-3.5 h-3.5 text-orange-500" /> Akses Cepat & Pusat Informasi RT
             </span>
             <h2 className="text-2xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
@@ -1073,106 +1088,106 @@ export default function Hero({
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
             
             {/* 1. Total Warga */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-orange-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                 <Users className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.total_warga || (wargaList.length > 0 ? wargaList.length : 128)}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total Warga</span>
               </div>
             </div>
 
             {/* 2. Total Kartu Keluarga */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-blue-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-blue-500/20 shrink-0">
                 <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {totalKK || publicStats?.total_kk || 48}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total KK</span>
               </div>
             </div>
 
             {/* 3. Total Rumah */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-indigo-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-indigo-500/20 shrink-0">
                 <Home className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.total_rumah || 52}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Total Rumah</span>
               </div>
             </div>
 
             {/* 4. IPL Sudah Lunas */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-emerald-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-emerald-500/20 shrink-0">
                 <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
-                  {publicStats?.ipl_lunas || 42} <span className="text-xs text-orange-600 dark:text-orange-400 font-bold">KK</span>
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
+                  {publicStats?.ipl_lunas || 42} <span className="text-xs text-orange-600 font-bold">KK</span>
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">IPL Lunas</span>
               </div>
             </div>
 
             {/* 5. IPL Belum Lunas */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-amber-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-amber-500/20 shrink-0">
                 <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.ipl_belum_lunas || 6} <span className="text-xs text-rose-500 font-bold">KK</span>
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">IPL Belum Lunas</span>
               </div>
             </div>
 
             {/* 6. Surat Masuk */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-cyan-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-cyan-500/20 shrink-0">
                 <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.surat_masuk || 18}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Surat Masuk</span>
               </div>
             </div>
 
             {/* 7. Surat Keluar */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-purple-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/20 shrink-0">
                 <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.surat_keluar || 34}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Surat Keluar</span>
               </div>
             </div>
 
             {/* 8. Pengaduan Aktif */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
               <div className="p-2.5 sm:p-3 bg-rose-500 text-white rounded-xl sm:rounded-2xl shadow-md shadow-rose-500/20 shrink-0">
                 <ShieldAlert className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0 flex-1">
-                <span className="block text-xl sm:text-2xl font-black text-slate-900 dark:text-white truncate">
+                <span className="block text-xl sm:text-2xl font-black text-slate-900 truncate">
                   {publicStats?.pengaduan_aktif || 3}
                 </span>
-                <span className="text-[9px] sm:text-[10px] text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
+                <span className="text-[9px] sm:text-[10px] text-slate-500 font-extrabold uppercase tracking-wider block truncate">Pengaduan Aktif</span>
               </div>
             </div>
 
@@ -1181,24 +1196,24 @@ export default function Hero({
           {/* ═══════════════════════════════════════════════════════════════════
               MODUL 1: PUSAT KONTAK DARURAT (SOLID COLOR PALETTE)
               ═══════════════════════════════════════════════════════════════════ */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs space-y-4 sm:space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs space-y-4 sm:space-y-6">
             
             {/* Unified Header for Emergency Contacts Rumpun */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 sm:pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 sm:p-3 bg-orange-500 text-white rounded-2xl shadow-md shadow-orange-500/20 shrink-0">
                   <Phone className="w-5 h-5 sm:w-6 sm:h-6 animate-pulse" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  <h3 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight">
                     Pusat Kontak Bantuan & Direktori Darurat RT 05
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Satu rumpun kontak siaga darurat 24 jam untuk keamanan, pertolongan medis, kepolisian, dan pengurus RT.
                   </p>
                 </div>
               </div>
-              <span className="px-3 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit whitespace-nowrap">
+              <span className="px-3 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit whitespace-nowrap">
                 🚨 Layanan Siaga 24 Jam
               </span>
             </div>
@@ -1218,27 +1233,27 @@ export default function Hero({
                       window.open(`tel:${emg.phone.replace(/[^0-9+]/g, '')}`, '_self');
                     }
                   }}
-                  className="bg-white/90 dark:bg-slate-950/80 backdrop-blur-xs border border-slate-200/80 dark:border-slate-800/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-orange-500/40 dark:hover:border-orange-500/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                  className="bg-white/90 backdrop-blur-xs border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 shadow-xs hover:shadow-md hover:border-orange-500/40 hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="p-2 rounded-xl text-white shadow-xs bg-gradient-to-br from-orange-500 to-amber-600 shadow-orange-500/20">
                         <Phone className="w-3.5 h-3.5" />
                       </div>
-                      <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase border bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20">
+                      <span className="px-2 py-0.5 rounded-full text-[8px] font-extrabold uppercase border bg-orange-500/10 text-orange-600 border-orange-500/20">
                         {emg.badge}
                       </span>
                     </div>
 
                     <div>
-                      <h4 className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                      <h4 className="text-xs font-extrabold text-slate-900 group-hover:text-orange-600 transition-colors">
                         {emg.title}
                       </h4>
                       <p className="text-[10px] text-slate-400 font-medium">{emg.subtitle}</p>
                     </div>
 
-                    <div className="p-2 bg-slate-50 dark:bg-slate-900/90 border border-slate-200/60 dark:border-slate-800 rounded-lg">
-                      <span className="block text-xs font-black font-mono text-slate-900 dark:text-white">{emg.phone}</span>
+                    <div className="p-2 bg-slate-50 border border-slate-200/60 rounded-lg">
+                      <span className="block text-xs font-black font-mono text-slate-900">{emg.phone}</span>
                       <span className="block text-[9px] text-slate-400 font-medium truncate">{emg.altPhone}</span>
                     </div>
                   </div>
@@ -1266,12 +1281,12 @@ export default function Hero({
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
-                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-orange-500" /> Panduan Syarat Persuratan Publik
                 </h3>
                 <p className="text-xs text-slate-400">Daftar dokumen persyaratan yang wajib disiapkan sebelum mengajukan permohonan surat pengantar.</p>
               </div>
-              <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 w-fit">
+              <span className="text-[10px] font-bold text-orange-600 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 w-fit">
                 📋 Bebas Akses Tanpa Login
               </span>
             </div>
@@ -1286,24 +1301,24 @@ export default function Hero({
                 <div
                   key={srv.id}
                   onClick={() => handleShowGuideModal(srv)}
-                  className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
+                  className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 cursor-pointer group flex flex-col justify-between"
                 >
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full text-[9px] font-extrabold uppercase">
+                      <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded-full text-[9px] font-extrabold uppercase">
                         {srv.category}
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">⏱️ {srv.estimate}</span>
                     </div>
 
-                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors">
+                    <h4 className="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-orange-600 transition-colors">
                       {srv.title}
                     </h4>
 
                     <div className="space-y-1.5">
                       <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">Persyaratan Utama:</span>
                       {srv.requirements.map((req, idx) => (
-                        <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-600 dark:text-slate-400">
+                        <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-600">
                           <span className="text-orange-500 text-xs">✓</span>
                           <span className="line-clamp-1">{req}</span>
                         </div>
@@ -1317,7 +1332,7 @@ export default function Hero({
                       e.stopPropagation();
                       handleShowGuideModal(srv);
                     }}
-                    className="mt-4 w-full py-2 px-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-extrabold text-xs rounded-xl border border-orange-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                    className="mt-4 w-full py-2 px-3 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 font-extrabold text-xs rounded-xl border border-orange-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Lihat Panduan Lengkap</span>
@@ -1336,7 +1351,7 @@ export default function Hero({
           
           {/* Section Header */}
           <div className="text-center max-w-3xl mx-auto space-y-3 mb-14">
-            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 dark:bg-slate-900 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase">
+            <span className="px-3 py-1.5 rounded-sm border border-[var(--color-hairline)] bg-slate-50 text-[var(--color-ink)] text-[9px] font-bold tracking-wider uppercase">
               📊 Data Terbuka & Transparan
             </span>
             <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--color-ink)] tracking-tight leading-tight lg:tracking-[-0.8px]">
@@ -1457,17 +1472,17 @@ export default function Hero({
                   <div className="space-y-5">
                     {/* Big numbers */}
                     <div className="grid grid-cols-3 gap-3 font-sans">
-                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                      <div className="p-3.5 sm:p-4 bg-slate-50 border border-[var(--color-hairline)] rounded-sm text-center">
                         <TrendingUp className="w-5 h-5 text-[var(--color-accent-green)] mx-auto mb-1" />
                         <span className="block text-xs sm:text-sm md:text-base font-black text-[var(--color-accent-green)]">{formatCurrency(dynIncome)}</span>
                         <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Pemasukan</span>
                       </div>
-                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                      <div className="p-3.5 sm:p-4 bg-slate-50 border border-[var(--color-hairline)] rounded-sm text-center">
                         <TrendingDown className="w-5 h-5 text-[var(--color-accent-red)] mx-auto mb-1" />
                         <span className="block text-xs sm:text-sm md:text-base font-black text-[var(--color-accent-red)]">{formatCurrency(dynExpense)}</span>
                         <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Pengeluaran</span>
                       </div>
-                      <div className="p-3.5 sm:p-4 bg-slate-50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm text-center">
+                      <div className="p-3.5 sm:p-4 bg-slate-50 border border-[var(--color-hairline)] rounded-sm text-center">
                         <Wallet className="w-5 h-5 text-[var(--color-accent-blue)] mx-auto mb-1" />
                         <span className={`block text-xs sm:text-sm md:text-base font-black ${dynBalance >= 0 ? 'text-[var(--color-accent-blue-deep)]' : 'text-[var(--color-accent-red)]'}`}>{formatCurrency(dynBalance)}</span>
                         <span className="text-[9px] sm:text-xs font-bold text-[var(--color-mute)] uppercase tracking-wider mt-0.5">Saldo Aktif</span>
@@ -1481,7 +1496,7 @@ export default function Hero({
                           <span>PEMASUKAN (ARUS MASUK)</span>
                           <span className="text-[var(--color-accent-green)] font-extrabold">{dynInPct}%</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-sm overflow-hidden">
                           <div className="h-full bg-[var(--color-accent-green)] rounded-sm transition-all duration-700" style={{ width: `${dynInPct}%` }}></div>
                         </div>
                       </div>
@@ -1490,7 +1505,7 @@ export default function Hero({
                           <span>PENGELUARAN (ARUS KELUAR)</span>
                           <span className="text-[var(--color-accent-red)] font-extrabold">{dynOutPct}%</span>
                         </div>
-                        <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                        <div className="w-full h-2.5 bg-slate-100 rounded-sm overflow-hidden">
                           <div className="h-full bg-[var(--color-accent-red)] rounded-sm transition-all duration-700" style={{ width: `${dynOutPct}%` }}></div>
                         </div>
                       </div>
@@ -1500,7 +1515,7 @@ export default function Hero({
                     <div className="flex items-center justify-center gap-8 py-1">
                       <div className="relative">
                         <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
-                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="dark:stroke-slate-800" />
+                          <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="9" className="" />
                           <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="9"
                             strokeDasharray={`${2.39 * dynInPct} ${239 - 2.39 * dynInPct}`}
                             strokeLinecap="round"
@@ -1536,7 +1551,7 @@ export default function Hero({
                           ? transaksiKasList.slice(0, 5)
                           : displayLedger;
                         return recentTx.map((tx, i) => (
-                          <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs p-3 rounded-sm bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--color-hairline)]">
+                          <div key={i} className="flex items-center justify-between text-[11px] sm:text-xs p-3 rounded-sm bg-slate-50/50 border border-[var(--color-hairline)]">
                             <div className="space-y-0.5 min-w-0 flex-1">
                               <span className="font-bold text-[11px] sm:text-xs text-[var(--color-ink-strong)] block truncate">{tx.description || tx.kategori || 'Transaksi'}</span>
                               <span className="text-[10px] sm:text-xs text-[var(--color-mute)] font-mono">{tx.transaction_date || tx.date || tx.tanggal || '—'}</span>
@@ -1598,7 +1613,7 @@ export default function Hero({
                         <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider">Rasio Gender</span>
                         <div className="relative">
                           <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="" />
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-blue)" strokeWidth="10"
                               strokeDasharray={`${2.39 * malePct} ${239 - 2.39 * malePct}`}
                               strokeLinecap="round"
@@ -1637,7 +1652,7 @@ export default function Hero({
                         <span className="text-[10px] sm:text-xs font-extrabold text-[var(--color-mute)] uppercase tracking-wider">Status Hunian</span>
                         <div className="relative">
                           <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 100 100">
-                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="dark:stroke-slate-800" />
+                            <circle cx="50" cy="50" r="38" fill="transparent" stroke="#f1f5f9" strokeWidth="10" className="" />
                             <circle cx="50" cy="50" r="38" fill="transparent" stroke="var(--color-accent-green)" strokeWidth="10"
                               strokeDasharray={`${2.39 * tetapPct} ${239 - 2.39 * tetapPct}`}
                               strokeLinecap="round"
@@ -1682,11 +1697,11 @@ export default function Hero({
                         { label: 'Lansia (>50 th)', count: lansia, pct: lansiaPct, color: 'from-[var(--color-accent-orange)] to-yellow-500' },
                       ].map((ag, i) => (
                         <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-[11px] sm:text-xs font-bold text-slate-500 dark:text-slate-400">
+                          <div className="flex justify-between text-[11px] sm:text-xs font-bold text-slate-500">
                             <span>{ag.label}</span>
                             <span className="text-[var(--color-ink)] font-extrabold">{ag.count} orang ({ag.pct}%)</span>
                           </div>
-                          <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-850 rounded-sm overflow-hidden">
+                          <div className="w-full h-2.5 bg-slate-100 rounded-sm overflow-hidden">
                             <div className={`h-full bg-gradient-to-r ${ag.color} rounded-sm`} style={{ width: `${Math.max(ag.pct, 2)}%` }}></div>
                           </div>
                         </div>
@@ -1751,7 +1766,7 @@ export default function Hero({
                   gradient: 'from-[var(--color-accent-red)] to-pink-400'
                 },
               ].map((metric, i) => (
-                <div key={i} className="p-5 bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--color-hairline)] rounded-sm space-y-4">
+                <div key={i} className="p-5 bg-slate-50/50 border border-[var(--color-hairline)] rounded-sm space-y-4">
                   <div className={`p-2.5 w-fit ${metric.iconBg} rounded-sm`}>
                     {metric.icon}
                   </div>
@@ -1759,7 +1774,7 @@ export default function Hero({
                     <span className="text-[10px] font-bold text-[var(--color-mute)] uppercase tracking-wider block">{metric.label}</span>
                     <span className="text-2xl font-black text-[var(--color-ink)]">{metric.value}</span>
                   </div>
-                  <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-sm overflow-hidden">
+                  <div className="w-full h-1.5 bg-slate-100 rounded-sm overflow-hidden">
                     <div className={`h-full bg-gradient-to-r ${metric.gradient} rounded-sm`} style={{ width: `${metric.pct}%` }}></div>
                   </div>
                   <p className="text-[9px] text-[var(--color-mute)] font-medium leading-relaxed">{metric.desc}</p>
@@ -1804,7 +1819,7 @@ export default function Hero({
                         </td>
                         <td className="py-2.5">
                           <div className="flex items-center gap-2">
-                            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-sm overflow-hidden max-w-[80px]">
+                            <div className="flex-1 h-1.5 bg-slate-100 rounded-sm overflow-hidden max-w-[80px]">
                               <div className="h-full bg-gradient-to-r from-[var(--color-accent-green)] to-amber-400 rounded-sm" style={{ width: `${row.pct}%` }}></div>
                             </div>
                             <span className="text-[var(--color-ink)] font-black">{row.pct}%</span>
@@ -1834,7 +1849,7 @@ export default function Hero({
       {/* Modal Popup Preview Dokumentasi (CMS Ready) */}
       {selectedMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in font-sans text-left">
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-2xl rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden animate-scale-up">
+          <div className="relative bg-white w-full max-w-2xl rounded-3xl border border-slate-200 shadow-2xl overflow-hidden animate-scale-up">
             
             {/* Close Button */}
             <button
@@ -1872,13 +1887,14 @@ export default function Hero({
                 )
               ) : (
                 <img
-                  src={selectedMedia.media_url || selectedMedia.thumbnail}
+                  src={selectedMedia.media_url || selectedMedia.thumbnail || cameraPlaceholderSvg}
                   alt={selectedMedia.title}
                   crossOrigin="anonymous"
-                  className="w-full h-full object-contain bg-black"
+                  className={`w-full h-full ${(selectedMedia.media_url || selectedMedia.thumbnail) && selectedMedia.media_url !== cameraPlaceholderSvg && selectedMedia.thumbnail !== cameraPlaceholderSvg ? 'object-contain bg-black' : 'object-contain p-12 bg-slate-900 opacity-80'}`}
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = dummyImg1;
+                    e.target.src = cameraPlaceholderSvg;
+                    e.target.className = 'w-full h-full object-contain p-12 bg-slate-900 opacity-80';
                   }}
                 />
               )}
@@ -1887,7 +1903,7 @@ export default function Hero({
             {/* Info Area */}
             <div className="p-6 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 font-bold text-[10px] uppercase tracking-wider">
+                <span className="px-2.5 py-1 rounded-lg bg-orange-500/10 text-orange-600 font-bold text-[10px] uppercase tracking-wider">
                   {selectedMedia.category}
                 </span>
                 <span className="text-xs text-slate-400 font-medium">
@@ -1895,18 +1911,18 @@ export default function Hero({
                 </span>
               </div>
 
-              <h3 className="text-xl font-black text-slate-900 dark:text-white">
+              <h3 className="text-xl font-black text-slate-900">
                 {selectedMedia.title}
               </h3>
 
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
                 {selectedMedia.description}
               </p>
 
               <div className="pt-3 flex justify-end">
                 <button
                   onClick={() => setSelectedMedia(null)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition-colors cursor-pointer"
                 >
                   Tutup Preview
                 </button>

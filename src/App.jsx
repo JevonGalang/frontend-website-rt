@@ -28,17 +28,6 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState('beranda');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Theme Dark/Light Mode state
-  const [darkMode, setDarkMode] = useState(() => {
-    try {
-      const savedTheme = localStorage.getItem('rt_theme');
-      return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    } catch (e) {
-      console.warn('localStorage is blocked or unavailable:', e);
-      return false;
-    }
-  });
-
   const [wargaList, setWargaList] = useState(DEFAULT_WARGA);
 
   const [transaksiKasList, setTransaksiKasList] = useState(DEFAULT_KAS);
@@ -50,10 +39,20 @@ export default function App() {
   const [publicStats, setPublicStats] = useState(null);
   const [publicLedger, setPublicLedger] = useState([]);
 
+  // Ensure dark mode class is permanently cleared from document element
+  useEffect(() => {
+    try {
+      window.document.documentElement.classList.remove('dark');
+      localStorage.removeItem('rt_theme');
+    } catch (e) {
+      console.warn('Theme cleanup error:', e);
+    }
+  }, []);
+
   // Pembersihan menyeluruh: hapus semua data localStorage bisnis/mock lama agar tidak konflik dengan data database server
   useEffect(() => {
     try {
-      const allowedKeys = new Set(['rt_theme']);
+      const allowedKeys = new Set([]);
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith('rt_') && !allowedKeys.has(key)) {
           localStorage.removeItem(key);
@@ -131,32 +130,48 @@ export default function App() {
 
   const fetchAgendas = async (query = '') => {
     const token = getSessionToken();
-    if (!token) return;
-
     try {
       const user = currentUser || getSession()?.user;
-      if (!user) return;
-      const isAdmin = ['admin', 'rt', 'sekertaris'].includes(user.role);
-      const endpoint = isAdmin ? '/api/admin/agenda' : '/api/resident/agenda';
+      const isAdmin = user && ['admin', 'rt', 'sekertaris'].includes(user.role);
+      const endpoint = isAdmin ? '/admin/agenda' : '/resident/agenda';
       
       const url = query 
         ? `${API_BASE_URL}${endpoint}?search=${encodeURIComponent(query)}`
         : `${API_BASE_URL}${endpoint}`;
         
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(url, { headers });
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data)) {
-          const mapped = data.map(a => ({
+        const items = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.output?.pesan?.items)
+          ? data.output.pesan.items
+          : Array.isArray(data?.output?.pesan)
+          ? data.output.pesan
+          : Array.isArray(data?.output?.items)
+          ? data.output.items
+          : Array.isArray(data?.output?.data)
+          ? data.output.data
+          : Array.isArray(data?.output)
+          ? data.output
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
+
+        if (items.length > 0 || Array.isArray(data)) {
+          const mapped = items.map(a => ({
             id: a.id,
-            category: a.kategori,
-            title: a.judul,
-            description: a.deskripsi,
-            date: a.tanggal ? a.tanggal.substring(0, 10) : '',
-            time: a.waktu,
-            location: a.tempat,
+            category: a.kategori || a.category || 'KEGIATAN RT',
+            title: a.judul || a.title || 'Agenda Kegiatan',
+            description: a.deskripsi || a.description || '',
+            date: a.tanggal ? (typeof a.tanggal === 'string' ? a.tanggal.substring(0, 10) : '') : (a.date || ''),
+            time: a.waktu || a.time || '08:00',
+            location: a.tempat || a.location || 'Lingkungan RT 05',
             isFromServer: true
           }));
           mapped.sort((a, b) => {
@@ -166,7 +181,6 @@ export default function App() {
             return (Number(b.id) || 0) - (Number(a.id) || 0);
           });
           setAgendaList(mapped);
-
         }
       }
     } catch (err) {
@@ -175,8 +189,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!currentUser) return;
-
     fetchAgendas();
 
     const token = getSessionToken();
@@ -275,29 +287,12 @@ export default function App() {
     return date.getMonth() === 6 && date.getFullYear() === 2026;
   }).length;
 
-  // Toggle dark/light theme class on document element
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-      localStorage.setItem('rt_theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('rt_theme', 'light');
-    }
-  }, [darkMode]);
-
-  // Login form is now embedded directly in the Hero section of beranda
-
-
   // 1.5 GATEKEEPER: FORCE CHANGE PASSWORD ON FIRST LOGIN
   if (currentUser && currentUser.must_change_password) {
     return (
       <ChangePasswordFirstTime
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
       />
     );
   }
@@ -316,8 +311,6 @@ export default function App() {
         setAgendaList={setAgendaList}
         submissionsList={submissionsList}
         setSubmissionsList={setSubmissionsList}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         fetchAgendas={fetchAgendas}
         dashboardStats={dashboardStats}
         fetchDashboardStats={fetchDashboardStats}
@@ -346,19 +339,15 @@ export default function App() {
         agendaList={agendaList}
         transaksiKasList={transaksiKasList}
         setTransaksiKasList={setTransaksiKasList}
-        darkMode={darkMode}
-        setDarkMode={setDarkMode}
         fetchAgendas={fetchAgendas}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] dark:bg-[#0b0f17] text-slate-800 dark:text-slate-100 font-sans antialiased flex flex-col justify-between">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans antialiased flex flex-col justify-between">
       {/* Navigation bar & Sidebar */}
       <Navbar 
-        darkMode={darkMode} 
-        setDarkMode={setDarkMode} 
         currentUser={currentUser}
         setCurrentUser={setCurrentUser}
         currentPage={currentPage}
@@ -402,8 +391,6 @@ export default function App() {
             agendaList={agendaList}
             transaksiKasList={transaksiKasList}
             setTransaksiKasList={setTransaksiKasList}
-            darkMode={darkMode}
-            setDarkMode={setDarkMode}
             fetchAgendas={fetchAgendas}
           />
         )}
@@ -449,10 +436,10 @@ export default function App() {
       </main>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          PREMIUM GOLDEN FOOTER (PENGURUS RW 011 VILA MUTIARA CINERE)
+          PREMIUM LIGHT GOLDEN FOOTER (PENGURUS RW 011 VILA MUTIARA CINERE)
           ═══════════════════════════════════════════════════════════════════ */}
-      <footer className="relative bg-[#060c1d] dark:bg-[#030611] text-white pt-10 pb-20 lg:pb-10 border-t-2 border-[#d6a354]/40 font-sans overflow-hidden">
-        {/* Subtle background golden ambient glow */}
+      <footer className="relative bg-white text-slate-800 pt-10 pb-20 lg:pb-10 border-t border-slate-200 shadow-xs font-sans overflow-hidden">
+        {/* Subtle background warm ambient glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-24 bg-amber-500/5 blur-3xl pointer-events-none -z-0"></div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 relative z-10">
@@ -461,14 +448,14 @@ export default function App() {
           <div className="flex justify-center">
             <div className="relative inline-block group">
               {/* Outer Golden Border & Shadow */}
-              <div className="relative px-8 sm:px-12 py-3 rounded-full bg-[#dfa55d] border-2 border-[#fae8c8] shadow-xl shadow-black/50 text-center">
+              <div className="relative px-8 sm:px-12 py-3 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 border-2 border-amber-200/80 shadow-md text-center">
                 {/* Inner Decorative Stroke */}
-                <div className="absolute inset-1 rounded-full border border-[#8a5717]/40 pointer-events-none"></div>
+                <div className="absolute inset-1 rounded-full border border-amber-600/30 pointer-events-none"></div>
                 
-                <span className="block font-black text-xs sm:text-sm md:text-base text-[#2c1a05] uppercase tracking-[0.18em] leading-tight drop-shadow-xs font-serif">
+                <span className="block font-black text-xs sm:text-sm md:text-base text-amber-950 uppercase tracking-[0.18em] leading-tight drop-shadow-xs font-serif">
                   PENGURUS RW 011
                 </span>
-                <span className="block text-[11px] sm:text-xs font-bold text-[#3d2407] tracking-wider mt-0.5 font-serif">
+                <span className="block text-[11px] sm:text-xs font-bold text-amber-900 tracking-wider mt-0.5 font-serif">
                   Vila Mutiara Cinere
                 </span>
               </div>
@@ -476,22 +463,22 @@ export default function App() {
           </div>
 
           {/* Golden Horizontal Hairline Divider */}
-          <div className="w-full max-w-5xl mx-auto h-[1px] bg-[#d6a354]/40"></div>
+          <div className="w-full max-w-5xl mx-auto h-[1px] bg-slate-200"></div>
 
           {/* Social Media & Contact Links Row */}
-          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 md:gap-12 text-xs sm:text-sm font-semibold text-slate-200">
+          <div className="flex flex-wrap items-center justify-center gap-5 sm:gap-8 md:gap-12 text-xs sm:text-sm font-semibold text-slate-600">
             
             {/* 1. Website */}
             <a
               href="https://s.id/erwesebelas"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+              className="flex items-center gap-2.5 hover:text-amber-600 transition-colors group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full border border-white/20 bg-white/5 group-hover:border-[#eec98d] group-hover:bg-amber-500/10 flex items-center justify-center text-white group-hover:text-[#eec98d] transition-all">
+              <div className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 group-hover:border-amber-400 group-hover:bg-amber-50 flex items-center justify-center text-slate-700 group-hover:text-amber-600 transition-all shadow-2xs">
                 <Globe className="w-4 h-4" />
               </div>
-              <span className="font-mono text-xs">https://s.id/erwesebelas</span>
+              <span className="font-mono text-xs text-slate-700 group-hover:text-amber-600">https://s.id/erwesebelas</span>
             </a>
 
             {/* 2. YouTube */}
@@ -499,12 +486,12 @@ export default function App() {
               href="https://www.youtube.com/@erwesebelaskita"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+              className="flex items-center gap-2.5 hover:text-amber-600 transition-colors group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-white text-[#060c1d] group-hover:bg-[#eec98d] flex items-center justify-center transition-all shadow-sm">
+              <div className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 group-hover:border-amber-400 group-hover:bg-amber-50 flex items-center justify-center text-slate-700 group-hover:text-amber-600 transition-all shadow-2xs">
                 <Play className="w-4 h-4 fill-current ml-0.5" />
               </div>
-              <span className="text-xs">@erwesebelaskita</span>
+              <span className="text-xs text-slate-700 group-hover:text-amber-600">@erwesebelaskita</span>
             </a>
 
             {/* 3. TikTok */}
@@ -512,14 +499,14 @@ export default function App() {
               href="https://tiktok.com/@erwesebelas"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+              className="flex items-center gap-2.5 hover:text-amber-600 transition-colors group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full bg-white text-[#060c1d] group-hover:bg-[#eec98d] flex items-center justify-center transition-all shadow-sm">
+              <div className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 group-hover:border-amber-400 group-hover:bg-amber-50 flex items-center justify-center text-slate-700 group-hover:text-amber-600 transition-all shadow-2xs">
                 <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                   <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.24 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
                 </svg>
               </div>
-              <span className="text-xs">@erwesebelas</span>
+              <span className="text-xs text-slate-700 group-hover:text-amber-600">@erwesebelas</span>
             </a>
 
             {/* 4. WhatsApp */}
@@ -527,12 +514,12 @@ export default function App() {
               href="https://wa.me/6285609090903"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 hover:text-[#eec98d] transition-colors group cursor-pointer"
+              className="flex items-center gap-2.5 hover:text-amber-600 transition-colors group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-full border border-white/20 bg-white/5 group-hover:border-[#eec98d] group-hover:bg-amber-500/10 flex items-center justify-center text-white group-hover:text-[#eec98d] transition-all">
+              <div className="w-8 h-8 rounded-full border border-slate-200 bg-slate-50 group-hover:border-amber-400 group-hover:bg-amber-50 flex items-center justify-center text-slate-700 group-hover:text-amber-600 transition-all shadow-2xs">
                 <MessageCircle className="w-4 h-4" />
               </div>
-              <span className="font-mono text-xs">+62 856-0909-0903</span>
+              <span className="font-mono text-xs text-slate-700 group-hover:text-amber-600">+62 856-0909-0903</span>
             </a>
 
           </div>

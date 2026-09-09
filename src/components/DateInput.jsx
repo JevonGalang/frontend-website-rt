@@ -160,7 +160,7 @@ const DateInput = ({
       <button
         type="button"
         onClick={handleIconClick}
-        className="absolute right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-350 focus:outline-none transition-colors cursor-pointer"
+        className="absolute right-3 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer"
         title="Pilih Tanggal"
       >
         <Calendar className="w-5 h-5" />

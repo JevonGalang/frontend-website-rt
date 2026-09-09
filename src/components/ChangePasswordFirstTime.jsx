@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Lock, KeyRound, AlertCircle, CheckCircle2, Loader2, Sun, Moon } from 'lucide-react';
+import { Lock, KeyRound, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { getSessionToken, updateSessionUser } from '../utils/authSession';
 import { API_BASE_URL } from '../config/api';
 
-export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, darkMode, setDarkMode }) {
+export default function ChangePasswordFirstTime({ currentUser, setCurrentUser }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -69,39 +69,31 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans">
       {/* Background gradients */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
 
-      {/* Floating Theme Toggle */}
-      <button
-        onClick={() => setDarkMode(!darkMode)}
-        className="absolute top-6 right-6 p-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800 rounded-2xl text-slate-700 dark:text-slate-200 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-lg"
-      >
-        {darkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-400" />}
-      </button>
-
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
+      <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-2xl relative z-10 space-y-6">
         <div className="text-center space-y-2">
           <div className="mx-auto w-14 h-14 bg-orange-500/10 text-orange-500 rounded-2xl flex items-center justify-center animate-pulse border border-orange-500/30">
-            <Lock className="w-7 h-7 text-orange-600 dark:text-orange-400" />
+            <Lock className="w-7 h-7 text-orange-600" />
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Ganti Kata Sandi</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed max-w-xs mx-auto">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900">Ganti Kata Sandi</h2>
+          <p className="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
             Ini adalah login pertama Anda. Untuk alasan keamanan, Anda **wajib** memperbarui kata sandi bawaan terlebih dahulu.
           </p>
         </div>
 
         {error && (
-          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold flex items-start gap-3">
+          <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-600 text-xs font-bold flex items-start gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-bold flex items-start gap-3">
+          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 text-xs font-bold flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 animate-bounce" />
             <span>{success}</span>
           </div>
@@ -109,7 +101,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
               Kata Sandi Baru
             </label>
             <div className="relative">
@@ -121,13 +113,13 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
                 placeholder="Minimal 8 karakter..."
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-semibold"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 transition-all font-semibold"
               />
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="text-xs font-extrabold text-slate-500 uppercase tracking-wider">
               Konfirmasi Kata Sandi Baru
             </label>
             <div className="relative">
@@ -139,7 +131,7 @@ export default function ChangePasswordFirstTime({ currentUser, setCurrentUser, d
                 placeholder="Ketik ulang kata sandi baru..."
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 dark:text-white transition-all font-semibold"
+                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-slate-900 transition-all font-semibold"
               />
             </div>
           </div>

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, User, Users, Volume2, Calendar, Phone, Wallet, History, Upload, 
   FileText, Send, AlertTriangle, FolderOpen, Bell, Settings, 
   CheckCircle2, AlertCircle, Trash2, Eye, EyeOff, Lock, 
-  Landmark, LogOut, Sun, Moon, Sparkles, ChevronDown, ChevronRight, X, X as XIcon, Edit2, Save,
+  Landmark, LogOut, Sparkles, ChevronDown, ChevronRight, X, X as XIcon, Edit2, Save,
   Loader2, Search, Menu, Camera, Shield, ShieldCheck, Printer
 } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -54,6 +54,19 @@ const formatDateIndo = (dateStr) => {
   } catch (e) {
     return dateStr;
   }
+};
+
+const calculateAge = (birthDateString) => {
+  if (!birthDateString) return '';
+  const today = new Date();
+  const birthDate = new Date(birthDateString);
+  if (isNaN(birthDate.getTime())) return '';
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= 0 ? String(age) : '0';
 };
 
 const getTemplatesForType = (type = '') => {
@@ -110,8 +123,6 @@ export default function ProfilWarga({
   agendaList = [],
   transaksiKasList = [],
   setTransaksiKasList,
-  darkMode,
-  setDarkMode,
   fetchAgendas
 }) {
   // Navigation & Collapsible Menu States
@@ -167,8 +178,6 @@ export default function ProfilWarga({
   const [pendingAction, setPendingAction] = useState(''); // 'edit' | 'reveal_pwd'
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [selectedKtpWarga, setSelectedKtpWarga] = useState(null);
-  const [ktpTab, setKtpTab] = useState('asli');
 
   // Letter Request Form States
   const [letterCategories, setLetterCategories] = useState(DEFAULT_LETTER_CATEGORIES);
@@ -657,7 +666,21 @@ export default function ProfilWarga({
         });
         if (response.ok) {
           const data = await response.json();
-          const resItems = data?.output?.pesan?.items || (Array.isArray(data?.output?.pesan) ? data.output.pesan : null) || parseArrayResponse(data);
+          const resItems = Array.isArray(data)
+            ? data
+            : Array.isArray(data?.output?.pesan?.items)
+            ? data.output.pesan.items
+            : Array.isArray(data?.output?.pesan)
+            ? data.output.pesan
+            : Array.isArray(data?.output?.items)
+            ? data.output.items
+            : Array.isArray(data?.output?.data)
+            ? data.output.data
+            : Array.isArray(data?.output)
+            ? data.output
+            : Array.isArray(data?.data)
+            ? data.data
+            : parseArrayResponse(data);
           if (Array.isArray(resItems) && resItems.length > 0) {
             items = resItems;
           }
@@ -677,7 +700,21 @@ export default function ProfilWarga({
           });
           if (resResident.ok) {
             const dataResident = await resResident.json();
-            const resItems = dataResident?.output?.pesan?.items || (Array.isArray(dataResident?.output?.pesan) ? dataResident.output.pesan : null) || parseArrayResponse(dataResident);
+            const resItems = Array.isArray(dataResident)
+              ? dataResident
+              : Array.isArray(dataResident?.output?.pesan?.items)
+              ? dataResident.output.pesan.items
+              : Array.isArray(dataResident?.output?.pesan)
+              ? dataResident.output.pesan
+              : Array.isArray(dataResident?.output?.items)
+              ? dataResident.output.items
+              : Array.isArray(dataResident?.output?.data)
+              ? dataResident.output.data
+              : Array.isArray(dataResident?.output)
+              ? dataResident.output
+              : Array.isArray(dataResident?.data)
+              ? dataResident.data
+              : parseArrayResponse(dataResident);
             if (Array.isArray(resItems) && resItems.length > 0) {
               items = resItems;
             }
@@ -1197,30 +1234,24 @@ export default function ProfilWarga({
       newSubmission.id = serverInsertId;
     }
 
-    // 1. Simpan ke local state submissionsList
-    if (setSubmissionsList) {
-      setSubmissionsList(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
-    }
-
-    // 2. Simpan ke serverSubmissions state agar langsung tampil di tab status
-    setServerSubmissions(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
-
-    // 3. Reset form
+    // 1. Reset form
     setLetterForm(prev => ({
       ...prev,
       keperluan: '',
       custom_nama_kategori: ''
     }));
 
-    // 4. Pindah ke tab status pengajuan
+    // 2. Pindah ke tab status pengajuan
     setActiveTab('layanan_status');
 
-    // 5. Langsung buka modal pratinjau surat agar warga bisa cetak surat / simpan PDF seketika
+    // 3. Langsung buka modal pratinjau surat
     setViewingApprovedLetter(newSubmission);
 
-    // 6. Refresh data dari server di background
+    // 4. Refresh data dari server seketika
     if (token) {
-      fetchCitizenSubmissions();
+      await fetchCitizenSubmissions();
+    } else {
+      setServerSubmissions(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
     }
   };
 
@@ -1924,9 +1955,12 @@ export default function ProfilWarga({
     const list = [];
     const seenIds = new Set();
 
-    // 1. Prioritas dari serverSubmissions
+    // 1. Prioritas dari serverSubmissions (Single Source of Truth)
     (Array.isArray(serverSubmissions) ? serverSubmissions : []).forEach(sub => {
       if (!sub) return;
+      const subIdStr = String(sub.id || '');
+      if (subIdStr && seenIds.has(subIdStr)) return;
+
       const rawDate = sub.created_at || sub.createdAt || sub.tgl_pengajuan || sub.tanggal || sub.date || sub.submission_date || sub.submissionDate;
       const formattedDate = rawDate ? formatDateIndo(rawDate) : formatDateIndo(new Date());
       const rawStatus = (sub.status || '').toLowerCase();
@@ -1964,50 +1998,53 @@ export default function ProfilWarga({
         isFromServer: true
       };
 
-      if (item.id) seenIds.add(String(item.id));
+      if (subIdStr) seenIds.add(subIdStr);
       list.push(item);
     });
 
-    // 2. Gabungkan dari submissionsList props (lokal / realtime)
-    (Array.isArray(submissionsList) ? submissionsList : []).forEach(sub => {
-      if (!sub) return;
-      if (sub.id && seenIds.has(String(sub.id))) return;
+    // 2. Jika offline / belum ada serverSubmissions, tampilkan dari submissionsList tanpa duplikasi
+    if (list.length === 0 && Array.isArray(submissionsList)) {
+      submissionsList.forEach(sub => {
+        if (!sub) return;
+        const subIdStr = String(sub.id || '');
+        if (subIdStr && seenIds.has(subIdStr)) return;
 
-      const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
-      const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
-      const rawStatus = (sub.status || '').toLowerCase();
-      let statusIndo = 'Menunggu';
-      if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
-      else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
-      else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
+        const rawDate = sub.submissionDate || sub.tanggal || sub.date || sub.created_at;
+        const formattedDate = rawDate && rawDate !== 'Server API' ? formatDateIndo(rawDate) : formatDateIndo(new Date());
+        const rawStatus = (sub.status || '').toLowerCase();
+        let statusIndo = 'Menunggu';
+        if (rawStatus === 'disetujui' || rawStatus === 'approved') statusIndo = 'Disetujui';
+        else if (rawStatus === 'ditolak' || rawStatus === 'rejected') statusIndo = 'Ditolak';
+        else if (rawStatus === 'selesai' || rawStatus === 'completed') statusIndo = 'Selesai';
 
-      const item = {
-        ...sub,
-        wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
-        nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
-        wargaNik: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
-        no_ktp: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
-        wargaAlamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
-        alamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
-        wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
-        nama_kategori: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
-        wargaKeperluan: sub.keperluan || sub.wargaKeperluan || '',
-        keperluan: sub.keperluan || sub.wargaKeperluan || '',
-        gender: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
-        jenis_kelamin: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
-        tempat_lahir: sub.tempat_lahir || (currentUser?.tglLahir ? 'Depok' : ''),
-        tanggal_lahir: sub.tanggal_lahir || currentUser?.tglLahir || '',
-        agama: sub.agama || currentUser?.agama || 'Islam',
-        pekerjaan: sub.pekerjaan || currentUser?.pekerjaan || '-',
-        kewarganegaraan: sub.kewarganegaraan || 'WNI',
-        status: statusIndo,
-        tanggal: formattedDate,
-        submissionDate: formattedDate
-      };
+        const item = {
+          ...sub,
+          wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
+          nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
+          wargaNik: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+          no_ktp: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
+          wargaAlamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+          alamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
+          wargaTipeSurat: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+          nama_kategori: sub.nama_kategori || sub.jenis || sub.wargaTipeSurat || 'Surat Pengantar',
+          wargaKeperluan: sub.keperluan || sub.wargaKeperluan || '',
+          keperluan: sub.keperluan || sub.wargaKeperluan || '',
+          gender: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+          jenis_kelamin: sub.jenis_kelamin || sub.gender || currentUser?.gender || 'Laki-laki',
+          tempat_lahir: sub.tempat_lahir || (currentUser?.tglLahir ? 'Depok' : ''),
+          tanggal_lahir: sub.tanggal_lahir || currentUser?.tglLahir || '',
+          agama: sub.agama || currentUser?.agama || 'Islam',
+          pekerjaan: sub.pekerjaan || currentUser?.pekerjaan || '-',
+          kewarganegaraan: sub.kewarganegaraan || 'WNI',
+          status: statusIndo,
+          tanggal: formattedDate,
+          submissionDate: formattedDate
+        };
 
-      if (item.id) seenIds.add(String(item.id));
-      list.push(item);
-    });
+        if (subIdStr) seenIds.add(subIdStr);
+        list.push(item);
+      });
+    }
 
     return list;
   })();
@@ -2216,17 +2253,17 @@ export default function ProfilWarga({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row text-slate-800 dark:text-slate-100 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
       {/* Premium ambient glows */}
-      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 dark:bg-orange-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 dark:bg-amber-500/[0.02] rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
+      <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
+      <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
       
       {/* Mobile Sticky Header Bar (< md) */}
-      <header className="md:hidden sticky top-0 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-orange-200/60 dark:border-slate-800 px-4 py-3 flex items-center justify-between shadow-xs">
+      <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-orange-200/60 px-4 py-3 flex items-center justify-between shadow-xs">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            className="p-2 rounded-xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition-colors cursor-pointer"
             aria-label="Buka Menu Navigasi"
           >
             <Menu className="w-5 h-5" />
@@ -2237,19 +2274,10 @@ export default function ProfilWarga({
               <img src={logoRW11} alt="Logo RW 11" className="h-7 w-auto object-contain drop-shadow-xs" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas Cinere</h1>
-              <span className="text-[9px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
+              <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas Cinere</h1>
+              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
             </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
-            title="Ganti Mode Tampilan"
-          >
-            {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-400" />}
-          </button>
         </div>
       </header>
 
@@ -2260,34 +2288,34 @@ export default function ProfilWarga({
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-fade-in"
             onClick={() => setIsMobileDrawerOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-white dark:bg-slate-950 text-slate-800 dark:text-white h-full flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-orange-200/40 dark:border-slate-800">
-            <div className="p-4 border-b border-orange-200/60 dark:border-slate-800 flex items-center justify-between">
+          <aside className="relative w-72 max-w-[85vw] bg-white text-slate-800 h-full flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-orange-200/40">
+            <div className="p-4 border-b border-orange-200/60 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="flex items-center gap-1">
                   <img src={logoDepok} alt="Logo Kota Depok" className="h-7 w-auto object-contain drop-shadow-xs" />
                   <img src={logoRW11} alt="Logo RW 11" className="h-8 w-auto object-contain drop-shadow-xs" />
                 </div>
                 <div>
-                  <h1 className="font-extrabold text-xs text-slate-900 dark:text-white leading-tight">Villa Mutiara Mas</h1>
-                  <span className="text-[8px] text-orange-600 dark:text-orange-400 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
+                  <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas</h1>
+                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
                 </div>
               </div>
               <button
                 onClick={() => setIsMobileDrawerOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white cursor-pointer"
+                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 cursor-pointer"
                 aria-label="Tutup Menu"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-3 mx-3 my-3 bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-orange-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+            <div className="p-3 mx-3 my-3 bg-white/90 rounded-2xl border border-orange-200/80 shadow-xs flex items-center gap-3 backdrop-blur-md">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-orange-500/20">
                 {displayNama.charAt(0) || 'W'}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
-                <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">Warga Portal</p>
+                <p className="text-xs font-bold text-slate-900 truncate">{displayNama}</p>
+                <p className="text-[9px] text-orange-600 font-extrabold uppercase tracking-wider">Warga Portal</p>
               </div>
             </div>
 
@@ -2299,8 +2327,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('dashboard'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'dashboard'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -2312,8 +2340,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('profil_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'profil_saya'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <User className="w-4 h-4 text-sky-400" />
@@ -2325,8 +2353,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'keluarga_saya'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <Users className="w-4 h-4 text-purple-400" />
@@ -2338,8 +2366,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'warga_upload_berkas'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <Upload className="w-4 h-4 text-orange-500" />
@@ -2350,23 +2378,23 @@ export default function ProfilWarga({
                 <div>
                   <button
                     onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <Volume2 className="w-4 h-4 text-emerald-500" />
                       <span>Informasi</span>
                     </div>
-                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+                    <span className="text-[9px] text-slate-600 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
                   </button>
 
                   {isInformasiOpen && (
-                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                       <button
                         onClick={() => { setActiveTab('informasi_pengumuman'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_pengumuman' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2376,19 +2404,19 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('informasi_jadwal'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_jadwal' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                        <span>Jadwal Kegiatan</span>
+                        <span>Agenda Kegiatan RT</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('informasi_kontak'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'informasi_kontak' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2402,23 +2430,23 @@ export default function ProfilWarga({
                 <div>
                   <button
                     onClick={() => setIsIuranOpen(!isIuranOpen)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <Wallet className="w-4 h-4 text-amber-500" />
                       <span>Iuran</span>
                     </div>
-                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+                    <span className="text-[9px] text-slate-600 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
                   </button>
 
                   {isIuranOpen && (
-                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                       <button
                         onClick={() => { setActiveTab('iuran_tagihan'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_tagihan' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2428,8 +2456,8 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('iuran_riwayat'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_riwayat' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2439,8 +2467,8 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('iuran_upload'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'iuran_upload' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2454,23 +2482,23 @@ export default function ProfilWarga({
                 <div>
                   <button
                     onClick={() => setIsSuratOpen(!isSuratOpen)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 transition-all cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <FileText className="w-4 h-4 text-sky-400" />
                       <span>Layanan Surat</span>
                     </div>
-                    <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+                    <span className="text-[9px] text-slate-600 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
                   </button>
 
                   {isSuratOpen && (
-                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+                    <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                       <button
                         onClick={() => { setActiveTab('layanan_ajukan'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'layanan_ajukan' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2480,8 +2508,8 @@ export default function ProfilWarga({
                         onClick={() => { setActiveTab('layanan_status'); setIsMobileDrawerOpen(false); }}
                         className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                           activeTab === 'layanan_status' 
-                            ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                            : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
                         }`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2496,8 +2524,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('pengaduan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaduan'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -2513,8 +2541,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('notifikasi'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'notifikasi'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <div className="flex items-center gap-3">
@@ -2531,8 +2559,8 @@ export default function ProfilWarga({
                   onClick={() => { setActiveTab('pengaturan'); setIsMobileDrawerOpen(false); }}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'pengaturan'
-                      ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                      : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10'
+                      ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                      : 'text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <Settings className="w-4 h-4 text-slate-400" />
@@ -2544,14 +2572,8 @@ export default function ProfilWarga({
 
             <div className="p-3 border-t border-slate-800 space-y-2">
               <button
-                onClick={() => { setDarkMode(!darkMode); setIsMobileDrawerOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
-              >
-                {darkMode ? <><Sun className="w-4 h-4 text-amber-400" /> Mode Terang</> : <><Moon className="w-4 h-4 text-indigo-400" /> Mode Gelap</>}
-              </button>
-              <button
                 onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-955/20 hover:bg-rose-100 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Keluar Portal</span>
@@ -2562,28 +2584,28 @@ export default function ProfilWarga({
       )}
 
       {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-white border-r border-orange-200/40 dark:border-slate-800 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
         
         {/* Logo/Brand Header */}
-        <div className="p-5 border-b border-orange-200/60 dark:border-slate-800/80 flex items-center gap-3">
+        <div className="p-5 border-b border-orange-200/60 flex items-center gap-3">
           <div className="flex items-center gap-1.5 py-0.5">
             <img src={logoDepok} alt="Logo Kota Depok" className="h-8 w-auto object-contain drop-shadow-xs" />
             <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-xs" />
           </div>
           <div>
-            <h1 className="font-extrabold text-xs text-slate-900 dark:text-white tracking-tight leading-tight">Villa Mutiara Mas Cinere</h1>
-            <span className="text-[9px] text-orange-600 dark:text-orange-400 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Warga Portal • RT 05 / RW 11</span>
+            <h1 className="font-extrabold text-xs text-slate-900 tracking-tight leading-tight">Villa Mutiara Mas Cinere</h1>
+            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Warga Portal • RT 05 / RW 11</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-white/90 dark:bg-slate-900/80 rounded-2xl border border-orange-200/80 dark:border-slate-800 shadow-xs flex items-center gap-3 backdrop-blur-md">
+        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/80 shadow-xs flex items-center gap-3 backdrop-blur-md">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-orange-500/20">
             {displayNama.charAt(0) || 'W'}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{displayNama}</p>
-            <p className="text-[9px] text-orange-600 dark:text-orange-400 font-extrabold uppercase tracking-wider">Warga Portal</p>
+            <p className="text-xs font-bold text-slate-900 truncate">{displayNama}</p>
+            <p className="text-[9px] text-orange-600 font-extrabold uppercase tracking-wider">Warga Portal</p>
           </div>
         </div>
 
@@ -2595,8 +2617,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('dashboard')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'dashboard'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <LayoutDashboard className="w-4 h-4 text-orange-500" />
@@ -2608,8 +2630,8 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('profil_saya'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'profil_saya'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <User className="w-4 h-4 text-sky-400" />
@@ -2621,8 +2643,8 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('keluarga_saya'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'keluarga_saya'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Users className="w-4 h-4 text-purple-400" />
@@ -2634,8 +2656,8 @@ export default function ProfilWarga({
             onClick={() => { setActiveTab('warga_upload_berkas'); handleCancel(); }}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'warga_upload_berkas'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Upload className="w-4 h-4 text-orange-500" />
@@ -2646,23 +2668,23 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsInformasiOpen(!isInformasiOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Volume2 className="w-4 h-4 text-emerald-500" />
                 <span>Informasi</span>
               </div>
-              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 font-extrabold">{isInformasiOpen ? '▼' : '▶'}</span>
             </button>
 
             {isInformasiOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('informasi_pengumuman')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_pengumuman' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_pengumuman' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2672,19 +2694,19 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('informasi_jadwal')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_jadwal' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
-                  <span>Jadwal Kegiatan</span>
+                  <span>Agenda Kegiatan RT</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('informasi_kontak')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'informasi_kontak' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_kontak' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2698,23 +2720,23 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsIuranOpen(!isIuranOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <Wallet className="w-4 h-4 text-amber-500" />
                 <span>Iuran</span>
               </div>
-              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 font-extrabold">{isIuranOpen ? '▼' : '▶'}</span>
             </button>
 
             {isIuranOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('iuran_tagihan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_tagihan' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_tagihan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2724,8 +2746,8 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('iuran_riwayat')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_riwayat' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_riwayat' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2735,8 +2757,8 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('iuran_upload')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'iuran_upload' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'iuran_upload' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2750,23 +2772,23 @@ export default function ProfilWarga({
           <div>
             <button
               onClick={() => setIsSuratOpen(!isSuratOpen)}
-              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
+              className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <FileText className="w-4 h-4 text-sky-400" />
                 <span>Layanan Surat</span>
               </div>
-              <span className="text-[9px] text-slate-600 dark:text-white/70 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
+              <span className="text-[9px] text-slate-600 font-extrabold">{isSuratOpen ? '▼' : '▶'}</span>
             </button>
 
             {isSuratOpen && (
-              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 dark:border-slate-800 ml-6 font-sans text-xs">
+              <div className="pl-6 py-1 space-y-1 border-l border-slate-200/60 ml-6 font-sans text-xs">
                 <button
                   onClick={() => setActiveTab('layanan_ajukan')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_ajukan' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_ajukan' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2776,8 +2798,8 @@ export default function ProfilWarga({
                   onClick={() => setActiveTab('layanan_status')}
                   className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
                     activeTab === 'layanan_status' 
-                      ? 'text-orange-600 dark:text-orange-400 font-bold bg-orange-500/10' 
-                      : 'text-slate-900 dark:text-white hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/30'
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'layanan_status' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
@@ -2792,8 +2814,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaduan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaduan'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -2809,8 +2831,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('notifikasi')}
             className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'notifikasi'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -2827,8 +2849,8 @@ export default function ProfilWarga({
             onClick={() => setActiveTab('pengaturan')}
             className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'pengaturan'
-                ? 'bg-orange-500/10 dark:bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-200/50 dark:border-orange-500/30 shadow-xs'
-                : 'text-slate-900 dark:text-white hover:bg-slate-100 dark:hover:bg-white/10 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-orange-500/10 text-orange-600 border border-orange-200/50 shadow-xs'
+                : 'text-slate-900 hover:bg-slate-100 hover:text-slate-900'
             }`}
           >
             <Settings className="w-4 h-4 text-slate-400" />
@@ -2837,25 +2859,8 @@ export default function ProfilWarga({
 
         </nav>
 
-        {/* Sidebar Footer / Theme Toggle & Logout */}
-        <div className="p-4 border-t border-slate-800 space-y-2">
-          <button
-            onClick={() => setDarkMode(!darkMode)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-800 hover:text-white transition-colors cursor-pointer text-left"
-          >
-            {darkMode ? (
-              <>
-                <Sun className="w-4 h-4 text-amber-400" />
-                <span>Mode Terang</span>
-              </>
-            ) : (
-              <>
-                <Moon className="w-4 h-4 text-indigo-400" />
-                <span>Mode Gelap</span>
-              </>
-            )}
-          </button>
-
+        {/* Sidebar Footer / Logout */}
+        <div className="p-4 border-t border-slate-200 space-y-2">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-500/20 hover:text-rose-400 text-rose-500 transition-colors cursor-pointer text-left"
@@ -2868,12 +2873,12 @@ export default function ProfilWarga({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950 min-h-screen">
+      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 min-h-screen">
         
         {/* Dynamic Header Ribbon */}
-        <header className="sticky top-0 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border-b border-orange-200/50 dark:border-slate-800/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
+        <header className="sticky top-0 bg-white/85 backdrop-blur-md border-b border-orange-200/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
           <div className="flex flex-col font-sans">
-            <span className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest font-mono">
+            <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest font-mono">
               {activeTab === 'dashboard' && 'RANGKUMAN AKTIVITAS'}
               {activeTab === 'profil_saya' && 'PROFIL MANDIRI WARGA'}
               {activeTab === 'keluarga_saya' && 'ANGGOTA KELUARGA SAYA'}
@@ -2890,7 +2895,7 @@ export default function ProfilWarga({
               {activeTab === 'notifikasi' && 'KOTAK MASUK NOTIFIKASI'}
               {activeTab === 'pengaturan' && 'KONFIGURASI AKUN'}
             </span>
-            <h2 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight pt-0.5">
+            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight pt-0.5">
               {activeTab === 'dashboard' && 'Dashboard Portal Warga'}
               {activeTab === 'profil_saya' && 'Profil Saya'}
               {activeTab === 'keluarga_saya' && 'Anggota Keluarga Saya'}
@@ -2910,11 +2915,11 @@ export default function ProfilWarga({
           </div>
           
           <div className="flex items-center gap-2.5 sm:gap-4">
-            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-450 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
+            <span className="inline-flex px-3 py-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 rounded-lg text-[10px] font-extrabold uppercase tracking-wider items-center gap-1.5 animate-pulse-slow">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-ping"></span>
               Live Sync
             </span>
-            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 rounded-lg text-[10px] font-bold items-center gap-1.5 font-sans">
+            <span className="hidden sm:inline-flex px-3 py-1 bg-orange-500/10 border border-orange-500/20 text-orange-600 rounded-lg text-[10px] font-bold items-center gap-1.5 font-sans">
               <Sparkles className="w-3 h-3 text-amber-500" />
               Portal Warga
             </span>
@@ -2924,16 +2929,16 @@ export default function ProfilWarga({
         {/* 3. SCROLL CONTENT AREA */}
         <div className="p-6 md:p-8 flex-1 max-w-5xl w-full mx-auto">
           {/* Universal Dynamic Header Banner - Dual Mode Adaptive */}
-          <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/5 dark:from-orange-950/70 dark:via-amber-950/70 dark:to-slate-950/50 border border-orange-500/20 dark:border-orange-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
-            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 dark:bg-orange-400/20 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-emerald-500/5 border border-orange-500/20 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 animate-fade-in font-sans">
+            <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-orange-500/10 rounded-full blur-3xl pointer-events-none"></div>
             <div className="space-y-1.5 z-10">
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 bg-orange-500/15 dark:bg-white/20 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 dark:text-orange-200 border border-orange-500/20 dark:border-white/20">
+                <span className="px-2.5 py-0.5 bg-orange-500/15 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 border border-orange-500/20">
                   Villa Mutiara Mas Cinere • RT 05
                 </span>
-                <span className="text-[10px] text-orange-600 dark:text-orange-300 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
+                <span className="text-[10px] text-orange-600 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
               </div>
-              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white capitalize">
+              <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 capitalize">
                 {activeTab === 'dashboard' && `Selamat Datang Kembali, ${currentUser.name}! 👋`}
                 {activeTab === 'profil_saya' && 'Profil Mandiri & Biodata Warga 👤'}
                 {activeTab === 'keluarga_saya' && 'Daftar Anggota Keluarga Saya 👨‍👩‍👧‍👦'}
@@ -2951,7 +2956,7 @@ export default function ProfilWarga({
                 {activeTab === 'notifikasi' && 'Kotak Masuk Notifikasi System 📩'}
                 {activeTab === 'pengaturan' && 'Pengaturan Akun & Kata Sandi 🔑'}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed font-medium">
+              <p className="text-xs text-slate-600 max-w-xl leading-relaxed font-medium">
                 Akses seluruh layanan RT 05 secara mandiri, transparan, dan mudah dari perangkat Anda.
               </p>
             </div>
@@ -2966,43 +2971,47 @@ export default function ProfilWarga({
               {/* Quick statistics widgets grid */}
               {/* Quick statistics widgets grid (2 Columns on Mobile Portrait) */}
               <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 md:gap-6">
-                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white dark:from-orange-950/40 dark:to-slate-900 border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                <div className="bg-gradient-to-br from-orange-500/10 via-amber-500/5 to-white border border-orange-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-white shadow-md shrink-0 ${currentUser.statusIuran?.includes('Menunggak') ? 'bg-gradient-to-br from-rose-500 to-amber-500 shadow-rose-500/30' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/30'}`}>
                     <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Iuran Kas RT</span>
-                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{currentUser.statusIuran || 'Lunas'}</span>
+                    <span className="block text-[9px] sm:text-xs text-slate-500 font-extrabold uppercase tracking-wider truncate">Iuran Kas RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 leading-tight block mt-0.5 truncate">{currentUser.statusIuran || 'Lunas'}</span>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white dark:from-sky-950/40 dark:to-slate-900 border border-sky-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                <div className="bg-gradient-to-br from-sky-500/10 via-teal-500/5 to-white border border-sky-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
                   <div className="p-2.5 sm:p-4 bg-gradient-to-br from-sky-500 to-blue-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-sky-500/30 shrink-0">
                     <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Surat Pengantar</span>
-                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{mySubmissions.length} Diajukan</span>
+                    <span className="block text-[9px] sm:text-xs text-slate-500 font-extrabold uppercase tracking-wider truncate">Surat Pengantar</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 leading-tight block mt-0.5 truncate">{mySubmissions.length} Diajukan</span>
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white dark:from-purple-950/40 dark:to-slate-900 border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                <div 
+                  onClick={() => setActiveTab('informasi_jadwal')}
+                  className="bg-gradient-to-br from-purple-500/10 via-emerald-500/5 to-white border border-purple-500/30 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300 cursor-pointer"
+                  title="Klik untuk melihat agenda kegiatan RT"
+                >
                   <div className="p-2.5 sm:p-4 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-xl sm:rounded-2xl shadow-md shadow-purple-500/30 shrink-0">
                     <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <span className="block text-[9px] sm:text-xs text-slate-500 dark:text-slate-400 font-extrabold uppercase tracking-wider truncate">Kegiatan RT</span>
-                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{agendaList.length} Terjadwal</span>
+                    <span className="block text-[9px] sm:text-xs text-slate-500 font-extrabold uppercase tracking-wider truncate">Kegiatan RT</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 leading-tight block mt-0.5 truncate">{agendaList.length} Terjadwal</span>
                   </div>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
-                  <div className="p-2.5 sm:p-4 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl sm:rounded-2xl shrink-0">
+                <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center gap-2.5 sm:gap-4 hover:scale-[1.02] hover:shadow-md transition-all duration-300">
+                  <div className="p-2.5 sm:p-4 bg-amber-500/10 text-amber-600 rounded-xl sm:rounded-2xl shrink-0">
                     <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <span className="block text-[9px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Pengaduan Saya</span>
-                    <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white leading-tight block mt-0.5 truncate">{pengaduanList.length} Dikirim</span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 leading-tight block mt-0.5 truncate">{pengaduanList.length} Dikirim</span>
                   </div>
                 </div>
               </div>
@@ -3011,13 +3020,23 @@ export default function ProfilWarga({
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 
                 {/* Left panel: Quick shortcuts list (2-Column Grid on Portrait/Mobile) */}
-                <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-3">
+                <div className="lg:col-span-1 bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-xs space-y-3">
                   <h4 className="font-extrabold text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider block mb-1">Tautan Aksi Cepat</h4>
                   
                   <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3">
                     <button 
+                      onClick={() => setActiveTab('informasi_jadwal')}
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                    >
+                      <div className="p-2 sm:p-1 bg-purple-500/10 text-purple-600 rounded-xl shrink-0">
+                        <Calendar className="w-5 h-5 sm:w-4 sm:h-4" />
+                      </div>
+                      <span className="text-[11px] sm:text-xs leading-tight">Agenda Kegiatan</span>
+                    </button>
+
+                    <button 
                       onClick={() => setActiveTab('layanan_ajukan')}
-                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
                       <div className="p-2 sm:p-1 bg-emerald-500/10 text-emerald-600 rounded-xl shrink-0">
                         <FileText className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -3027,7 +3046,7 @@ export default function ProfilWarga({
 
                     <button 
                       onClick={() => setActiveTab('iuran_upload')}
-                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
                       <div className="p-2 sm:p-1 bg-amber-500/10 text-amber-500 rounded-xl shrink-0">
                         <Upload className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -3037,7 +3056,7 @@ export default function ProfilWarga({
 
                     <button 
                       onClick={() => setActiveTab('pengaduan')}
-                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
                       <div className="p-2 sm:p-1 bg-rose-500/10 text-rose-500 rounded-xl shrink-0">
                         <AlertTriangle className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -3047,7 +3066,7 @@ export default function ProfilWarga({
 
                     <button 
                       onClick={() => setActiveTab('informasi_kontak')}
-                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 dark:hover:bg-slate-950/20 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
+                      className="w-full p-3 sm:py-3 sm:px-4 border border-slate-200/60 hover:border-emerald-500 rounded-2xl text-center sm:text-left text-xs font-bold flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 transition-all hover:bg-slate-50 active:scale-95 cursor-pointer min-h-[84px] sm:min-h-[52px]"
                     >
                       <div className="p-2 sm:p-1 bg-blue-500/10 text-blue-500 rounded-xl shrink-0">
                         <Phone className="w-5 h-5 sm:w-4 sm:h-4" />
@@ -3058,27 +3077,27 @@ export default function ProfilWarga({
                 </div>
 
                 {/* Right panel: Active announcements and notification updates */}
-                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col">
+                <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 shadow-xs flex flex-col">
                   <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3">Informasi Lingkungan Terkini</h4>
                   
                   <div className="flex-1 space-y-3 max-h-[340px] sm:max-h-[400px] overflow-y-auto pr-1 custom-scrollbar">
                     {currentUser.tagihNotification && (
-                      <div className="p-3 sm:p-4 bg-rose-500/10 dark:bg-rose-500/5 border border-rose-500/20 dark:border-rose-500/30 rounded-2xl flex items-center gap-3 animate-pulse">
-                        <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                        <span className="text-xs font-bold text-rose-700 dark:text-rose-400">🚨 Anda memiliki tagihan iuran yang belum dikonfirmasi Bendahara. Mohon segera lunasi.</span>
+                      <div className="p-3 sm:p-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center gap-3 animate-pulse">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <span className="text-xs font-bold text-rose-700">🚨 Anda memiliki tagihan iuran yang belum dikonfirmasi Bendahara. Mohon segera lunasi.</span>
                       </div>
                     )}
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-1">
+                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-1">
                       <span className="text-[9px] bg-emerald-500/10 text-emerald-600 rounded font-bold px-1.5 py-0.5">KEGIATAN</span>
-                      <h5 className="font-bold text-xs pt-1 text-slate-800 dark:text-white">Gotong Royong & Fogging Lingkungan</h5>
-                      <p className="text-[10px] text-slate-550 dark:text-slate-400 leading-normal font-sans">Pelaksanaan penyemprotan nyamuk DBD (fogging) serta pembersihan pos RT akan diadakan hari Sabtu pagi ini pukul 08:00 WIB.</p>
+                      <h5 className="font-bold text-xs pt-1 text-slate-800">Gotong Royong & Fogging Lingkungan</h5>
+                      <p className="text-[10px] text-slate-550 leading-normal font-sans">Pelaksanaan penyemprotan nyamuk DBD (fogging) serta pembersihan pos RT akan diadakan hari Sabtu pagi ini pukul 08:00 WIB.</p>
                     </div>
 
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-1">
+                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-1">
                       <span className="text-[9px] bg-blue-500/10 text-blue-600 rounded font-bold px-1.5 py-0.5">KEAMANAN</span>
-                      <h5 className="font-bold text-xs pt-1 text-slate-800 dark:text-white">Penutupan Pintu Gerbang RT Malam Hari</h5>
-                      <p className="text-[10px] text-slate-550 dark:text-slate-400 leading-normal font-sans">Mulai jam 23:00 WIB portal selatan akan digembok demi keamanan bersama. Harap lewat gerbang utara dekat pos jaga satpam.</p>
+                      <h5 className="font-bold text-xs pt-1 text-slate-800">Penutupan Pintu Gerbang RT Malam Hari</h5>
+                      <p className="text-[10px] text-slate-550 leading-normal font-sans">Mulai jam 23:00 WIB portal selatan akan digembok demi keamanan bersama. Harap lewat gerbang utara dekat pos jaga satpam.</p>
                     </div>
                   </div>
                 </div>
@@ -3092,16 +3111,16 @@ export default function ProfilWarga({
           {activeTab === 'keluarga_saya' && (
             <div className="space-y-6 animate-fade-in font-sans">
               {isLoadingFamily ? (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center space-y-4">
                   <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
-                  <p className="text-sm font-bold text-slate-500 dark:text-slate-400">Memuat data keluarga dari server...</p>
+                  <p className="text-sm font-bold text-slate-500">Memuat data keluarga dari server...</p>
                 </div>
               ) : familyError ? (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-8 text-center space-y-4">
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-8 text-center space-y-4">
                   <div className="mx-auto w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center">
                     <AlertCircle className="w-6 h-6" />
                   </div>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Gagal Memuat Data</h4>
+                  <h4 className="font-extrabold text-sm text-slate-900">Gagal Memuat Data</h4>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto">{familyError}</p>
                   <button
                     onClick={fetchFamilyMembers}
@@ -3114,29 +3133,29 @@ export default function ProfilWarga({
                 <>
                   {/* House Details Header */}
                   {familyMembers.length > 0 && (
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] to-teal-500/[0.03] dark:from-emerald-500/[0.05] dark:to-teal-500/[0.05]" />
+                    <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                      <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/[0.03] to-teal-500/[0.03]" />
                       <div className="relative z-10 space-y-2">
-                        <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg text-[9px] font-black uppercase tracking-wider">
+                        <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-wider">
                           🏠 Domisili Keluarga
                         </span>
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                        <h3 className="text-lg font-black text-slate-900 leading-tight">
                           Blok {familyMembers[0].house_blok} No. {familyMembers[0].house_nomor}
                         </h3>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                        <p className="text-xs text-slate-500">
                           {familyMembers[0].house_alamat}
                         </p>
                       </div>
                       <div className="relative z-10 flex gap-4 text-xs">
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl">
+                        <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
                           <span className="text-[10px] text-slate-400 font-bold block">Status Kepemilikan</span>
-                          <span className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wide">
+                          <span className="font-extrabold text-slate-800 uppercase tracking-wide">
                             Rumah {familyMembers[0].house_status || 'Pribadi'}
                           </span>
                         </div>
-                        <div className="px-4 py-3 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl">
+                        <div className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl">
                           <span className="text-[10px] text-slate-400 font-bold block">Total Anggota</span>
-                          <span className="font-extrabold text-slate-855 dark:text-slate-200">
+                          <span className="font-extrabold text-slate-855">
                             {familyMembers.length} Orang
                           </span>
                         </div>
@@ -3145,10 +3164,10 @@ export default function ProfilWarga({
                   )}
 
                   {/* Family Members Table */}
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                    <div className="border-b border-slate-200/60 dark:border-slate-800 pb-3 flex justify-between items-center">
+                  <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                    <div className="border-b border-slate-200/60 pb-3 flex justify-between items-center">
                       <div>
-                        <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Anggota Keluarga Terdaftar</h4>
+                        <h4 className="font-extrabold text-sm text-slate-900">Anggota Keluarga Terdaftar</h4>
                         <p className="text-[10px] text-slate-400">Daftar anggota keluarga yang tercatat dalam Kartu Keluarga ini.</p>
                       </div>
                       <div className="flex gap-2">
@@ -3160,17 +3179,17 @@ export default function ProfilWarga({
                         </button>
                         <button
                           onClick={fetchFamilyMembers}
-                          className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer flex items-center gap-1"
+                          className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer flex items-center gap-1"
                         >
                           <span>🔄 Segarkan</span>
                         </button>
                       </div>
                     </div>
 
-                    <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+                    <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                          <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                             <th className="p-4">Nama Lengkap</th>
                             <th className="p-4">NIK (Tersensor)</th>
                             <th className="p-4">Umur / Tgl Lahir</th>
@@ -3178,30 +3197,30 @@ export default function ProfilWarga({
                             <th className="p-4 text-center">Aksi</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                        <tbody className="divide-y divide-slate-100">
                           {familyMembers.map((m) => (
-                            <tr key={m.warga_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                              <td className="p-4 font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                            <tr key={m.warga_id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4 font-bold text-slate-800 flex items-center gap-2">
                                 <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-black flex items-center justify-center uppercase">
                                   {m.nama.charAt(0)}
                                 </div>
                                 <span>{m.nama}</span>
                               </td>
-                              <td className="p-4 font-mono text-slate-655 dark:text-slate-350">{m.nik}</td>
+                              <td className="p-4 font-mono text-slate-655">{m.nik}</td>
                               <td className="p-4">
-                                <div className="font-bold text-slate-705 dark:text-slate-300">{m.umur} Tahun</div>
+                                <div className="font-bold text-slate-705">{m.umur} Tahun</div>
                                 <div className="text-[10px] text-slate-400 font-mono">{formatDateIndo(m.tgl_lahir)}</div>
                               </td>
                               <td className="p-4">
                                 <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
                                   m.jenis_kelamin === 'Laki-laki' 
-                                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400' 
-                                    : 'bg-pink-500/10 text-pink-600 dark:text-pink-400'
+                                    ? 'bg-blue-500/10 text-blue-600' 
+                                    : 'bg-pink-500/10 text-pink-600'
                                 }`}>
                                   {m.jenis_kelamin}
                                 </span>
                               </td>
-                              <td className="p-4 font-mono font-semibold text-slate-600 dark:text-slate-400">{m.no_hp || '-'}</td>
+                              <td className="p-4 font-mono font-semibold text-slate-600">{m.no_hp || '-'}</td>
                               <td className="p-4 text-center">
                                 <div className="flex items-center justify-center gap-2">
                                   <button
@@ -3215,7 +3234,7 @@ export default function ProfilWarga({
                                   </button>
                                   <button
                                     onClick={() => openEditMemberModal(m)}
-                                    className="py-1 px-3 border border-emerald-500/20 hover:border-emerald-500 text-emerald-555 hover:text-white dark:hover:bg-emerald-500/20 text-emerald-500 rounded-lg font-bold text-[10px] cursor-pointer transition-all"
+                                    className="py-1 px-3 border border-emerald-500/20 hover:border-emerald-500 text-emerald-555 hover:text-white text-emerald-500 rounded-lg font-bold text-[10px] cursor-pointer transition-all"
                                   >
                                     Edit Data
                                   </button>
@@ -3240,19 +3259,19 @@ export default function ProfilWarga({
               {/* Berkas Sensitif Warga Modal */}
               {isDocModalOpen && selectedResidentForDoc && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl relative overflow-y-auto max-h-[90vh]">
-                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-5 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                       <div>
-                        <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Dokumen Sensitif Warga</h4>
+                        <h4 className="font-extrabold text-base text-slate-900">Dokumen Sensitif Warga</h4>
                         <p className="text-[10px] text-slate-400">Kelola dan unggah KTP, KK, Akta, atau KIA milik {selectedResidentForDoc.nama}.</p>
                       </div>
-                      <button onClick={() => { setIsDocModalOpen(false); setSelectedResidentForDoc(null); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                      <button onClick={() => { setIsDocModalOpen(false); setSelectedResidentForDoc(null); }} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
                         <X className="w-4 h-4 text-slate-400" />
                       </button>
                     </div>
 
                     {/* Upload Section */}
-                    <form onSubmit={handleUploadDocument} className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-2xl space-y-3">
+                    <form onSubmit={handleUploadDocument} className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl space-y-3">
                       <h5 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">📤 Unggah Dokumen Baru</h5>
                       <div className="grid grid-cols-2 gap-3 text-xs">
                         <div className="space-y-1">
@@ -3260,7 +3279,7 @@ export default function ProfilWarga({
                           <select
                             value={docUploadType}
                             onChange={(e) => setDocUploadType(e.target.value)}
-                            className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl font-bold"
+                            className="w-full px-3 py-2 bg-white border border-slate-200/60 rounded-xl font-bold"
                           >
                             <option value="ktp">KTP (Kartu Tanda Penduduk)</option>
                             <option value="kk">KK (Kartu Keluarga)</option>
@@ -3275,7 +3294,7 @@ export default function ProfilWarga({
                             type="file"
                             accept="image/*,application/pdf"
                             onChange={(e) => setDocUploadFile(e.target.files[0])}
-                            className="w-full px-2 py-1.5 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-xl"
+                            className="w-full px-2 py-1.5 bg-white border border-slate-200/60 rounded-xl"
                           />
                         </div>
                       </div>
@@ -3291,19 +3310,19 @@ export default function ProfilWarga({
                     {/* Document List */}
                     <div className="space-y-3">
                       <h5 className="font-extrabold text-[11px] text-slate-400 uppercase tracking-wider">📁 Daftar Berkas Terunggah</h5>
-                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl font-sans">
+                      <div className="overflow-x-auto border border-slate-200/60 rounded-2xl font-sans">
                         <table className="w-full text-left text-xs border-collapse">
                           <thead>
-                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider font-sans">
+                            <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider font-sans">
                               <th className="p-3">Jenis</th>
                               <th className="p-3">File Path / Nama</th>
                               <th className="p-3 text-right">Unduh</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                          <tbody className="divide-y divide-slate-100">
                             {wargaDocuments.filter(d => String(d.resident_id) === String(selectedResidentForDoc.warga_id || selectedResidentForDoc.id)).map((d) => (
-                              <tr key={d.document_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                                <td className="p-3 font-bold uppercase text-slate-700 dark:text-slate-300">{d.type}</td>
+                              <tr key={d.document_id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3 font-bold uppercase text-slate-700">{d.type}</td>
                                 <td className="p-3 max-w-[150px] truncate text-slate-500 font-mono text-[10px]" title={d.file_path}>
                                   {d.file_path}
                                 </td>
@@ -3333,16 +3352,16 @@ export default function ProfilWarga({
               {/* Add Family Member Modal */}
               {isAddMemberOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-4 shadow-2xl relative overflow-y-auto max-h-[90vh]">
-                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
-                      <h4 className="font-extrabold text-base text-slate-900 dark:text-white">Tambah Anggota Keluarga</h4>
-                      <button onClick={() => setIsAddMemberOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                  <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-4 shadow-2xl relative overflow-y-auto max-h-[90vh]">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                      <h4 className="font-extrabold text-base text-slate-900">Tambah Anggota Keluarga</h4>
+                      <button onClick={() => setIsAddMemberOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
                         <X className="w-4 h-4 text-slate-400" />
                       </button>
                     </div>
 
                     {addMemberError && (
-                      <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                      <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-rose-600 text-xs font-bold flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 flex-shrink-0" />
                         <span>{addMemberError}</span>
                       </div>
@@ -3350,7 +3369,7 @@ export default function ProfilWarga({
 
                     <form onSubmit={handleAddMemberSubmit} className="space-y-4 text-xs font-sans">
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-500 dark:text-slate-400">
+                        <label className="font-bold text-slate-500">
                           {parseInt(memberForm.umur) >= 17
                             ? 'NIK / No. KTP (Wajib, 16 digit)'
                             : 'NIK / No. KTP (Opsional untuk umur < 17 tahun)'}
@@ -3358,34 +3377,39 @@ export default function ProfilWarga({
                         <input
                           required={parseInt(memberForm.umur) >= 17}
                           type="text"
+                          inputMode="numeric"
+                          maxLength={16}
                           pattern="[0-9]{16}"
                           title="NIK harus 16 digit angka"
-                          placeholder={parseInt(memberForm.umur) >= 17 ? "Masukkan NIK 16 digit..." : "Masukkan NIK 16 digit (jika ada)..."}
+                          placeholder={parseInt(memberForm.umur) >= 17 ? "Masukkan 16 digit NIK..." : "Masukkan 16 digit NIK (jika ada)..."}
                           value={memberForm.nik}
-                          onChange={(e) => setMemberForm({ ...memberForm, nik: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                          onChange={(e) => {
+                            const val = e.target.value.replace(/\D/g, '').slice(0, 16);
+                            setMemberForm(prev => ({ ...prev, nik: val }));
+                          }}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
                         />
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-500 dark:text-slate-400">Nama Lengkap</label>
+                        <label className="font-bold text-slate-500">Nama Lengkap</label>
                         <input
                           required
                           type="text"
                           placeholder="Nama lengkap sesuai KTP/KK..."
                           value={memberForm.nama}
                           onChange={(e) => setMemberForm({ ...memberForm, nama: e.target.value })}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
                         />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-500 dark:text-slate-400">Jenis Kelamin</label>
+                          <label className="font-bold text-slate-500">Jenis Kelamin</label>
                           <select
                             value={memberForm.jenisKelamin}
                             onChange={(e) => setMemberForm({ ...memberForm, jenisKelamin: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 dark:text-white font-medium cursor-pointer"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 font-medium cursor-pointer"
                           >
                             <option value="Laki-laki">Laki-laki</option>
                             <option value="Perempuan">Perempuan</option>
@@ -3393,48 +3417,54 @@ export default function ProfilWarga({
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-500 dark:text-slate-400">Umur</label>
-                          <input
+                          <label className="font-bold text-slate-500">Tanggal Lahir</label>
+                          <DateInput
                             required
-                            type="number"
-                            min="0"
-                            placeholder="Umur..."
-                            value={memberForm.umur}
-                            onChange={(e) => setMemberForm({ ...memberForm, umur: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                            value={memberForm.tglLahir}
+                            onChange={(e) => {
+                              const birthDate = e.target.value;
+                              const calculatedAge = calculateAge(birthDate);
+                              setMemberForm(prev => ({
+                                ...prev,
+                                tglLahir: birthDate,
+                                umur: calculatedAge
+                              }));
+                            }}
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-medium"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-500 dark:text-slate-400">Tanggal Lahir</label>
-                          <DateInput
-                            required
-                            value={memberForm.tglLahir}
-                            onChange={(e) => setMemberForm({ ...memberForm, tglLahir: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-medium"
+                          <label className="font-bold text-slate-500">Umur (Otomatis)</label>
+                          <input
+                            readOnly
+                            type="text"
+                            placeholder="Otomatis dari tgl lahir..."
+                            value={memberForm.umur !== '' && memberForm.umur !== undefined && memberForm.umur !== null ? `${memberForm.umur} Tahun` : ''}
+                            className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl outline-none text-slate-600 font-semibold cursor-not-allowed select-none"
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-500 dark:text-slate-400">Nomor HP</label>
+                          <label className="font-bold text-slate-500">Nomor HP</label>
                           <input
                             required
                             type="text"
                             placeholder="Contoh: 0812..."
                             value={memberForm.noHp}
                             onChange={(e) => setMemberForm({ ...memberForm, noHp: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 dark:text-white font-medium"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-905 font-medium"
                           />
                         </div>
                       </div>
 
-                      <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <div className="flex gap-3 pt-3 border-t border-slate-100">
                         <button
                           type="button"
                           onClick={() => setIsAddMemberOpen(false)}
-                          className="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-450 font-bold rounded-xl cursor-pointer text-center"
+                          className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold rounded-xl cursor-pointer text-center"
                         >
                           Batal
                         </button>
@@ -3463,13 +3493,13 @@ export default function ProfilWarga({
           {/* Edit Family Member Modal */}
           {isEditMemberOpen && (
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-fade-in font-sans">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+              <div className="bg-white border border-slate-200/80 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl animate-fade-in font-sans">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h4 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                     <Edit2 className="w-4 h-4 text-emerald-500" />
                     <span>Edit Anggota Keluarga</span>
                   </h4>
-                  <button onClick={() => setIsEditMemberOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                  <button onClick={() => setIsEditMemberOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
                     <X className="w-4 h-4 text-slate-400" />
                   </button>
                 </div>
@@ -3483,37 +3513,37 @@ export default function ProfilWarga({
 
                 <form onSubmit={handleEditMemberSubmit} className="space-y-4 text-xs font-sans">
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Nama Lengkap *</label>
+                    <label className="font-bold text-slate-655">Nama Lengkap *</label>
                     <input
                       required
                       type="text"
                       placeholder="Masukkan nama lengkap..."
                       value={editMemberForm.nama}
                       onChange={(e) => setEditMemberForm({ ...editMemberForm, nama: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Umur *</label>
+                    <label className="font-bold text-slate-655">Umur *</label>
                     <input
                       required
                       type="number"
                       placeholder="Masukkan umur..."
                       value={editMemberForm.umur}
                       onChange={(e) => setEditMemberForm({ ...editMemberForm, umur: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="font-bold text-slate-655 dark:text-slate-350">Nomor HP (Opsional)</label>
+                    <label className="font-bold text-slate-655">Nomor HP (Opsional)</label>
                     <input
                       type="text"
                       placeholder="Contoh: 0812XXXXXXXX..."
                       value={editMemberForm.noHp}
                       onChange={(e) => setEditMemberForm({ ...editMemberForm, noHp: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono"
                     />
                   </div>
 
@@ -3521,7 +3551,7 @@ export default function ProfilWarga({
                     <button
                       type="button"
                       onClick={() => setIsEditMemberOpen(false)}
-                      className="flex-1 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-455 font-bold rounded-xl cursor-pointer text-center"
+                      className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold rounded-xl cursor-pointer text-center"
                     >
                       Batal
                     </button>
@@ -3547,21 +3577,21 @@ export default function ProfilWarga({
 
           {/* TAB: Upload Berkas Mandiri */}
           {activeTab === 'warga_upload_berkas' && isPermanentResident && (
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Dokumen Mandiri Warga</h3>
+            <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Upload Dokumen Mandiri Warga</h3>
                 <p className="text-xs text-slate-450">Unggah berkas kependudukan resmi Anda (KTP, KK, KIA, Akta Kelahiran) langsung ke server tanpa perlu persetujuan RT.</p>
               </div>
 
               {/* Form Upload */}
               <form onSubmit={handleSensitifDataSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-705 dark:text-slate-300">Pilih Anggota Keluarga *</label>
+                  <label className="font-bold text-slate-705">Pilih Anggota Keluarga *</label>
                   <select
                     required
                     value={uploadDocForm.wargaId}
                     onChange={(e) => setUploadDocForm({ ...uploadDocForm, wargaId: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                   >
                     <option value="">-- Pilih Anggota Keluarga --</option>
                     {familyMembers.map(m => (
@@ -3571,12 +3601,12 @@ export default function ProfilWarga({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-705 dark:text-slate-300">Jenis Dokumen *</label>
+                  <label className="font-bold text-slate-705">Jenis Dokumen *</label>
                   <select
                     required
                     value={uploadDocForm.type}
                     onChange={(e) => setUploadDocForm({ ...uploadDocForm, type: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                   >
                     <option value="ktp">KTP (Kartu Tanda Penduduk)</option>
                     <option value="kk">Kartu Keluarga (KK)</option>
@@ -3586,14 +3616,14 @@ export default function ProfilWarga({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-705 dark:text-slate-300">Pilih Berkas Dokumen (Maks 5MB) *</label>
+                  <label className="font-bold text-slate-705">Pilih Berkas Dokumen (Maks 5MB) *</label>
                   <input
                     type="file"
                     required
                     ref={docFileInputRef}
                     accept=".jpg,.jpeg,.png,.pdf"
                     onChange={(e) => setUploadDocForm({ ...uploadDocForm, file: e.target.files[0] })}
-                    className="w-full text-xs text-slate-500 dark:text-slate-450 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-505 hover:file:bg-emerald-500/20"
+                    className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/10 file:text-emerald-505 hover:file:bg-emerald-500/20"
                   />
                   <p className="text-[10px] text-slate-400 font-sans mt-1">Mendukung format .jpg, .jpeg, .png, .pdf (Maksimal 5MB)</p>
                 </div>
@@ -3605,7 +3635,7 @@ export default function ProfilWarga({
                 )}
 
                 {uploadDocSuccess && (
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-xs font-semibold">
                     {uploadDocSuccess}
                   </div>
                 )}
@@ -3620,25 +3650,25 @@ export default function ProfilWarga({
               </form>
 
               {/* History List of Uploaded Documents */}
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-4 font-sans">
-                <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Riwayat Berkas Diupload</h4>
-                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl">
+              <div className="pt-6 border-t border-slate-100 space-y-4 font-sans">
+                <h4 className="font-extrabold text-sm text-slate-900">Riwayat Berkas Diupload</h4>
+                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">Anggota Keluarga</th>
                         <th className="p-4">Jenis Dokumen</th>
                         <th className="p-4">Nama Berkas</th>
                         <th className="p-4 text-center">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    <tbody className="divide-y divide-slate-100">
                       {uploadedDocsList.map((doc) => {
                         const citizen = familyMembers.find(m => m.warga_id === parseInt(doc.wargaId)) || { nama: 'Warga' };
                         return (
-                          <tr key={doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                            <td className="p-4 font-bold text-slate-800 dark:text-white">{citizen.nama}</td>
-                            <td className="p-4 uppercase font-bold text-orange-600 dark:text-orange-400">{doc.type}</td>
+                          <tr key={doc.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 font-bold text-slate-800">{citizen.nama}</td>
+                            <td className="p-4 uppercase font-bold text-orange-600">{doc.type}</td>
                             <td className="p-4 font-mono text-slate-500">{doc.fileName}</td>
                             <td className="p-4 text-center">
                               <button
@@ -3670,9 +3700,9 @@ export default function ProfilWarga({
             <div className="space-y-6 animate-fade-in font-sans">
               
               {/* Header Visual */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col items-center text-center space-y-4">
                 <div className="relative group">
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white dark:border-slate-800 overflow-hidden">
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-extrabold flex items-center justify-center text-3xl shadow-lg border-4 border-white overflow-hidden">
                     {formData.foto ? (
                       <img src={formData.foto} alt={displayNama} className="w-full h-full object-cover" />
                     ) : (
@@ -3680,7 +3710,7 @@ export default function ProfilWarga({
                     )}
                   </div>
                   {isEditing && (
-                    <label className="absolute bottom-0 right-0 p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white dark:border-slate-800" title="Ubah Foto Profil">
+                    <label className="absolute bottom-0 right-0 p-2 bg-orange-600 hover:bg-orange-700 text-white rounded-full shadow-lg cursor-pointer transition-transform hover:scale-110 border-2 border-white" title="Ubah Foto Profil">
                       <Camera className="w-4 h-4" />
                       <input type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
                     </label>
@@ -3688,7 +3718,7 @@ export default function ProfilWarga({
                 </div>
                 
                 <div>
-                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{formData.name || displayNama}</h3>
+                  <h3 className="text-lg font-extrabold text-slate-900">{formData.name || displayNama}</h3>
                   <p className="text-xs text-slate-400 font-bold mt-0.5">Warga RT {rtRw}</p>
                 </div>
 
@@ -3702,7 +3732,7 @@ export default function ProfilWarga({
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-amber-600 dark:text-amber-400 font-extrabold px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 animate-pulse">
+                    <span className="text-xs text-amber-600 font-extrabold px-3 py-1 bg-amber-500/10 rounded-full border border-amber-500/20 animate-pulse">
                       Mode Edit Profil Aktif
                     </span>
                   </div>
@@ -3717,7 +3747,7 @@ export default function ProfilWarga({
                 </div>
               )}
               {success && (
-                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-2">
+                <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-600 text-xs font-semibold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                   <span>{success}</span>
                 </div>
@@ -3726,8 +3756,8 @@ export default function ProfilWarga({
               {/* Profile Editing Form Container */}
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 {/* Card 2: Informasi Pribadi */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Informasi Pribadi</h4>
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Informasi Pribadi</h4>
                   
                   <div className="space-y-4 text-xs sm:text-sm">
                     {/* Nama */}
@@ -3739,18 +3769,18 @@ export default function ProfilWarga({
                           type="text"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                           placeholder="Nama lengkap sesuai KTP"
                         />
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-extrabold">{displayNama}</span>
+                        <span className="text-slate-800 font-extrabold">{displayNama}</span>
                       )}
                     </div>
 
                     {/* NIK */}
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">NIK (KTP)</span>
-                      <span className="text-slate-800 dark:text-slate-200 font-bold font-mono">
+                      <span className="text-slate-800 font-bold font-mono">
                         {displayNik ? (displayNik.includes('*') ? displayNik : `${displayNik.slice(0, 4)}********${displayNik.slice(-4)}`) : '3276********1234'}
                       </span>
                     </div>
@@ -3762,13 +3792,13 @@ export default function ProfilWarga({
                         <select
                           value={formData.gender}
                           onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
                         >
                           <option value="Laki-laki">Laki-laki</option>
                           <option value="Perempuan">Perempuan</option>
                         </select>
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayGender}</span>
+                        <span className="text-slate-800 font-bold">{displayGender}</span>
                       )}
                     </div>
 
@@ -3780,23 +3810,23 @@ export default function ProfilWarga({
                           type="date"
                           value={formData.tglLahir}
                           onChange={(e) => setFormData({ ...formData, tglLahir: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                         />
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{tanggalLahir}</span>
+                        <span className="text-slate-800 font-bold">{tanggalLahir}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Card 3: Alamat & Tempat Tinggal */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Alamat & Tempat Tinggal</h4>
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Alamat & Tempat Tinggal</h4>
                   
                   <div className="space-y-4 text-xs sm:text-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
                       <span className="w-36 text-slate-400 font-bold shrink-0">RT/RW</span>
-                      <span className="text-slate-800 dark:text-slate-200 font-bold">{rtRw}</span>
+                      <span className="text-slate-800 font-bold">{rtRw}</span>
                     </div>
 
                     {(profilSayaData?.blok || profilSayaData?.nomor_rumah || formData.house_blok || formData.house_nomor) && (
@@ -3808,19 +3838,19 @@ export default function ProfilWarga({
                               type="text"
                               value={formData.house_blok}
                               onChange={(e) => setFormData({ ...formData, house_blok: e.target.value })}
-                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                               placeholder="Blok (misal: B)"
                             />
                             <input
                               type="text"
                               value={formData.house_nomor}
                               onChange={(e) => setFormData({ ...formData, house_nomor: e.target.value })}
-                              className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                              className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-1/2 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                               placeholder="Nomor (misal: 15)"
                             />
                           </div>
                         ) : (
-                          <span className="text-slate-800 dark:text-slate-200 font-bold">
+                          <span className="text-slate-800 font-bold">
                             {`Blok ${profilSayaData?.blok || formData.house_blok || '-'} No. ${profilSayaData?.nomor_rumah || formData.house_nomor || '-'}`}
                           </span>
                         )}
@@ -3834,11 +3864,11 @@ export default function ProfilWarga({
                           type="text"
                           value={formData.alamat}
                           onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                           placeholder="Alamat tempat tinggal"
                         />
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayAlamat || 'Belum diisi'}</span>
+                        <span className="text-slate-800 font-bold">{displayAlamat || 'Belum diisi'}</span>
                       )}
                     </div>
 
@@ -3848,21 +3878,21 @@ export default function ProfilWarga({
                         <select
                           value={formData.status}
                           onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
                         >
                           <option value="Tetap">Tetap (Milik Sendiri)</option>
                           <option value="Kontrak">Kontrak / Sewa</option>
                         </select>
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{statusRumah}</span>
+                        <span className="text-slate-800 font-bold">{statusRumah}</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {/* Card 4: Kontak */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Kontak & Komunikasi</h4>
+                <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                  <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Kontak & Komunikasi</h4>
                   
                   <div className="space-y-4 text-xs sm:text-sm">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-0">
@@ -3873,10 +3903,10 @@ export default function ProfilWarga({
                           type="text"
                           value={formData.noHp}
                           onChange={(e) => setFormData({ ...formData, noHp: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                         />
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayNoHp || '-'}</span>
+                        <span className="text-slate-800 font-bold">{displayNoHp || '-'}</span>
                       )}
                     </div>
                     
@@ -3888,127 +3918,11 @@ export default function ProfilWarga({
                           type="email"
                           value={formData.email}
                           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="px-3.5 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                          className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold w-full max-w-md focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                         />
                       ) : (
-                        <span className="text-slate-800 dark:text-slate-200 font-bold">{displayEmail || '-'}</span>
+                        <span className="text-slate-800 font-bold">{displayEmail || '-'}</span>
                       )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card 5: Upload & Berkas KTP Warga */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                  <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                    <div>
-                      <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Berkas Identitas KTP Warga</h4>
-                      <p className="text-[10px] text-slate-400">Unggah foto KTP asli Anda untuk verifikasi identitas resmi RT 05.</p>
-                    </div>
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${formData.foto_ktp || currentUser.foto_ktp ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'}`}>
-                      {formData.foto_ktp || currentUser.foto_ktp ? 'KTP Terunggah' : 'Belum Unggah KTP'}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                    {/* KTP Image Preview Box */}
-                    <div className="relative rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 flex flex-col items-center justify-center min-h-[160px] text-center">
-                      {(formData.foto_ktp || currentUser.foto_ktp) ? (
-                        <img
-                          src={formData.foto_ktp || currentUser.foto_ktp}
-                          alt="Foto KTP Warga"
-                          className="max-h-36 w-auto object-contain rounded-xl shadow-md border border-slate-200 dark:border-slate-800"
-                        />
-                      ) : (
-                        <div className="space-y-1.5 p-3">
-                          <Upload className="w-8 h-8 text-slate-400 mx-auto" />
-                          <p className="text-xs font-bold text-slate-700 dark:text-slate-300">Belum ada foto KTP fisik</p>
-                          <p className="text-[10px] text-slate-400">Format yang didukung: JPG, PNG (Maks 5MB)</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* File Upload Input & Pratinjau Action */}
-                    <div className="space-y-3">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                          Upload / Ganti Berkas Foto KTP Asli
-                        </label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={async (e) => {
-                            const file = e.target.files && e.target.files[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = () => {
-                                const base64Data = reader.result;
-                                setFormData(prev => ({ ...prev, foto_ktp: base64Data }));
-                                try {
-                                  currentUser.foto_ktp = base64Data;
-                                } catch(err) {}
-                              };
-                              reader.readAsDataURL(file);
-
-                              // API Call: POST /resident/uploadsensitifdata/:id
-                              try {
-                                const token = sessionStorage.getItem('rt_token');
-                                const targetId = currentUser.id || currentUser.nik || 1;
-                                const uploadData = new FormData();
-                                uploadData.append('type', 'ktp');
-                                uploadData.append('file', file);
-
-                                const res = await fetch(`${API_BASE_URL}/resident/uploadsensitifdata/${targetId}`, {
-                                  method: 'POST',
-                                  headers: {
-                                    'Authorization': `Bearer ${token}`
-                                  },
-                                  body: uploadData
-                                });
-
-                                if (!res.ok) {
-                                  throw new Error('Gagal mengunggah berkas KTP ke server');
-                                }
-
-                                Swal.fire({
-                                  title: 'KTP Terunggah!',
-                                  text: 'Foto KTP Anda telah berhasil diunggah ke server.',
-                                  icon: 'success',
-                                  confirmButtonColor: '#f97316'
-                                });
-                              } catch(err) {
-                                console.error('Upload Sensitif Data Error:', err);
-                                Swal.fire({
-                                  title: 'KTP Disimpan Lokal',
-                                  text: 'Foto KTP disimpan dalam mode pratinjau browser.',
-                                  icon: 'success',
-                                  confirmButtonColor: '#f97316'
-                                });
-                              }
-                            }
-                          }}
-                          className="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-orange-500/10 file:text-orange-600 dark:file:text-orange-400 hover:file:bg-orange-500/20 cursor-pointer"
-                        />
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedKtpWarga({
-                            nama: displayNama,
-                            nik: displayNik,
-                            house_alamat: displayAlamat,
-                            jenis_kelamin: displayGender,
-                            foto_ktp: formData.foto_ktp || currentUser.foto_ktp,
-                            foto: currentUser.foto || currentUser.avatar,
-                            tgl_lahir: tanggalLahir,
-                            pekerjaan: pekerjaan
-                          });
-                        }}
-                        className="w-full py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 cursor-pointer transition-all flex items-center justify-center gap-2"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>Pratinjau Kartu e-KTP Digital</span>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -4026,7 +3940,7 @@ export default function ProfilWarga({
                     <button
                       type="button"
                       onClick={handleCancel}
-                      className="py-2.5 px-6 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                      className="py-2.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50"
                     >
                       Batal
                     </button>
@@ -4035,13 +3949,13 @@ export default function ProfilWarga({
               </form>
 
               {/* Card 5: Keamanan */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">Keamanan</h4>
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-4">
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2">Keamanan</h4>
                 
                 <div className="flex flex-wrap gap-3">
                   <button
                     onClick={() => setActiveTab('pengaturan')}
-                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50 dark:border-slate-800"
+                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-all cursor-pointer border border-slate-200/50"
                   >
                     Ganti Password
                   </button>
@@ -4062,7 +3976,7 @@ export default function ProfilWarga({
                         sessionStorage.removeItem('rt_current_user');
                       }
                     }}
-                    className="py-2 px-4 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/20 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-455 font-bold text-xs rounded-xl transition-all cursor-pointer"
+                    className="py-2 px-4 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl transition-all cursor-pointer"
                   >
                     Logout Semua Perangkat
                   </button>
@@ -4072,10 +3986,10 @@ export default function ProfilWarga({
               {/* Password Prompt Verification modal */}
               {showPasswordPrompt && (
                 <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-                  <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
-                    <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Verifikasi Sandi Akun</h4>
-                      <button onClick={() => setShowPasswordPrompt(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer">
+                  <div className="bg-white border border-slate-200/60 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                      <h4 className="font-extrabold text-sm text-slate-900">Verifikasi Sandi Akun</h4>
+                      <button onClick={() => setShowPasswordPrompt(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
                         <X className="w-4 h-4 text-slate-400" />
                       </button>
                     </div>
@@ -4088,7 +4002,7 @@ export default function ProfilWarga({
                           placeholder="Masukkan kata sandi Anda..."
                           value={promptPasswordInput}
                           onChange={(e) => setPromptPasswordInput(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 dark:text-white font-semibold"
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-slate-900 font-semibold"
                         />
                         {promptError && (
                           <span className="text-[10px] text-rose-500 font-bold block">{promptError}</span>
@@ -4110,15 +4024,15 @@ export default function ProfilWarga({
 
           {/* TAB 3: Informasi -> Pengumuman */}
           {activeTab === 'informasi_pengumuman' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengumuman & Pemberitahuan Terbaru</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Pengumuman & Pemberitahuan Terbaru</h3>
                   <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 05 Villa Mutiara Mas Cinere.</p>
                 </div>
                 <button
                   onClick={fetchWargaAnnouncements}
-                  className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                  className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer"
                 >
                   🔄 Segarkan
                 </button>
@@ -4134,12 +4048,12 @@ export default function ProfilWarga({
               ) : (
                 <div className="space-y-4">
                   {wargaAnnouncements.map((a) => (
-                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-2">
+                    <div key={a.id} className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="px-2 py-0.5 bg-blue-500/10 text-blue-500 font-bold text-[9px] rounded-md">PENGUMUMAN</span>
                         <span className="text-[10px] text-slate-400 font-bold">ID #{a.id}</span>
                       </div>
-                      <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">{a.judul}</h4>
+                      <h4 className="font-extrabold text-sm text-slate-800">{a.judul}</h4>
                       <p className="text-[11px] text-slate-500 leading-relaxed">{a.isi}</p>
                     </div>
                   ))}
@@ -4150,38 +4064,47 @@ export default function ProfilWarga({
 
           {/* TAB 4: Informasi -> Jadwal Kegiatan */}
           {activeTab === 'informasi_jadwal' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Jadwal & Agenda RT Terjadwal</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Jadwal & Agenda RT Terjadwal</h3>
                   <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 05.</p>
                 </div>
-                {/* Search Bar */}
-                <div className="relative w-full sm:w-64 font-sans text-xs">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                  <input
-                    type="text"
-                    placeholder="Cari agenda kegiatan..."
-                    value={agendaSearch}
-                    onChange={(e) => {
-                      setAgendaSearch(e.target.value);
-                      if (fetchAgendas) fetchAgendas(e.target.value);
-                    }}
-                    className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-250 dark:border-slate-800 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 dark:text-white transition-all text-xs"
-                  />
+                {/* Action & Search Bar */}
+                <div className="flex items-center gap-2 w-full sm:w-auto font-sans text-xs">
+                  <button
+                    type="button"
+                    onClick={() => fetchAgendas && fetchAgendas(agendaSearch)}
+                    className="py-1.5 px-3 border border-slate-200 hover:border-emerald-500 rounded-xl text-xs font-bold text-slate-600 hover:text-emerald-600 bg-white hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs"
+                  >
+                    🔄 Segarkan
+                  </button>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari agenda kegiatan..."
+                      value={agendaSearch}
+                      onChange={(e) => {
+                        setAgendaSearch(e.target.value);
+                        if (fetchAgendas) fetchAgendas(e.target.value);
+                      }}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-250 rounded-xl outline-none focus:ring-1 focus:ring-emerald-500 text-slate-900 transition-all text-xs"
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {agendaList.length > 0 ? (
                   agendaList.map((a) => (
-                    <div key={a.id} className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl flex gap-4 font-sans relative overflow-hidden">
+                    <div key={a.id} className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl flex gap-4 font-sans relative overflow-hidden">
                       <div className="absolute top-0 left-0 bottom-0 w-1 bg-emerald-500"></div>
-                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
+                      <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-2xl flex items-center justify-center font-black text-sm font-mono flex-shrink-0">
                         {(a.date ? (a.date.split('-')[2] || a.date.split(' ')[0]) : '') || '12'}
                       </div>
                       <div className="space-y-1">
-                        <h4 className="font-bold text-sm text-slate-800 dark:text-white">{a.title}</h4>
+                        <h4 className="font-bold text-sm text-slate-800">{a.title}</h4>
                         <div className="flex flex-wrap gap-x-4 text-[10px] text-slate-400 font-bold">
                           <span>📅 {formatDateIndo(a.date)}</span>
                           <span>⏰ {a.time} WIB</span>
@@ -4200,44 +4123,44 @@ export default function ProfilWarga({
 
           {/* TAB 5: Informasi -> Kontak Pengurus */}
           {activeTab === 'informasi_kontak' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kontak Layanan Pengurus RT 05</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Kontak Layanan Pengurus RT 05</h3>
                 <p className="text-xs text-slate-400">Kontak resmi pengurus Rukun Tetangga yang dapat dihubungi warga.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">RT</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Ahmad Mulyono</h4>
+                    <h4 className="font-bold text-sm text-slate-900">Pak Ahmad Mulyono</h4>
                     <span className="text-[10px] text-slate-400 font-bold">Ketua RT 05</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
+                  <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0812-9834-0401</p>
                     <button onClick={() => alert('Menghubungi Pak RT via WhatsApp (0812-9834-0401)...')} className="text-emerald-500 font-bold hover:underline cursor-pointer block">Chat WhatsApp</button>
                   </div>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-sky-500/10 text-sky-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">SEC</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">Bu Riana Sukma</h4>
+                    <h4 className="font-bold text-sm text-slate-900">Bu Riana Sukma</h4>
                     <span className="text-[10px] text-slate-400 font-bold">Sekretaris RT 05</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
+                  <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0815-7722-0402</p>
                     <button onClick={() => alert('Menghubungi Sekretaris via WhatsApp (0815-7722-0402)...')} className="text-emerald-500 font-bold hover:underline cursor-pointer block">Chat WhatsApp</button>
                   </div>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4">
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">TRE</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900 dark:text-white">Pak Hadi Suwarno</h4>
+                    <h4 className="font-bold text-sm text-slate-900">Pak Hadi Suwarno</h4>
                     <span className="text-[10px] text-slate-400 font-bold">Bendahara RT 05</span>
                   </div>
-                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] font-semibold text-slate-500 space-y-1">
+                  <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0878-8311-0403</p>
                     <button onClick={() => alert('Menghubungi Bendahara via WhatsApp (0878-8311-0403)...')} className="text-emerald-500 font-bold hover:underline cursor-pointer block">Chat WhatsApp</button>
                   </div>
@@ -4255,15 +4178,15 @@ export default function ProfilWarga({
             const totalUnpaidAmount = payableBills.reduce((acc, b) => acc + Number(b.amount || 0), 0);
 
             return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Tagihan IPL Wajib Keluarga 💳</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Tagihan IPL Wajib Keluarga 💳</h3>
                     <p className="text-xs text-slate-400">Rincian status dan daftar tagihan Iuran Pengelolaan Lingkungan (IPL) bulanan.</p>
                   </div>
                   <button
                     onClick={fetchIplBills}
-                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer self-start sm:self-auto"
+                    className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer self-start sm:self-auto"
                   >
                     🔄 Segarkan Tagihan
                   </button>
@@ -4277,7 +4200,7 @@ export default function ProfilWarga({
                   if (rejectedBills.length === 0) return null;
                   return (
                     <div className="p-4 bg-rose-500/10 border-2 border-rose-500/30 rounded-2xl space-y-2.5 animate-fade-in text-xs font-sans">
-                      <div className="flex items-center gap-2 font-black text-rose-600 dark:text-rose-400">
+                      <div className="flex items-center gap-2 font-black text-rose-600">
                         <AlertCircle className="w-5 h-5 shrink-0" />
                         <span>Perhatian: Terdapat {rejectedBills.length} Bukti Pembayaran IPL yang Ditolak oleh Bendahara!</span>
                       </div>
@@ -4285,10 +4208,10 @@ export default function ProfilWarga({
                         {rejectedBills.map(rb => {
                           const rReason = rb.latest_reject_reason || rb.reject_reason || rb.rejection_reason || rb.reason || 'Foto bukti transfer buram / nominal kurang';
                           return (
-                            <div key={rb.id} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
+                            <div key={rb.id} className="p-3 bg-white rounded-xl border border-rose-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-xs">
                               <div>
-                                <span className="font-extrabold text-slate-800 dark:text-slate-100">{rb.period_title || 'IPL Bulanan'}</span>
-                                <p className="text-rose-600 dark:text-rose-400 text-[11px] font-semibold mt-0.5">
+                                <span className="font-extrabold text-slate-800">{rb.period_title || 'IPL Bulanan'}</span>
+                                <p className="text-rose-600 text-[11px] font-semibold mt-0.5">
                                   💬 <strong>Alasan Penolakan:</strong> "{rReason}"
                                 </p>
                               </div>
@@ -4315,8 +4238,8 @@ export default function ProfilWarga({
 {/* Banner Rekening Resmi Kas RT */}
                 <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent border border-orange-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div className="space-y-1">
-                    <span className="text-[10px] font-extrabold uppercase text-orange-600 dark:text-orange-400 tracking-wider">Rekening Resmi Pembayaran IPL</span>
-                    <p className="font-mono text-base font-black text-slate-800 dark:text-slate-100">Bank Mandiri: 157-00-98234-04-1</p>
+                    <span className="text-[10px] font-extrabold uppercase text-orange-600 tracking-wider">Rekening Resmi Pembayaran IPL</span>
+                    <p className="font-mono text-base font-black text-slate-800">Bank Mandiri: 157-00-98234-04-1</p>
                     <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 05 VILLA MUTIARA MAS CINERE</p>
                   </div>
                   <button
@@ -4324,7 +4247,7 @@ export default function ProfilWarga({
                       navigator.clipboard.writeText('1570098234041');
                       Swal.fire({ title: 'Disalin!', text: 'Nomor rekening Bank Mandiri berhasil disalin ke clipboard.', icon: 'success', timer: 1500, showConfirmButton: false });
                     }}
-                    className="py-1.5 px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-orange-500 text-slate-700 dark:text-slate-200 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all"
+                    className="py-1.5 px-3 bg-white border border-slate-200 hover:border-orange-500 text-slate-700 text-xs font-bold rounded-xl cursor-pointer shadow-xs transition-all"
                   >
                     📋 Salin Rekening
                   </button>
@@ -4332,20 +4255,20 @@ export default function ProfilWarga({
 
                 {/* Summary Stat Card */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Tagihan Belum Dibayar</span>
                     <div className="text-xl font-black text-rose-500">{payableBills.length} Periode</div>
                   </div>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Nominal Yang Harus Disetor</span>
-                    <div className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400">{formatRupiah(totalUnpaidAmount)}</div>
+                    <div className="text-xl font-black font-mono text-emerald-600">{formatRupiah(totalUnpaidAmount)}</div>
                   </div>
                 </div>
 
                 {/* Quick Pay CTA Button */}
                 {payableBills.length > 0 && (
                   <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                    <div className="text-xs text-amber-800 dark:text-amber-300 font-semibold">
+                    <div className="text-xs text-amber-800 font-semibold">
                       ⚠️ Anda memiliki {payableBills.length} tagihan IPL yang belum lunas. Silakan lakukan pembayaran dan upload bukti transfer.
                     </div>
                     <button
@@ -4375,10 +4298,10 @@ export default function ProfilWarga({
                 ) : (
                   <div className="space-y-3">
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Daftar Tagihan IPL Keluarga Anda</h4>
-                    <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
-                          <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 text-[10px] tracking-wider">
+                          <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 text-[10px] tracking-wider">
                             <th className="p-3.5">Periode Tagihan</th>
                             <th className="p-3.5">Jatuh Tempo</th>
                             <th className="p-3.5">Nominal</th>
@@ -4386,7 +4309,7 @@ export default function ProfilWarga({
                             <th className="p-3.5 text-right">Aksi</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                           {iplBills.map((b) => {
                             const isPaid = b.status === 'paid';
                             const isWaiting = b.status === 'waiting_verification';
@@ -4394,14 +4317,14 @@ export default function ProfilWarga({
                             const isOverdue = b.status === 'overdue';
 
                             return (
-                              <tr key={b.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/20 transition-colors">
-                                <td className="p-3.5 font-bold text-slate-900 dark:text-white">
+                              <tr key={b.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="p-3.5 font-bold text-slate-900">
                                   {b.period_title || `IPL Bulan ${b.period_month}/${b.period_year}`}
                                 </td>
                                 <td className="p-3.5 text-slate-500 font-mono">
                                   {b.due_date ? formatDateIndo(b.due_date) : '-'}
                                 </td>
-                                <td className="p-3.5 font-black font-mono text-emerald-600 dark:text-emerald-400">
+                                <td className="p-3.5 font-black font-mono text-emerald-600">
                                   {formatRupiah(b.amount)}
                                 </td>
                                 <td className="p-3.5 text-center">
@@ -4462,12 +4385,12 @@ export default function ProfilWarga({
             const kasPaymentsList = Array.isArray(wargaPayments?.kas) ? wargaPayments.kas : [];
 
             return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
                 
                 {/* Header */}
-                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+                <div className="border-b border-slate-200/60 pb-4 flex justify-between items-center">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Riwayat Setoran Uang Saya</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Riwayat Setoran Uang Saya</h3>
                     <p className="text-xs text-slate-400">Bukti catatan pembayaran iuran bulanan (IPL) dan kas sosial keluarga Anda.</p>
                   </div>
                   <button
@@ -4475,7 +4398,7 @@ export default function ProfilWarga({
                       fetchWargaPayments();
                       fetchIplBills();
                     }}
-                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 dark:text-slate-400 cursor-pointer"
+                    className="py-1 px-2.5 border border-slate-200 hover:border-emerald-500 rounded-lg text-[10px] font-bold text-slate-500 cursor-pointer"
                   >
                     🔄 Segarkan
                   </button>
@@ -4498,10 +4421,10 @@ export default function ProfilWarga({
                       <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">
                         1. Tagihan & Pembayaran IPL
                       </h4>
-                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                         <table className="w-full text-left text-xs border-collapse font-sans">
                           <thead>
-                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                            <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
                               <th className="p-4">Periode Tagihan</th>
                               <th className="p-4">Tanggal / Jatuh Tempo</th>
                               <th className="p-4 text-center">Status Pembayaran</th>
@@ -4509,7 +4432,7 @@ export default function ProfilWarga({
                               <th className="p-4 text-right">Aksi</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          <tbody className="divide-y divide-slate-100">
                             {iplPaymentsList.map((t) => {
                               const s = String(t.status || t.display_status || '').toLowerCase();
                               const isRejected = t.latest_payment_status === 'rejected' || s === 'rejected' || s === 'ditolak' || s === 'gagal' || Boolean(t.latest_reject_reason || t.reject_reason);
@@ -4518,9 +4441,9 @@ export default function ProfilWarga({
                               const reasonText = t.latest_reject_reason || t.reject_reason || t.rejection_reason || t.rejectReason || t.reason || t.alasan_penolakan || t.notes || t.keterangan || 'Foto bukti transfer buram dan nominal tidak terbaca jelas';
 
                               return (
-                                <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                                   <td className="p-4">
-                                    <span className="font-bold text-slate-850 dark:text-white block text-xs">
+                                    <span className="font-bold text-slate-850 block text-xs">
                                       {t.period_title || `IPL Bulan ${t.month || ''} ${t.year || ''}`}
                                     </span>
                                   </td>
@@ -4530,9 +4453,9 @@ export default function ProfilWarga({
                                   <td className="p-4 text-center">
                                     <div className="flex flex-col items-center gap-1">
                                       <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider border ${
-                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' :
-                                        isRejected ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40' :
-                                        isPending ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' :
+                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' :
+                                        isRejected ? 'bg-rose-500/15 text-rose-600 border-rose-500/40' :
+                                        isPending ? 'bg-amber-500/10 text-amber-600 border-amber-500/30' :
                                         'bg-slate-500/10 text-slate-500 border-slate-500/30'
                                       }`}>
                                         {isRejected ? 'Ditolak' : (isPaid ? 'Lunas' : (isPending ? 'Menunggu Verifikasi' : (t.display_status || t.status)))}
@@ -4545,7 +4468,7 @@ export default function ProfilWarga({
                                     </div>
                                   </td>
                                   <td className={`p-4 text-right font-black font-mono text-xs ${
-                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600 dark:text-emerald-400'
+                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600'
                                   }`}>
                                     {formatRupiah(t.amount)}
                                   </td>
@@ -4592,10 +4515,10 @@ export default function ProfilWarga({
                       <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">
                         2. Sumbangan & Kas Insidental
                       </h4>
-                      <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                      <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                         <table className="w-full text-left text-xs border-collapse font-sans">
                           <thead>
-                            <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
+                            <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider text-[10px]">
                               <th className="p-4">Kategori / Keterangan</th>
                               <th className="p-4">Tanggal</th>
                               <th className="p-4 text-center">Status Pembayaran</th>
@@ -4603,7 +4526,7 @@ export default function ProfilWarga({
                               <th className="p-4 text-right">Aksi</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          <tbody className="divide-y divide-slate-100">
                             {kasPaymentsList.map((t) => {
                               const s = String(t.status || '').toLowerCase();
                               const isRejected = s === 'rejected' || s === 'ditolak' || s === 'gagal';
@@ -4612,9 +4535,9 @@ export default function ProfilWarga({
                               const reasonText = t.reject_reason || t.rejection_reason || t.rejectReason || t.reason || t.alasan_penolakan || t.notes || t.keterangan || 'Bukti tidak valid';
 
                               return (
-                                <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                                <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                                   <td className="p-4 space-y-0.5">
-                                    <span className="font-bold text-slate-850 dark:text-slate-200 block capitalize text-xs">
+                                    <span className="font-bold text-slate-850 block capitalize text-xs">
                                       {t.category}
                                     </span>
                                     <span className="text-[10px] text-slate-400 block italic">
@@ -4627,9 +4550,9 @@ export default function ProfilWarga({
                                   <td className="p-4 text-center">
                                     <div className="flex flex-col items-center gap-1">
                                       <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] uppercase tracking-wider border ${
-                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-450 border-emerald-500/30' :
-                                        isRejected ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/40' :
-                                        'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                                        isPaid ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' :
+                                        isRejected ? 'bg-rose-500/15 text-rose-600 border-rose-500/40' :
+                                        'bg-amber-500/10 text-amber-600 border-amber-500/30'
                                       }`}>
                                         {isRejected ? 'Ditolak' : (isPaid ? 'Diterima' : 'Menunggu Verifikasi')}
                                       </span>
@@ -4641,7 +4564,7 @@ export default function ProfilWarga({
                                     </div>
                                   </td>
                                   <td className={`p-4 text-right font-black font-mono text-xs ${
-                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600 dark:text-emerald-400'
+                                    isRejected ? 'text-rose-500 line-through' : 'text-emerald-600'
                                   }`}>
                                     +{formatRupiah(t.amount)}
                                   </td>
@@ -4692,20 +4615,20 @@ export default function ProfilWarga({
             const calculatedAmount = selectedBills.reduce((acc, b) => acc + Number(b.amount || 0), 0);
 
             return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-                <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Kirim Bukti Transaksi Iuran / Kas</h3>
+              <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+                <div className="border-b border-slate-200/60 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900">Kirim Bukti Transaksi Iuran / Kas</h3>
                   <p className="text-xs text-slate-400">Setor laporan pembayaran IPL bulanan (mendukung rapel) atau iuran kas insidental.</p>
                 </div>
 
                 {/* Type Switcher */}
-                <div className="flex gap-4 p-1 bg-slate-100 dark:bg-slate-950 rounded-2xl max-w-sm text-xs font-bold font-sans">
+                <div className="flex gap-4 p-1 bg-slate-100 rounded-2xl max-w-sm text-xs font-bold font-sans">
                   <button
                     type="button"
                     onClick={() => setPaymentType('ipl')}
                     className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
                       paymentType === 'ipl' 
-                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                        ? 'bg-white text-emerald-600 shadow-xs' 
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -4716,7 +4639,7 @@ export default function ProfilWarga({
                     onClick={() => setPaymentType('kas')}
                     className={`flex-1 py-2 rounded-xl transition-all cursor-pointer ${
                       paymentType === 'kas' 
-                        ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-white shadow-xs' 
+                        ? 'bg-white text-emerald-600 shadow-xs' 
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -4731,7 +4654,7 @@ export default function ProfilWarga({
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Tagihan IPL Yang Ingin Dibayar (Bisa Rapel) *</label>
+                          <label className="font-bold text-slate-655">Pilih Tagihan IPL Yang Ingin Dibayar (Bisa Rapel) *</label>
                           {payableBills.length > 0 && (
                             <div className="flex gap-2">
                               <button
@@ -4754,7 +4677,7 @@ export default function ProfilWarga({
                         </div>
 
                         {payableBills.length === 0 ? (
-                          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                          <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-600 text-xs font-semibold">
                             🎉 Tidak ada tagihan IPL yang belum dibayar saat ini. Semua tagihan sudah lunas atau sedang menunggu verifikasi Bendahara.
                           </div>
                         ) : (
@@ -4773,8 +4696,8 @@ export default function ProfilWarga({
                                   }}
                                   className={`p-3 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
                                     isChecked
-                                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-200'
-                                      : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-850'
+                                      ? 'bg-emerald-500/10 border-emerald-500 text-emerald-900'
+                                      : 'border-slate-200 hover:bg-slate-50'
                                   }`}
                                 >
                                   <div className="flex items-center gap-3">
@@ -4785,7 +4708,7 @@ export default function ProfilWarga({
                                       className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
                                     />
                                     <div>
-                                      <p className="font-bold text-xs text-slate-900 dark:text-white">
+                                      <p className="font-bold text-xs text-slate-900">
                                         {b.period_title || `IPL Bulan ${b.period_month}/${b.period_year}`}
                                       </p>
                                       <p className="text-[10px] text-slate-400">
@@ -4793,7 +4716,7 @@ export default function ProfilWarga({
                                       </p>
                                     </div>
                                   </div>
-                                  <div className="text-right font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                  <div className="text-right font-mono font-bold text-xs text-slate-900">
                                     {formatRupiah(b.amount)}
                                   </div>
                                 </div>
@@ -4804,8 +4727,8 @@ export default function ProfilWarga({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-600 dark:text-slate-400">Total Nominal Pembayaran</label>
-                        <div className="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white font-mono text-sm font-black flex items-center justify-between">
+                        <label className="font-bold text-slate-600">Total Nominal Pembayaran</label>
+                        <div className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-slate-900 font-mono text-sm font-black flex items-center justify-between">
                           <span>{formatRupiah(calculatedAmount)}</span>
                           <span className="text-[10px] font-sans text-slate-400 font-normal">
                             ({selectedBillIds.length} tagihan dipilih)
@@ -4815,7 +4738,7 @@ export default function ProfilWarga({
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-600 dark:text-slate-400">Berkas Bukti Transfer Bank (.jpg, .png, .pdf) *</label>
+                        <label className="font-bold text-slate-600">Berkas Bukti Transfer Bank (.jpg, .png, .pdf) *</label>
                         <input
                           type="file"
                           required
@@ -4826,10 +4749,10 @@ export default function ProfilWarga({
                         />
                         <div
                           onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                          className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                          className="p-6 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 transition-all cursor-pointer"
                         >
                           <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
-                          <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                          <span className="font-bold text-xs text-slate-700">
                             {iplPaymentForm.file ? `Terpilih: ${iplPaymentForm.file.name}` : 'Pilih berkas struk transfer pembayaran...'}
                           </span>
                           <span className="text-[10px] text-slate-400 font-sans">Mendukung JPG, PNG, PDF (Maks 5MB)</span>
@@ -4841,11 +4764,11 @@ export default function ProfilWarga({
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-655 dark:text-slate-350">Kategori Kas RT *</label>
+                          <label className="font-bold text-slate-655">Kategori Kas RT *</label>
                           <select
                             value={kasPaymentForm.category}
                             onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, category: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                           >
                             <option value="sosial">Kas Sosial / Santunan</option>
                             <option value="kematian">Kas Kematian / Takziah</option>
@@ -4854,25 +4777,25 @@ export default function ProfilWarga({
                           </select>
                         </div>
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-655 dark:text-slate-350">Nominal Transfer (Rp) *</label>
+                          <label className="font-bold text-slate-655">Nominal Transfer (Rp) *</label>
                           <input
                             required
                             type="number"
                             placeholder="Contoh: 50000"
                             value={kasPaymentForm.amount}
                             onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, amount: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-mono text-sm font-semibold"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono text-sm font-semibold"
                           />
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
-                          <label className="font-bold text-slate-655 dark:text-slate-350">Pilih Agenda / Kegiatan *</label>
+                          <label className="font-bold text-slate-655">Pilih Agenda / Kegiatan *</label>
                           <select
                             value={kasPaymentForm.activitySelect}
                             onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, activitySelect: e.target.value })}
-                            className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                           >
                             <option value="Santunan Warga Sakit / Wafat">Santunan Warga Sakit / Wafat</option>
                             <option value="Iuran HUT RI 17 Agustus">Iuran HUT RI 17 Agustus</option>
@@ -4884,21 +4807,21 @@ export default function ProfilWarga({
 
                         {kasPaymentForm.activitySelect === 'Lainnya (Input Manual)' && (
                           <div className="space-y-1.5">
-                            <label className="font-bold text-slate-655 dark:text-slate-350">Tulis Nama Kegiatan Baru *</label>
+                            <label className="font-bold text-slate-655">Tulis Nama Kegiatan Baru *</label>
                             <input
                               required
                               type="text"
                               placeholder="Contoh: Iuran Buka Bersama..."
                               value={kasPaymentForm.customDescription}
                               onChange={(e) => setKasPaymentForm({ ...kasPaymentForm, customDescription: e.target.value })}
-                              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold"
+                              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold"
                             />
                           </div>
                         )}
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="font-bold text-slate-605 dark:text-slate-400">Bukti Transfer Struk *</label>
+                        <label className="font-bold text-slate-605">Bukti Transfer Struk *</label>
                         <input
                           type="file"
                           required
@@ -4909,10 +4832,10 @@ export default function ProfilWarga({
                         />
                         <div
                           onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                          className="p-6 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 dark:hover:bg-slate-900/20 transition-all cursor-pointer"
+                          className="p-6 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 hover:bg-slate-100/50 transition-all cursor-pointer"
                         >
                           <Upload className="w-8 h-8 text-slate-450 animate-pulse-slow" />
-                          <span className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                          <span className="font-bold text-xs text-slate-700">
                             {kasPaymentForm.file ? `Terpilih: ${kasPaymentForm.file.name}` : 'Pilih berkas struk transfer pembayaran...'}
                           </span>
                           <span className="text-[10px] text-slate-400 font-sans">Mendukung format JPG, PNG, atau PDF (Maks 5MB)</span>
@@ -4928,7 +4851,7 @@ export default function ProfilWarga({
                   )}
 
                   {paymentSuccess && (
-                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-450 rounded-xl text-xs font-semibold">
+                    <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-xs font-semibold">
                       {paymentSuccess}
                     </div>
                   )}
@@ -4949,26 +4872,26 @@ export default function ProfilWarga({
 
           {/* TAB 9: Layanan Surat -> Ajukan Surat */}
           {(activeTab === 'layanan_ajukan' || activeTab === 'surat_pengajuan') && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Layanan Mandiri Pengajuan Surat</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Layanan Mandiri Pengajuan Surat</h3>
                 <p className="text-xs text-slate-400">Ajukan permohonan surat pengantar RT secara instan.</p>
               </div>
 
               <form onSubmit={handleLetterSubmit} className="max-w-xl space-y-5 text-xs sm:text-sm font-sans">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Nama Pemohon (Warga) 🔒</label>
+                  <label className="font-bold text-slate-700 font-sans">Nama Pemohon (Warga) 🔒</label>
                   <input
                     disabled
                     type="text"
                     value={currentUser?.name || ''}
-                    className="w-full px-3.5 py-2.5 bg-slate-100/50 dark:bg-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold text-slate-500 outline-none cursor-not-allowed"
+                    className="w-full px-3.5 py-2.5 bg-slate-100/50 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 outline-none cursor-not-allowed"
                   />
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Pilih Jenis Surat Pengantar *</label>
+                    <label className="font-bold text-slate-700 font-sans">Pilih Jenis Surat Pengantar *</label>
                     {isLoadingCategories && (
                       <span className="text-[10px] text-orange-500 flex items-center gap-1 font-bold">
                         <Loader2 className="w-3 h-3 animate-spin" /> Memuat kategori...
@@ -4991,7 +4914,7 @@ export default function ProfilWarga({
                         custom_nama_kategori: isLainLain ? (prev?.custom_nama_kategori || '') : ''
                       }));
                     }}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs"
                   >
                     {(Array.isArray(letterCategories) && letterCategories.length > 0 ? letterCategories : DEFAULT_LETTER_CATEGORIES).map((cat) => (
                       <option key={cat.id} value={cat.id}>
@@ -5013,10 +4936,10 @@ export default function ProfilWarga({
                   return (
                     <div className="space-y-1.5 animate-fade-in">
                       <div className="flex items-center justify-between">
-                        <label className="font-bold text-slate-700 dark:text-slate-300 font-sans text-xs">
+                        <label className="font-bold text-slate-700 font-sans text-xs">
                           Sebutkan Jenis Surat yang Diperlukan (Isi Sendiri) *
                         </label>
-                        <span className="text-[10px] text-orange-600 dark:text-orange-400 font-bold bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-md border border-orange-200 dark:border-orange-800">
+                        <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
                           ✍️ Mandiri
                         </span>
                       </div>
@@ -5026,7 +4949,7 @@ export default function ProfilWarga({
                         placeholder="kategori surat"
                         value={letterForm?.custom_nama_kategori || ''}
                         onChange={(e) => setLetterForm(prev => ({ ...prev, custom_nama_kategori: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-orange-400 dark:border-orange-500 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs focus:ring-2 focus:ring-orange-500/20"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-orange-400 rounded-xl outline-none text-slate-900 font-semibold text-xs focus:ring-2 focus:ring-orange-500/20"
                       />
                     </div>
                   );
@@ -5036,7 +4959,7 @@ export default function ProfilWarga({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Agama Pemohon *</label>
+                      <label className="font-bold text-slate-700 text-xs font-sans">Agama Pemohon *</label>
                       <span className="text-[9px] text-slate-400">{(letterForm?.agama || '').length}/50</span>
                     </div>
                     <input
@@ -5046,13 +4969,13 @@ export default function ProfilWarga({
                       placeholder="Islam / Kristen / dll"
                       value={letterForm?.agama || ''}
                       onChange={(e) => setLetterForm(prev => ({ ...prev, agama: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                     />
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex justify-between items-center">
-                      <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Pekerjaan Pemohon *</label>
+                      <label className="font-bold text-slate-700 text-xs font-sans">Pekerjaan Pemohon *</label>
                       <span className="text-[9px] text-slate-400">{(letterForm?.pekerjaan || '').length}/100</span>
                     </div>
                     <input
@@ -5062,17 +4985,17 @@ export default function ProfilWarga({
                       placeholder="Karyawan / Mahasiswa"
                       value={letterForm?.pekerjaan || ''}
                       onChange={(e) => setLetterForm(prev => ({ ...prev, pekerjaan: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                     />
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-700 dark:text-slate-300 text-xs font-sans">Kewarganegaraan *</label>
+                    <label className="font-bold text-slate-700 text-xs font-sans">Kewarganegaraan *</label>
                     <select
                       required
                       value={letterForm?.kewarganegaraan || 'WNI'}
                       onChange={(e) => setLetterForm(prev => ({ ...prev, kewarganegaraan: e.target.value }))}
-                      className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                     >
                       <option value="WNI">WNI</option>
                       <option value="WNA">WNA</option>
@@ -5087,14 +5010,14 @@ export default function ProfilWarga({
                   if (isLainLain) return null;
                   return (
                     <div className="space-y-2">
-                      <span className="font-bold text-slate-600 dark:text-slate-400 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
+                      <span className="font-bold text-slate-600 text-xs block">Pilih Template Keperluan Cepat (Opsional)</span>
                       <div className="flex flex-wrap gap-2">
                         {getTemplatesForType(selectedCat?.nama_kategori || '').map((tmpl, idx) => (
                           <button
                             key={idx}
                             type="button"
                             onClick={() => setLetterForm(prev => ({ ...prev, keperluan: tmpl.text }))}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 dark:bg-slate-800 dark:hover:bg-orange-950/40 text-slate-700 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 border border-slate-200/60 dark:border-slate-800 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-orange-50 text-slate-700 hover:text-orange-600 border border-slate-200/60 hover:border-orange-500/80 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
                           >
                             {tmpl.label}
                           </button>
@@ -5105,14 +5028,14 @@ export default function ProfilWarga({
                 })()}
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Tulis Keperluan / Alasan Pengajuan *</label>
+                  <label className="font-bold text-slate-700 font-sans">Tulis Keperluan / Alasan Pengajuan *</label>
                   <textarea
                     required
                     rows={4}
                     placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Cinere karena pindah domisili..."
                     value={letterForm?.keperluan || ''}
                     onChange={(e) => setLetterForm(prev => ({ ...prev, keperluan: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-xs"
                   />
                 </div>
 
@@ -5130,44 +5053,44 @@ export default function ProfilWarga({
 
           {/* TAB 10: Layanan Surat -> Status Pengajuan */}
           {activeTab === 'layanan_status' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Status Permohonan Surat Pengantar Saya</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Status Permohonan Surat Pengantar Saya</h3>
                 <p className="text-xs text-slate-400">Daftar riwayat surat pengantar mandiri beserta status verifikasi pengurus.</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 font-sans">
                 {mySubmissions.length === 0 ? (
-                  <div className="col-span-full py-16 text-center text-slate-400 dark:text-slate-500 font-bold italic text-xs">
+                  <div className="col-span-full py-16 text-center text-slate-400 font-bold italic text-xs">
                     Belum ada riwayat pengajuan surat pengantar dari Anda.
                   </div>
                 ) : (
                   mySubmissions.map((sub) => (
-                    <div key={sub.id} className="bg-slate-50 dark:bg-slate-900/20 border border-slate-200/60 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300">
+                    <div key={sub.id} className="bg-slate-50 border border-slate-200/60 rounded-2xl overflow-hidden shadow-xs hover:shadow-md transition-all duration-300">
                       
                       {/* Document Item visual card */}
-                      <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900/50">
-                        <span className="text-[10px] font-extrabold text-slate-800 dark:text-slate-200 truncate max-w-[120px]">{sub.wargaNama}</span>
-                        <span className="text-[8px] font-mono text-slate-400 font-bold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">{sub.id}</span>
+                      <div className="p-3 border-b border-slate-200/60 flex justify-between items-center bg-white">
+                        <span className="text-[10px] font-extrabold text-slate-800 truncate max-w-[120px]">{sub.wargaNama}</span>
+                        <span className="text-[8px] font-mono text-slate-400 font-bold bg-slate-100 px-2 py-0.5 rounded-full">{sub.id}</span>
                       </div>
 
-                      <div className="aspect-square bg-slate-100/70 dark:bg-slate-950/70 flex flex-col justify-center items-center p-6 text-center relative select-none">
-                        <FileText className="w-10 h-10 text-slate-300 dark:text-slate-800 animate-pulse-slow mb-3" />
-                        <h5 className="font-extrabold text-slate-800 dark:text-white text-[11px] leading-snug px-2">{sub.wargaTipeSurat}</h5>
-                        <p className="text-[9px] text-slate-400 dark:text-slate-550 mt-1 max-w-[150px] line-clamp-2 italic font-sans">"{sub.wargaKeperluan}"</p>
+                      <div className="aspect-square bg-slate-100/70 flex flex-col justify-center items-center p-6 text-center relative select-none">
+                        <FileText className="w-10 h-10 text-slate-300 animate-pulse-slow mb-3" />
+                        <h5 className="font-extrabold text-slate-800 text-[11px] leading-snug px-2">{sub.wargaTipeSurat}</h5>
+                        <p className="text-[9px] text-slate-400 mt-1 max-w-[150px] line-clamp-2 italic font-sans">"{sub.wargaKeperluan}"</p>
                       </div>
 
-                      <div className="p-3 bg-white dark:bg-slate-900/50 space-y-2.5">
-                        <div className="text-[11px] font-bold text-slate-800 dark:text-slate-200 font-sans">
+                      <div className="p-3 bg-white space-y-2.5">
+                        <div className="text-[11px] font-bold text-slate-800 font-sans">
                           Status: {' '}
                           <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold inline-block ${
                             sub.status === 'Completed' || sub.status === 'Selesai'
-                              ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600'
+                              ? 'bg-blue-50 text-blue-600'
                               : sub.status === 'Approved' || sub.status === 'Disetujui'
-                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600'
+                              ? 'bg-emerald-50 text-emerald-600'
                               : sub.status === 'Rejected' || sub.status === 'Ditolak'
-                              ? 'bg-red-50 dark:bg-red-950/40 text-rose-500'
-                              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 animate-pulse'
+                              ? 'bg-red-50 text-rose-500'
+                              : 'bg-amber-50 text-amber-600 animate-pulse'
                           }`}>
                             {sub.status || 'Menunggu'}
                           </span>
@@ -5177,13 +5100,13 @@ export default function ProfilWarga({
                           Diajukan: {sub.tanggal || sub.submissionDate || 'Terbaru'}
                         </div>
 
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 font-sans">
+                        <div className="pt-2 border-t border-slate-100 font-sans">
                           {sub.status === 'Rejected' || sub.status === 'Ditolak' ? (
-                            <div className="py-2 px-3 bg-red-50/80 dark:bg-red-950/30 border border-red-200/60 dark:border-red-900/40 rounded-xl text-center">
-                              <p className="text-[10px] font-bold text-red-600 dark:text-red-400 leading-tight">
+                            <div className="py-2 px-3 bg-red-50/80 border border-red-200/60 rounded-xl text-center">
+                              <p className="text-[10px] font-bold text-red-600 leading-tight">
                                 ❌ Pengajuan Ditolak
                               </p>
-                              <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              <p className="text-[9px] text-slate-500 mt-0.5">
                                 Silakan hubungi / temui pengurus RT secara langsung.
                               </p>
                             </div>
@@ -5200,7 +5123,7 @@ export default function ProfilWarga({
                             <button
                               type="button"
                               onClick={() => setViewingApprovedLetter(sub)}
-                              className="w-full py-2.5 border border-orange-500/40 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 bg-orange-50/50 dark:bg-orange-950/10 font-extrabold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
+                              className="w-full py-2.5 border border-orange-500/40 text-orange-600 hover:bg-orange-50 bg-orange-50/50 font-extrabold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
                             >
                               <Printer className="w-3.5 h-3.5" />
                               <span>Pratinjau Detail Pengajuan</span>
@@ -5218,19 +5141,19 @@ export default function ProfilWarga({
 
           {/* TAB 11: Pengaduan */}
           {activeTab === 'pengaduan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Laporan Pengaduan & Masukan Warga</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Laporan Pengaduan & Masukan Warga</h3>
                 <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 05.</p>
               </div>
 
               <form onSubmit={handleComplaintSubmit} className="max-w-xl space-y-4 text-xs sm:text-sm font-sans">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-350">Kategori Laporan *</label>
+                  <label className="font-bold text-slate-700">Kategori Laporan *</label>
                   <select
                     value={pengaduanForm.category}
                     onChange={(e) => setPengaduanForm({ ...pengaduanForm, category: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/50 border border-slate-205 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-205 rounded-xl outline-none text-slate-900 font-bold text-xs"
                   >
                     <option value="Fasilitas Umum">Fasilitas Umum (Jalan, Lampu, Selokan)</option>
                     <option value="Keamanan">Keamanan & Ketertiban Komplek</option>
@@ -5241,14 +5164,14 @@ export default function ProfilWarga({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-350 font-sans">Deskripsi / Detail Laporan Kejadian *</label>
+                  <label className="font-bold text-slate-700 font-sans">Deskripsi / Detail Laporan Kejadian *</label>
                   <textarea
                     required
                     rows={4}
                     placeholder="Tulis secara lengkap perihal masukan atau kendala lingkungan yang Anda alami..."
                     value={pengaduanForm.description}
                     onChange={(e) => setPengaduanForm({ ...pengaduanForm, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold leading-relaxed"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold leading-relaxed"
                   />
                 </div>
 
@@ -5263,31 +5186,31 @@ export default function ProfilWarga({
               {/* Complaints log */}
               <div className="pt-6">
                 <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block mb-3 font-sans">Riwayat Pengaduan Saya</h4>
-                <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                   <table className="w-full text-left text-xs border-collapse font-sans">
                     <thead>
-                      <tr className="bg-slate-50/70 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                      <tr className="bg-slate-50/70 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                         <th className="p-4">ID Laporan</th>
                         <th className="p-4">Kategori Laporan</th>
                         <th className="p-4">Deskripsi Masalah / Keperluan</th>
                         <th className="p-4 text-center">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                       {pengaduanList.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
-                          <td className="p-4 font-mono font-bold text-slate-800 dark:text-slate-200">
+                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-mono font-bold text-slate-800">
                             #ADU-{p.id}
                           </td>
-                          <td className="p-4 font-bold text-slate-700 dark:text-slate-300">{p.jenis}</td>
-                          <td className="p-4 text-slate-500 dark:text-slate-400 max-w-xs truncate" title={p.keperluan}>{p.keperluan}</td>
+                          <td className="p-4 font-bold text-slate-700">{p.jenis}</td>
+                          <td className="p-4 text-slate-500 max-w-xs truncate" title={p.keperluan}>{p.keperluan}</td>
                           <td className="p-4 text-center font-sans">
                             <span className={`px-2.5 py-0.5 rounded-full font-bold text-[9px] capitalize inline-block ${
                               p.status === 'disetujui' 
-                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' 
+                                ? 'bg-emerald-500/10 text-emerald-600' 
                                 : p.status === 'ditolak'
-                                ? 'bg-rose-500/10 text-rose-600 dark:text-rose-450'
-                                : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 animate-pulse'
+                                ? 'bg-rose-500/10 text-rose-600'
+                                : 'bg-amber-500/10 text-amber-600 animate-pulse'
                             }`}>
                               {p.status}
                             </span>
@@ -5310,22 +5233,22 @@ export default function ProfilWarga({
 
           {/* TAB: Upload Berkas Kependudukan Mandiri */}
           {activeTab === 'warga_upload_berkas' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-8 animate-fade-in font-sans">
               
               {/* Section Header */}
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="p-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl">
                       <Upload className="w-5 h-5" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Upload Berkas Kependudukan Mandiri</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Upload Berkas Kependudukan Mandiri</h3>
                   </div>
                   <p className="text-xs text-slate-400">
                     Unggah dokumen resmi (KTP, KK, KIA, Akta, SKCK) untuk verifikasi data kependudukan oleh Pengurus RT.
                   </p>
                 </div>
-                <span className="px-3.5 py-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit">
+                <span className="px-3.5 py-1.5 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-extrabold text-xs rounded-full shadow-xs w-fit">
                   🔒 Enkripsi Aman & Terarah
                 </span>
               </div>
@@ -5333,14 +5256,14 @@ export default function ProfilWarga({
               {/* Upload Form & Instructions */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
-                <form onSubmit={handleUploadDocument} className="lg:col-span-6 space-y-5 bg-slate-50/70 dark:bg-slate-950/40 p-6 rounded-2xl border border-slate-200/60 dark:border-slate-800">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-1">
+                <form onSubmit={handleUploadDocument} className="lg:col-span-6 space-y-5 bg-slate-50/70 p-6 rounded-2xl border border-slate-200/60">
+                  <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider block mb-1">
                     Formulir Unggah Dokumen Baru
                   </h4>
 
                   {/* Member Selector */}
                   <div className="space-y-1.5">
-                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Anggota Keluarga Pemilik Berkas *</label>
+                    <label className="font-bold text-xs text-slate-700">Pilih Anggota Keluarga Pemilik Berkas *</label>
                     <select
                       value={selectedResidentForDoc ? (selectedResidentForDoc.warga_id || selectedResidentForDoc.id) : ''}
                       onChange={(e) => {
@@ -5348,7 +5271,7 @@ export default function ProfilWarga({
                         const found = familyMembers.find(m => (m.warga_id || m.id) === targetId) || currentUser;
                         setSelectedResidentForDoc(found);
                       }}
-                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold text-xs"
                     >
                       <option value={currentUser.id}>{currentUser.name} (Saya - Kepala Keluarga)</option>
                       {familyMembers.map((m) => (
@@ -5361,11 +5284,11 @@ export default function ProfilWarga({
 
                   {/* Document Category Selector */}
                   <div className="space-y-1.5">
-                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Jenis Dokumen Kependudukan *</label>
+                    <label className="font-bold text-xs text-slate-700">Pilih Jenis Dokumen Kependudukan *</label>
                     <select
                       value={docUploadType}
                       onChange={(e) => setDocUploadType(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-bold text-xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-bold text-xs"
                     >
                       <option value="ktp">🪪 Kartu Tanda Penduduk (KTP)</option>
                       <option value="kk">📄 Kartu Keluarga (KK)</option>
@@ -5379,7 +5302,7 @@ export default function ProfilWarga({
 
                   {/* File Drag & Drop Box */}
                   <div className="space-y-1.5">
-                    <label className="font-bold text-xs text-slate-700 dark:text-slate-300">Pilih Berkas File (.jpg, .png, .pdf) *</label>
+                    <label className="font-bold text-xs text-slate-700">Pilih Berkas File (.jpg, .png, .pdf) *</label>
                     <input
                       type="file"
                       required
@@ -5398,10 +5321,10 @@ export default function ProfilWarga({
                     />
                     <label
                       htmlFor="warga-doc-file-input"
-                      className="p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-orange-500 dark:hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white dark:bg-slate-900 hover:bg-orange-50/30 dark:hover:bg-orange-950/20 transition-all cursor-pointer block"
+                      className="p-6 border-2 border-dashed border-slate-300 hover:border-orange-500 rounded-2xl flex flex-col items-center justify-center text-center space-y-2 bg-white hover:bg-orange-50/30 transition-all cursor-pointer block"
                     >
                       <Upload className="w-8 h-8 text-orange-500 animate-pulse" />
-                      <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200">
+                      <span className="font-extrabold text-xs text-slate-800">
                         {docUploadFile ? `Terpilih: ${docUploadFile.name}` : 'Klik untuk memilih file dokumen...'}
                       </span>
                       <span className="text-[10px] text-slate-400 font-medium">Format didukung: JPG, PNG, atau PDF (Maksimal 5MB)</span>
@@ -5428,10 +5351,10 @@ export default function ProfilWarga({
                 {/* Information Card & Requirement Guidelines */}
                 <div className="lg:col-span-6 space-y-5">
                   <div className="p-5 bg-orange-500/10 border border-orange-500/20 rounded-2xl space-y-3">
-                    <h4 className="font-extrabold text-xs text-orange-700 dark:text-orange-400 uppercase tracking-wider flex items-center gap-2">
+                    <h4 className="font-extrabold text-xs text-orange-700 uppercase tracking-wider flex items-center gap-2">
                       <span>💡</span> Panduan Pengunggahan Berkas Kependudukan
                     </h4>
-                    <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-300 font-medium">
+                    <ul className="space-y-2 text-xs text-slate-600 font-medium">
                       <li className="flex items-start gap-2">
                         <span className="text-orange-500 font-bold">1.</span>
                         <span>Pastikan hasil foto/scan dokumen terlihat jelas, tidak buram, dan teks dapat terbaca dengan baik.</span>
@@ -5449,15 +5372,15 @@ export default function ProfilWarga({
 
                   {/* Quick Stats Badges */}
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl">
                       <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Dokumen Terunggah</span>
-                      <span className="text-2xl font-black text-slate-900 dark:text-white mt-1 block">
+                      <span className="text-2xl font-black text-slate-900 mt-1 block">
                         {wargaDocuments.length}
                       </span>
                     </div>
-                    <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                    <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl">
                       <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status Akses</span>
-                      <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 mt-2 block">
+                      <span className="text-sm font-black text-emerald-600 mt-2 block">
                         Terverifikasi RT
                       </span>
                     </div>
@@ -5467,20 +5390,20 @@ export default function ProfilWarga({
               </div>
 
               {/* Table of Uploaded Documents */}
-              <div className="pt-6 border-t border-slate-200/60 dark:border-slate-800">
-                <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider block mb-4">
+              <div className="pt-6 border-t border-slate-200/60">
+                <h4 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider block mb-4">
                   Daftar Dokumen Kependudukan Terunggah Saya
                 </h4>
 
                 {wargaDocuments.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 dark:text-slate-500 font-bold italic text-xs border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
+                  <div className="py-12 text-center text-slate-400 font-bold italic text-xs border border-dashed border-slate-200 rounded-2xl">
                     Belum ada berkas kependudukan yang diunggah. Silakan unggah berkas KTP atau KK Anda melalui formulir di atas.
                   </div>
                 ) : (
-                  <div className="overflow-x-auto border border-slate-200/60 dark:border-slate-800 rounded-2xl">
+                  <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                     <table className="w-full text-left text-xs border-collapse font-sans">
                       <thead>
-                        <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200/60 dark:border-slate-800 font-extrabold uppercase text-slate-400 tracking-wider">
+                        <tr className="bg-slate-50 border-b border-slate-200/60 font-extrabold uppercase text-slate-400 tracking-wider">
                           <th className="p-4">Jenis Dokumen</th>
                           <th className="p-4">Pemilik Berkas</th>
                           <th className="p-4">Nama Berkas File</th>
@@ -5488,15 +5411,15 @@ export default function ProfilWarga({
                           <th className="p-4 text-right">Aksi & Unduh</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tbody className="divide-y divide-slate-100">
                         {wargaDocuments.map((doc) => (
-                          <tr key={doc.document_id || doc.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
+                          <tr key={doc.document_id || doc.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="p-4">
-                              <span className="px-2.5 py-1 bg-orange-500/10 text-orange-600 dark:text-orange-400 border border-orange-500/20 rounded-full text-[10px] font-extrabold uppercase">
+                              <span className="px-2.5 py-1 bg-orange-500/10 text-orange-600 border border-orange-500/20 rounded-full text-[10px] font-extrabold uppercase">
                                 {doc.type || 'Dokumen'}
                               </span>
                             </td>
-                            <td className="p-4 font-bold text-slate-800 dark:text-slate-200">
+                            <td className="p-4 font-bold text-slate-800">
                               {doc.resident_name || currentUser.name}
                             </td>
                             <td className="p-4 font-mono text-slate-500 truncate max-w-xs" title={doc.file_path}>
@@ -5509,7 +5432,7 @@ export default function ProfilWarga({
                               <button
                                 type="button"
                                 onClick={() => handleDownloadDocument(doc.document_id || doc.id, doc.file_path)}
-                                className="px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
+                                className="px-3 py-1.5 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-xl font-extrabold text-[11px] transition-all cursor-pointer inline-flex items-center gap-1.5"
                               >
                                 <span>📥 Unduh / Lihat</span>
                               </button>
@@ -5527,21 +5450,21 @@ export default function ProfilWarga({
 
           {/* TAB 12: Dokumen */}
           {activeTab === 'dokumen' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Arsip Dokumen Resmi Warga</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Arsip Dokumen Resmi Warga</h3>
                 <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 05 Villa Mutiara Mas Cinere.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">AD / ART Rukun Tetangga 05</h4>
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3">
+                  <h4 className="font-bold text-sm text-slate-900">AD / ART Rukun Tetangga 05</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Dokumen Anggaran Dasar dan Anggaran Rumah Tangga resmi yang berisi aturan kerukunan hidup bertetangga.</p>
                   <button onClick={() => alert('Mengunduh AD_ART_RT05.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
                 </div>
 
-                <div className="p-5 bg-slate-50 dark:bg-slate-900/30 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-3">
-                  <h4 className="font-bold text-sm text-slate-900 dark:text-white">Formulir Pendaftaran Warga Baru</h4>
+                <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3">
+                  <h4 className="font-bold text-sm text-slate-900">Formulir Pendaftaran Warga Baru</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Berkas formulir kosong yang wajib diisi bagi penghuni baru (kontrak maupun tetap) untuk diserahkan ke Sekretaris.</p>
                   <button onClick={() => alert('Mengunduh FORM_WARGA_BARU.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
                 </div>
@@ -5551,16 +5474,16 @@ export default function ProfilWarga({
 
           {/* TAB 12.5: Voting Karyawan Terbaik */}
           {activeTab === 'voting_karyawan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex justify-between items-center">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pemilihan Karyawan Terbaik Bulanan</h3>
+                  <h3 className="text-lg font-bold text-slate-900">Pemilihan Karyawan Terbaik Bulanan</h3>
                   <p className="text-xs text-slate-400">Salurkan hak suara Anda untuk memilih petugas satpam, kebersihan, atau staf pengurus terfavorit.</p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { fetchKaryawanList(); fetchVoteResults(); }}
-                    className="py-1 px-2.5 border border-slate-200 dark:border-slate-800 hover:border-orange-500 rounded-lg text-[10px] font-bold text-slate-550 dark:text-slate-400 cursor-pointer flex items-center gap-1"
+                    className="py-1 px-2.5 border border-slate-200 hover:border-orange-500 rounded-lg text-[10px] font-bold text-slate-550 cursor-pointer flex items-center gap-1"
                   >
                     <span>🔄 Segarkan</span>
                   </button>
@@ -5579,10 +5502,10 @@ export default function ProfilWarga({
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block font-sans">Kandidat Karyawan</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {karyawanList.map((k) => (
-                        <div key={k.id} className="p-5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-800 rounded-3xl space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
+                        <div key={k.id} className="p-5 bg-slate-50/70 border border-slate-200/60 rounded-3xl space-y-4 flex flex-col justify-between hover:shadow-md transition-shadow">
                           <div className="space-y-1">
-                            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 dark:text-sky-400 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.jabatan || k.position}</span>
-                            <h5 className="font-black text-sm text-slate-900 dark:text-white pt-1">{k.nama || k.name}</h5>
+                            <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.jabatan || k.position}</span>
+                            <h5 className="font-black text-sm text-slate-900 pt-1">{k.nama || k.name}</h5>
                             <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 05.</p>
                           </div>
                           <button
@@ -5594,7 +5517,7 @@ export default function ProfilWarga({
                         </div>
                       ))}
                       {karyawanList.length === 0 && (
-                        <div className="col-span-2 p-8 text-center text-slate-400 italic text-xs font-bold bg-slate-50 dark:bg-slate-950/30 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+                        <div className="col-span-2 p-8 text-center text-slate-400 italic text-xs font-bold bg-slate-50 border border-dashed border-slate-200 rounded-3xl">
                           Tidak ada kandidat karyawan terdaftar saat ini.
                         </div>
                       )}
@@ -5604,7 +5527,7 @@ export default function ProfilWarga({
                   {/* Results Counting List */}
                   <div className="space-y-4">
                     <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider block font-sans">Hasil Voting Sementara</h4>
-                    <div className="p-5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/60 dark:border-slate-850 rounded-3xl space-y-4">
+                    <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                       {voteResults.map((r) => {
                         const totalVotes = voteResults.reduce((sum, item) => sum + parseInt(item.jumlah_vote || item.vote_count || 0), 0) || 1;
                         const percentage = Math.round((parseInt(r.jumlah_vote || r.vote_count || 0) / totalVotes) * 100);
@@ -5612,12 +5535,12 @@ export default function ProfilWarga({
                           <div key={r.id || r.karyawan_id} className="space-y-1.5 font-sans">
                             <div className="flex justify-between items-center text-xs">
                               <div>
-                                <span className="font-bold text-slate-800 dark:text-white block">{r.nama || r.name}</span>
+                                <span className="font-bold text-slate-800 block">{r.nama || r.name}</span>
                                 <span className="text-[9px] text-slate-400 uppercase font-extrabold">{r.jabatan || r.position}</span>
                               </div>
-                              <span className="font-black text-slate-900 dark:text-white font-mono">{r.jumlah_vote || r.vote_count || 0} Suara ({percentage}%)</span>
+                              <span className="font-black text-slate-900 font-mono">{r.jumlah_vote || r.vote_count || 0} Suara ({percentage}%)</span>
                             </div>
-                            <div className="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                               <div
                                 style={{ width: `${percentage}%` }}
                                 className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-500"
@@ -5640,16 +5563,16 @@ export default function ProfilWarga({
 
           {/* TAB 13: Universal Notification Center */}
           {activeTab === 'notifikasi' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               
               {/* Section Header */}
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <div className="p-2 bg-orange-500/10 text-orange-600 dark:text-orange-400 rounded-xl">
+                    <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
                       <Bell className="w-5 h-5" />
                     </div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pusat Notifikasi & Informasi Warga</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Pusat Notifikasi & Informasi Warga</h3>
                   </div>
                   <p className="text-xs text-slate-400">
                     Pemberitahuan resmi mengenai tagihan iuran, persetujuan surat pengantar, pengumuman RT, dan status aduan.
@@ -5667,7 +5590,7 @@ export default function ProfilWarga({
                         sessionStorage.setItem('rt_current_user', JSON.stringify(updated));
                       }
                     }}
-                    className="px-3.5 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
+                    className="px-3.5 py-2 bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 border border-orange-500/30 rounded-xl text-xs font-extrabold transition-all cursor-pointer shadow-xs flex items-center gap-1.5"
                   >
                     <span>✓ Tandai Semua Dibaca</span>
                   </button>
@@ -5690,7 +5613,7 @@ export default function ProfilWarga({
                     className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                       notifCategoryFilter === flt.id
                         ? 'bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 text-white shadow-xs'
-                        : 'bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                     }`}
                   >
                     {flt.label}
@@ -5708,8 +5631,8 @@ export default function ProfilWarga({
                       onClick={() => setActiveTab(ntf.targetTab)}
                       className={`p-4 sm:p-5 rounded-2xl border transition-all duration-300 flex items-start gap-4 cursor-pointer hover:scale-[1.01] hover:border-orange-500/50 group ${
                         ntf.isUnread
-                          ? 'bg-orange-500/10 dark:bg-orange-950/30 border-orange-500/30 shadow-xs'
-                          : 'bg-slate-50/70 dark:bg-slate-950/40 border-slate-200/60 dark:border-slate-800'
+                          ? 'bg-orange-500/10 border-orange-500/30 shadow-xs'
+                          : 'bg-slate-50/70 border-slate-200/60'
                       }`}
                     >
                       <div className={`p-2.5 rounded-xl text-white shrink-0 mt-0.5 shadow-xs ${
@@ -5734,17 +5657,17 @@ export default function ProfilWarga({
 
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="font-extrabold text-xs text-slate-900 dark:text-white group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors truncate">
+                          <h4 className="font-extrabold text-xs text-slate-900 group-hover:text-orange-600 transition-colors truncate">
                             {ntf.title}
                           </h4>
                           <span className="text-[10px] font-mono text-slate-400 shrink-0">
                             {ntf.time}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
+                        <p className="text-xs text-slate-600 leading-relaxed font-normal">
                           {ntf.message}
                         </p>
-                        <div className="pt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition-transform">
+                        <div className="pt-1 flex items-center gap-1 text-[10px] font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">
                           <span>Buka Menu Terkait</span>
                           <span>→</span>
                         </div>
@@ -5762,46 +5685,46 @@ export default function ProfilWarga({
 
           {/* TAB 14: Pengaturan (Password Reset) */}
           {activeTab === 'pengaturan' && (
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
-              <div className="border-b border-slate-200/60 dark:border-slate-800 pb-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Pengaturan Keamanan & Sandi</h3>
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4">
+                <h3 className="text-lg font-bold text-slate-900">Pengaturan Keamanan & Sandi</h3>
                 <p className="text-xs text-slate-400">Kelola kata sandi akun portal warga Anda agar tetap aman.</p>
               </div>
 
               <form onSubmit={handlePasswordSubmit} className="max-w-md space-y-4 text-xs sm:text-sm font-sans">
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Kata Sandi Lama *</label>
+                  <label className="font-bold text-slate-700">Kata Sandi Lama *</label>
                   <input
                     required
                     type="password"
                     placeholder="Masukkan sandi saat ini..."
                     value={passwordForm.oldPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, oldPassword: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300">Kata Sandi Baru *</label>
+                  <label className="font-bold text-slate-700">Kata Sandi Baru *</label>
                   <input
                     required
                     type="password"
                     placeholder="Masukkan sandi baru (min 8 karakter)..."
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                   />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="font-bold text-slate-700 dark:text-slate-300 font-sans">Konfirmasi Kata Sandi Baru *</label>
+                  <label className="font-bold text-slate-700 font-sans">Konfirmasi Kata Sandi Baru *</label>
                   <input
                     required
                     type="password"
                     placeholder="Ketik ulang sandi baru..."
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-xl outline-none text-slate-900 dark:text-white font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                   />
                 </div>
 
@@ -5820,13 +5743,13 @@ export default function ProfilWarga({
         {/* Payment Gateway Modal */}
         {isPgModalOpen && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in font-sans">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl relative">
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-5 shadow-2xl relative">
               
               {/* Header */}
-              <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💳</span>
-                  <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">SGP Pay Gateway</h4>
+                  <h4 className="font-extrabold text-sm text-slate-900">SGP Pay Gateway</h4>
                 </div>
                 <button 
                   onClick={async () => {
@@ -5848,16 +5771,16 @@ export default function ProfilWarga({
                       }
                     }
                   }} 
-                  className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+                  className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer"
                 >
                   <X className="w-4 h-4 text-slate-400" />
                 </button>
               </div>
 
               {/* Total Billing Banner */}
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-850 rounded-2xl text-center">
+              <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl text-center">
                 <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Total Tagihan Iuran</span>
-                <span className="text-xl font-black text-emerald-600 dark:text-emerald-450">Rp 50.000</span>
+                <span className="text-xl font-black text-emerald-600">Rp 50.000</span>
               </div>
 
               {/* STAGE 1: SELECT METHOD */}
@@ -5869,12 +5792,12 @@ export default function ProfilWarga({
                     {/* QRIS Option */}
                     <button
                       onClick={() => handleSelectPgMethod('qris')}
-                      className="w-full p-4 bg-white dark:bg-slate-900 border-2 border-slate-200 hover:border-emerald-500 dark:border-slate-800 dark:hover:border-emerald-500 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:shadow-md"
+                      className="w-full p-4 bg-white border-2 border-slate-200 hover:border-emerald-500 rounded-2xl flex items-center justify-between cursor-pointer transition-all hover:shadow-md"
                     >
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">📱</span>
                         <div className="text-left">
-                          <span className="font-black text-slate-855 dark:text-white block">QRIS (Otomatis & Instan)</span>
+                          <span className="font-black text-slate-855 block">QRIS (Otomatis & Instan)</span>
                           <span className="text-[10px] text-slate-400 font-bold">GoPay, OVO, ShopeePay, Dana, M-Banking</span>
                         </div>
                       </div>
@@ -5882,8 +5805,8 @@ export default function ProfilWarga({
                     </button>
 
                     {/* VA Option */}
-                    <div className="space-y-1.5 border border-slate-250 dark:border-slate-800 p-3.5 rounded-2xl">
-                      <span className="font-black text-slate-800 dark:text-white block mb-2">Virtual Account (Bank Transfer)</span>
+                    <div className="space-y-1.5 border border-slate-250 p-3.5 rounded-2xl">
+                      <span className="font-black text-slate-800 block mb-2">Virtual Account (Bank Transfer)</span>
                       <div className="grid grid-cols-3 gap-2">
                         {['BCA', 'Mandiri', 'BRI'].map((bank) => (
                           <button
@@ -5892,7 +5815,7 @@ export default function ProfilWarga({
                               setPgSelectedBank(bank);
                               handleSelectPgMethod('va');
                             }}
-                            className="py-2.5 border border-slate-200 hover:border-emerald-500 dark:border-slate-850 rounded-xl font-black text-[10px] text-slate-700 dark:text-slate-350 bg-slate-50 dark:bg-slate-950/20 hover:bg-white cursor-pointer transition-all"
+                            className="py-2.5 border border-slate-200 hover:border-emerald-500 rounded-xl font-black text-[10px] text-slate-700 bg-slate-50 hover:bg-white cursor-pointer transition-all"
                           >
                             {bank}
                           </button>
@@ -5946,19 +5869,19 @@ export default function ProfilWarga({
                   ) : (
                     <div className="space-y-4 text-center">
                       <p className="text-[11px] text-slate-450 leading-relaxed font-sans">
-                        Silakan bayar menggunakan nomor Virtual Account bank <span className="font-bold text-slate-800 dark:text-white">{pgSelectedBank}</span> berikut:
+                        Silakan bayar menggunakan nomor Virtual Account bank <span className="font-bold text-slate-800">{pgSelectedBank}</span> berikut:
                       </p>
 
-                      <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-250 dark:border-slate-850 rounded-2xl space-y-1">
+                      <div className="p-4 bg-slate-50 border border-slate-250 rounded-2xl space-y-1">
                         <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">No. Virtual Account ({pgSelectedBank})</span>
-                        <p className="font-mono font-black text-sm text-slate-800 dark:text-white tracking-widest">{pgVaNumber}</p>
+                        <p className="font-mono font-black text-sm text-slate-800 tracking-widest">{pgVaNumber}</p>
                         <button 
                           type="button"
                           onClick={() => {
                             navigator.clipboard.writeText(pgVaNumber);
                             alert('VA Number disalin!');
                           }}
-                          className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                          className="text-[9px] font-bold text-emerald-600 hover:underline cursor-pointer"
                         >
                           📋 Salin Nomor VA
                         </button>
@@ -5979,38 +5902,38 @@ export default function ProfilWarga({
               {/* STAGE 3: SUCCESS RECEIPT */}
               {pgStage === 'success' && (
                 <div className="space-y-4 text-center">
-                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                     <CheckCircle2 className="w-10 h-10 animate-bounce" />
                   </div>
 
                   <div className="space-y-1">
-                    <h4 className="font-black text-sm text-slate-900 dark:text-white">Pembayaran Sukses!</h4>
+                    <h4 className="font-black text-sm text-slate-900">Pembayaran Sukses!</h4>
                     <p className="text-[10px] text-slate-450">Iuran Anda terverifikasi lunas secara otomatis.</p>
                   </div>
 
                   {/* Receipt Details */}
-                  <div className="bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-[10px] text-left space-y-2 font-mono">
-                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-[10px] text-left space-y-2 font-mono">
+                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
                       <span className="text-slate-400 font-sans font-bold">Jenis Iuran:</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-200">Kas Lingkungan RT</span>
+                      <span className="font-extrabold text-slate-800">Kas Lingkungan RT</span>
                     </div>
-                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
                       <span className="text-slate-400 font-sans font-bold">Nominal:</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-200">Rp 50.000</span>
+                      <span className="font-extrabold text-slate-800">Rp 50.000</span>
                     </div>
-                    <div className="flex justify-between border-b border-dashed border-slate-200 dark:border-slate-800 pb-1.5">
+                    <div className="flex justify-between border-b border-dashed border-slate-200 pb-1.5">
                       <span className="text-slate-400 font-sans font-bold">Metode:</span>
-                      <span className="font-extrabold text-slate-800 dark:text-slate-200">PG - {pgMethod.toUpperCase()}</span>
+                      <span className="font-extrabold text-slate-800">PG - {pgMethod.toUpperCase()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400 font-sans font-bold">Status:</span>
-                      <span className="font-extrabold text-emerald-600 dark:text-emerald-450 uppercase">Lunas</span>
+                      <span className="font-extrabold text-emerald-600 uppercase">Lunas</span>
                     </div>
                   </div>
 
                   <button
                     onClick={() => setIsPgModalOpen(false)}
-                    className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-850 dark:hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-colors"
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl cursor-pointer transition-colors"
                   >
                     Selesai
                   </button>
@@ -6027,32 +5950,32 @@ export default function ProfilWarga({
       {viewingApprovedLetter && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl border border-slate-200/60 dark:border-slate-800/80 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
+          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
             <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 no-print"></div>
             
-            <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans no-print shrink-0">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print shrink-0">
               <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
                 {viewingApprovedLetter.status && (
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
                     viewingApprovedLetter.status === 'Disetujui' || viewingApprovedLetter.status === 'Approved' || viewingApprovedLetter.status === 'Selesai'
-                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300'
-                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-800'
                   }`}>
                     Status: {viewingApprovedLetter.status} {viewingApprovedLetter.status === 'Menunggu' ? '(Dapat Langsung Dicetak Sebagai Bukti Pengajuan)' : '(Dokumen Resmi Terverifikasi)'}
                   </span>
                 )}
               </div>
-              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <span className="font-extrabold text-sm">✕</span>
               </button>
             </div>
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 dark:bg-slate-800/80 flex justify-center">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
               <SuratPengantarPrintable letter={viewingApprovedLetter} currentUser={currentUser} />
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-sans text-xs no-print">
+            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
               <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
               <div className="flex gap-2">
                 <button
@@ -6064,176 +5987,11 @@ export default function ProfilWarga({
                 </button>
                 <button
                   onClick={() => setViewingApprovedLetter(null)}
-                  className="py-2.5 px-4 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold rounded-xl cursor-pointer"
+                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
                 >
                   Tutup
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* MODAL PREVIEW E-KTP RESMI */}
-      {selectedKtpWarga && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md overflow-y-auto animate-fade-in font-sans">
-          <div className="relative bg-slate-900 border border-slate-700 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden z-10 font-sans text-white">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 bg-gradient-to-r from-orange-950 via-slate-900 to-amber-950 border-b border-orange-800/40 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 text-orange-400 rounded-xl border border-orange-400/30">
-                  <ShieldCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-sm text-white">Kartu Identitas Elektronik (e-KTP)</h3>
-                  <p className="text-[10px] text-orange-200/80">Verifikasi Dokumen Resmi RT 05 / RW 11</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedKtpWarga(null)}
-                className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white cursor-pointer transition-colors"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Tabs: [1. Foto Berkas KTP Asli] & [2. Kartu Digital e-KTP] */}
-            <div className="p-5 space-y-5">
-              <div className="flex gap-2 p-1 bg-slate-800/80 rounded-xl border border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setKtpTab('asli')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'asli' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}
-                >
-                  📸 Foto Berkas KTP Asli
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setKtpTab('digital')}
-                  className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${ktpTab === 'digital' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-md shadow-orange-500/20' : 'text-slate-400 hover:text-white'}`}
-                >
-                  💳 Kartu Digital e-KTP
-                </button>
-              </div>
-
-              {ktpTab === 'asli' ? (
-                <div className="space-y-3">
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex flex-col items-center justify-center p-3 min-h-[220px]">
-                    {selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp ? (
-                      <img
-                        src={selectedKtpWarga.foto_ktp || selectedKtpWarga.fotoKtp}
-                        alt={`Foto KTP Asli - ${selectedKtpWarga.nama}`}
-                        className="max-h-80 w-auto object-contain rounded-xl shadow-lg border border-slate-800"
-                      />
-                    ) : (
-                      <div className="py-8 text-center space-y-2">
-                        <FileText className="w-12 h-12 text-slate-600 mx-auto" />
-                        <p className="text-xs text-slate-400 font-semibold">Anda belum mengunggah berkas foto KTP fisik.</p>
-                        <span className="text-[10px] text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full inline-block font-bold">Silakan unggah foto KTP fisik pada profil Anda</span>
-                      </div>
-                    )}
-                  </div>
-                  {selectedKtpWarga.foto_ktp && (
-                    <div className="flex justify-end gap-2">
-                      <a
-                        href={selectedKtpWarga.foto_ktp}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="py-1.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-orange-500/20"
-                      >
-                        <Eye className="w-3.5 h-3.5" /> Buka Foto Asli Ukuran Penuh
-                      </a>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                /* AUTHENTIC INDONESIAN e-KTP CARD UI DESIGN */
-                <div className="relative rounded-2xl overflow-hidden p-5 bg-gradient-to-br from-orange-100 via-amber-50 to-orange-200 dark:from-slate-800 dark:via-orange-950/40 dark:to-slate-900 text-slate-900 dark:text-slate-100 border-2 border-orange-400/50 shadow-2xl space-y-3 font-sans">
-                  <div className="absolute right-4 bottom-4 opacity-10 pointer-events-none text-slate-900 dark:text-white">
-                    <Landmark className="w-48 h-48" />
-                  </div>
-
-                  <div className="text-center font-bold uppercase tracking-wider space-y-0.5 border-b border-slate-400/40 pb-2">
-                    <h4 className="text-xs sm:text-sm font-black text-orange-900 dark:text-orange-300">PROVINSI JAWA BARAT</h4>
-                    <h5 className="text-xs font-extrabold text-slate-800 dark:text-slate-200">KOTA DEPOK</h5>
-                  </div>
-
-                  <div className="flex items-center gap-3 bg-slate-950/80 text-orange-400 p-2.5 rounded-xl font-mono text-sm font-black tracking-widest justify-center shadow-inner border border-orange-500/30">
-                    <span className="text-orange-300 text-xs">NIK :</span>
-                    <span>{selectedKtpWarga.nik || '3276051508980004'}</span>
-                  </div>
-
-                  <div className="grid grid-cols-12 gap-3 text-[11px] items-start">
-                    <div className="col-span-8 space-y-1 font-semibold leading-relaxed">
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Nama</span>
-                        <span className="col-span-8 font-black uppercase text-slate-900 dark:text-white truncate">{selectedKtpWarga.nama}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Tempat/Tgl Lahir</span>
-                        <span className="col-span-8 font-bold">{selectedKtpWarga.tgl_lahir || 'DEPOK, 15-08-1998'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Jenis Kelamin</span>
-                        <span className="col-span-8 font-bold">{selectedKtpWarga.jenis_kelamin || 'Laki-laki'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Alamat</span>
-                        <span className="col-span-8 font-bold leading-tight">{selectedKtpWarga.house_alamat || 'Jl. Villa Mutiara Mas Cinere Blok B4 No. 15'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">RT / RW</span>
-                        <span className="col-span-8 font-bold">005 / 011</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kel / Desa</span>
-                        <span className="col-span-8 font-bold">CINERE</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1 pl-3">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400">Kecamatan</span>
-                        <span className="col-span-8 font-bold">CINERE</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Pekerjaan</span>
-                        <span className="col-span-8 font-bold capitalize">{selectedKtpWarga.pekerjaan || 'Karyawan Swasta'}</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Kewarganegaraan</span>
-                        <span className="col-span-8 font-bold">WNI</span>
-                      </div>
-                      <div className="grid grid-cols-12 gap-1">
-                        <span className="col-span-4 text-slate-500 dark:text-slate-400 font-bold">Berlaku Hingga</span>
-                        <span className="col-span-8 font-black text-emerald-600 dark:text-emerald-400">SEUMUR HIDUP</span>
-                      </div>
-                    </div>
-
-                    <div className="col-span-4 flex flex-col items-center gap-2">
-                      <div className="w-24 h-32 rounded-xl overflow-hidden border-2 border-red-500/80 shadow-md bg-slate-200 dark:bg-slate-800">
-                        <img
-                          src={selectedKtpWarga.foto_ktp || selectedKtpWarga.foto || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
-                          alt="Pasfoto KTP"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="text-center">
-                        <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                          VERIFIED RT 05
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-4 bg-slate-950 border-t border-slate-800 flex justify-between items-center text-xs">
-              <span className="text-slate-400 text-[10px]">Pemeriksaan Berkas e-KTP Terdaftar</span>
-              <button
-                onClick={() => setSelectedKtpWarga(null)}
-                className="py-2 px-5 bg-slate-800 hover:bg-slate-700 text-white font-extrabold rounded-xl transition-all cursor-pointer"
-              >
-                Tutup Pratinjau
-              </button>
             </div>
           </div>
         </div>

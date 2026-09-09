@@ -176,7 +176,7 @@ const addLimitWarnings = () => {
         const alreadyHasWarn = parent.querySelector('.char-limit-warn');
         if (!alreadyHasWarn) {
           const warn = document.createElement('p');
-          warn.className = 'char-limit-warn text-[10px] text-rose-500 dark:text-rose-450 font-bold mt-1 block';
+          warn.className = 'char-limit-warn text-[10px] text-rose-500 font-bold mt-1 block';
           warn.innerText = 'limit 200 karakter';
           // Insert warning right after the input/textarea element
           target.parentNode.insertBefore(warn, target.nextSibling);

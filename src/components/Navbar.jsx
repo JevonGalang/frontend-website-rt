@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { 
-  Sun, Moon, Menu, X, User, LogOut, ChevronDown, Bell, 
-  Home, FileText, Wallet, PhoneCall, Landmark
+  Menu, X, User, LogOut, ChevronDown, Bell, 
+  Home, FileText, Wallet, MapPin, Landmark
 } from 'lucide-react';
 import { clearSession } from '../utils/authSession';
 import logoRW11 from '../assets/logo_rw11.png';
@@ -14,12 +14,10 @@ const menuItems = [
   { id: 'layanan', label: 'Layanan', icon: FileText, restricted: true },
   { id: 'data-warga', label: 'Data Warga', icon: User, restricted: true },
   { id: 'kas', label: 'Kas RT', icon: Wallet, restricted: true },
-  { id: 'kontak', label: 'Kontak', icon: PhoneCall, restricted: false },
+  { id: 'kontak', label: 'Peta', icon: MapPin, restricted: false },
 ];
 
 export default function Navbar({ 
-  darkMode, 
-  setDarkMode, 
   currentUser, 
   setCurrentUser, 
   currentPage, 
@@ -53,7 +51,7 @@ export default function Navbar({
       {/* ═══════════════════════════════════════════════════════════════════
           1. TOP HORIZONTAL NAVBAR (DESKTOP)
           ═══════════════════════════════════════════════════════════════════ */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white/95 dark:bg-[#0b0f17]/95 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800/80 z-50 transition-all font-sans">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 z-50 transition-all font-sans">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
           
           {/* Left: Brand Logo & Title */}
@@ -63,10 +61,10 @@ export default function Navbar({
               <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain" />
             </div>
             <div className="leading-tight">
-              <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-white tracking-tight">
+              <h1 className="font-extrabold text-xs sm:text-sm text-slate-900 tracking-tight">
                 Villa Mutiara Mas Cinere
               </h1>
-              <p className="text-[10px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+              <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">
                 RT 05 / RW 11
               </p>
             </div>
@@ -85,7 +83,7 @@ export default function Navbar({
                     className={`px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
                       isActive
                         ? 'bg-orange-500 text-white font-bold shadow-md shadow-orange-500/20'
-                        : 'text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-slate-800/60'
+                        : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50'
                     }`}
                   >
                     {item.label}
@@ -94,7 +92,7 @@ export default function Navbar({
               })}
           </nav>
 
-          {/* Right: Theme Toggle, Notifications, Profile Dropdown */}
+          {/* Right: Notifications, Profile Dropdown */}
           <div className="hidden lg:flex items-center gap-3">
             
             {/* Notifications Button */}
@@ -102,24 +100,24 @@ export default function Navbar({
               <div className="relative">
                 <button
                   onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-all relative cursor-pointer"
+                  className="p-2.5 rounded-full bg-slate-100 text-slate-600 hover:text-orange-600 transition-all relative cursor-pointer"
                   title="Notifikasi"
                 >
                   <Bell className="w-4 h-4" />
-                  <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border-2 border-white dark:border-slate-900">
+                  <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-orange-500 text-white font-bold text-[8px] rounded-full flex items-center justify-center border-2 border-white">
                     3
                   </span>
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-4 z-50 animate-fade-in space-y-2 text-left">
-                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                      <span className="font-bold text-xs text-slate-800 dark:text-slate-100">Notifikasi</span>
+                  <div className="absolute right-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-4 z-50 animate-fade-in space-y-2 text-left">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <span className="font-bold text-xs text-slate-800">Notifikasi</span>
                       <span className="text-[10px] text-orange-500 font-semibold cursor-pointer">Tandai dibaca</span>
                     </div>
                     <div className="space-y-2 text-xs">
-                      <div className="p-2 rounded-xl bg-orange-50/60 dark:bg-slate-800/60 border border-orange-100 dark:border-slate-800">
-                        <p className="font-bold text-slate-800 dark:text-slate-200">Pengumuman Kerja Bakti</p>
+                      <div className="p-2 rounded-xl bg-orange-50/60 border border-orange-100">
+                        <p className="font-bold text-slate-800">Pengumuman Kerja Bakti</p>
                         <p className="text-[10px] text-slate-500">Kerja bakti hari Minggu pukul 07:00 WIB.</p>
                       </div>
                     </div>
@@ -128,30 +126,21 @@ export default function Navbar({
               </div>
             )}
 
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-slate-700 transition-all cursor-pointer"
-              title="Toggle Theme"
-            >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-            </button>
-
             {/* User Account Pill */}
             {currentUser && (
-              <div className="relative pl-2 border-l border-slate-200 dark:border-slate-800">
+              <div className="relative pl-2 border-l border-slate-200">
                 <button
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700 transition-all cursor-pointer"
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-slate-100 hover:bg-slate-200/70 transition-all cursor-pointer"
                 >
                   <div className="w-7 h-7 rounded-full bg-orange-500 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                     {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
                   </div>
                   <div className="text-left hidden xl:block">
-                    <span className="block font-bold text-xs text-slate-800 dark:text-slate-100 leading-tight">
+                    <span className="block font-bold text-xs text-slate-800 leading-tight">
                       {currentUser.name ? currentUser.name.split(' ')[0] : 'Warga'}
                     </span>
-                    <span className="block text-[10px] text-slate-500 dark:text-slate-400 leading-none">
+                    <span className="block text-[10px] text-slate-500 leading-none">
                       {activeUserRole}
                     </span>
                   </div>
@@ -159,13 +148,13 @@ export default function Navbar({
                 </button>
 
                 {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2 z-50 animate-fade-in space-y-1">
+                  <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-fade-in space-y-1">
                     <button
                       onClick={() => {
                         setShowUserDropdown(false);
                         handleNavClick('profil-saya');
                       }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-slate-800 rounded-xl flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-orange-50 rounded-xl flex items-center gap-2"
                     >
                       <User className="w-3.5 h-3.5 text-orange-500" />
                       <span>Profil Saya</span>
@@ -177,7 +166,7 @@ export default function Navbar({
                         setCurrentUser(null);
                         setCurrentPage('beranda');
                       }}
-                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl flex items-center gap-2"
                     >
                       <LogOut className="w-3.5 h-3.5" />
                       <span>Keluar Portal</span>
@@ -192,15 +181,8 @@ export default function Navbar({
           {/* Mobile Header Controls */}
           <div className="flex lg:hidden items-center gap-2">
             <button
-              onClick={() => setDarkMode(!darkMode)}
-              className="p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-            </button>
-            
-            <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="p-2 rounded-lg text-slate-800 hover:bg-slate-100"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
@@ -211,7 +193,7 @@ export default function Navbar({
         {/* Mobile Drawer Menu (Synced with menuItems) */}
         {mobileMenuOpen && (
           <div className="lg:hidden fixed inset-0 top-16 bg-slate-950/60 backdrop-blur-xs z-40 animate-fade-in" onClick={() => setMobileMenuOpen(false)}>
-            <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 p-4 space-y-2 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-white border-b border-slate-200 p-4 space-y-2 shadow-2xl" onClick={e => e.stopPropagation()}>
               {menuItems
                 .filter(item => !item.restricted || !!currentUser)
                 .map((item) => {
@@ -222,7 +204,7 @@ export default function Navbar({
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        isActive ? 'bg-orange-500 text-white' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                        isActive ? 'bg-orange-500 text-white' : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
                       <Icon className="w-4 h-4" />
@@ -232,7 +214,7 @@ export default function Navbar({
                 })}
 
               {currentUser && (
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="pt-2 border-t border-slate-100">
                   <button
                     onClick={() => {
                       setMobileMenuOpen(false);
@@ -255,13 +237,13 @@ export default function Navbar({
       {/* ═══════════════════════════════════════════════════════════════════
           2. FLOATING MOBILE BOTTOM NAVIGATION DOCK (100% Synced)
           ═══════════════════════════════════════════════════════════════════ */}
-      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-3 py-2 rounded-full border border-slate-200/80 dark:border-slate-800 shadow-2xl flex items-center justify-around w-[92vw] max-w-sm font-sans">
+      <div className="lg:hidden fixed bottom-3 left-1/2 -translate-x-1/2 z-40 bg-white/95 backdrop-blur-md px-3 py-2 rounded-full border border-slate-200/80 shadow-2xl flex items-center justify-around w-[92vw] max-w-sm font-sans">
         
         {/* Beranda */}
         <button
           onClick={() => handleNavClick('beranda')}
           className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-            currentPage === 'beranda' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+            currentPage === 'beranda' ? 'text-orange-600 font-extrabold scale-105' : 'text-slate-500'
           }`}
         >
           <Home className="w-4 h-4" />
@@ -272,7 +254,7 @@ export default function Navbar({
         <button
           onClick={() => handleNavClick(currentUser ? 'profil-saya' : 'profil')}
           className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-            currentPage === 'profil-saya' || currentPage === 'profil' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+            currentPage === 'profil-saya' || currentPage === 'profil' ? 'text-orange-600 font-extrabold scale-105' : 'text-slate-500'
           }`}
         >
           <User className="w-4 h-4" />
@@ -284,7 +266,7 @@ export default function Navbar({
           <button
             onClick={() => handleNavClick('layanan')}
             className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-              currentPage === 'layanan' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+              currentPage === 'layanan' ? 'text-orange-600 font-extrabold scale-105' : 'text-slate-500'
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -297,7 +279,7 @@ export default function Navbar({
           <button
             onClick={() => handleNavClick('kas')}
             className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-              currentPage === 'kas' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+              currentPage === 'kas' ? 'text-orange-600 font-extrabold scale-105' : 'text-slate-500'
             }`}
           >
             <Wallet className="w-4 h-4" />
@@ -305,15 +287,15 @@ export default function Navbar({
           </button>
         )}
 
-        {/* Kontak */}
+        {/* Peta */}
         <button
           onClick={() => handleNavClick('kontak')}
           className={`flex flex-col items-center gap-0.5 px-2.5 py-1 rounded-full text-[10px] font-bold cursor-pointer transition-all ${
-            currentPage === 'kontak' ? 'text-orange-600 dark:text-orange-400 font-extrabold scale-105' : 'text-slate-500 dark:text-slate-400'
+            currentPage === 'kontak' ? 'text-orange-600 font-extrabold scale-105' : 'text-slate-500'
           }`}
         >
-          <PhoneCall className="w-4 h-4" />
-          <span>Kontak</span>
+          <MapPin className="w-4 h-4" />
+          <span>Peta</span>
         </button>
       </div>
     </>

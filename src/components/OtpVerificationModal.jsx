@@ -236,7 +236,7 @@ export default function OtpVerificationModal({
       ></div>
 
       {/* Modal Container */}
-      <div className="relative bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl border border-emerald-500/30 shadow-2xl overflow-hidden z-10 animate-scale-up p-6 sm:p-7 space-y-6">
+      <div className="relative bg-white w-full max-w-md rounded-3xl border border-emerald-500/30 shadow-2xl overflow-hidden z-10 animate-scale-up p-6 sm:p-7 space-y-6">
         {/* Top Accent Gradient Bar */}
         <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-500"></div>
 
@@ -244,7 +244,7 @@ export default function OtpVerificationModal({
         <button 
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-800 rounded-full cursor-pointer transition-all hover:scale-105 active:scale-95"
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 bg-slate-100 rounded-full cursor-pointer transition-all hover:scale-105 active:scale-95"
           title="Tutup"
         >
           <XIcon className="w-4 h-4" />
@@ -252,17 +252,17 @@ export default function OtpVerificationModal({
 
         {/* Header Info */}
         <div className="text-center space-y-3 pt-2">
-          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 dark:from-orange-500/30 dark:to-amber-500/30 border border-orange-500/40 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/10">
-            <Mail className="w-7 h-7 text-orange-600 dark:text-orange-400 animate-pulse" />
+          <div className="mx-auto w-14 h-14 bg-gradient-to-tr from-orange-500/20 to-amber-500/20 border border-orange-500/40 rounded-2xl flex items-center justify-center shadow-lg shadow-orange-500/10">
+            <Mail className="w-7 h-7 text-orange-600 animate-pulse" />
           </div>
-          <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+          <h3 className="text-xl font-black text-slate-900 tracking-tight">
             {title}
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium px-2">
+          <p className="text-xs text-slate-500 leading-relaxed font-medium px-2">
             {subtitle || (email ? (flowType === 'user_login' ? 'Kode OTP baru telah otomatis dikirimkan ke email Anda. Masukkan 6 digit kode tersebut untuk mengaktifkan akun:' : 'Masukkan 6 digit kode OTP yang telah dikirimkan ke email:') : 'Masukkan 6 digit kode verifikasi OTP yang telah dikirimkan ke alamat email terdaftar:')}
           </p>
           {email ? (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-800/60 rounded-xl text-orange-800 dark:text-orange-300 font-mono font-bold text-xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-xl text-orange-800 font-mono font-bold text-xs">
               <span>📧</span>
               <span className="break-all">{email}</span>
             </div>
@@ -289,8 +289,8 @@ export default function OtpVerificationModal({
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-mono font-black rounded-xl border-2 outline-none p-0 transition-all ${
                   digit 
-                    ? 'border-orange-500 bg-orange-50/50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm shadow-orange-500/20' 
-                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-900 dark:text-white focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                    ? 'border-orange-500 bg-orange-50/50 text-orange-700 shadow-sm shadow-orange-500/20' 
+                    : 'border-slate-200 bg-slate-50 text-slate-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
                 }`}
               />
             ))}
@@ -298,7 +298,7 @@ export default function OtpVerificationModal({
 
           {/* Error Message */}
           {otpError && (
-            <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl text-rose-600 dark:text-rose-400 font-bold text-xs flex items-center justify-center gap-2 animate-fade-in">
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-600 font-bold text-xs flex items-center justify-center gap-2 animate-fade-in">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{otpError}</span>
             </div>
@@ -306,7 +306,7 @@ export default function OtpVerificationModal({
 
           {/* Resend Success Message */}
           {resendSuccess && (
-            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 animate-fade-in">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-600 font-bold text-xs flex items-center justify-center gap-2 animate-fade-in">
               <CheckCircle2 className="w-4 h-4 shrink-0" />
               <span>{resendSuccess}</span>
             </div>
@@ -317,14 +317,14 @@ export default function OtpVerificationModal({
             {otpTimer > 0 ? (
               <p className="text-xs text-slate-400 font-semibold flex items-center justify-center gap-1.5">
                 <span>Tidak menerima kode? Kirim ulang dalam</span>
-                <span className="font-mono font-bold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-0.5 rounded-md">{otpTimer}s</span>
+                <span className="font-mono font-bold text-orange-600 bg-orange-500/10 px-2 py-0.5 rounded-md">{otpTimer}s</span>
               </p>
             ) : (
               <button
                 type="button"
                 disabled={isResending}
                 onClick={handleResendOtp}
-                className="text-xs font-bold text-orange-600 dark:text-orange-400 hover:text-orange-700 dark:hover:text-orange-300 flex items-center justify-center gap-1.5 mx-auto hover:underline cursor-pointer bg-orange-500/10 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+                className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center justify-center gap-1.5 mx-auto hover:underline cursor-pointer bg-orange-500/10 px-3.5 py-1.5 rounded-xl transition-all active:scale-95 disabled:opacity-50"
               >
                 {isResending ? (
                   <>
@@ -346,7 +346,7 @@ export default function OtpVerificationModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
+              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
             >
               Batal
             </button>

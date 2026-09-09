@@ -38,8 +38,8 @@ function Toast({ message, type, onClose }) {
   return (
     <div className={`fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl border text-sm font-bold animate-slide-in-right max-w-md
       ${type === 'success'
-        ? 'bg-emerald-50 dark:bg-emerald-950/90 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
-        : 'bg-red-50 dark:bg-red-950/90 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+        : 'bg-red-50 border-red-200 text-red-700'
       }`}
     >
       {type === 'success'
@@ -47,7 +47,7 @@ function Toast({ message, type, onClose }) {
         : <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
       }
       <span className="flex-1">{message}</span>
-      <button onClick={onClose} className="ml-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer">✕</button>
+      <button onClick={onClose} className="ml-2 text-slate-400 hover:text-slate-600 cursor-pointer">✕</button>
     </div>
   );
 }
@@ -532,16 +532,16 @@ export default function AdminDataWizard() {
   // Helper: input classes
   const inputClass = (field) =>
     `w-full px-4 py-3 rounded-xl text-sm font-medium border transition-all duration-200 outline-none
-     bg-white dark:bg-slate-800/60 
+     bg-white 
      ${fieldErrors[field]
-       ? 'border-red-400 dark:border-red-500 focus:ring-2 focus:ring-red-300 dark:focus:ring-red-800'
-       : 'border-slate-200 dark:border-slate-700 focus:border-orange-500 dark:focus:border-orange-500 focus:ring-2 focus:ring-orange-200 dark:focus:ring-orange-900'
+       ? 'border-red-400 focus:ring-2 focus:ring-red-300'
+       : 'border-slate-200 focus:border-orange-500 focus:ring-2 focus:ring-orange-200'
      }
-     text-slate-800 dark:text-slate-100 placeholder:text-slate-350 dark:placeholder:text-slate-500`;
+     text-slate-800 placeholder:text-slate-350`;
 
-  const labelClass = 'block text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5';
+  const labelClass = 'block text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-1.5';
 
-  const cardClass = 'bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xs';
+  const cardClass = 'bg-white border border-slate-200/60 rounded-3xl shadow-xs';
 
   // ── RENDER: WIZARD COMPLETE ──
   if (wizardComplete) {
@@ -552,15 +552,15 @@ export default function AdminDataWizard() {
         {/* Success hero */}
         <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
           {/* Decorative bg */}
-          <div className="absolute inset-0 bg-orange-500/5 dark:bg-orange-500/10" />
+          <div className="absolute inset-0 bg-orange-500/5" />
           <div className="relative z-10">
             <div className="mx-auto w-20 h-20 bg-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
               <Check className="w-10 h-10 text-white" strokeWidth={3} />
             </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2">
               Semua Data Berhasil Tersimpan!
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto">
+            <p className="text-slate-500 text-sm max-w-md mx-auto">
               Data Rumah, Kartu Keluarga, dan Warga telah berhasil dikirim ke server dan tersimpan di database.
             </p>
           </div>
@@ -571,58 +571,58 @@ export default function AdminDataWizard() {
           {/* House summary */}
           <div className={`${cardClass} p-6`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl">
-                <Home className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                <Home className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Data Rumah</h3>
+                <h3 className="font-extrabold text-sm text-slate-800">Data Rumah</h3>
                 <span className="text-[10px] font-bold text-blue-500 font-mono">ID: {summaryData.house?.id}</span>
               </div>
             </div>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400 font-semibold">Blok</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.house?.blok}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Nomor</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.house?.nomor}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Alamat</span><span className="font-bold text-slate-700 dark:text-slate-200 text-right max-w-[60%]">{summaryData.house?.alamat}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Status</span><span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${summaryData.house?.status === 'pribadi' ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-600'}`}>{summaryData.house?.status}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-semibold">Blok</span><span className="font-bold text-slate-700">{summaryData.house?.blok}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Nomor</span><span className="font-bold text-slate-700">{summaryData.house?.nomor}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Alamat</span><span className="font-bold text-slate-700 text-right max-w-[60%]">{summaryData.house?.alamat}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Status</span><span className={`px-2 py-0.5 rounded-lg text-[10px] font-black uppercase ${summaryData.house?.status === 'pribadi' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{summaryData.house?.status}</span></div>
             </div>
           </div>
 
           {/* Resident summary */}
           <div className={`${cardClass} p-6`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 rounded-xl">
-                <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                <CreditCard className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kartu Keluarga</h3>
+                <h3 className="font-extrabold text-sm text-slate-800">Kartu Keluarga</h3>
                 <span className="text-[10px] font-bold text-purple-500 font-mono">Family ID: {summaryData.resident?.id}</span>
               </div>
             </div>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400 font-semibold">No. KK</span><span className="font-bold text-slate-700 dark:text-slate-200 font-mono">{summaryData.resident?.noKK}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Rumah (ID)</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.resident?.home}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Kepala Keluarga (ID)</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.resident?.KepalaKeluarga}</span></div>
+              <div className="flex justify-between"><span className="text-slate-400 font-semibold">No. KK</span><span className="font-bold text-slate-700 font-mono">{summaryData.resident?.noKK}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Rumah (ID)</span><span className="font-bold text-slate-700">{summaryData.resident?.home}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Kepala Keluarga (ID)</span><span className="font-bold text-slate-700">{summaryData.resident?.KepalaKeluarga}</span></div>
             </div>
           </div>
 
           {/* Warga summary */}
           <div className={`${cardClass} p-6`}>
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 rounded-xl">
-                <UserPlus className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                <UserPlus className="w-5 h-5 text-orange-600" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Data Warga</h3>
+                <h3 className="font-extrabold text-sm text-slate-800">Data Warga</h3>
                 <span className="text-[10px] font-bold text-emerald-500">Tersimpan</span>
               </div>
             </div>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between"><span className="text-slate-400 font-semibold">Nama</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.nama}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">NIK</span><span className="font-bold text-slate-700 dark:text-slate-200 font-mono text-[10px]">{summaryData.warga?.nik}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Gender</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.jenisKelamin}</span></div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2">
+              <div className="flex justify-between"><span className="text-slate-400 font-semibold">Nama</span><span className="font-bold text-slate-700">{summaryData.warga?.nama}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">NIK</span><span className="font-bold text-slate-700 font-mono text-[10px]">{summaryData.warga?.nik}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Gender</span><span className="font-bold text-slate-700">{summaryData.warga?.jenisKelamin}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2">
                 <span className="text-slate-400 font-semibold">Tgl Lahir</span>
-                <span className="font-bold text-slate-700 dark:text-slate-200">
+                <span className="font-bold text-slate-700">
                   {(() => {
                     const val = summaryData.warga?.tglLahir;
                     if (!val) return '-';
@@ -641,51 +641,51 @@ export default function AdminDataWizard() {
                   })()}
                 </span>
               </div>
-              <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">No HP</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.noHp}</span></div>
+              <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">No HP</span><span className="font-bold text-slate-700">{summaryData.warga?.noHp}</span></div>
             </div>
           </div>
         </div>
 
         {createdAccount ? (
-          <div className={`${cardClass} p-6 border-orange-500/30 dark:border-orange-500/20 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
+          <div className={`${cardClass} p-6 border-orange-500/30 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 rounded-xl">
+              <div className="p-2.5 bg-orange-500/10 text-orange-600 rounded-xl">
                 <Key className="w-5 h-5 text-orange-500" />
               </div>
               <div>
-                <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kredensial Akun Login Warga</h3>
+                <h3 className="font-extrabold text-sm text-slate-800">Kredensial Akun Login Warga</h3>
                 <p className="text-[10px] text-slate-400">Bagikan akun sementara ini kepada Kepala Keluarga untuk login pertama kali.</p>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-3 font-mono">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3 font-mono">
               <div className="flex justify-between items-center">
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Username</span>
-                  <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.username}</span>
+                  <span className="font-black text-slate-800">{createdAccount.username}</span>
                 </div>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(createdAccount.username);
                     setToast({ type: 'success', message: 'Username disalin!' });
                   }}
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                  className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer transition-colors"
                   title="Salin Username"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
+              <div className="flex justify-between items-center border-t border-slate-100 pt-3">
                 <div>
                   <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Sandi Sementara</span>
-                  <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.temporaryPassword}</span>
+                  <span className="font-black text-slate-800">{createdAccount.temporaryPassword}</span>
                 </div>
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(createdAccount.temporaryPassword);
                     setToast({ type: 'success', message: 'Sandi sementara disalin!' });
                   }}
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                  className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer transition-colors"
                   title="Salin Sandi"
                 >
                   <Copy className="w-4 h-4" />
@@ -694,9 +694,9 @@ export default function AdminDataWizard() {
             </div>
           </div>
         ) : (
-          <div className={`${cardClass} p-6 bg-slate-50/50 dark:bg-slate-950/20 max-w-xl mx-auto text-center space-y-4`}>
+          <div className={`${cardClass} p-6 bg-slate-50/50 max-w-xl mx-auto text-center space-y-4`}>
             <div className="space-y-1">
-              <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">Langkah Akhir: Buat Akses Akun Warga</h4>
+              <h4 className="font-extrabold text-sm text-slate-800">Langkah Akhir: Buat Akses Akun Warga</h4>
               <p className="text-[11px] text-slate-400">Buat kredensial login portal warga secara otomatis untuk keluarga baru ini.</p>
             </div>
             <button
@@ -734,13 +734,13 @@ export default function AdminDataWizard() {
       {/* MODE SELECTOR */}
       {!wizardComplete && (
         <div className="flex justify-center">
-          <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl flex gap-1 border border-slate-200/40 dark:border-slate-700 max-w-md w-full font-sans">
+          <div className="bg-slate-100 p-1 rounded-2xl flex gap-1 border border-slate-200/40 max-w-md w-full font-sans">
             <button
               onClick={() => { setWizardMode('one-step'); handleReset(); }}
               className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 wizardMode === 'one-step'
-                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
+                  ? 'bg-white text-slate-800 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               🚀 Satu Langkah (Rekomendasi)
@@ -749,8 +749,8 @@ export default function AdminDataWizard() {
               onClick={() => { setWizardMode('stepper'); handleReset(); }}
               className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
                 wizardMode === 'stepper'
-                  ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-350'
+                  ? 'bg-white text-slate-800 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               📋 Bertahap (Stepper)
@@ -765,15 +765,15 @@ export default function AdminDataWizard() {
           {/* Success hero */}
           <div className={`${cardClass} p-8 sm:p-12 text-center relative overflow-hidden`}>
             {/* Decorative bg */}
-            <div className="absolute inset-0 bg-orange-500/5 dark:bg-orange-500/10" />
+            <div className="absolute inset-0 bg-orange-500/5" />
             <div className="relative z-10">
               <div className="mx-auto w-20 h-20 bg-orange-500 rounded-3xl flex items-center justify-center mb-6 shadow-lg shadow-orange-500/25 animate-bounce-slow">
                 <Check className="w-10 h-10 text-white" strokeWidth={3} />
               </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mb-2">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 mb-2">
                 Pendaftaran Berhasil Disimpan!
               </h2>
-              <p className="text-slate-500 dark:text-slate-400 text-sm max-w-md mx-auto">
+              <p className="text-slate-500 text-sm max-w-md mx-auto">
                 Seluruh data rumah, Kartu Keluarga, dan warga telah terhubung di database.
               </p>
             </div>
@@ -784,100 +784,100 @@ export default function AdminDataWizard() {
             {/* House summary */}
             <div className={`${cardClass} p-6`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-blue-500/10 dark:bg-blue-500/20 rounded-xl">
-                  <Home className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="p-2.5 bg-blue-500/10 rounded-xl">
+                  <Home className="w-5 h-5 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Data Rumah</h3>
+                  <h3 className="font-extrabold text-sm text-slate-800">Data Rumah</h3>
                   <span className="text-[10px] font-bold text-blue-500 font-mono">ID: {summaryData.house?.id}</span>
                 </div>
               </div>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-slate-400 font-semibold">Blok</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.house?.blok}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Nomor</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.house?.nomor}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Alamat</span><span className="font-bold text-slate-700 dark:text-slate-200 text-right max-w-[60%]">{summaryData.house?.alamat}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Status</span><span className="px-2 py-0.5 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 rounded-md text-[10px] font-black uppercase">Pribadi</span></div>
+                <div className="flex justify-between"><span className="text-slate-400 font-semibold">Blok</span><span className="font-bold text-slate-700">{summaryData.house?.blok}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Nomor</span><span className="font-bold text-slate-700">{summaryData.house?.nomor}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Alamat</span><span className="font-bold text-slate-700 text-right max-w-[60%]">{summaryData.house?.alamat}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Status</span><span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-md text-[10px] font-black uppercase">Pribadi</span></div>
               </div>
             </div>
 
             {/* Resident summary */}
             <div className={`${cardClass} p-6`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-purple-500/10 dark:bg-purple-500/20 rounded-xl">
-                  <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div className="p-2.5 bg-purple-500/10 rounded-xl">
+                  <CreditCard className="w-5 h-5 text-purple-600" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kartu Keluarga</h3>
+                  <h3 className="font-extrabold text-sm text-slate-800">Kartu Keluarga</h3>
                   <span className="text-[10px] font-bold text-purple-500 font-mono">Family ID: {summaryData.resident?.id}</span>
                 </div>
               </div>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-slate-400 font-semibold">No. KK</span><span className="font-bold text-slate-700 dark:text-slate-200 font-mono">{summaryData.resident?.noKK}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Rumah (ID)</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.resident?.home}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Kepala Keluarga (ID)</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.resident?.KepalaKeluarga}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400 font-semibold">No. KK</span><span className="font-bold text-slate-700 font-mono">{summaryData.resident?.noKK}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Rumah (ID)</span><span className="font-bold text-slate-700">{summaryData.resident?.home}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Kepala Keluarga (ID)</span><span className="font-bold text-slate-700">{summaryData.resident?.KepalaKeluarga}</span></div>
               </div>
             </div>
 
             {/* Warga summary */}
             <div className={`${cardClass} p-6`}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 rounded-xl">
-                  <UserPlus className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+                <div className="p-2.5 bg-orange-500/10 rounded-xl">
+                  <UserPlus className="w-5 h-5 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kepala Keluarga</h3>
+                  <h3 className="font-extrabold text-sm text-slate-800">Kepala Keluarga</h3>
                   <span className="text-[10px] font-bold text-emerald-500">Tersimpan</span>
                 </div>
               </div>
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between"><span className="text-slate-400 font-semibold">Nama</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.nama}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">NIK</span><span className="font-bold text-slate-700 dark:text-slate-200 font-mono text-[10px]">{summaryData.warga?.nik}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">Gender</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.jenisKelamin || summaryData.warga?.jenisKelaminKepalaKeluarga}</span></div>
-                <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-2"><span className="text-slate-400 font-semibold">No HP</span><span className="font-bold text-slate-700 dark:text-slate-200">{summaryData.warga?.noHp || summaryData.warga?.noHpKepalaKeluarga}</span></div>
+                <div className="flex justify-between"><span className="text-slate-400 font-semibold">Nama</span><span className="font-bold text-slate-700">{summaryData.warga?.nama}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">NIK</span><span className="font-bold text-slate-700 font-mono text-[10px]">{summaryData.warga?.nik}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">Gender</span><span className="font-bold text-slate-700">{summaryData.warga?.jenisKelamin || summaryData.warga?.jenisKelaminKepalaKeluarga}</span></div>
+                <div className="flex justify-between border-t border-slate-100 pt-2"><span className="text-slate-400 font-semibold">No HP</span><span className="font-bold text-slate-700">{summaryData.warga?.noHp || summaryData.warga?.noHpKepalaKeluarga}</span></div>
               </div>
             </div>
           </div>
 
           {createdAccount ? (
-            <div className={`${cardClass} p-6 border-orange-500/30 dark:border-orange-500/20 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
+            <div className={`${cardClass} p-6 border-orange-500/30 bg-orange-500/[0.02] max-w-xl mx-auto space-y-4`}>
               <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 rounded-xl">
+                <div className="p-2.5 bg-orange-500/10 text-orange-600 rounded-xl">
                   <Key className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-800 dark:text-white">Kredensial Akun Login Warga</h3>
+                  <h3 className="font-extrabold text-sm text-slate-800">Kredensial Akun Login Warga</h3>
                   <p className="text-[10px] text-slate-400">Bagikan akun sementara ini kepada Kepala Keluarga untuk login pertama kali.</p>
                 </div>
               </div>
 
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-3 font-mono">
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-3 font-mono">
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Username</span>
-                    <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.username}</span>
+                    <span className="font-black text-slate-800">{createdAccount.username}</span>
                   </div>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(createdAccount.username);
                       setToast({ type: 'success', message: 'Username disalin!' });
                     }}
-                    className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                    className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer transition-colors"
                     title="Salin Username"
                   >
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="flex justify-between items-center border-t border-slate-100 dark:border-slate-800 pt-3">
+                <div className="flex justify-between items-center border-t border-slate-100 pt-3">
                   <div>
                     <span className="text-slate-400 block text-[9px] uppercase tracking-wider font-sans font-bold">Sandi Sementara</span>
-                    <span className="font-black text-slate-800 dark:text-slate-200">{createdAccount.temporaryPassword}</span>
+                    <span className="font-black text-slate-800">{createdAccount.temporaryPassword}</span>
                   </div>
                   <button
                     onClick={() => {
                       navigator.clipboard.writeText(createdAccount.temporaryPassword);
                       setToast({ type: 'success', message: 'Sandi sementara disalin!' });
                     }}
-                    className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400 cursor-pointer transition-colors"
+                    className="p-2 hover:bg-slate-200 rounded-lg text-slate-500 cursor-pointer transition-colors"
                     title="Salin Sandi"
                   >
                     <Copy className="w-4 h-4" />
@@ -886,9 +886,9 @@ export default function AdminDataWizard() {
               </div>
             </div>
           ) : (
-            <div className={`${cardClass} p-6 bg-slate-50/50 dark:bg-slate-950/20 max-w-xl mx-auto text-center space-y-4`}>
+            <div className={`${cardClass} p-6 bg-slate-50/50 max-w-xl mx-auto text-center space-y-4`}>
               <div className="space-y-1">
-                <h4 className="font-extrabold text-sm text-slate-800 dark:text-white">Langkah Akhir: Buat Akses Akun Warga</h4>
+                <h4 className="font-extrabold text-sm text-slate-800">Langkah Akhir: Buat Akses Akun Warga</h4>
                 <p className="text-[11px] text-slate-400">Buat kredensial login portal warga secara otomatis untuk keluarga baru ini.</p>
               </div>
               <button
@@ -931,12 +931,12 @@ export default function AdminDataWizard() {
           <div className="lg:col-span-2 space-y-6">
             {/* 1. Rumah */}
             <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-805 pb-3">
-                <div className="p-2 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-lg">
+              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-blue-500/10 text-blue-600 rounded-lg">
                   <Home className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">1. Informasi Rumah Hunian</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">1. Informasi Rumah Hunian</h3>
                   <p className="text-[10px] text-slate-400">Masukkan detail alamat blok, nomor, dan lokasi fisik rumah.</p>
                 </div>
               </div>
@@ -991,8 +991,8 @@ export default function AdminDataWizard() {
                         onClick={() => setOneStepForm({ ...oneStepForm, statusRumah: opt })}
                         className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
                           ${oneStepForm.statusRumah === opt
-                            ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
+                            ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-500 hover:border-slate-350'
                           }`}
                       >
                         {opt}
@@ -1006,12 +1006,12 @@ export default function AdminDataWizard() {
 
             {/* 2. Kartu Keluarga */}
             <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-805 pb-3">
-                <div className="p-2 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-lg">
+              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-purple-500/10 text-purple-600 rounded-lg">
                   <CreditCard className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">2. Nomor Kartu Keluarga (KK)</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">2. Nomor Kartu Keluarga (KK)</h3>
                   <p className="text-[10px] text-slate-400">Nomor registrasi KK resmi yang diterbitkan Dukcapil.</p>
                 </div>
               </div>
@@ -1031,12 +1031,12 @@ export default function AdminDataWizard() {
 
             {/* 3. Kepala Keluarga */}
             <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-805 pb-3">
-                <div className="p-2 bg-orange-500/10 text-orange-600 dark:text-orange-450 rounded-lg">
+              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-3">
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-lg">
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">3. Biodata Kepala Keluarga</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">3. Biodata Kepala Keluarga</h3>
                   <p className="text-[10px] text-slate-400">Data identitas diri lengkap dari Kepala Keluarga yang bersangkutan.</p>
                 </div>
               </div>
@@ -1079,8 +1079,8 @@ export default function AdminDataWizard() {
                           onClick={() => setOneStepForm({ ...oneStepForm, jenisKelaminKepalaKeluarga: g })}
                           className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer
                             ${oneStepForm.jenisKelaminKepalaKeluarga === g
-                              ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
-                              : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-300'
+                              ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
                             }`}
                         >
                           {g === 'Laki-laki' ? '👨 Laki-laki' : '👩 Perempuan'}
@@ -1149,12 +1149,12 @@ export default function AdminDataWizard() {
 
             {/* 4. Kredensial */}
             <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 dark:border-slate-805 pb-3">
+              <div className="flex items-center gap-3 mb-6 border-b border-slate-100 pb-3">
                 <div className="p-2 bg-amber-500/10 text-amber-600 rounded-lg">
                   <Key className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-slate-900 dark:text-white">4. Kredensial Akun (Opsional)</h3>
+                  <h3 className="font-extrabold text-sm text-slate-900">4. Kredensial Akun (Opsional)</h3>
                   <p className="text-[10px] text-slate-400">Kustomisasi username & password. Biarkan kosong untuk generate otomatis.</p>
                 </div>
               </div>
@@ -1186,11 +1186,11 @@ export default function AdminDataWizard() {
           {/* Right Column: Actions */}
           <div className="space-y-6">
             <div className={`${cardClass} p-6 space-y-4`}>
-              <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                 <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                 Daftar Satu Langkah
               </h4>
-              <p className="text-[11px] text-slate-450 dark:text-slate-500 leading-relaxed font-medium">
+              <p className="text-[11px] text-slate-450 leading-relaxed font-medium">
                 Pendaftaran mode Satu Langkah secara otomatis mengamankan database dari rumah duplikat dan KK ganda dengan mengeksekusi validasi transaksional di server.
               </p>
               <button
@@ -1213,7 +1213,7 @@ export default function AdminDataWizard() {
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full py-2 border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 rounded-xl font-bold text-xs cursor-pointer transition-colors"
+                className="w-full py-2 border border-slate-200 text-slate-500 hover:text-slate-700 rounded-xl font-bold text-xs cursor-pointer transition-colors"
               >
                 Reset Formulir
               </button>
@@ -1227,9 +1227,9 @@ export default function AdminDataWizard() {
                   setIsResidentsOpen(!isResidentsOpen);
                   if (!isResidentsOpen) fetchResidents();
                 }}
-                className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                   <Users className="w-3.5 h-3.5 text-indigo-500" />
                   Data KK Terdaftar ({residentsList.length})
                 </h4>
@@ -1237,7 +1237,7 @@ export default function AdminDataWizard() {
               </button>
 
               {isResidentsOpen && (
-                <div className="border-t border-slate-100 dark:border-slate-800">
+                <div className="border-t border-slate-100">
                   {isLoadingResidents ? (
                     <div className="p-6 text-center">
                       <Loader2 className="w-5 h-5 animate-spin text-slate-400 mx-auto mb-2" />
@@ -1250,18 +1250,18 @@ export default function AdminDataWizard() {
                   ) : (
                     <div className="max-h-64 overflow-y-auto">
                       <table className="w-full text-[11px]">
-                        <thead className="sticky top-0 bg-slate-50 dark:bg-slate-950">
-                          <tr className="text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                        <thead className="sticky top-0 bg-slate-50">
+                          <tr className="text-slate-400 font-extrabold uppercase tracking-wider border-b border-slate-100">
                             <th className="px-4 py-2.5 text-left">ID</th>
                             <th className="px-4 py-2.5 text-left">No. KK</th>
                             <th className="px-4 py-2.5 text-left">Rumah</th>
                             <th className="px-4 py-2.5 text-left">Kepala</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                           {residentsList.map(r => (
-                            <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
-                              <td className="px-4 py-2.5 font-mono font-bold text-slate-650 dark:text-slate-300">{r.id}</td>
+                            <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="px-4 py-2.5 font-mono font-bold text-slate-650">{r.id}</td>
                               <td className="px-4 py-2.5 font-mono text-slate-500">{r.no_kk}</td>
                               <td className="px-4 py-2.5 font-bold text-slate-500">{r.house_id}</td>
                               <td className="px-4 py-2.5 font-bold text-slate-500">{r.kepala_keluarga_id}</td>
@@ -1285,7 +1285,7 @@ export default function AdminDataWizard() {
           <div className={`${cardClass} p-6 sm:p-8 font-sans`}>
             <div className="flex items-center justify-between relative">
               {/* Connector lines */}
-              <div className="absolute top-6 left-0 right-0 h-[2px] bg-slate-200 dark:bg-slate-800 mx-16 sm:mx-24" />
+              <div className="absolute top-6 left-0 right-0 h-[2px] bg-slate-200 mx-16 sm:mx-24" />
               <div
                 className="absolute top-6 left-0 h-[2px] bg-orange-500 mx-16 sm:mx-24 transition-all duration-700 ease-out"
                 style={{
@@ -1307,18 +1307,18 @@ export default function AdminDataWizard() {
                           ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-100'
                           : isCurrent
                             ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/30 animate-pulse-slow scale-110'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500'
+                            : 'bg-slate-100 text-slate-400'
                         }`}
                     >
                       {isCompleted ? <Check className="w-5 h-5" strokeWidth={3} /> : <StepIcon className="w-5 h-5" />}
                     </div>
                     {/* Label */}
                     <span className={`mt-2.5 text-xs font-extrabold transition-colors duration-300
-                      ${isCurrent ? 'text-orange-600 dark:text-orange-400' : isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}
+                      ${isCurrent ? 'text-orange-600' : isCompleted ? 'text-emerald-600' : 'text-slate-400'}`}
                     >
                       {step.title}
                     </span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium hidden sm:block max-w-[120px]">
+                    <span className="text-[10px] text-slate-400 font-medium hidden sm:block max-w-[120px]">
                       {step.subtitle}
                     </span>
                   </div>
@@ -1331,7 +1331,7 @@ export default function AdminDataWizard() {
             {/* Left: Form Card */}
             <div className="lg:col-span-2">
               <div className={`${cardClass} p-6 sm:p-8 relative overflow-hidden`}>
-                <div className="absolute top-0 right-0 w-40 h-40 bg-orange-500/5 dark:bg-orange-500/10 rounded-bl-full" />
+                <div className="absolute top-0 right-0 w-40 h-40 bg-orange-500/5 rounded-bl-full" />
                 <div className="relative z-10">
                   {/* Form Header */}
                   <div className="flex items-center gap-3 mb-6">
@@ -1341,7 +1341,7 @@ export default function AdminDataWizard() {
                       {currentStep === 3 && <UserPlus className="w-5 h-5" />}
                     </div>
                     <div>
-                      <h3 className="font-black text-lg text-slate-900 dark:text-white">
+                      <h3 className="font-black text-lg text-slate-900">
                         Step {currentStep}: {STEPS[currentStep - 1].title}
                       </h3>
                       <p className="text-xs text-slate-450 font-semibold">
@@ -1403,8 +1403,8 @@ export default function AdminDataWizard() {
                               onClick={() => setHouseForm({ ...houseForm, status: opt })}
                               className={`py-2 px-3.5 rounded-xl text-xs font-bold border-2 transition-all duration-200 cursor-pointer capitalize
                                 ${houseForm.status === opt
-                                  ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
-                                  : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
+                                  ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
+                                  : 'border-slate-200 bg-white text-slate-500 hover:border-slate-350'
                                 }`}
                             >
                               {opt}
@@ -1419,10 +1419,10 @@ export default function AdminDataWizard() {
                   {/* ── STEP 2 FORM ── */}
                   {currentStep === 2 && (
                     <div className="space-y-5">
-                      <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                      <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl">
                         <Building2 className="w-4 h-4 text-blue-505" />
-                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300">
-                          ID Rumah (otomatis): <span className="font-mono bg-blue-100 dark:bg-blue-900/50 px-2 py-0.5 rounded-lg">{houseId}</span>
+                        <span className="text-xs font-bold text-blue-700">
+                          ID Rumah (otomatis): <span className="font-mono bg-blue-100 px-2 py-0.5 rounded-lg">{houseId}</span>
                         </span>
                       </div>
 
@@ -1449,7 +1449,7 @@ export default function AdminDataWizard() {
                           min="1"
                         />
                         {fieldErrors.KepalaKeluarga && <p className="text-red-500 text-[11px] font-semibold mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{fieldErrors.KepalaKeluarga}</p>}
-                        <p className="text-[10px] text-slate-400 mt-1 font-semibold">⚠️ Perhatikan: field ini case-sensitive (<code className="bg-slate-100 dark:bg-slate-800 px-1 rounded text-orange-600 dark:text-orange-450 font-bold">KepalaKeluarga</code> — huruf K besar)</p>
+                        <p className="text-[10px] text-slate-400 mt-1 font-semibold">⚠️ Perhatikan: field ini case-sensitive (<code className="bg-slate-100 px-1 rounded text-orange-600 font-bold">KepalaKeluarga</code> — huruf K besar)</p>
                       </div>
                     </div>
                   )}
@@ -1458,13 +1458,13 @@ export default function AdminDataWizard() {
                   {currentStep === 3 && (
                     <div className="space-y-5">
                       <div className="flex flex-wrap gap-2">
-                        <div className="flex items-center gap-2 p-2.5 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl">
+                        <div className="flex items-center gap-2 p-2.5 bg-blue-50 border border-blue-200 rounded-xl">
                           <Building2 className="w-3.5 h-3.5 text-blue-500" />
-                          <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">houseId: <span className="font-mono">{houseId}</span></span>
+                          <span className="text-[11px] font-bold text-blue-700">houseId: <span className="font-mono">{houseId}</span></span>
                         </div>
-                        <div className="flex items-center gap-2 p-2.5 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-xl">
+                        <div className="flex items-center gap-2 p-2.5 bg-purple-50 border border-purple-200 rounded-xl">
                           <Users className="w-3.5 h-3.5 text-purple-500" />
-                          <span className="text-[11px] font-bold text-purple-700 dark:text-purple-300">fammilyId: <span className="font-mono">{familyId}</span></span>
+                          <span className="text-[11px] font-bold text-purple-700">fammilyId: <span className="font-mono">{familyId}</span></span>
                         </div>
                       </div>
 
@@ -1504,8 +1504,8 @@ export default function AdminDataWizard() {
                                 onClick={() => setWargaForm({ ...wargaForm, jenisKelamin: g })}
                                 className={`flex-1 py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all duration-200 cursor-pointer
                                   ${wargaForm.jenisKelamin === g
-                                    ? 'border-orange-500 bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 shadow-sm'
-                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/40 text-slate-500 hover:border-slate-350'
+                                    ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm'
+                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-350'
                                   }`}
                               >
                                 {g === 'Laki-laki' ? '👨 Laki-laki' : '👩 Perempuan'}
@@ -1573,7 +1573,7 @@ export default function AdminDataWizard() {
                     <button
                       type="button"
                       onClick={handleReset}
-                      className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-350 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer"
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-xl hover:bg-slate-100 transition-all cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       Reset Wizard
@@ -1589,7 +1589,7 @@ export default function AdminDataWizard() {
                       disabled={isLoading}
                       className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-sm font-bold transition-all duration-200 cursor-pointer shadow-lg
                         ${isLoading
-                          ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed shadow-none'
+                          ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
                           : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20 hover:scale-[1.02] active:scale-95'
                         }`}
                     >
@@ -1623,20 +1623,20 @@ export default function AdminDataWizard() {
             <div className="space-y-6">
               {/* Stored IDs */}
               <div className={`${cardClass} p-5`}>
-                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
                   ID yang Tersimpan
                 </h4>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-xs font-bold text-slate-500">🏠 House ID</span>
-                    <span className={`text-sm font-black font-mono ${houseId !== null ? 'text-orange-600 dark:text-orange-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                    <span className={`text-sm font-black font-mono ${houseId !== null ? 'text-orange-600' : 'text-slate-300'}`}>
                       {houseId !== null ? houseId : '—'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-xs font-bold text-slate-500">👨‍👩‍👧 Family ID</span>
-                    <span className={`text-sm font-black font-mono ${familyId !== null ? 'text-purple-600 dark:text-purple-400' : 'text-slate-300 dark:text-slate-600'}`}>
+                    <span className={`text-sm font-black font-mono ${familyId !== null ? 'text-purple-600' : 'text-slate-300'}`}>
                       {familyId !== null ? familyId : '—'}
                     </span>
                   </div>
@@ -1645,7 +1645,7 @@ export default function AdminDataWizard() {
 
               {/* Alur Relasi */}
               <div className={`${cardClass} p-5`}>
-                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">
+                <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-4">
                   <ClipboardList className="w-3.5 h-3.5 text-blue-500" />
                   Alur Relasi Data
                 </h4>
@@ -1655,10 +1655,10 @@ export default function AdminDataWizard() {
                       key={step.id}
                       className={`flex items-center gap-3 p-3 rounded-xl border text-xs font-bold transition-all duration-300
                         ${completedSteps.includes(step.id)
-                          ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                           : currentStep === step.id
-                            ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
-                            : 'bg-slate-50 dark:bg-slate-800/30 border-slate-150 dark:border-slate-800 text-slate-455'
+                            ? 'bg-blue-50 border-blue-200 text-blue-700'
+                            : 'bg-slate-50 border-slate-150 text-slate-455'
                         }`}
                     >
                       <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black
@@ -1666,13 +1666,13 @@ export default function AdminDataWizard() {
                           ? 'bg-emerald-500 text-white'
                           : currentStep === step.id
                             ? 'bg-blue-500 text-white'
-                            : 'bg-slate-200 dark:bg-slate-700 text-slate-400'
+                            : 'bg-slate-200 text-slate-400'
                         }`}
                       >
                         {completedSteps.includes(step.id) ? '✓' : step.id}
                       </span>
                       <span className="flex-1">{step.endpoint}</span>
-                      {idx < STEPS.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-305 dark:text-slate-655" />}
+                      {idx < STEPS.length - 1 && <ChevronRight className="w-3.5 h-3.5 text-slate-305" />}
                     </div>
                   ))}
                 </div>
@@ -1686,9 +1686,9 @@ export default function AdminDataWizard() {
                     setIsResidentsOpen(!isResidentsOpen);
                     if (!isResidentsOpen) fetchResidents();
                   }}
-                  className="w-full p-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
+                  className="w-full p-5 flex items-center justify-between hover:bg-slate-50 transition-colors cursor-pointer"
                 >
-                  <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                  <h4 className="flex items-center gap-2 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                     <Users className="w-3.5 h-3.5 text-indigo-505" />
                     Data KK Terdaftar ({residentsList.length})
                   </h4>
@@ -1696,7 +1696,7 @@ export default function AdminDataWizard() {
                 </button>
 
                 {isResidentsOpen && (
-                  <div className="border-t border-slate-100 dark:border-slate-800">
+                  <div className="border-t border-slate-100">
                     {isLoadingResidents ? (
                       <div className="p-6 text-center">
                         <Loader2 className="w-5 h-5 animate-spin text-slate-400 mx-auto mb-2" />
@@ -1709,18 +1709,18 @@ export default function AdminDataWizard() {
                     ) : (
                       <div className="max-h-64 overflow-y-auto">
                         <table className="w-full text-[11px]">
-                          <thead className="sticky top-0 bg-slate-50 dark:bg-slate-950">
-                            <tr className="text-slate-450 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                          <thead className="sticky top-0 bg-slate-50">
+                            <tr className="text-slate-450 font-extrabold uppercase tracking-wider border-b border-slate-100">
                               <th className="px-4 py-2.5 text-left">ID</th>
                               <th className="px-4 py-2.5 text-left">No. KK</th>
                               <th className="px-4 py-2.5 text-left">Rumah</th>
                               <th className="px-4 py-2.5 text-left">Kepala</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                          <tbody className="divide-y divide-slate-100">
                             {residentsList.map(r => (
-                              <tr key={r.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
-                                <td className="px-4 py-2.5 font-mono font-bold text-slate-650 dark:text-slate-300">{r.id}</td>
+                              <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                                <td className="px-4 py-2.5 font-mono font-bold text-slate-650">{r.id}</td>
                                 <td className="px-4 py-2.5 font-mono text-slate-505">{r.no_kk}</td>
                                 <td className="px-4 py-2.5 font-bold text-slate-500">{r.house_id}</td>
                                 <td className="px-4 py-2.5 font-bold text-slate-505">{r.kepala_keluarga_id}</td>

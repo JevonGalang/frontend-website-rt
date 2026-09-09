@@ -41,16 +41,16 @@ export default function Agenda({ agendas }) {
   return (
     <section
       id="agenda"
-      className="pt-24 sm:pt-28 pb-16 bg-white dark:bg-slate-950"
+      className="pt-24 sm:pt-28 pb-16 bg-white"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
         <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+          <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
             Agenda Kegiatan
           </h2>
-          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
+          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900">
             Kalender & Jadwal Acara Warga
           </p>
           <div className="w-12 h-1 bg-emerald-500 mx-auto rounded-full"></div>
@@ -59,13 +59,13 @@ export default function Agenda({ agendas }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
           
           {/* Column 1: Kalender Acara (Left Side) */}
-          <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
+          <div className="lg:col-span-5 bg-slate-50 border border-slate-200/60 rounded-3xl p-6 flex flex-col justify-between shadow-sm">
             <div>
               <div className="flex items-center justify-between mb-6">
-                <span className="font-extrabold text-lg text-slate-900 dark:text-white">
+                <span className="font-extrabold text-lg text-slate-900">
                   Juli 2026
                 </span>
-                <span className="text-xs font-semibold px-3 py-1 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 rounded-full">
+                <span className="text-xs font-semibold px-3 py-1 bg-emerald-500/15 text-emerald-600 rounded-full">
                   Agenda Aktif
                 </span>
               </div>
@@ -93,8 +93,8 @@ export default function Agenda({ agendas }) {
                           : isSelected
                           ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20 scale-105'
                           : isEvent
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white cursor-pointer'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500 hover:text-white cursor-pointer'
+                          : 'bg-white text-slate-700 hover:bg-slate-100'
                       }`}
                     >
                       {cell.day}
@@ -109,8 +109,8 @@ export default function Agenda({ agendas }) {
             </div>
 
             {/* Calendar Footer Tip */}
-            <div className="mt-8 pt-4 border-t border-slate-200/60 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white dark:border-slate-900 inline-block"></span>
+            <div className="mt-8 pt-4 border-t border-slate-200/60 text-xs text-slate-500 flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white inline-block"></span>
               <span>Tanggal dengan lingkaran menunjukkan adanya agenda warga. Klik untuk detail.</span>
             </div>
           </div>
@@ -156,7 +156,7 @@ export default function Agenda({ agendas }) {
 
             {/* List of All Agendas */}
             <div className="space-y-4 flex-1">
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-lg flex items-center justify-between">
+              <h4 className="font-extrabold text-slate-900 text-lg flex items-center justify-between">
                 <span>Daftar Agenda Mendatang</span>
                 <span className="text-xs font-semibold text-slate-500">Total: {agendas.length}</span>
               </h4>
@@ -168,23 +168,23 @@ export default function Agenda({ agendas }) {
                     onClick={() => setSelectedAgenda(agenda)}
                     className={`flex items-start justify-between p-4 rounded-2xl border transition-all duration-200 cursor-pointer ${
                       selectedAgenda && selectedAgenda.id === agenda.id
-                        ? 'bg-slate-100 dark:bg-slate-800 border-emerald-500/40 shadow-sm'
-                        : 'bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        ? 'bg-slate-100 border-emerald-500/40 shadow-sm'
+                        : 'bg-white border-slate-200/60 hover:bg-slate-50'
                     }`}
                   >
                     <div className="space-y-1.5 pr-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 uppercase">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 uppercase">
                           {agenda.category}
                         </span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
+                        <span className="text-xs text-slate-400 font-medium">
                           {formatDateToDDMMYYYY(agenda.date)}
                         </span>
                       </div>
-                      <h5 className="font-bold text-slate-900 dark:text-white text-sm sm:text-base leading-snug">
+                      <h5 className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
                         {agenda.title}
                       </h5>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                      <p className="text-xs text-slate-500 flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5" />
                         <span>{agenda.location}</span>
                       </p>

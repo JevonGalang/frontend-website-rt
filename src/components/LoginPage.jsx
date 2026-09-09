@@ -2,18 +2,17 @@ import Swal from 'sweetalert2';
 import { useState } from 'react';
 import { 
   Lock, User, LogIn, CheckCircle2, 
-  ShieldAlert, Landmark, Sun, Moon
+  ShieldAlert, Landmark
 } from 'lucide-react';
 import OtpVerificationModal from './OtpVerificationModal';
 import { setSession } from '../utils/authSession';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
+import menaraImg from '../assets/menara_vila_mutiara.png';
 
 export default function LoginPage({ 
   wargaList = [], 
-  setCurrentUser, 
-  darkMode, 
-  setDarkMode 
+  setCurrentUser 
 }) {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
@@ -131,22 +130,11 @@ export default function LoginPage({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950/90 flex flex-col justify-center relative overflow-hidden font-sans">
+    <div className="min-h-screen bg-slate-50/50 flex flex-col justify-center relative overflow-hidden font-sans">
       
       {/* Decorative background ambient blobs */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 animate-pulse" style={{ animationDelay: '2s' }}></div>
-
-      {/* Floating Theme Toggle (Top Right) */}
-      <div className="absolute top-6 right-6 z-50">
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 shadow-sm transition-all cursor-pointer"
-          aria-label="Toggle Theme"
-        >
-          {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />}
-        </button>
-      </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 w-full py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
@@ -159,45 +147,65 @@ export default function LoginPage({
                 <img src={logoRW11} alt="Logo RW 11" className="h-10 sm:h-11 w-auto object-contain drop-shadow-xs" />
               </div>
               <div className="text-left">
-                <span className="block text-2xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-amber-500 dark:from-orange-400 dark:to-amber-300 bg-clip-text text-transparent">
+                <span className="block text-2xl font-black tracking-tight bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">
                   Villa Mutiara Mas Cinere
                 </span>
-                <span className="block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none mt-1">
+                <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
                   RUKUN TETANGGA 05 / RW 11
                 </span>
               </div>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white leading-none tracking-tight">
+            <h1 className="text-4xl sm:text-5xl font-black text-slate-900 leading-none tracking-tight">
               Sistem Informasi & <br />
-              <span className="bg-gradient-to-r from-orange-600 to-amber-500 dark:from-orange-400 dark:to-amber-300 bg-clip-text text-transparent">Layanan Warga RT 05</span>
+              <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">Layanan Warga RT 05</span>
             </h1>
 
-            <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
+            <p className="text-sm text-slate-500 leading-relaxed max-w-lg">
               Akses pintu gerbang layanan digital mandiri warga. Ajukan surat pengantar, pantau transparansi buku kas keuangan, serta dapatkan pengumuman penting secara real-time.
             </p>
 
+            {/* Visual Komplek / Perumahan Banner */}
+            <div className="relative rounded-3xl overflow-hidden border border-slate-200/80 shadow-sm max-w-md group">
+              <img 
+                src={menaraImg} 
+                alt="Lingkungan Villa Mutiara Mas Cinere" 
+                className="w-full h-44 sm:h-48 object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent flex flex-col justify-end p-4">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-orange-400 bg-orange-950/60 px-2.5 py-0.5 rounded-full w-fit mb-1 backdrop-blur-xs border border-orange-500/30">
+                  Hunian Asri & Harmonis
+                </span>
+                <h4 className="text-white font-extrabold text-sm sm:text-base leading-tight">
+                  Perumahan Villa Mutiara Cinere
+                </h4>
+                <p className="text-slate-300 text-[11px] font-medium mt-0.5">
+                  Kawasan RT 05 / RW 11 Kelurahan Cinere, Kec. Limo, Depok
+                </p>
+              </div>
+            </div>
+
             {/* Biodata RT & Contoh Wilayah */}
-            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm shadow-slate-100/50 space-y-4 max-w-md text-left font-sans text-xs">
-              <h3 className="font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-wider text-[10px]">
+            <div className="bg-white/80 backdrop-blur-md border border-slate-200/60 rounded-3xl p-6 shadow-sm shadow-slate-100/50 space-y-4 max-w-md text-left font-sans text-xs">
+              <h3 className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px]">
                 Informasi & Profil Administrasi
               </h3>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 text-slate-600 dark:text-slate-350">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-3.5 text-slate-600">
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Nama Wilayah</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">Villa Mutiara Mas Cinere</span>
+                  <span className="font-bold text-slate-850">Villa Mutiara Mas Cinere</span>
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Kecamatan</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">Limo / Cinere</span>
+                  <span className="font-bold text-slate-850">Limo / Cinere</span>
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Kota</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">Depok, Jawa Barat</span>
+                  <span className="font-bold text-slate-850">Depok, Jawa Barat</span>
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Cakupan Wilayah</span>
-                  <span className="font-bold text-slate-850 dark:text-slate-200">RT 05 / RW 11</span>
+                  <span className="font-bold text-slate-850">RT 05 / RW 11</span>
                 </div>
               </div>
             </div>
@@ -205,23 +213,23 @@ export default function LoginPage({
 
           {/* Form Card Right Column */}
           <div className="lg:col-span-6 flex flex-col items-center">
-            <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl shadow-xl shadow-orange-500/5 dark:shadow-none p-6 sm:p-8 space-y-6">
+            <div className="w-full max-w-md bg-white border border-slate-200/60 rounded-3xl shadow-xl shadow-orange-500/5 p-6 sm:p-8 space-y-6">
               
               {/* Form header */}
               <div className="text-center space-y-1.5">
-                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Selamat Datang</h2>
-                <p className="text-xs text-slate-400 dark:text-slate-500">Masukkan username atau nomor NIK untuk melanjutkan</p>
+                <h2 className="text-2xl font-black text-slate-900 tracking-tight">Selamat Datang</h2>
+                <p className="text-xs text-slate-400">Masukkan username atau nomor NIK untuk melanjutkan</p>
               </div>
 
               {/* Feedback Alerts */}
               {error && (
-                <div className="p-3.5 bg-rose-50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/50 rounded-2xl text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2 animate-fade-in">
+                <div className="p-3.5 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-xs font-bold flex items-center gap-2 animate-fade-in">
                   <ShieldAlert className="w-4 h-4 flex-shrink-0" />
                   <span>{error}</span>
                 </div>
               )}
               {success && (
-                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-105 dark:border-emerald-900/50 rounded-2xl text-emerald-600 dark:text-emerald-450 text-xs font-bold flex items-center gap-2 animate-fade-in">
+                <div className="p-3.5 bg-emerald-50 border border-emerald-105 rounded-2xl text-emerald-600 text-xs font-bold flex items-center gap-2 animate-fade-in">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0 animate-bounce" />
                   <span>{success}</span>
                 </div>
@@ -230,7 +238,7 @@ export default function LoginPage({
               {/* Login Form */}
               <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs font-sans">
                 <div className="space-y-1.5 text-left">
-                  <label className="font-bold text-slate-500 dark:text-slate-400">Username atau NIK</label>
+                  <label className="font-bold text-slate-500">Username atau NIK</label>
                   <div className="relative">
                     <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -239,13 +247,13 @@ export default function LoginPage({
                       placeholder="Masukkan username atau NIK"
                       value={loginData.username}
                       onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 transition-all text-xs font-medium"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1.5 text-left">
-                  <label className="font-bold text-slate-500 dark:text-slate-400">Kata Sandi</label>
+                  <label className="font-bold text-slate-500">Kata Sandi</label>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -254,7 +262,7 @@ export default function LoginPage({
                       placeholder="Masukkan kata sandi"
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 dark:text-white transition-all text-xs font-medium"
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-slate-900 transition-all text-xs font-medium"
                     />
                   </div>
                 </div>

@@ -1,213 +1,67 @@
-import { useState } from 'react';
-import { Phone, MessageSquare, MapPin, Mail, Send, ExternalLink } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 export default function Kontak() {
-  const [waName, setWaName] = useState('');
-  const [waMessage, setWaMessage] = useState('');
-
-  // Dummy RT Chairman Contact Details
-  const kontakRt = {
-    nama: 'Pak Bambang Mulyono',
-    jabatan: 'Ketua RT 05 / RW 11',
-    telepon: '+62 812-3456-7890',
-    whatsapp: '6281234567890', // Internasional format without '+'
-    alamat: 'Perumahan Villa Mutiara Mas Cinere, Blok B3 No. 12, Cinere, Depok',
-    email: 'rt.villamutiaramas@gmail.com',
-  };
-
-  const handleSendWhatsApp = (e) => {
-    e.preventDefault();
-    if (!waName || !waMessage) return;
-
-    // Constructing WhatsApp message
-    const formattedMessage = `Halo ${kontakRt.nama}, saya ${waName} (warga Villa Mutiara Mas Cinere). %0A%0A${waMessage}`;
-    const waUrl = `https://wa.me/${kontakRt.whatsapp}?text=${formattedMessage}`;
-    
-    // Redirect to WhatsApp
-    window.open(waUrl, '_blank');
-    
-    // Clear inputs
-    setWaName('');
-    setWaMessage('');
-  };
-
   return (
     <section
       id="kontak"
-      className="pt-24 sm:pt-28 pb-16 bg-white dark:bg-slate-950"
+      className="pt-24 sm:pt-28 pb-16 bg-white"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Header */}
-        <div className="text-center space-y-4 mb-16">
-          <h2 className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-widest">
-            Hubungi Kami
+        <div className="text-center space-y-4 mb-12">
+          <h2 className="text-xs font-bold text-orange-600 uppercase tracking-widest">
+            Lokasi & Wilayah
           </h2>
-          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
-            Kontak Pengurus & Peta RT
+          <p className="text-3xl sm:text-4xl font-extrabold text-slate-900">
+            Peta Wilayah RT 05 / RW 11
           </p>
           <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
+          <p className="text-xs text-slate-500 max-w-xl mx-auto leading-relaxed">
+            Perumahan Villa Mutiara Mas Cinere, Kelurahan Cinere, Kecamatan Limo, Kota Depok, Jawa Barat
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-stretch">
-          
-          {/* Column 1: Contact Details & Quick WhatsApp (Left) */}
-          <div className="lg:col-span-6 space-y-8 flex flex-col justify-between">
-            <div className="space-y-6">
+        {/* Maps Location Frame */}
+        <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-orange-500/10 text-orange-600 rounded-xl">
+                <MapPin className="w-5 h-5" />
+              </div>
               <div>
-                <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                  Kontak Utama Ketua RT
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 leading-tight">
+                  Peta Navigasi Komplek Villa Mutiara Mas Cinere
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Hubungi untuk keperluan darurat atau koordinasi lingkungan
+                <p className="text-xs text-slate-500">
+                  Akses gerbang utama, pos satpam, dan denah perumahan
                 </p>
               </div>
-
-              {/* Contact Info Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                
-                {/* Alamat */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-orange-500/10 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded-xl flex-shrink-0">
-                    <MapPin className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Alamat Sekretariat</span>
-                    <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                      {kontakRt.alamat}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Telepon */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl flex-shrink-0">
-                    <Phone className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Nomor Telepon</span>
-                    <a href={`tel:${kontakRt.telepon}`} className="block text-sm text-slate-700 dark:text-slate-300 font-bold hover:text-blue-500">
-                      {kontakRt.telepon}
-                    </a>
-                  </div>
-                </div>
-
-                {/* WhatsApp */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-orange-500/10 dark:bg-orange-500/20 text-orange-500 dark:text-orange-400 rounded-xl flex-shrink-0">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">WhatsApp Chat</span>
-                    <a
-                      href={`https://wa.me/${kontakRt.whatsapp}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-slate-700 dark:text-slate-300 font-bold hover:text-orange-500 flex items-center gap-1"
-                    >
-                      <span>Hubungi WA</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 flex items-start gap-4">
-                  <div className="p-3 bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 rounded-xl flex-shrink-0">
-                    <Mail className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <span className="block text-[10px] font-bold text-slate-400 uppercase">Email Korespondensi</span>
-                    <a href={`mailto:${kontakRt.email}`} className="block text-xs text-slate-700 dark:text-slate-300 font-bold hover:text-amber-500 break-all">
-                      {kontakRt.email}
-                    </a>
-                  </div>
-                </div>
-
-              </div>
             </div>
-
-            {/* Quick WhatsApp Chat Form */}
-            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm">
-              <h4 className="font-extrabold text-slate-900 dark:text-white text-sm mb-4">
-                Kirim Pesan WhatsApp Cepat ke Ketua RT
-              </h4>
-              <form onSubmit={handleSendWhatsApp} className="space-y-4">
-                <div>
-                  <input
-                    required
-                    type="text"
-                    placeholder="Nama Anda"
-                    value={waName}
-                    onChange={(e) => setWaName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <textarea
-                    required
-                    rows={3}
-                    placeholder="Tulis pesan atau pertanyaan Anda di sini..."
-                    value={waMessage}
-                    onChange={(e) => setWaMessage(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all resize-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>Kirim via WhatsApp</span>
-                </button>
-              </form>
-            </div>
+            <span className="text-[10px] font-extrabold uppercase tracking-wider px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 w-fit">
+              🔒 One Gate System • 24 Jam
+            </span>
+          </div>
+          
+          {/* Visual Google Map Frame */}
+          <div className="w-full h-80 sm:h-[480px] rounded-2xl overflow-hidden bg-slate-200 relative border border-slate-200/70 shadow-inner">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3965.168300825565!2d106.79056851144544!3d-6.3722609935913415!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69eec81b529bb3%3A0x2c0fae0ccf7d3e88!2sJl.%20Vila%20Mutiara%20Cinere%2C%20Grogol%2C%20Kec.%20Limo%2C%20Kota%20Depok%2C%20Jawa%20Barat%2016514!5e0!3m2!1sid!2sid!4v1788915724162!5m2!1sid!2sid"
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen=""
+              loading="lazy"
+              referrerPolicy="strict-origin-when-cross-origin"
+              title="Peta Wilayah RT Villa Mutiara Mas Cinere"
+              className="w-full h-full rounded-2xl"
+            />
           </div>
 
-          {/* Column 2: Maps Location Frame Mock (Right) */}
-          <div className="lg:col-span-6 bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-            <div className="mb-4">
-              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">
-                Peta Wilayah RT Villa Mutiara Mas Cinere
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Lokasi klaster dan pos satpam utama Villa Mutiara Mas Cinere
-              </p>
-            </div>
-            
-            {/* Visual Google Map Frame Mock */}
-            <div className="w-full h-72 sm:h-96 rounded-2xl overflow-hidden bg-slate-200 dark:bg-slate-800 relative flex items-center justify-center border border-slate-200/50 dark:border-slate-700/50">
-              {/* Decorative grid pattern as a "Map" representation */}
-              <div className="absolute inset-0 bg-slate-100 dark:bg-slate-900 opacity-30 bg-grid-pattern"></div>
-              
-              {/* Map mockup graphic */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center space-y-3 z-10 px-4">
-                  <div className="inline-block p-4 bg-orange-500 text-white rounded-full shadow-lg shadow-orange-500/30 animate-pulse">
-                    <MapPin className="w-8 h-8" />
-                  </div>
-                  <h4 className="font-extrabold text-slate-800 dark:text-white text-base">Villa Mutiara Mas Cinere</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
-                    Kawasan RT 05 / RW 11 Kelurahan Cinere, Kecamatan Cinere, Kota Depok, Jawa Barat
-                  </p>
-                </div>
-              </div>
-
-              {/* Map overlays / streets lines mock */}
-              <div className="absolute inset-0 opacity-10 border-t border-b border-l border-r border-slate-400 pointer-events-none">
-                <div className="w-full h-0.5 bg-slate-400 absolute top-1/3"></div>
-                <div className="w-full h-0.5 bg-slate-400 absolute top-2/3"></div>
-                <div className="w-0.5 h-full bg-slate-400 absolute left-1/3"></div>
-                <div className="w-0.5 h-full bg-slate-400 absolute left-2/3"></div>
-              </div>
-            </div>
-
-            <div className="pt-4 mt-4 border-t border-slate-200/60 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
-              <span>* Akses masuk klaster satu pintu (One Gate System)</span>
-              <span className="font-bold text-orange-500">Security 24 Jam</span>
-            </div>
+          <div className="pt-4 mt-4 border-t border-slate-200/60 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Jl. Vila Mutiara Cinere, Grogol, Kec. Limo, Kota Depok, Jawa Barat 16514</span>
+            <span className="font-bold text-orange-600">Pos Keamanan & Pengurus RT 05</span>
           </div>
-
         </div>
 
       </div>
