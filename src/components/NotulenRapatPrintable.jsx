@@ -71,7 +71,7 @@ export default function NotulenRapatPrintable({ notulen }) {
             KELURAHAN GROGOL
           </h3>
           <h1 className="text-base sm:text-lg md:text-2xl font-extrabold uppercase tracking-widest mt-0.5" style={{ color: '#737373' }}>
-            RUKUN WARGA 011
+            RT 006 RW 011
           </h1>
           <p className="text-[10px] sm:text-[12px] font-sans font-normal mt-2 leading-tight" style={{ color: '#737373' }}>
             Sekretariat: Jl. Boulevard Vila Mutiara Cinere No. 1, RT 006/RW 011, Kel. Grogol, Kec. Limo, Kota Depok 16512
