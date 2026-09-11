@@ -24,7 +24,7 @@ const DUMMY_DOKUMENTASI = [
     category: 'Gotong Royong',
     type: 'image',
     date: '20 Agustus 2026',
-    location: 'Taman Utama & Jalur Hijau RT 05',
+    location: 'Taman Utama & Jalur Hijau RT 006',
     thumbnail: cameraPlaceholderSvg,
     description: 'Kegiatan gotong royong rutin warga dalam merapikan fasilitas umum, pembersihan saluran drainase, dan penanaman pohon peneduh di lingkungan komplek.'
   },
@@ -35,7 +35,7 @@ const DUMMY_DOKUMENTASI = [
     type: 'video',
     duration: '03:24',
     date: '17 Agustus 2026',
-    location: 'Lapangan Serbaguna RT 05 / RW 11',
+    location: 'Lapangan Serbaguna RT 006 / RW 011',
     thumbnail: cameraPlaceholderSvg,
     description: 'Dokumentasi video kemeriahan lomba anak-anak, karnaval kostum daerah, serta malam panggung gembira perayaan kemerdekaan RI warga Villa Mutiara Mas Cinere.'
   },
@@ -162,10 +162,10 @@ export default function Hero({
               type: isVideo ? 'video' : 'image',
               mime_type: item.mime_type || (isVideo ? 'video/mp4' : 'image/jpeg'),
               date: item.created_at ? new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Dokumentasi Lingkungan',
-              location: 'Lingkungan RT 05',
+              location: 'Lingkungan RT 006',
               thumbnail: fullUrl,
               media_url: fullUrl,
-              description: item.judul || item.description || 'Dokumentasi kegiatan warga RT 05.',
+              description: item.judul || item.description || 'Dokumentasi kegiatan warga RT 006.',
               file_size: item.file_size
             };
           });
@@ -415,7 +415,7 @@ export default function Hero({
           {/* Welcoming Text Column */}
           <div className="lg:col-span-7 text-center lg:text-left space-y-6">
             <div className="text-orange-600 text-xs sm:text-sm font-extrabold tracking-wider uppercase">
-              Portal Informasi & Layanan Mandiri RT 05
+              Portal Informasi & Layanan Mandiri RT 006
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-black tracking-tight text-[var(--color-ink)] leading-[1.1] lg:tracking-[-0.8px]">
@@ -426,7 +426,7 @@ export default function Hero({
             </h1>
             
             <p className="text-xs sm:text-base text-[var(--color-body-text)] max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-              Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 05 secara instan dan terbuka.
+              Mewujudkan lingkungan hunian yang asri, aman, rukun, dan berteknologi demi kenyamanan bersama. Akses layanan persuratan mandiri, pelaporan iuran bulanan, dan transparansi kas RT 006 secara instan dan terbuka.
             </p>
 
             {/* Characteristics Card (Option 3: 2-Column Split with Individual Lucide Icons) */}
@@ -513,7 +513,7 @@ export default function Hero({
                         {currentUser.role === 'rt' ? 'Ketua RT' : currentUser.role.toUpperCase()}
                       </span>
                     </div>
-                    <p className="text-[10px] font-medium text-[var(--color-body-mid)] mt-1">Anda saat ini sedang masuk ke dalam portal administrasi RT 05.</p>
+                    <p className="text-[10px] font-medium text-[var(--color-body-mid)] mt-1">Anda saat ini sedang masuk ke dalam portal administrasi RT 006.</p>
                   </div>
                 )}
 
@@ -529,7 +529,7 @@ export default function Hero({
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex flex-col justify-end p-3 text-white">
                         <span className="text-[9px] font-black uppercase tracking-wider text-orange-400">
-                          RT 05 / RW 11
+                          RT 006 / RW 011
                         </span>
                         <span className="text-xs sm:text-sm font-extrabold leading-tight">
                           Villa Mutiara Cinere
@@ -655,7 +655,7 @@ export default function Hero({
                       <div className="space-y-5 animate-fade-in text-xs font-semibold">
                         <div>
                           <h3 className="text-sm font-extrabold text-[var(--color-ink)]">
-                            Informasi Umum RT 05
+                            Informasi Umum RT 006
                           </h3>
                           <p className="text-[9px] text-[var(--color-body-mid)]">
                             Statistik terkini kependudukan dan keuangan wilayah komplek.
@@ -762,7 +762,7 @@ export default function Hero({
                             Laporan Transaksi Umum
                           </h3>
                           <p className="text-[9px] text-[var(--color-body-mid)]">
-                            Catatan mutasi kas RT 05 yang dipublikasikan secara transparan.
+                            Catatan mutasi kas RT 006 yang dipublikasikan secara transparan.
                           </p>
                         </div>
 
@@ -969,12 +969,12 @@ export default function Hero({
                   <span>Profil Perumahan</span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                  Villa Mutiara Mas Cinere merupakan kawasan hunian perumahan menengah yang terletak di Kelurahan Grogol, Kecamatan Limo, Kota Depok. Memadukan kenyamanan kehidupan perumahan asri, tertib, dan aman dengan sistem tata kelola lingkungan RT 05 yang transparan dan berbasis digital demi kemudahan pelayanan mandiri seluruh warga.
+                  Villa Mutiara Mas Cinere merupakan kawasan hunian perumahan menengah yang terletak di Kelurahan Grogol, Kecamatan Limo, Kota Depok. Memadukan kenyamanan kehidupan perumahan asri, tertib, dan aman dengan sistem tata kelola lingkungan RT 006 yang transparan dan berbasis digital demi kemudahan pelayanan mandiri seluruh warga.
                 </p>
               </div>
 
               {/* ═══════════════════════════════════════════════════════════════════
-                  BAGAN STRUKTUR PENGURUS RT 05
+                  BAGAN STRUKTUR PENGURUS RT 006 / RW 011
                   ═══════════════════════════════════════════════════════════════════ */}
               <div className="pt-6 space-y-8 max-w-4xl mx-auto">
                 <div className="text-center space-y-1.5">
@@ -982,7 +982,7 @@ export default function Hero({
                     Struktur Organisasi
                   </span>
                   <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                    Bagan Pengurus RT 006  RW 011
+                    Bagan Pengurus RT 006 / RW 011
                   </h3>
                 </div>
 
@@ -1206,7 +1206,7 @@ export default function Hero({
                 </div>
                 <div>
                   <h3 className="text-base sm:text-xl font-extrabold text-slate-900 tracking-tight">
-                    Pusat Kontak Bantuan & Direktori Darurat RT 05
+                    Pusat Kontak Bantuan & Direktori Darurat RT 006
                   </h3>
                   <p className="text-xs text-slate-500">
                     Satu rumpun kontak siaga darurat 24 jam untuk keamanan, pertolongan medis, kepolisian, dan pengurus RT.
@@ -1221,8 +1221,8 @@ export default function Hero({
             {/* 4 Emergency Contact Items Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {[
-                { id: 'emg-1', title: 'Pos Keamanan RT 05', subtitle: 'Keamanan 24 Jam Satpam', phone: '0812-9988-7711', altPhone: 'Ext. Pos Satpam Utama', badge: 'Keamanan', color: 'emerald' },
-                { id: 'emg-2', title: 'Ketua RT 05 Cinere', subtitle: 'Bpk. Achmad Mulyono', phone: '0812-3456-7890', altPhone: 'Rumah Blok B3 No. 12', badge: 'Pengurus RT', color: 'emerald' },
+                { id: 'emg-1', title: 'Pos Keamanan RT 006', subtitle: 'Keamanan 24 Jam Satpam', phone: '0812-9988-7711', altPhone: 'Ext. Pos Satpam Utama', badge: 'Keamanan', color: 'emerald' },
+                { id: 'emg-2', title: 'Ketua RT 006 Cinere', subtitle: 'Bpk. Wartono SE', phone: '0812-3456-7890', altPhone: 'Rumah Blok B3 No. 12', badge: 'Pengurus RT', color: 'emerald' },
                 { id: 'emg-3', title: 'Ambulans & Medis Depok', subtitle: 'Layanan Medis Darurat', phone: '119 / (021) 777-8899', altPhone: 'RSUD Depok / Cinere', badge: 'Kesehatan', color: 'emerald' },
                 { id: 'emg-4', title: 'Polsek Cinere Depok', subtitle: 'Kepolisian Sektor', phone: '(021) 778-5544', altPhone: 'Layanan Pengaduan 110', badge: 'Kepolisian', color: 'emerald' },
               ].map((emg) => (
@@ -1345,7 +1345,7 @@ export default function Hero({
         </div>
 
         {/* ═══════════════════════════════════════════════════════════════════
-            PUSAT DATA & STATISTIK LINGKUNGAN RT 05 - PUBLIK (TANPA LOGIN)
+            PUSAT DATA & STATISTIK LINGKUNGAN RT 006 / RW 011 - PUBLIK (TANPA LOGIN)
             ═══════════════════════════════════════════════════════════════════ */}
         <div className="mt-20 pt-16 border-t border-[var(--color-hairline)] w-full font-sans">
           
@@ -1362,13 +1362,13 @@ export default function Hero({
             </p>
           </div>
 
-          {/* ─── BIODATA SAWANGAN GREEN PARK ─── */}
+          {/* ─── BIODATA RT 006 / RW 011 VILLA MUTIARA MAS CINERE ─── */}
           <div className="mb-12">
             <div className="bg-[var(--color-primary-wf)] text-[var(--color-on-primary-wf)] rounded-md p-8 sm:p-10 relative overflow-hidden shadow-md">
               <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-6">
                   <Building2 className="w-5 h-5" />
-                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Villa Mutiara Mas Cinere — RT 05</h3>
+                  <h3 className="text-lg sm:text-xl font-extrabold">Profil Villa Mutiara Mas Cinere — RT 006 / RW 011</h3>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1377,14 +1377,14 @@ export default function Hero({
                       <MapPin className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Alamat Lengkap</span>
-                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Villa Mutiara Mas Cinere, Kel. Cinere, Kec. Cinere, Kota Depok, Jawa Barat 16514</span>
+                        <span className="text-xs sm:text-sm font-semibold leading-snug">Perumahan Villa Mutiara Mas Cinere, Kel. Grogol, Kec. Limo, Kota Depok, Jawa Barat 16512</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Home className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Wilayah Cakupan</span>
-                        <span className="text-xs sm:text-sm font-semibold">RT 05 / RW 11</span>
+                        <span className="text-xs sm:text-sm font-semibold">RT 006 / RW 011</span>
                       </div>
                     </div>
                   </div>
@@ -1394,7 +1394,7 @@ export default function Hero({
                       <User className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Ketua RT Aktif</span>
-                        <span className="text-xs sm:text-sm font-semibold">Bpk. Achmad </span>
+                        <span className="text-xs sm:text-sm font-semibold">Bpk. Wartono SE</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1411,7 +1411,7 @@ export default function Hero({
                       <Mail className="w-4 h-4 mt-0.5 shrink-0 opacity-80" />
                       <div>
                         <span className="block text-[8px] font-bold opacity-60 uppercase tracking-wider">Email Resmi</span>
-                        <span className="text-xs sm:text-sm font-semibold">CONTOH EMAIL-@gmail.com</span>
+                        <span className="text-xs sm:text-sm font-semibold">rt006rw011.vilamutiara@gmail.com</span>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -1583,10 +1583,16 @@ export default function Hero({
                 const totalPop = living.length || 1;
                 
                 // Gender ratio
-                const male = living.filter(w => (w.gender || w.jenisKelamin || '').toLowerCase().includes('laki')).length;
-                const female = totalPop - male;
-                const malePct = Math.round((male / totalPop) * 100) || 50;
-                const femalePct = 100 - malePct;
+                const male = living.filter(w => {
+                  const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                  return g.startsWith('l') || g.includes('laki') || g === 'pria';
+                }).length;
+                const female = living.filter(w => {
+                  const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                  return g.startsWith('p') || g.includes('perempuan') || g.includes('wanita');
+                }).length;
+                const malePct = living.length > 0 ? Math.round((male / totalPop) * 100) : 50;
+                const femalePct = living.length > 0 ? (100 - malePct) : 50;
 
                 // Status hunian
                 const tetap = living.filter(w => w.status === 'Tetap').length;

@@ -87,7 +87,7 @@ export default function LoginPage({
         role: resData.user.role,
         familyId: resData.user.family_id,
         must_change_password: resData.user.must_change_password,
-        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Moch. Taufik)' : resData.user.username)
+        name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Wartono SE)' : resData.user.username)
       };
 
       setSession(userSession, resData.token);
@@ -151,14 +151,14 @@ export default function LoginPage({
                   Villa Mutiara Mas Cinere
                 </span>
                 <span className="block text-xs font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">
-                  RUKUN TETANGGA 05 / RW 11
+                  RUKUN TETANGGA 006 / RW 011
                 </span>
               </div>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black text-slate-900 leading-none tracking-tight">
               Sistem Informasi & <br />
-              <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">Layanan Warga RT 05</span>
+              <span className="bg-gradient-to-r from-orange-600 to-amber-500 bg-clip-text text-transparent">Layanan Warga RT 006</span>
             </h1>
 
             <p className="text-sm text-slate-500 leading-relaxed max-w-lg">
@@ -180,7 +180,7 @@ export default function LoginPage({
                   Perumahan Villa Mutiara Cinere
                 </h4>
                 <p className="text-slate-300 text-[11px] font-medium mt-0.5">
-                  Kawasan RT 05 / RW 11 Kelurahan Cinere, Kec. Limo, Depok
+                  Kawasan RT 006 / RW 011 Kelurahan Grogol, Kec. Limo, Depok
                 </p>
               </div>
             </div>
@@ -205,7 +205,7 @@ export default function LoginPage({
                 </div>
                 <div>
                   <span className="block text-[9px] text-slate-400 font-bold uppercase tracking-wider">Cakupan Wilayah</span>
-                  <span className="font-bold text-slate-850">RT 05 / RW 11</span>
+                  <span className="font-bold text-slate-850">RT 006 / RW 011</span>
                 </div>
               </div>
             </div>

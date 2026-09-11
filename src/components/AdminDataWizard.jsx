@@ -701,7 +701,7 @@ export default function AdminDataWizard() {
             </div>
             <button
               onClick={() => {
-                const textToCopy = `Kredensial Login Warga RT 05:\nUsername: ${createdAccount.username}\nPassword Sementara: ${createdAccount.temporaryPassword}`;
+                const textToCopy = `Kredensial Login Warga RT 006 / RW 011:\nUsername: ${createdAccount.username}\nPassword Sementara: ${createdAccount.temporaryPassword}`;
                 navigator.clipboard.writeText(textToCopy);
                 setToast({ type: 'success', message: 'Semua kredensial berhasil disalin!' });
               }}

@@ -41,7 +41,7 @@ export default function Profil() {
             Profil Lingkungan
           </h2>
           <p className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-            Mengenal RT Villa Mutiara Mas Cinere
+            Mengenal RT 006 / RW 011 Villa Mutiara Mas Cinere
           </p>
           <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
         </div>
@@ -107,7 +107,7 @@ export default function Profil() {
                     Visi
                   </h3>
                   <p className="mt-3 text-slate-600 leading-relaxed italic">
-                    "Menjadikan RT Villa Mutiara Mas Cinere sebagai hunian yang modern, ramah lingkungan, harmonis, aman, dan transparan dalam pelayanan administrasi serta keuangan."
+                    "Menjadikan RT 006 / RW 011 Villa Mutiara Mas Cinere sebagai hunian yang modern, ramah lingkungan, harmonis, aman, dan transparan dalam pelayanan administrasi serta keuangan."
                   </p>
                 </div>
                 <hr className="border-slate-100" />

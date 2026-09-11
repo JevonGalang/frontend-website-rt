@@ -9,8 +9,14 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
   const livingWarga = wargaList.filter(w => w.statusHidup !== 'Meninggal');
   
   // Calculate Gender Breakdown
-  const countLaki = livingWarga.filter(w => w.gender === 'Laki-laki').length;
-  const countPerempuan = livingWarga.filter(w => w.gender === 'Perempuan').length;
+  const countLaki = livingWarga.filter(w => {
+    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+    return g.startsWith('l') || g.includes('laki') || g === 'pria';
+  }).length;
+  const countPerempuan = livingWarga.filter(w => {
+    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+    return g.startsWith('p') || g.includes('perempuan') || g.includes('wanita');
+  }).length;
   
   const lakiLakiVal = livingWarga.length > 0 ? countLaki : 215;
   const perempuanVal = livingWarga.length > 0 ? countPerempuan : 205;
@@ -70,7 +76,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
               <div className="space-y-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Kartu Keluarga</span>
                 <span className="block text-4xl font-black text-slate-900">{totalKK}</span>
-                <p className="text-xs text-slate-500">Terdaftar di wilayah Villa Mutiara Mas Cinere</p>
+                <p className="text-xs text-slate-500">Terdaftar di wilayah Villa Mutiara Mas Cinere RT 006 / RW 011</p>
               </div>
               <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-2xl">
                 <FileText className="w-6 h-6" />
@@ -229,7 +235,7 @@ export default function DataWarga({ totalKK, totalHidup, totalMeninggal, wargaLi
 
             {/* Info */}
             <div className="pt-4 border-t border-slate-200/50 text-[11px] text-slate-400 flex items-center gap-1.5">
-              <span>* Data dihimpun dari lampiran sensus KK RT Villa Mutiara Mas Cinere terakhir.</span>
+              <span>* Data dihimpun dari lampiran sensus KK RT 006 / RW 011 Villa Mutiara Mas Cinere terakhir.</span>
             </div>
           </div>
 

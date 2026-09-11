@@ -13,6 +13,7 @@ import DateInput from './DateInput';
 import logoRW11 from '../assets/logo_rw11.png';
 import logoDepok from '../assets/logo_depok.png';
 import SuratPengantarPrintable from './SuratPengantarPrintable';
+import NotulenRapatPrintable from './NotulenRapatPrintable';
 
 const extractArrayFromResponse = (payload) => {
   if (!payload) return [];
@@ -80,7 +81,7 @@ const getTemplatesForType = (type = '') => {
   }
   if (lower.includes('nikah') || lower.includes('rujukan')) {
     return [
-      { label: 'Pengantar Nikah KUA', text: 'Syarat surat pengantar pendaftaran pernikahan ke KUA / Kelurahan Cinere.' },
+      { label: 'Pengantar Nikah KUA', text: 'Syarat surat pengantar pendaftaran pernikahan ke KUA / Kelurahan Grogol.' },
       { label: 'Rujukan Kelurahan', text: 'Surat pengantar rekomendasi pengurusan dokumen pernikahan di tingkat Kelurahan.' }
     ];
   }
@@ -93,7 +94,7 @@ const getTemplatesForType = (type = '') => {
   if (lower.includes('keramaian') || lower.includes('izin')) {
     return [
       { label: 'Syukuran Pernikahan', text: 'Pemberitahuan penyelenggaraan acara syukuran pernikahan keluarga di halaman rumah warga.' },
-      { label: 'HUT RI Lingkungan', text: 'Pemberitahuan izin keramaian untuk pelaksanaan rangkaian perlombaan HUT RI warga RT 05.' }
+      { label: 'HUT RI Lingkungan', text: 'Pemberitahuan izin keramaian untuk pelaksanaan rangkaian perlombaan HUT RI warga RT 006.' }
     ];
   }
   return [
@@ -132,6 +133,14 @@ export default function ProfilWarga({
   const [isIuranOpen, setIsIuranOpen] = useState(true);
   const [isSuratOpen, setIsSuratOpen] = useState(true);
   const [viewingApprovedLetter, setViewingApprovedLetter] = useState(null);
+
+  // Notulen Rapat States (Warga)
+  const [wargaNotulenList, setWargaNotulenList] = useState([]);
+  const [isLoadingNotulen, setIsLoadingNotulen] = useState(false);
+  const [viewingNotulenDetail, setViewingNotulenDetail] = useState(null);
+  const [viewingNotulenDoc, setViewingNotulenDoc] = useState(null);
+  const [notulenSearch, setNotulenSearch] = useState('');
+  const [notulenPagination, setNotulenPagination] = useState({ page: 1, limit: 20, total: 0, total_pages: 1 });
 
   // Auto scroll to top when tab changes inside ProfilWarga
   useEffect(() => {
@@ -599,6 +608,39 @@ export default function ProfilWarga({
     }
   };
 
+  const fetchWargaNotulen = async (page = 1) => {
+    const token = sessionStorage.getItem('rt_token');
+    if (!token) return;
+    setIsLoadingNotulen(true);
+    try {
+      const queryParams = new URLSearchParams();
+      if (page) queryParams.append('page', page);
+      queryParams.append('limit', '20');
+
+      const qs = queryParams.toString();
+      const res = await fetch(`${API_BASE_URL}/notulen-rapat${qs ? `?${qs}` : ''}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const items = data?.output?.pesan?.items || data?.output?.pesan || data?.output?.data || data?.data || extractArrayFromResponse(data) || [];
+        const safeArray = Array.isArray(items) ? items : extractArrayFromResponse(items);
+        safeArray.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+        setWargaNotulenList(safeArray);
+
+        if (data?.output?.pesan?.pagination) {
+          setNotulenPagination(data.output.pesan.pagination);
+        } else if (data?.pagination) {
+          setNotulenPagination(data.pagination);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching notulen rapat for warga:', err);
+    } finally {
+      setIsLoadingNotulen(false);
+    }
+  };
+
   const fetchSuratKategori = async () => {
     const token = sessionStorage.getItem('rt_token');
     if (!token) return;
@@ -905,12 +947,16 @@ export default function ProfilWarga({
     fetchSuratKategori();
     fetchWargaPayments();
     fetchIplBills();
+    fetchWargaNotulen();
     if (activeTab === 'voting_karyawan') {
       fetchKaryawanList();
       fetchVoteResults();
     }
     if (activeTab === 'informasi_jadwal' && fetchAgendas) {
       fetchAgendas();
+    }
+    if (activeTab === 'informasi_notulen') {
+      fetchWargaNotulen();
     }
   }, [activeTab]);
 
@@ -1154,8 +1200,8 @@ export default function ProfilWarga({
       family_id: currentUser?.familyId || currentUser?.family_id || 1,
       kategori_id: validKategoriId,
       wargaId: currentUser?.id,
-      wargaNama: currentUser?.name || 'Warga RT 05',
-      nama_lengkap: currentUser?.name || 'Warga RT 05',
+      wargaNama: currentUser?.name || 'Warga RT 006',
+      nama_lengkap: currentUser?.name || 'Warga RT 006',
       wargaNik: currentUser?.nik || '3276051508980004',
       no_ktp: currentUser?.nik || '3276051508980004',
       wargaAlamat: currentUser?.alamat || 'Villa Mutiara Mas Cinere',
@@ -1241,18 +1287,33 @@ export default function ProfilWarga({
       custom_nama_kategori: ''
     }));
 
-    // 2. Pindah ke tab status pengajuan
-    setActiveTab('layanan_status');
-
-    // 3. Langsung buka modal pratinjau surat
-    setViewingApprovedLetter(newSubmission);
-
-    // 4. Refresh data dari server seketika
+    // 2. Refresh data dari server seketika
     if (token) {
       await fetchCitizenSubmissions();
     } else {
       setServerSubmissions(prev => [newSubmission, ...(Array.isArray(prev) ? prev : [])]);
     }
+
+    // 3. Tampilkan konfirmasi pengajuan berhasil & aturan persetujuan cetak
+    Swal.fire({
+      title: 'Pengajuan Surat Terkirim! 📋',
+      html: `
+        <div class="text-xs text-slate-600 space-y-2 text-left bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 font-sans">
+          <p><strong>Nomor Berkas:</strong> <span class="font-mono font-bold text-slate-800">#${newSubmission.id || 'SUB-BARU'}</span></p>
+          <p><strong>Jenis Surat:</strong> <span class="font-bold text-orange-600">${newSubmission.wargaTipeSurat}</span></p>
+          <p><strong>Status:</strong> <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full font-bold text-[10px]">Menunggu Persetujuan RT / Sekretaris</span></p>
+          <hr class="my-2 border-slate-200" />
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Permohonan surat pengantar Anda telah masuk ke daftar antrean pengurus RT. <strong>Surat resmi hanya dapat dicetak atau disimpan sebagai PDF setelah disetujui</strong> oleh Ketua RT atau Sekretaris.
+          </p>
+        </div>
+      `,
+      icon: 'success',
+      confirmButtonText: 'Lihat Status Pengajuan',
+      confirmButtonColor: '#ea580c'
+    }).then(() => {
+      setActiveTab('layanan_status');
+    });
   };
 
   const handleUploadDocument = async (e) => {
@@ -2019,8 +2080,8 @@ export default function ProfilWarga({
 
         const item = {
           ...sub,
-          wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
-          nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 05',
+          wargaNama: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 006',
+          nama_lengkap: sub.nama_lengkap || sub.wargaNama || currentUser?.name || 'Warga RT 006',
           wargaNik: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
           no_ktp: sub.no_ktp || sub.wargaNik || currentUser?.nik || '3276051508980004',
           wargaAlamat: sub.alamat || sub.wargaAlamat || currentUser?.alamat || 'Villa Mutiara Mas Cinere',
@@ -2126,8 +2187,8 @@ export default function ProfilWarga({
       id: `NTF-KEG-${ann.id}`,
       category: 'kegiatan',
       targetTab: 'informasi_pengumuman',
-      title: ann.judul || 'Pengumuman Resmi RT 05',
-      message: ann.isi || ann.kategori || 'Pengumuman resmi kegiatan warga dari Pengurus RT 05 Villa Mutiara Mas Cinere.',
+      title: ann.judul || 'Pengumuman Resmi RT 006',
+      message: ann.isi || ann.kategori || 'Pengumuman resmi kegiatan warga dari Pengurus RT 006 Villa Mutiara Mas Cinere.',
       time: ann.tanggal ? formatDateIndo(ann.tanggal) : 'Terbaru',
       isUnread: false
     })),
@@ -2138,7 +2199,7 @@ export default function ProfilWarga({
       category: 'jadwal',
       targetTab: 'informasi_jadwal',
       title: `🗓️ Jadwal & Agenda: ${ag.title || ag.judul || 'Agenda Lingkungan'}`,
-      message: `Kegiatan "${ag.title || ag.judul}" dijadwalkan pada ${ag.date ? formatDateIndo(ag.date) : 'Waktu tertera'} di ${ag.location || ag.tempat || 'Lingkungan RT 05'}.`,
+      message: `Kegiatan "${ag.title || ag.judul}" dijadwalkan pada ${ag.date ? formatDateIndo(ag.date) : 'Waktu tertera'} di ${ag.location || ag.tempat || 'Lingkungan RT 006'}.`,
       time: ag.date ? formatDateIndo(ag.date) : 'Mendatang',
       isUnread: false
     })),
@@ -2148,8 +2209,8 @@ export default function ProfilWarga({
       id: `NTF-DUKA-${dec.id}`,
       category: 'kematian',
       targetTab: 'informasi_pengumuman',
-      title: `🕊️ Berita Duka Cita Warga RT 05`,
-      message: `Innalillahi wa inna ilaihi raji'un. Telah berpulang ke Rahmatullah, ${dec.gender === 'Perempuan' ? 'Ibu' : 'Bapak'} ${dec.name} (${dec.alamat ? `Warga ${dec.alamat}` : 'Warga RT 05'}). Semoga amal ibadah almarhum/ah diterima di sisi-Nya.`,
+      title: `🕊️ Berita Duka Cita Warga RT 006`,
+      message: `Innalillahi wa inna ilaihi raji'un. Telah berpulang ke Rahmatullah, ${dec.gender === 'Perempuan' ? 'Ibu' : 'Bapak'} ${dec.name} (${dec.alamat ? `Warga ${dec.alamat}` : 'Warga RT 006'}). Semoga amal ibadah almarhum/ah diterima di sisi-Nya.`,
       time: 'Berita Duka',
       isUnread: !isAllNotifRead,
       isAlert: true
@@ -2228,7 +2289,7 @@ export default function ProfilWarga({
       category: 'iuran',
       targetTab: 'iuran_tagihan',
       title: 'Pemberitahuan Tagihan Iuran Bulanan',
-      message: `Tagihan Iuran Kas & Kebersihan RT 05 bulan ini telah terbit untuk ${currentUser.name || 'Warga'}. Harap lakukan konfirmasi pembayaran.`,
+      message: `Tagihan Iuran Kas & Kebersihan RT 006 bulan ini telah terbit untuk ${currentUser.name || 'Warga'}. Harap lakukan konfirmasi pembayaran.`,
       time: 'Hari Ini',
       isUnread: !isAllNotifRead && currentUser.tagihNotification
     },
@@ -2245,7 +2306,7 @@ export default function ProfilWarga({
       id: 'NTF-103',
       category: 'pengumuman',
       targetTab: 'informasi_pengumuman',
-      title: 'Pengumuman Kerja Bakti Masal RT 05',
+      title: 'Pengumuman Kerja Bakti Masal RT 006',
       message: 'Pengurus RT mengundang seluruh kepala keluarga untuk hadir dalam kegiatan perapihan selokan dan kebersihan lingkungan hari Minggu pukul 07.00 WIB.',
       time: 'Kemarin',
       isUnread: false
@@ -2253,7 +2314,7 @@ export default function ProfilWarga({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden pt-0 sm:pt-2">
+    <div className="h-screen w-full bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden">
       {/* Premium ambient glows */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
@@ -2275,7 +2336,7 @@ export default function ProfilWarga({
             </div>
             <div>
               <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas Cinere</h1>
-              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
+              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 006 / RW 011</span>
             </div>
           </div>
         </div>
@@ -2297,7 +2358,7 @@ export default function ProfilWarga({
                 </div>
                 <div>
                   <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas</h1>
-                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 05 / RW 11</span>
+                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Warga Portal • RT 006 / RW 011</span>
                 </div>
               </div>
               <button
@@ -2410,6 +2471,17 @@ export default function ProfilWarga({
                       >
                         <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                         <span>Agenda Kegiatan RT</span>
+                      </button>
+                      <button
+                        onClick={() => { setActiveTab('informasi_notulen'); setIsMobileDrawerOpen(false); }}
+                        className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                          activeTab === 'informasi_notulen' 
+                            ? 'text-orange-600 font-bold bg-orange-500/10' 
+                            : 'text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_notulen' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
+                        <span>Notulen Rapat</span>
                       </button>
                       <button
                         onClick={() => { setActiveTab('informasi_kontak'); setIsMobileDrawerOpen(false); }}
@@ -2583,23 +2655,23 @@ export default function ProfilWarga({
         </div>
       )}
 
-      {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      {/* 1. DESKTOP SIDEBAR - Full Height Synchronized (Hidden on Mobile) */}
+      <aside className="hidden md:flex md:w-64 h-full bg-gradient-to-b from-orange-50/80 via-slate-50 to-amber-50/50 text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg z-20 overflow-hidden">
         
         {/* Logo/Brand Header */}
-        <div className="p-5 border-b border-orange-200/60 flex items-center gap-3">
+        <div className="p-5 border-b border-orange-200/60 flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 py-0.5">
             <img src={logoDepok} alt="Logo Kota Depok" className="h-8 w-auto object-contain drop-shadow-xs" />
             <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-xs" />
           </div>
           <div>
             <h1 className="font-extrabold text-xs text-slate-900 tracking-tight leading-tight">Villa Mutiara Mas Cinere</h1>
-            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Warga Portal • RT 05 / RW 11</span>
+            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Warga Portal • RT 006 / RW 011</span>
           </div>
         </div>
 
         {/* Citizen Profile Card in Sidebar */}
-        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/80 shadow-xs flex items-center gap-3 backdrop-blur-md">
+        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/80 shadow-xs flex items-center gap-3 backdrop-blur-md shrink-0">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 via-orange-600 to-amber-600 text-white font-black flex items-center justify-center text-xs uppercase shadow-md shadow-orange-500/20">
             {displayNama.charAt(0) || 'W'}
           </div>
@@ -2610,7 +2682,7 @@ export default function ProfilWarga({
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar">
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar min-h-0">
           
           {/* Dashboard Button */}
           <button
@@ -2700,6 +2772,17 @@ export default function ProfilWarga({
                 >
                   <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_jadwal' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
                   <span>Agenda Kegiatan RT</span>
+                </button>
+                <button
+                  onClick={() => setActiveTab('informasi_notulen')}
+                  className={`w-full text-left py-1.5 px-3 rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                    activeTab === 'informasi_notulen' 
+                      ? 'text-orange-600 font-bold bg-orange-500/10' 
+                      : 'text-slate-900 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full transition-all ${activeTab === 'informasi_notulen' ? 'bg-orange-500 scale-125' : 'bg-slate-600'}`}></span>
+                  <span>Notulen Rapat</span>
                 </button>
                 <button
                   onClick={() => setActiveTab('informasi_kontak')}
@@ -2860,7 +2943,7 @@ export default function ProfilWarga({
         </nav>
 
         {/* Sidebar Footer / Logout */}
-        <div className="p-4 border-t border-slate-200 space-y-2">
+        <div className="p-4 border-t border-slate-200 space-y-2 shrink-0 bg-white/80">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-500/20 hover:text-rose-400 text-rose-500 transition-colors cursor-pointer text-left"
@@ -2873,7 +2956,7 @@ export default function ProfilWarga({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-grow flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30 min-h-screen">
+      <main className="flex-1 h-full overflow-y-auto flex flex-col min-w-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-orange-100/40 via-slate-50 to-amber-50/30">
         
         {/* Dynamic Header Ribbon */}
         <header className="sticky top-0 bg-white/85 backdrop-blur-md border-b border-orange-200/50 py-4 px-6 md:px-8 z-20 flex items-center justify-between">
@@ -2884,6 +2967,7 @@ export default function ProfilWarga({
               {activeTab === 'keluarga_saya' && 'ANGGOTA KELUARGA SAYA'}
               {activeTab === 'informasi_pengumuman' && 'INFORMASI SEPUTAR RT'}
               {activeTab === 'informasi_jadwal' && 'JADWAL & AGENDA HARI INI'}
+              {activeTab === 'informasi_notulen' && 'CATATAN HASIL MUSYAWARAH'}
               {activeTab === 'informasi_kontak' && 'PAPAN HUBUNGI PENGURUS'}
               {activeTab === 'iuran_tagihan' && 'STATUS IURAN BULANAN'}
               {activeTab === 'iuran_riwayat' && 'LOG SETORAN KEUANGAN'}
@@ -2901,6 +2985,7 @@ export default function ProfilWarga({
               {activeTab === 'keluarga_saya' && 'Anggota Keluarga Saya'}
               {activeTab === 'informasi_pengumuman' && 'Pengumuman Terbaru'}
               {activeTab === 'informasi_jadwal' && 'Kegiatan & Rapat RT'}
+              {activeTab === 'informasi_notulen' && 'Notulen Rapat & Berita Acara RT'}
               {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus'}
               {activeTab === 'iuran_tagihan' && 'Rincian Tagihan Saya'}
               {activeTab === 'iuran_riwayat' && 'Riwayat Pembayaran'}
@@ -2934,35 +3019,36 @@ export default function ProfilWarga({
             <div className="space-y-1.5 z-10">
               <div className="flex items-center gap-2">
                 <span className="px-2.5 py-0.5 bg-orange-500/15 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 border border-orange-500/20">
-                  Villa Mutiara Mas Cinere • RT 05
+                  Villa Mutiara Mas Cinere • RT 006 / RW 011
                 </span>
-                <span className="text-[10px] text-orange-600 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 05'}</span>
+                <span className="text-[10px] text-orange-600 font-mono font-bold">Blok {currentUser.alamat ? (currentUser.alamat.split('Blok ').pop() || currentUser.alamat) : 'RT 006'}</span>
               </div>
               <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 capitalize">
                 {activeTab === 'dashboard' && `Selamat Datang Kembali, ${currentUser.name}! 👋`}
                 {activeTab === 'profil_saya' && 'Profil Mandiri & Biodata Warga 👤'}
                 {activeTab === 'keluarga_saya' && 'Daftar Anggota Keluarga Saya 👨‍👩‍👧‍👦'}
                 {activeTab === 'warga_upload_berkas' && 'Upload Berkas Kependudukan Mandiri 📤'}
-                {activeTab === 'informasi_pengumuman' && 'Pengumuman & Berita RT 05 📢'}
+                {activeTab === 'informasi_pengumuman' && 'Pengumuman & Berita RT 006 📢'}
                 {activeTab === 'informasi_jadwal' && 'Penjadwalan Kegiatan & Gotong Royong 🗓️'}
-                {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus RT 05 📞'}
+                {activeTab === 'informasi_notulen' && 'Catatan Notulen Rapat & Keputusan Musyawarah 📋'}
+                {activeTab === 'informasi_kontak' && 'Kontak Layanan Pengurus RT 006 📞'}
                 {activeTab === 'iuran_tagihan' && 'Rincian Tagihan Iuran Bulanan 💳'}
                 {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Pembayaran Iuran 📊'}
                 {activeTab === 'iuran_upload' && 'Form Upload Bukti Pembayaran 📲'}
                 {activeTab === 'layanan_ajukan' && 'Loket Pengajuan Surat Pengantar 📝'}
                 {activeTab === 'layanan_status' && 'Status Layanan Pengajuan Surat 📄'}
                 {activeTab === 'pengaduan' && 'Laporan Pengaduan & Aspirasi Lingkungan 🔔'}
-                {activeTab === 'dokumen' && 'Arsip Dokumen & AD/ART RT 05 📁'}
+                {activeTab === 'dokumen' && 'Arsip Dokumen & AD/ART RT 006 📁'}
                 {activeTab === 'notifikasi' && 'Kotak Masuk Notifikasi System 📩'}
                 {activeTab === 'pengaturan' && 'Pengaturan Akun & Kata Sandi 🔑'}
               </h3>
               <p className="text-xs text-slate-600 max-w-xl leading-relaxed font-medium">
-                Akses seluruh layanan RT 05 secara mandiri, transparan, dan mudah dari perangkat Anda.
+                Akses seluruh layanan RT 006 secara mandiri, transparan, dan mudah dari perangkat Anda.
               </p>
             </div>
             <div className="px-4 py-2 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
               <Landmark className="w-4 h-4 text-white" />
-              <span>RT 05 / RW 11</span>
+              <span>RT 006 / RW 011</span>
             </div>
           </div>
           {activeTab === 'dashboard' && (
@@ -4028,7 +4114,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 pb-4 flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Pengumuman & Pemberitahuan Terbaru</h3>
-                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 05 Villa Mutiara Mas Cinere.</p>
+                  <p className="text-xs text-slate-400">Informasi resmi seputar lingkungan RT 006 Villa Mutiara Mas Cinere.</p>
                 </div>
                 <button
                   onClick={fetchWargaAnnouncements}
@@ -4068,7 +4154,7 @@ export default function ProfilWarga({
               <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">Jadwal & Agenda RT Terjadwal</h3>
-                  <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 05.</p>
+                  <p className="text-xs text-slate-400">Daftar agenda kegiatan dan rapat rutin lingkungan RT 006.</p>
                 </div>
                 {/* Action & Search Bar */}
                 <div className="flex items-center gap-2 w-full sm:w-auto font-sans text-xs">
@@ -4121,11 +4207,152 @@ export default function ProfilWarga({
             </div>
           )}
 
+          {/* TAB: Informasi -> Notulen Rapat */}
+          {activeTab === 'informasi_notulen' && (
+            <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
+              <div className="border-b border-slate-200/60 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-orange-500" />
+                    <span>Catatan Notulen Rapat & Berita Acara RT 📋</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Transparansi dokumentasi hasil musyawarah warga dan keputusan rapat resmi RT 006 / RW 011.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto font-sans text-xs">
+                  <button
+                    type="button"
+                    onClick={() => fetchWargaNotulen(notulenPagination.page || 1)}
+                    disabled={isLoadingNotulen}
+                    className="py-1.5 px-3 border border-slate-200 hover:border-orange-500 rounded-xl text-xs font-bold text-slate-600 hover:text-orange-600 bg-white hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1.5 shrink-0 shadow-2xs"
+                  >
+                    <Loader2 className={`w-3.5 h-3.5 ${isLoadingNotulen ? 'animate-spin text-orange-500' : ''}`} />
+                    <span>Segarkan</span>
+                  </button>
+                  <div className="relative w-full sm:w-64">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Cari notulen / topik rapat..."
+                      value={notulenSearch}
+                      onChange={(e) => setNotulenSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-250 rounded-xl outline-none focus:ring-1 focus:ring-orange-500 text-slate-900 transition-all text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Daftar Notulen Rapat */}
+              {isLoadingNotulen ? (
+                <div className="p-12 text-center flex flex-col items-center justify-center space-y-4">
+                  <div className="w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                  <p className="text-xs font-bold text-slate-500">Memuat catatan notulen rapat...</p>
+                </div>
+              ) : (() => {
+                const filtered = wargaNotulenList.filter(n => {
+                  if (!notulenSearch.trim()) return true;
+                  const query = notulenSearch.toLowerCase();
+                  const topik = (n.topik || n.judul || n.title || '').toLowerCase();
+                  const isi = (n.hasil_keputusan || n.isi || n.content || '').toLowerCase();
+                  const tgl = (n.tanggal_rapat || n.tanggal || n.created_at || '').toLowerCase();
+                  return topik.includes(query) || isi.includes(query) || tgl.includes(query);
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-400 font-bold italic text-xs">
+                      {notulenSearch ? 'Tidak ada notulen yang sesuai dengan pencarian.' : 'Belum ada catatan notulen rapat dari RT.'}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {filtered.map((n) => {
+                      const rawDate = n.tanggal_rapat || n.tanggal || n.created_at || n.date;
+                      const formattedDate = rawDate ? formatDateIndo(rawDate) : '-';
+                      const topikText = n.topik || n.judul || n.title || 'Musyawarah Warga RT 006';
+                      const keputusanText = n.hasil_keputusan || n.isi || n.content || '-';
+
+                      return (
+                        <div key={n.id} className="p-5 sm:p-6 bg-slate-50 hover:bg-white border border-slate-200/70 hover:border-orange-500/40 rounded-3xl transition-all shadow-xs space-y-3 font-sans relative overflow-hidden group">
+                          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-orange-500"></div>
+                          
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/50 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 font-extrabold text-[10px] rounded-lg">
+                                NOTULEN RESMI
+                              </span>
+                              <span className="font-mono text-xs font-bold text-slate-600">
+                                📅 {formattedDate}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setViewingNotulenDoc(n)}
+                                className="py-1 px-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold text-[11px] rounded-lg transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                              >
+                                <Printer className="w-3 h-3" />
+                                <span>Cetak / Ekspor PDF</span>
+                              </button>
+                              <button
+                                onClick={() => setViewingNotulenDetail(n)}
+                                className="py-1 px-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Baca Lengkap</span>
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <h4 className="font-bold text-sm sm:text-base text-slate-900 group-hover:text-orange-600 transition-colors">
+                              {topikText}
+                            </h4>
+                            <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                              {keputusanText}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Kontrol Paginasi */}
+              {notulenPagination && notulenPagination.total_pages > 1 && (
+                <div className="p-4 flex items-center justify-between border-t border-slate-200/60 text-xs font-bold text-slate-500">
+                  <span>
+                    Halaman {notulenPagination.page} dari {notulenPagination.total_pages} {notulenPagination.total !== undefined ? `(${notulenPagination.total} Total Notulen)` : ''}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      disabled={notulenPagination.page <= 1 || isLoadingNotulen}
+                      onClick={() => fetchWargaNotulen(notulenPagination.page - 1)}
+                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                    >
+                      Sebelumnya
+                    </button>
+                    <button
+                      disabled={notulenPagination.page >= notulenPagination.total_pages || isLoadingNotulen}
+                      onClick={() => fetchWargaNotulen(notulenPagination.page + 1)}
+                      className="px-3 py-1 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed transition-all"
+                    >
+                      Selanjutnya
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* TAB 5: Informasi -> Kontak Pengurus */}
           {activeTab === 'informasi_kontak' && (
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 pb-4">
-                <h3 className="text-lg font-bold text-slate-900">Kontak Layanan Pengurus RT 05</h3>
+                <h3 className="text-lg font-bold text-slate-900">Kontak Layanan Pengurus RT 006 / RW 011</h3>
                 <p className="text-xs text-slate-400">Kontak resmi pengurus Rukun Tetangga yang dapat dihubungi warga.</p>
               </div>
 
@@ -4133,20 +4360,20 @@ export default function ProfilWarga({
                 <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">RT</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Pak Ahmad Mulyono</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Ketua RT 05</span>
+                    <h4 className="font-bold text-sm text-slate-900">Pak Wartono SE</h4>
+                    <span className="text-[10px] text-slate-400 font-bold">Ketua RT 006</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
-                    <p>No HP: 0812-9834-0401</p>
-                    <button onClick={() => alert('Menghubungi Pak RT via WhatsApp (0812-9834-0401)...')} className="text-emerald-500 font-bold hover:underline cursor-pointer block">Chat WhatsApp</button>
+                    <p>No HP: 0812-3456-7890</p>
+                    <button onClick={() => alert('Menghubungi Pak RT via WhatsApp (0812-3456-7890)...')} className="text-emerald-500 font-bold hover:underline cursor-pointer block">Chat WhatsApp</button>
                   </div>
                 </div>
 
                 <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-sky-500/10 text-sky-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">SEC</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Bu Riana Sukma</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Sekretaris RT 05</span>
+                    <h4 className="font-bold text-sm text-slate-900">Ibu Yulia Sutianti</h4>
+                    <span className="text-[10px] text-slate-400 font-bold">Sekretaris RT 006</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0815-7722-0402</p>
@@ -4157,8 +4384,8 @@ export default function ProfilWarga({
                 <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
                   <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-bold text-xs uppercase">TRE</div>
                   <div>
-                    <h4 className="font-bold text-sm text-slate-900">Pak Hadi Suwarno</h4>
-                    <span className="text-[10px] text-slate-400 font-bold">Bendahara RT 05</span>
+                    <h4 className="font-bold text-sm text-slate-900">Pak Arief Kurniawan</h4>
+                    <span className="text-[10px] text-slate-400 font-bold">Bendahara RT 006</span>
                   </div>
                   <div className="pt-2 border-t border-slate-100 text-[10px] font-semibold text-slate-500 space-y-1">
                     <p>No HP: 0878-8311-0403</p>
@@ -4240,7 +4467,7 @@ export default function ProfilWarga({
                   <div className="space-y-1">
                     <span className="text-[10px] font-extrabold uppercase text-orange-600 tracking-wider">Rekening Resmi Pembayaran IPL</span>
                     <p className="font-mono text-base font-black text-slate-800">Bank Mandiri: 157-00-98234-04-1</p>
-                    <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 05 VILLA MUTIARA MAS CINERE</p>
+                    <p className="text-xs text-slate-500 font-semibold">a.n. KAS RT 006 VILLA MUTIARA MAS CINERE</p>
                   </div>
                   <button
                     onClick={() => {
@@ -5032,7 +5259,7 @@ export default function ProfilWarga({
                   <textarea
                     required
                     rows={4}
-                    placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Cinere karena pindah domisili..."
+                    placeholder="Tulis alasan lengkap Anda mengajukan surat, contoh: Syarat pembuatan KTP baru di Kelurahan Grogol karena pindah domisili..."
                     value={letterForm?.keperluan || ''}
                     onChange={(e) => setLetterForm(prev => ({ ...prev, keperluan: e.target.value }))}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold leading-relaxed focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-xs"
@@ -5123,10 +5350,10 @@ export default function ProfilWarga({
                             <button
                               type="button"
                               onClick={() => setViewingApprovedLetter(sub)}
-                              className="w-full py-2.5 border border-orange-500/40 text-orange-600 hover:bg-orange-50 bg-orange-50/50 font-extrabold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
+                              className="w-full py-2.5 border border-amber-500/40 text-amber-700 hover:bg-amber-50 bg-amber-50/40 font-bold text-[11px] rounded-xl transition-all cursor-pointer text-center flex items-center justify-center gap-2"
                             >
-                              <Printer className="w-3.5 h-3.5" />
-                              <span>Pratinjau Detail Pengajuan</span>
+                              <Eye className="w-3.5 h-3.5 text-amber-600" />
+                              <span>Pratinjau Pengajuan (Menunggu RT)</span>
                             </button>
                           )}
                         </div>
@@ -5144,7 +5371,7 @@ export default function ProfilWarga({
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 pb-4">
                 <h3 className="text-lg font-bold text-slate-900">Laporan Pengaduan & Masukan Warga</h3>
-                <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 05.</p>
+                <p className="text-xs text-slate-400">Saluran aspirasi dan pengaduan darurat lingkungan sekitar warga RT 006.</p>
               </div>
 
               <form onSubmit={handleComplaintSubmit} className="max-w-xl space-y-4 text-xs sm:text-sm font-sans">
@@ -5453,14 +5680,14 @@ export default function ProfilWarga({
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-200/60 pb-4">
                 <h3 className="text-lg font-bold text-slate-900">Arsip Dokumen Resmi Warga</h3>
-                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 05 Villa Mutiara Mas Cinere.</p>
+                <p className="text-xs text-slate-400">Regulasi dan berkas administrasi RT 006 Villa Mutiara Mas Cinere.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3">
-                  <h4 className="font-bold text-sm text-slate-900">AD / ART Rukun Tetangga 05</h4>
+                  <h4 className="font-bold text-sm text-slate-900">AD / ART Rukun Tetangga 006</h4>
                   <p className="text-[10px] text-slate-500 leading-normal">Dokumen Anggaran Dasar dan Anggaran Rumah Tangga resmi yang berisi aturan kerukunan hidup bertetangga.</p>
-                  <button onClick={() => alert('Mengunduh AD_ART_RT05.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
+                  <button onClick={() => alert('Mengunduh AD_ART_RT006.pdf... (Simulasi unduhan berkas PDF)')} className="py-2 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold text-[10px] rounded-xl cursor-pointer font-sans shadow-md shadow-orange-500/20">Unduh PDF</button>
                 </div>
 
                 <div className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-3">
@@ -5506,7 +5733,7 @@ export default function ProfilWarga({
                           <div className="space-y-1">
                             <span className="px-2 py-0.5 bg-sky-500/10 text-sky-600 rounded-lg text-[8px] font-black uppercase tracking-wider">{k.jabatan || k.position}</span>
                             <h5 className="font-black text-sm text-slate-900 pt-1">{k.nama || k.name}</h5>
-                            <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 05.</p>
+                            <p className="text-[10px] text-slate-400">Petugas berdedikasi lingkungan komplek RT 006.</p>
                           </div>
                           <button
                             onClick={() => handleCastVote(k.id)}
@@ -5855,7 +6082,7 @@ export default function ProfilWarga({
                           <path d="M50,65 h10 v10 h-10 z M40,80 h25 v5 h-25 z" fill="currentColor" />
                           <path d="M80,80 h15 v15 h-15 z" fill="currentColor" />
                         </svg>
-                        <span className="font-extrabold text-[9px] text-slate-400 block tracking-wider uppercase mt-2">SGP QRIS - RT 05</span>
+                        <span className="font-extrabold text-[9px] text-slate-400 block tracking-wider uppercase mt-2">QRIS - RT 006 / RW 011</span>
                       </div>
 
                       <button
@@ -5947,49 +6174,203 @@ export default function ProfilWarga({
       </main>
 
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
-      {viewingApprovedLetter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 no-print"></div>
-            
-            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print shrink-0">
-              <div>
-                <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
-                {viewingApprovedLetter.status && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full mt-1 inline-block ${
-                    viewingApprovedLetter.status === 'Disetujui' || viewingApprovedLetter.status === 'Approved' || viewingApprovedLetter.status === 'Selesai'
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}>
-                    Status: {viewingApprovedLetter.status} {viewingApprovedLetter.status === 'Menunggu' ? '(Dapat Langsung Dicetak Sebagai Bukti Pengajuan)' : '(Dokumen Resmi Terverifikasi)'}
-                  </span>
-                )}
+      {viewingApprovedLetter && (() => {
+        const isApprovedLetter = ['approved', 'disetujui', 'selesai', 'completed'].includes(
+          String(viewingApprovedLetter.status || '').toLowerCase()
+        );
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+            <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-4 max-h-[92vh] flex flex-col">
+              <div className={`absolute top-0 left-0 right-0 h-1.5 no-print ${
+                isApprovedLetter
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500'
+              }`}></div>
+              
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print shrink-0">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                  {viewingApprovedLetter.status && (
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full mt-1 inline-block ${
+                      isApprovedLetter
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      Status: {viewingApprovedLetter.status} {isApprovedLetter ? '(Dokumen Sah & Resmi)' : '(Menunggu Persetujuan RT / Sekretaris — Belum Dapat Dicetak)'}
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <span className="font-extrabold text-sm">✕</span>
+                </button>
               </div>
-              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
-                <span className="font-extrabold text-sm">✕</span>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
+                <SuratPengantarPrintable letter={viewingApprovedLetter} currentUser={currentUser} />
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
+                <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
+                <div className="flex items-center gap-2">
+                  {isApprovedLetter ? (
+                    <button
+                      onClick={() => window.print()}
+                      className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Surat / Simpan PDF</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        Swal.fire({
+                          title: 'Surat Belum Disetujui 🔒',
+                          text: 'Surat pengantar ini masih berstatus Menunggu Persetujuan dari Ketua RT atau Sekretaris. Anda baru dapat mencetak dan mengunduh berkas resmi setelah disetujui.',
+                          icon: 'warning',
+                          confirmButtonColor: '#ea580c',
+                          confirmButtonText: 'Mengerti'
+                        });
+                      }}
+                      className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                      title="Surat belum disetujui oleh Ketua RT atau Sekretaris"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Cetak Terkunci (Belum Disetujui)</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setViewingApprovedLetter(null)}
+                    className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+      {/* MODAL DETAIL NOTULEN RAPAT WARGA */}
+      {viewingNotulenDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in font-sans">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up">
+            <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-900">Detail Notulen Rapat RT</h4>
+                  <p className="text-[10px] text-slate-400">ID #{viewingNotulenDetail.id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingNotulenDetail(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs max-h-[60vh] overflow-y-auto pr-1">
+              <div>
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Tanggal Rapat</label>
+                <div className="mt-1 font-mono font-bold text-slate-800">
+                  {formatDateIndo(viewingNotulenDetail.tanggal_rapat || viewingNotulenDetail.tanggal || viewingNotulenDetail.created_at || viewingNotulenDetail.date)}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Topik / Agenda Musyawarah</label>
+                <div className="mt-1 font-bold text-slate-900 text-sm">
+                  {viewingNotulenDetail.topik || viewingNotulenDetail.judul || viewingNotulenDetail.title}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Hasil Musyawarah & Keputusan Rapat</label>
+                <div className="mt-1 p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl whitespace-pre-wrap text-slate-800 leading-relaxed font-normal">
+                  {viewingNotulenDetail.hasil_keputusan || viewingNotulenDetail.isi || viewingNotulenDetail.content || '-'}
+                </div>
+              </div>
+
+              {(viewingNotulenDetail.created_at || viewingNotulenDetail.updated_at) && (
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
+                  <span>Dibuat: {viewingNotulenDetail.created_at ? new Date(viewingNotulenDetail.created_at).toLocaleString('id-ID') : '-'}</span>
+                  <span>Diperbarui: {viewingNotulenDetail.updated_at ? new Date(viewingNotulenDetail.updated_at).toLocaleString('id-ID') : '-'}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+              <button
+                onClick={() => {
+                  setViewingNotulenDoc(viewingNotulenDetail);
+                  setViewingNotulenDetail(null);
+                }}
+                className="py-2 px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5 shadow-md shadow-orange-500/20"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Pratinjau Cetak / PDF</span>
+              </button>
+              <button
+                onClick={() => setViewingNotulenDetail(null)}
+                className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL PRATINJAU & CETAK NOTULEN RAPAT WARGA */}
+      {viewingNotulenDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in no-print-bg">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 no-print">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-600">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Berita Acara & Notulen Rapat Resmi RT 006</h3>
+                  <p className="text-xs text-slate-400">
+                    Kop Surat Resmi RT 006 / RW 011 • Format Standar Cetak / Ekspor PDF A4
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingNotulenDoc(null)} 
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
-              <SuratPengantarPrintable letter={viewingApprovedLetter} currentUser={currentUser} />
+              <NotulenRapatPrintable notulen={viewingNotulenDoc} />
             </div>
 
-            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
-              <div className="flex gap-2">
+            <div className="p-4 sm:p-5 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print bg-white">
+              <span className="text-slate-400 font-bold hidden sm:inline">Format: Dokumen Resmi Notulen RT 006 / RW 011 (A4)</span>
+              <div className="flex items-center gap-2 ml-auto">
                 <button
-                  onClick={() => window.print()}
-                  className="py-2.5 px-4 bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Cetak Surat / Simpan PDF</span>
-                </button>
-                <button
-                  onClick={() => setViewingApprovedLetter(null)}
-                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
+                  type="button"
+                  onClick={() => setViewingNotulenDoc(null)}
+                  className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Tutup
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="py-2.5 px-5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Dokumen / Ekspor PDF</span>
                 </button>
               </div>
             </div>

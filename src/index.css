@@ -212,11 +212,14 @@ body {
   }
 
   #printable-letter-container,
-  #printable-letter-container * {
+  #printable-letter-container *,
+  #printable-notulen-container,
+  #printable-notulen-container * {
     visibility: visible !important;
   }
 
-  #printable-letter-container {
+  #printable-letter-container,
+  #printable-notulen-container {
     position: relative !important;
     left: auto !important;
     top: auto !important;
@@ -241,7 +244,8 @@ body {
     print-color-adjust: exact !important;
   }
 
-  #printable-letter-container img {
+  #printable-letter-container img,
+  #printable-notulen-container img {
     visibility: visible !important;
     display: block !important;
     -webkit-print-color-adjust: exact !important;

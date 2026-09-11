@@ -171,7 +171,7 @@ export default function App() {
             description: a.deskripsi || a.description || '',
             date: a.tanggal ? (typeof a.tanggal === 'string' ? a.tanggal.substring(0, 10) : '') : (a.date || ''),
             time: a.waktu || a.time || '08:00',
-            location: a.tempat || a.location || 'Lingkungan RT 05',
+            location: a.tempat || a.location || 'Lingkungan RT 006',
             isFromServer: true
           }));
           mapped.sort((a, b) => {
@@ -527,7 +527,7 @@ export default function App() {
           {/* Copyright Sub-note */}
           <div className="pt-4 text-center">
             <p className="text-[10px] text-slate-500">
-              © {new Date().getFullYear()} RT 05 / RW 11 • Perumahan Villa Mutiara Mas Cinere, Depok.
+              © {new Date().getFullYear()} RT 006 / RW 011 • Perumahan Villa Mutiara Mas Cinere, Depok.
             </p>
           </div>
 

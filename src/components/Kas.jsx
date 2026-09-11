@@ -42,7 +42,7 @@ export default function Kas({ totalPemasukan, totalPengeluaran, sisaKas, transak
             Transparansi Kas
           </h2>
           <p className="text-3xl sm:text-4xl font-extrabold text-slate-900">
-            Laporan Keuangan & Kas RT
+            Laporan Keuangan & Kas RT 006 / RW 011
           </p>
           <div className="w-12 h-1 bg-orange-500 mx-auto rounded-full"></div>
         </div>

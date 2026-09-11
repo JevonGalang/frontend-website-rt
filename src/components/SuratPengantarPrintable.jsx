@@ -94,12 +94,35 @@ export default function SuratPengantarPrintable({ letter, currentUser }) {
 
   const defaultDotPlaceholder = '................................................................';
 
+  // Cek status persetujuan pengurus RT / Sekretaris
+  const statusStr = String(letter.status || '').toLowerCase();
+  const isApproved = ['approved', 'disetujui', 'selesai', 'completed'].includes(statusStr);
+
   return (
     <div
       id="printable-letter-container"
-      className="bg-white text-black w-full max-w-3xl shadow-2xl border border-slate-200 pt-3 sm:pt-4 md:pt-4 px-8 sm:px-12 pb-8 sm:pb-12 font-sans text-sm sm:text-base relative leading-relaxed mx-auto"
+      className="bg-white text-black w-full max-w-3xl shadow-2xl border border-slate-200 pt-3 sm:pt-4 md:pt-4 px-8 sm:px-12 pb-8 sm:pb-12 font-sans text-sm sm:text-base relative leading-relaxed mx-auto overflow-hidden"
       style={{ color: '#000000', backgroundColor: '#ffffff' }}
     >
+      {/* Watermark jika surat belum disetujui */}
+      {!isApproved && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-20 select-none">
+          <div className="rotate-[-25deg] border-4 sm:border-8 border-dashed border-rose-600/30 text-rose-600/30 font-black text-2xl sm:text-5xl uppercase tracking-widest px-6 sm:px-10 py-3 sm:py-6 rounded-3xl text-center shadow-xs">
+            DRAFT / BELUM DISETUJUI
+            <span className="block text-[10px] sm:text-xs tracking-wider mt-1 font-bold">TIDAK SAH TANPA PERSETUJUAN RT / SEKRETARIS</span>
+          </div>
+        </div>
+      )}
+
+      {/* Banner informasi jika belum disetujui (khusus tampilan layar, disembunyikan saat print) */}
+      {!isApproved && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-300/80 rounded-xl text-amber-900 text-xs font-medium flex items-center gap-2.5 print:hidden">
+          <span className="text-base">⚠️</span>
+          <span>
+            <strong>Perhatian:</strong> Surat pengantar ini berstatus <strong>{letter.status || 'Menunggu Persetujuan'}</strong> dari Ketua RT atau Sekretaris. Dokumen ini belum sah dan <u>tidak dapat dicetak</u> hingga disetujui.
+          </span>
+        </div>
+      )}
       {/* 1. KOP SURAT RESMI (TULISAN BARU DENGAN STRUKTUR GAMBAR 1) */}
       <div className="relative pb-3 mb-2">
         {/* Logo Kota Depok */}
@@ -127,7 +150,7 @@ export default function SuratPengantarPrintable({ letter, currentUser }) {
             RUKUN WARGA 011
           </h1>
           <p className="text-[10px] sm:text-[12px] font-sans font-normal mt-2 leading-tight" style={{ color: '#737373' }}>
-            Sekretariat: Jl. Boulevard Vila Mutiara Cinere No. 1, RT 001/RW 011, Kel. Grogol, Kec. Limo, Kota Depok 16512
+            Sekretariat: Jl. Boulevard Vila Mutiara Cinere No. 1, RT 006/RW 011, Kel. Grogol, Kec. Limo, Kota Depok 16512
           </p>
         </div>
       </div>
@@ -239,7 +262,11 @@ export default function SuratPengantarPrintable({ letter, currentUser }) {
         <div className="flex flex-col items-center justify-center">
           <span className="block font-normal">Mengetahui,</span>
           <span className="block font-semibold">Ketua RW 011</span>
-          <div className="h-20 sm:h-24"></div>
+          <div className="h-20 sm:h-24 flex items-center justify-center">
+            {!isApproved && (
+              <span className="text-[10px] text-slate-400 italic">[Belum Diverifikasi]</span>
+            )}
+          </div>
           <span className="block font-semibold">( Moc. Taufik )</span>
         </div>
 
@@ -247,7 +274,13 @@ export default function SuratPengantarPrintable({ letter, currentUser }) {
         <div className="flex flex-col items-center justify-center">
           <span className="block font-normal">Depok, {formattedDate || '[Diisi dengan Tanggal]'}</span>
           <span className="block font-semibold">Ketua RT 006</span>
-          <div className="h-20 sm:h-24"></div>
+          <div className="h-20 sm:h-24 flex items-center justify-center">
+            {!isApproved ? (
+              <span className="text-[10px] text-amber-700 font-bold italic px-2 py-1 bg-amber-50 rounded border border-amber-200">
+                [Menunggu Persetujuan RT]
+              </span>
+            ) : null}
+          </div>
           <span className="block font-semibold">( Wartono )</span>
         </div>
       </div>

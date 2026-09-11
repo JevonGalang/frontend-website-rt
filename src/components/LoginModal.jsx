@@ -38,7 +38,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
     if (loginData.username.toLowerCase() === 'admin' && loginData.password === 'admin') {
       const adminUser = {
         id: 'ADM-001',
-        name: 'Pak RT (Ahmad Mulyono)',
+        name: 'Pak RT (Wartono SE)',
         username: 'admin',
         role: 'admin',
       };
@@ -92,7 +92,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
           role: resData.user.role,
           familyId: resData.user.family_id,
           must_change_password: resData.user.must_change_password,
-          name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Ahmad Mulyono)' : resData.user.username)
+          name: localCitizen ? localCitizen.name : (resData.user.role === 'rt' || resData.user.role === 'admin' ? 'Pak RT (Wartono SE)' : resData.user.username)
         };
 
         setSession(citizenUser, resData.token);
@@ -330,7 +330,7 @@ export default function LoginModal({ isOpen, onClose, wargaList, setWargaList, s
               Villa Mutiara Mas Cinere
             </h3>
             <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mt-1">
-              Portal Warga & Admin • RT 05 / RW 11
+              Portal Warga & Admin • RT 006 / RW 011
             </p>
           </div>
 

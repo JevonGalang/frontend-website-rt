@@ -14,6 +14,7 @@ import AdminDataWizard from './AdminDataWizard';
 import DateInput from './DateInput';
 import OtpVerificationModal from './OtpVerificationModal';
 import SuratPengantarPrintable from './SuratPengantarPrintable';
+import NotulenRapatPrintable from './NotulenRapatPrintable';
 import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../config/api';
 import { io } from '../utils/liveSocket';
@@ -665,7 +666,7 @@ export default function AdminDashboard({
   const [jenisIuranList, setJenisIuranList] = useState([
     { id: 'IUR-001', name: 'Iuran Wajib Kebersihan', amount: 20000, frequency: 'Bulanan', desc: 'Biaya pengangkutan sampah warga ke TPA bulanan.' },
     { id: 'IUR-002', name: 'Iuran Wajib Keamanan', amount: 30000, frequency: 'Bulanan', desc: 'Gaji petugas satpam komplek perumahan.' },
-    { id: 'IUR-003', name: 'Iuran Sosial Kematian', amount: 10000, frequency: 'Sukarela', desc: 'Dana santunan musibah kematian warga RT 05.' },
+    { id: 'IUR-003', name: 'Iuran Sosial Kematian', amount: 10000, frequency: 'Sukarela', desc: 'Dana santunan musibah kematian warga RT 006.' },
   ]);
 
   // Payment Form States
@@ -709,6 +710,7 @@ export default function AdminDashboard({
   const [viewingNotulenDetail, setViewingNotulenDetail] = useState(null);
   const [notulenPagination, setNotulenPagination] = useState({ page: 1, limit: 20, total: 0, total_pages: 1 });
   const [notulenFilterDate, setNotulenFilterDate] = useState({ date_from: '', date_to: '' });
+  const [viewingNotulenDoc, setViewingNotulenDoc] = useState(null);
   const [arsipFileList, setArsipFileList] = useState([]);
 
   // Surat Masuk UI States
@@ -1448,7 +1450,7 @@ export default function AdminDashboard({
       if (statusAction === 'diterima') {
         Swal.fire({
           title: 'Verifikasi Registrasi Disetujui! 🎉',
-          text: resData.message || `Data pendaftaran ${targetWarga ? targetWarga.nama : 'Warga Baru'} telah diverifikasi dan resmi terdaftar di Data Penduduk RT 05.`,
+          text: resData.message || `Data pendaftaran ${targetWarga ? targetWarga.nama : 'Warga Baru'} telah diverifikasi dan resmi terdaftar di Data Penduduk RT 006.`,
           icon: 'success',
           confirmButtonColor: '#10b981'
         });
@@ -2317,9 +2319,9 @@ export default function AdminDashboard({
     } catch (err) {
       console.warn('Gagal mengambil surat masuk dari server, menggunakan in-memory state:', err.message);
       setSuratMasukList(prev => prev.length > 0 ? prev : [
-        { id: '1', nomorSurat: '001/RT05/VII/2026', asalSurat: 'Kelurahan Cinere', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
-        { id: '2', nomorSurat: '120/KEC-CNR/2026', asalSurat: 'Kecamatan Cinere', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
-        { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Cinere', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 05 untuk mencegah demam berdarah.' }
+        { id: '1', nomorSurat: '001/RT006/VII/2026', asalSurat: 'Kelurahan Grogol', perihal: 'Undangan Rapat Koordinasi Agustusan', tanggalSurat: '2026-07-15', tanggalDiterima: '2026-07-16', status: 'Baru', fileLampiran: 'undangan_koordinasi.pdf', isiRingkas: 'Undangan resmi koordinasi perayaan HUT RI ke-81 di Balai Kelurahan.' },
+        { id: '2', nomorSurat: '120/KEC-LIMO/2026', asalSurat: 'Kecamatan Limo', perihal: 'Himbauan Kerja Bakti Serentak', tanggalSurat: '2026-07-10', tanggalDiterima: '2026-07-12', status: 'Diproses', fileLampiran: 'himbauan_kerja_bakti.pdf', isiRingkas: 'Himbauan melaksanakan kerja bakti membersihkan saluran air menjelang musim hujan.' },
+        { id: '3', nomorSurat: '09/DINKES/VII/2026', asalSurat: 'Puskesmas Limo', perihal: 'Jadwal Fogging Nyamuk DBD', tanggalSurat: '2026-07-05', tanggalDiterima: '2026-07-06', status: 'Selesai', fileLampiran: 'jadwal_fogging.pdf', isiRingkas: 'Pemberitahuan pelaksanaan fogging di wilayah RT 006 untuk mencegah demam berdarah.' }
       ]);
     } finally {
       setSuratMasukLoading(false);
@@ -2356,9 +2358,9 @@ export default function AdminDashboard({
     } catch (err) {
       console.warn('Gagal mengambil surat keluar dari server, menggunakan in-memory state:', err.message);
       setSuratKeluarList(prev => prev.length > 0 ? prev : [
-        { id: '1', nomorSurat: '101/RT05/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Cinere (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
-        { id: '2', nomorSurat: '102/RT05/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Cinere (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
-        { id: '3', nomorSurat: '103/RT05/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Cinere', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
+        { id: '1', nomorSurat: '101/RT006/VII/2026', jenisSurat: 'Surat Pengantar KTP', namaPemohon: 'Ahmad Subarjo', nik: '3201021507980002', tujuan: 'Kelurahan Grogol (Pengurusan E-KTP Hilang)', tanggalSurat: '2026-07-19', status: 'Disetujui', isiRingkas: 'Pengantar untuk penerbitan ulang KTP baru yang hilang di wilayah RT.' },
+        { id: '2', nomorSurat: '102/RT006/VII/2026', jenisSurat: 'Surat Pengantar SKCK', namaPemohon: 'Rina Herawati', nik: '3201026002990005', tujuan: 'Polsek Cinere (Pekerjaan BUMN)', tanggalSurat: '2026-07-18', status: 'Diproses', isiRingkas: 'Surat pengantar kelakuan baik untuk syarat melamar pekerjaan BUMN.' },
+        { id: '3', nomorSurat: '103/RT006/VII/2026', jenisSurat: 'Surat Keterangan Domisili', namaPemohon: 'Dedi Kurniawan', nik: '3201020404950001', tujuan: 'Bank Mandiri Cabang Cinere', tanggalSurat: '2026-07-17', status: 'Selesai', isiRingkas: 'Surat keterangan domisili sementara untuk pembukaan rekening tabungan.' }
       ]);
     } finally {
       setSuratKeluarLoading(false);
@@ -2366,9 +2368,9 @@ export default function AdminDashboard({
   };
 
   // ==========================================
-  // NOTULEN RAPAT API HANDLERS (/notulen-rapat)
+  // NOTULEN RAPAT HANDLERS (Backend API)
   // ==========================================
-  const fetchNotulenList = async (page = 1, dateFrom = notulenFilterDate.date_from, dateTo = notulenFilterDate.date_to) => {
+  const fetchNotulenList = async (page = 1, dateFrom = notulenFilterDate?.date_from || '', dateTo = notulenFilterDate?.date_to || '') => {
     setIsLoadingNotulen(true);
     const token = sessionStorage.getItem('rt_token');
     if (!token) {
@@ -2383,30 +2385,41 @@ export default function AdminDashboard({
       if (dateFrom) queryParams.append('date_from', dateFrom);
       if (dateTo) queryParams.append('date_to', dateTo);
 
-      const res = await fetch(`${API_BASE_URL}/notulen-rapat?${queryParams.toString()}`, {
+      const qs = queryParams.toString();
+      const url = `${API_BASE_URL}/notulen-rapat${qs ? `?${qs}` : ''}`;
+      console.log(`%c[NOTULEN] 🔄 GET ${url}`, 'color: #06b6d4; font-weight: bold;');
+
+      const res = await fetch(url, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
+      if (res.status === 403) {
+        console.info('[fetchNotulenList] Akses ditolak (403) — role tidak memiliki izin.');
+        setIsLoadingNotulen(false);
+        return;
+      }
+
       if (!res.ok) {
-        if (res.status === 403) {
-          console.info('[fetchNotulenList] Akses ditolak (403) — role tidak memiliki izin.');
-          return;
-        }
         throw new Error(`Gagal memuat notulen rapat (Status: ${res.status})`);
       }
 
       const resData = await res.json();
-      const items = resData?.output?.pesan?.items || extractArrayFromResponse(resData) || [];
-      setNotulenList(items);
+      console.log('%c[NOTULEN] 📥 Response:', 'color: #10b981;', resData);
+      const items = resData?.output?.pesan?.items || resData?.output?.pesan || resData?.output?.data || resData?.data || extractArrayFromResponse(resData) || [];
+      const safeArray = Array.isArray(items) ? items : extractArrayFromResponse(items);
+      safeArray.sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0));
+      setNotulenList(safeArray);
 
       if (resData?.output?.pesan?.pagination) {
         setNotulenPagination(resData.output.pesan.pagination);
+      } else if (resData?.pagination) {
+        setNotulenPagination(resData.pagination);
       }
     } catch (err) {
-      console.error('[fetchNotulenList] Error:', err);
+      console.error('[fetchNotulenList] Failed to fetch notulen rapat:', err);
     } finally {
       setIsLoadingNotulen(false);
     }
@@ -2414,92 +2427,123 @@ export default function AdminDashboard({
 
   const handleSaveNotulen = async (e) => {
     if (e) e.preventDefault();
-    if (!notulenForm.tanggal_rapat || !notulenForm.topik.trim() || !notulenForm.hasil_keputusan.trim()) {
-      Swal.fire('Peringatan', 'Harap lengkapi semua kolom wajib (Tanggal, Topik, Keputusan).', 'warning');
+    const tanggalVal = notulenForm.tanggal_rapat || new Date().toISOString().split('T')[0];
+    const topikVal = (notulenForm.topik || notulenForm.judul || '').trim();
+    const keputusanVal = (notulenForm.hasil_keputusan || notulenForm.isi || '').trim();
+
+    if (!tanggalVal || !topikVal || !keputusanVal) {
+      Swal.fire({
+        title: 'Peringatan',
+        text: 'Harap lengkapi Tanggal Rapat, Topik Musyawarah, dan Hasil Keputusan.',
+        icon: 'warning',
+        confirmButtonColor: '#f97316'
+      });
       return;
     }
 
-    if (notulenForm.topik.length > 200) {
-      Swal.fire('Peringatan', 'Topik musyawarah maksimal 200 karakter.', 'warning');
+    if (topikVal.length > 200) {
+      Swal.fire({
+        title: 'Peringatan',
+        text: 'Topik musyawarah maksimal 200 karakter.',
+        icon: 'warning',
+        confirmButtonColor: '#f97316'
+      });
       return;
     }
 
     const token = sessionStorage.getItem('rt_token');
     if (!token) {
-      Swal.fire('Error', 'Sesi login telah berakhir. Silakan login ulang.', 'error');
+      Swal.fire({ title: 'Gagal!', text: 'Token tidak ditemukan. Harap login kembali.', icon: 'error', confirmButtonColor: '#ef4444' });
       return;
     }
 
     setIsSubmittingNotulen(true);
+    const isEditing = Boolean(editingNotulen?.id);
+    const url = isEditing
+      ? `${API_BASE_URL}/notulen-rapat/${editingNotulen.id}`
+      : `${API_BASE_URL}/notulen-rapat`;
+    const method = isEditing ? 'PATCH' : 'POST';
+
+    const payload = {
+      tanggal_rapat: tanggalVal,
+      topik: topikVal,
+      hasil_keputusan: keputusanVal
+    };
+
+    console.log(`%c[NOTULEN] 🚀 ${method} ${url}`, 'color: #8b5cf6; font-weight: bold;', payload);
+
     try {
-      const isEditing = Boolean(editingNotulen?.id);
-      const url = isEditing 
-        ? `${API_BASE_URL}/notulen-rapat/${editingNotulen.id}` 
-        : `${API_BASE_URL}/notulen-rapat`;
-      const method = isEditing ? 'PATCH' : 'POST';
-
-      const payload = {
-        tanggal_rapat: notulenForm.tanggal_rapat,
-        topik: notulenForm.topik.trim(),
-        hasil_keputusan: notulenForm.hasil_keputusan.trim()
-      };
-
       const res = await fetch(url, {
         method,
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(payload)
       });
 
-      const resData = await res.json().catch(() => ({}));
+      const data = await res.json().catch(() => ({}));
+      console.log(`%c[NOTULEN] 📥 Response (${res.status}):`, 'color: #10b981;', data);
 
-      if (!res.ok) {
-        const errorMsg = resData?.pesan || resData?.message || 'Gagal menyimpan notulen rapat.';
-        throw new Error(errorMsg);
+      if (res.ok) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: data.message || data.pesan || (isEditing ? 'Notulen rapat berhasil diperbarui.' : 'Notulen rapat berhasil dicatat.'),
+          icon: 'success',
+          confirmButtonColor: '#10b981',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        setNotulenForm({
+          tanggal_rapat: new Date().toISOString().split('T')[0],
+          topik: '',
+          hasil_keputusan: ''
+        });
+        setEditingNotulen(null);
+        fetchNotulenList(notulenPagination.page || 1);
+      } else {
+        const errorMsg = (Array.isArray(data?.errors) ? data.errors.map(e => e.message || e).join(', ') : null) 
+          || data?.message 
+          || data?.pesan 
+          || data?.error 
+          || 'Gagal menyimpan notulen rapat.';
+        Swal.fire({
+          title: 'Gagal!',
+          text: errorMsg,
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
+        });
       }
-
-      Swal.fire({
-        title: 'Berhasil!',
-        text: resData?.message || (isEditing ? 'Notulen rapat berhasil diperbarui.' : 'Notulen rapat berhasil dicatat.'),
-        icon: 'success',
-        timer: 2000,
-        showConfirmButton: false
-      });
-
-      setNotulenForm({
-        tanggal_rapat: new Date().toISOString().split('T')[0],
-        topik: '',
-        hasil_keputusan: ''
-      });
-      setEditingNotulen(null);
-      fetchNotulenList(notulenPagination.page || 1);
     } catch (err) {
       console.error('[handleSaveNotulen] Error:', err);
-      Swal.fire('Gagal', err.message || 'Terjadi kesalahan sistem saat menyimpan notulen.', 'error');
+      Swal.fire({
+        title: 'Error!',
+        text: `Gagal menghubungi server: ${err.message}`,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
     } finally {
       setIsSubmittingNotulen(false);
     }
   };
 
   const handleDeleteNotulen = async (notulenItem) => {
-    const result = await Swal.fire({
+    const confirmResult = await Swal.fire({
       title: 'Hapus Notulen?',
-      html: `Apakah Anda yakin ingin menghapus notulen rapat <b>"${notulenItem.topik}"</b>?<br/><span class="text-xs text-rose-500">Data akan dihapus permanen dari server.</span>`,
+      html: `Apakah Anda yakin ingin menghapus notulen rapat <b>"${notulenItem.topik || notulenItem.judul || notulenItem.title || ''}"</b>?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
       cancelButtonColor: '#64748b',
-      confirmButtonText: 'Ya, Hapus Permanen',
+      confirmButtonText: 'Ya, Hapus',
       cancelButtonText: 'Batal'
     });
 
-    if (!result.isConfirmed) return;
+    if (!confirmResult.isConfirmed) return;
 
     const token = sessionStorage.getItem('rt_token');
     if (!token) {
-      Swal.fire('Error', 'Sesi login telah berakhir. Silakan login ulang.', 'error');
+      Swal.fire({ title: 'Gagal!', text: 'Token tidak ditemukan.', icon: 'error', confirmButtonColor: '#ef4444' });
       return;
     }
 
@@ -2511,43 +2555,48 @@ export default function AdminDashboard({
         }
       });
 
-      const resData = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        const errorMsg = resData?.pesan || resData?.message || 'Gagal menghapus notulen rapat.';
-        throw new Error(errorMsg);
-      }
-
-      Swal.fire({
-        title: 'Terhapus!',
-        text: resData?.message || 'Notulen rapat berhasil dihapus.',
-        icon: 'success',
-        timer: 1800,
-        showConfirmButton: false
-      });
-
-      if (editingNotulen?.id === notulenItem.id) {
-        setEditingNotulen(null);
-        setNotulenForm({
-          tanggal_rapat: new Date().toISOString().split('T')[0],
-          topik: '',
-          hasil_keputusan: ''
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        Swal.fire({
+          title: 'Terhapus!',
+          text: data.message || data.pesan || 'Notulen rapat berhasil dihapus.',
+          icon: 'success',
+          timer: 1800,
+          showConfirmButton: false
+        });
+        if (editingNotulen?.id === notulenItem.id) {
+          setEditingNotulen(null);
+          setNotulenForm({
+            tanggal_rapat: new Date().toISOString().split('T')[0],
+            topik: '',
+            hasil_keputusan: ''
+          });
+        }
+        fetchNotulenList(notulenPagination.page || 1);
+      } else {
+        Swal.fire({
+          title: 'Gagal!',
+          text: data.message || data.pesan || 'Gagal menghapus notulen rapat.',
+          icon: 'error',
+          confirmButtonColor: '#ef4444'
         });
       }
-
-      fetchNotulenList(notulenPagination.page || 1);
     } catch (err) {
-      console.error('[handleDeleteNotulen] Error:', err);
-      Swal.fire('Gagal', err.message || 'Terjadi kesalahan saat menghapus notulen rapat.', 'error');
+      Swal.fire({
+        title: 'Error!',
+        text: `Gagal menghubungi server: ${err.message}`,
+        icon: 'error',
+        confirmButtonColor: '#ef4444'
+      });
     }
   };
 
   const handleEditNotulen = (notulenItem) => {
     setEditingNotulen(notulenItem);
     setNotulenForm({
-      tanggal_rapat: notulenItem.tanggal_rapat ? notulenItem.tanggal_rapat.split('T')[0] : new Date().toISOString().split('T')[0],
-      topik: notulenItem.topik || '',
-      hasil_keputusan: notulenItem.hasil_keputusan || ''
+      tanggal_rapat: notulenItem.tanggal_rapat ? notulenItem.tanggal_rapat.split('T')[0] : (notulenItem.tanggal || notulenItem.date || new Date().toISOString().split('T')[0]),
+      topik: notulenItem.topik || notulenItem.judul || notulenItem.title || '',
+      hasil_keputusan: notulenItem.hasil_keputusan || notulenItem.isi || notulenItem.pembahasan || ''
     });
     const formEl = document.getElementById('notulen-form-container');
     if (formEl) {
@@ -2640,13 +2689,20 @@ export default function AdminDashboard({
                              item.account_created === true || item.hasAccount === true || 
                              !!item.user || !!item.account || !!savedAcc;
 
+          const rawGender = String(item.jenis_kelamin || item.jenisKelamin || item.gender || '').trim();
+          const normalizedGender = (rawGender === 'P' || rawGender.toLowerCase().startsWith('p') || rawGender.toLowerCase().includes('wanita') || rawGender.toLowerCase().includes('perempuan'))
+            ? 'Perempuan'
+            : (rawGender === 'L' || rawGender.toLowerCase().startsWith('l') || rawGender.toLowerCase().includes('pria') || rawGender.toLowerCase().includes('laki'))
+            ? 'Laki-laki'
+            : (rawGender || 'Laki-laki');
+
           return {
             id: citizenId,
             warga_id: citizenId,
             name: item.nama || item.name || '',
             nik: nik,
             noKk: item.family_nokk || item.no_kk || item.noKk || '',
-            gender: item.jenis_kelamin || item.jenisKelamin || item.gender || '',
+            gender: normalizedGender,
             house_status: item.house_status || '',
             status: (item.house_status || '').toLowerCase().includes('kontrak') || (item.house_status || '').toLowerCase().includes('sewa')
               ? 'Kontrak'
@@ -4299,7 +4355,10 @@ export default function AdminDashboard({
         nik: item.nik || '',
         noKk: item.noKk || item.no_kk || '',
         alamat: item.alamat || '',
-        gender: item.gender || item.jenisKelamin || item.jenis_kelamin || 'Laki-laki',
+        gender: (() => {
+          const raw = String(item.gender || item.jenisKelamin || item.jenis_kelamin || '').trim().toLowerCase();
+          return (raw.startsWith('p') || raw.includes('perempuan') || raw.includes('wanita')) ? 'Perempuan' : 'Laki-laki';
+        })(),
         usia: calculatedAgeVal,
         status: item.status || 'Tetap',
         statusHidup: item.statusHidup || item.status_hidup || 'Hidup',
@@ -5241,7 +5300,7 @@ export default function AdminDashboard({
       category: 'kegiatan',
       targetTab: 'sek_info_pengumuman',
       title: `📢 Kegiatan: ${item.judul || item.title || 'Pengumuman RT'}`,
-      message: item.isi || item.content || 'Pengumuman resmi kegiatan lingkungan RT 05.',
+      message: item.isi || item.content || 'Pengumuman resmi kegiatan lingkungan RT 006.',
       time: item.tanggal ? formatDateIndo(item.tanggal) : 'Aktif',
       isUrgent: false
     })),
@@ -5252,7 +5311,7 @@ export default function AdminDashboard({
       category: 'jadwal',
       targetTab: 'agenda',
       title: `🗓️ Jadwal: ${item.title || item.judul || 'Agenda RT'}`,
-      message: `Jadwal "${item.title || item.judul}" terlaksana pada ${item.date ? formatDateIndo(item.date) : 'Jadwal'} di ${item.location || item.tempat || 'RT 05'}.`,
+      message: `Jadwal "${item.title || item.judul}" terlaksana pada ${item.date ? formatDateIndo(item.date) : 'Jadwal'} di ${item.location || item.tempat || 'RT 006'}.`,
       time: item.date ? formatDateIndo(item.date) : 'Mendatang',
       isUrgent: false
     })),
@@ -5263,7 +5322,7 @@ export default function AdminDashboard({
       category: 'kematian',
       targetTab: 'warga',
       title: `🕊️ Data Kematian: ${item.gender === 'Perempuan' ? 'Almh. Ibu' : 'Alm. Bpk'} ${item.name}`,
-      message: `Status kependudukan terdata Meninggal Dunia (${item.alamat ? `Warga ${item.alamat}` : 'Warga RT 05'}). Dana santunan duka cita dapat disalurkan.`,
+      message: `Status kependudukan terdata Meninggal Dunia (${item.alamat ? `Warga ${item.alamat}` : 'Warga RT 006'}). Dana santunan duka cita dapat disalurkan.`,
       time: 'Arsip Kematian',
       isUrgent: true
     }))
@@ -5418,16 +5477,19 @@ export default function AdminDashboard({
   const renderDemografiKependudukan = (cardClassName = "bg-white border border-slate-200/60 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-6 font-sans", showTunggakan = false) => {
     if (isBendahara) return null;
     const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
-    const totalPop = living.length || 1;
+    const totalPop = living.length;
     
     // Gender ratio
     const male = living.filter(w => {
-      const g = (w.gender || w.jenisKelamin || w.jenis_kelamin || '').toLowerCase();
-      return g.startsWith('l') || g.includes('laki');
+      const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+      return g.startsWith('l') || g.includes('laki') || g === 'pria';
     }).length;
-    const female = Math.max(0, totalPop - male);
-    const malePct = living.length > 0 ? Math.round((male / totalPop) * 100) : 50;
-    const femalePct = living.length > 0 ? (100 - malePct) : 50;
+    const female = living.filter(w => {
+      const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+      return g.startsWith('p') || g.includes('perempuan') || g.includes('wanita');
+    }).length;
+    const malePct = totalPop > 0 ? Math.round((male / totalPop) * 100) : 50;
+    const femalePct = totalPop > 0 ? (100 - malePct) : 50;
 
     // Status hunian (Mapping dari house_status / residentServerList / status warga)
     const resolveStatusHunian = (w) => {
@@ -5583,7 +5645,7 @@ export default function AdminDashboard({
               <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-md tracking-wider">
-              IPL RT 05
+              IPL RT 006
             </span>
           </div>
 
@@ -5681,7 +5743,7 @@ export default function AdminDashboard({
           </div>
           {showTunggakan && (
             <span className="text-[10px] font-black uppercase px-2.5 py-1 bg-purple-500/10 text-purple-600 border border-purple-500/20 rounded-xl w-fit">
-              Data Terintegrasi RT 05
+              Data Terintegrasi RT 006
             </span>
           )}
         </div>
@@ -5866,7 +5928,7 @@ export default function AdminDashboard({
                   <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <span className="text-[9px] font-black uppercase px-2 py-0.5 bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded-md tracking-wider">
-                  IPL RT 05
+                  IPL RT 006
                 </span>
               </div>
 
@@ -6031,7 +6093,7 @@ export default function AdminDashboard({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden">
+    <div className="h-screen w-full bg-slate-50 flex flex-col md:flex-row text-slate-800 font-sans antialiased relative overflow-hidden">
       {/* Premium ambient glows */}
       <div className="absolute top-1/4 left-10 w-[500px] h-[500px] bg-orange-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow"></div>
       <div className="absolute bottom-1/4 right-10 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-3xl -z-10 pointer-events-none animate-pulse-slow" style={{ animationDelay: '3s' }}></div>
@@ -6053,7 +6115,7 @@ export default function AdminDashboard({
             </div>
             <div>
               <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas Cinere</h1>
-              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">RT 05 / RW 11</span>
+              <span className="text-[9px] text-orange-600 font-bold uppercase tracking-wider block">RT 006 / RW 011</span>
             </div>
           </div>
         </div>
@@ -6075,7 +6137,7 @@ export default function AdminDashboard({
                 </div>
                 <div>
                   <h1 className="font-extrabold text-xs text-slate-900 leading-tight">Villa Mutiara Mas</h1>
-                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Admin Portal • RT 05 / RW 11</span>
+                  <span className="text-[8px] text-orange-600 font-bold uppercase tracking-wider block">Admin Portal • RT 006 / RW 011</span>
                 </div>
               </div>
               <button
@@ -6213,22 +6275,22 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* 1. DESKTOP SIDEBAR - Dual Mode Adaptive (Hidden on Mobile) */}
-      <aside className="hidden md:flex md:w-64 bg-white text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg md:h-screen md:sticky md:top-0">
+      {/* 1. DESKTOP SIDEBAR - Full Height Synchronized (Hidden on Mobile) */}
+      <aside className="hidden md:flex md:w-64 h-full bg-white text-slate-800 border-r border-orange-200/40 flex-col flex-shrink-0 shadow-lg z-20 overflow-hidden">
         {/* Brand/Logo Header */}
-        <div className="p-6 border-b border-orange-200/50 flex items-center gap-3">
+        <div className="p-6 border-b border-orange-200/50 flex items-center gap-3 shrink-0">
           <div className="flex items-center gap-1.5 shrink-0">
             <img src={logoDepok} alt="Logo Kota Depok" className="h-9 w-auto object-contain drop-shadow-md" />
             <img src={logoRW11} alt="Logo RW 11" className="h-9 w-auto object-contain drop-shadow-md" />
           </div>
           <div>
             <h1 className="font-extrabold text-xs text-slate-900 tracking-tight leading-tight">Villa Mutiara Mas</h1>
-            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Admin Portal • RT 05 / RW 11</span>
+            <span className="text-[9px] text-orange-600 uppercase font-extrabold tracking-wider leading-none block mt-0.5">Admin Portal • RT 006 / RW 011</span>
           </div>
         </div>
 
         {/* Admin Info */}
-        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/60 shadow-xs flex items-center gap-3 backdrop-blur-md">
+        <div className="p-4 mx-4 my-3 bg-white/90 rounded-2xl border border-orange-200/60 shadow-xs flex items-center gap-3 backdrop-blur-md shrink-0">
           <div className="w-9 h-9 rounded-xl bg-orange-500 text-white font-black flex items-center justify-center text-sm shadow-md shadow-orange-500/20">
             AD
           </div>
@@ -6241,7 +6303,7 @@ export default function AdminDashboard({
         </div>
 
         {/* Sidebar Nav Menus */}
-        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar">
+        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto sidebar-scrollbar min-h-0">
           {currentUser.role === 'bendahara' ? (
             <div className="space-y-1.5 font-sans">
               {/* Dashboard */}
@@ -6857,7 +6919,7 @@ export default function AdminDashboard({
         </nav>
 
         {/* Logout */}
-        <div className="p-4 border-t border-slate-200 space-y-2">
+        <div className="p-4 border-t border-slate-200 space-y-2 shrink-0 bg-white">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors cursor-pointer text-left"
@@ -6869,7 +6931,7 @@ export default function AdminDashboard({
       </aside>
 
       {/* 2. MAIN AREA */}
-      <main className="flex-1 flex flex-col min-w-0 bg-slate-50 min-h-screen">
+      <main className="flex-1 h-full overflow-y-auto bg-slate-50 flex flex-col min-w-0">
         
         {/* Header Ribbon */}
         <header className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-orange-200/50 py-4 px-6 md:px-8 z-30 flex items-center justify-between">
@@ -6898,7 +6960,7 @@ export default function AdminDashboard({
               {activeTab === 'iuran_riwayat' && 'Riwayat Setoran Iuran'}
               {activeTab === 'iuran_tunggakan' && 'Daftar Warga Menunggak'}
               {activeTab === 'iuran_verifikasi' && 'Verifikasi Bukti Transfer Warga'}
-              {activeTab === 'keuangan_qris' && 'Metode Transfer & QRIS RT 05'}
+              {activeTab === 'keuangan_qris' && 'Metode Transfer & QRIS RT 006'}
               {activeTab === 'laporan_bulanan' && 'Laporan Keuangan Bulanan'}
               {activeTab === 'laporan_tahunan' && 'Laporan Keuangan Tahunan'}
               {activeTab === 'laporan_rekap' && 'Tabel Rekapitulasi Iuran'}
@@ -6945,12 +7007,12 @@ export default function AdminDashboard({
                 <div className="space-y-1.5 z-10">
                   <div className="flex items-center gap-2">
                     <span className="px-2.5 py-0.5 bg-orange-500/15 backdrop-blur-md rounded-lg text-[10px] font-extrabold uppercase tracking-wider text-orange-800 border border-orange-500/20">
-                      Villa Mutiara Mas Cinere • RT 05 / RW 11
+                      Villa Mutiara Mas Cinere • RT 006 / RW 011
                     </span>
                     <span className="text-[10px] text-emerald-600 font-mono font-bold">● Live Sync</span>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 capitalize">
-                    {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 05 📋' : isBendahara ? 'Dasbor Keuangan & Kas RT 05 💰' : 'Dasbor Kontrol Pengurus RT 05 👋')}
+                    {activeTab === 'overview' && (isSekretaris ? 'Dasbor Sekretariat RT 006 📋' : isBendahara ? 'Dasbor Keuangan & Kas RT 006 💰' : 'Dasbor Kontrol Pengurus RT 006 👋')}
                     {activeTab === 'warga' && 'Kelola Administrasi Warga & Penduduk 👥'}
                     {activeTab === 'kas' && 'Monitoring Keuangan & Transparansi Kas RT 💰'}
                     {activeTab === 'sek_warga_kk' && 'Kelola Data Kartu Keluarga (KK) 📄'}
@@ -6978,12 +7040,12 @@ export default function AdminDashboard({
                     {activeTab === 'pengaturan' && 'Pengaturan Keuangan & Kata Sandi ⚙️'}
                   </h3>
                   <p className="text-xs text-slate-600 max-w-2xl leading-relaxed font-medium">
-                    Sistem Portal Manajemen RT 05 Villa Mutiara Mas Cinere untuk kelancaran administrasi dan pelayanan warga.
+                    Sistem Portal Manajemen RT 006 Villa Mutiara Mas Cinere untuk kelancaran administrasi dan pelayanan warga.
                   </p>
                 </div>
                 <div className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-xs rounded-xl shadow-md shadow-orange-500/20 border border-orange-400/30 flex items-center gap-2 transition-all z-10 flex-shrink-0">
                   <Sparkles className="w-4 h-4 text-white" />
-                  <span>RT 05 Modern System</span>
+                  <span>RT 006 Modern System</span>
                 </div>
               </div>
 
@@ -7505,7 +7567,7 @@ export default function AdminDashboard({
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="font-bold text-slate-500">Alamat Lama RT 05</label>
+                    <label className="font-bold text-slate-500">Alamat Lama RT 006</label>
                     <input
                       type="text"
                       value={pendudukKeluarForm.address}
@@ -7674,38 +7736,40 @@ export default function AdminDashboard({
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <FileText className="w-5 h-5 text-orange-500" />
-                    Catatan Notulen Rapat Pengurus RT 📋
+                    Catatan Notulen Rapat & Berita Acara RT 📋
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Dokumentasi resmi agenda musyawarah, tanggal rapat, dan butir keputusan rapat lingkungan.
+                    Dokumentasi resmi musyawarah warga, agenda rapat, keputusan sah, dan cetak / ekspor PDF resmi.
                   </p>
                 </div>
-                <button
-                  onClick={() => fetchNotulenList(notulenPagination.page || 1)}
-                  disabled={isLoadingNotulen}
-                  className="py-1.5 px-3 border border-slate-200 hover:border-orange-500 text-slate-600 hover:text-orange-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 w-fit"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingNotulen ? 'animate-spin text-orange-500' : ''}`} />
-                  <span>Segarkan</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => fetchNotulenList(notulenPagination.page || 1)}
+                    disabled={isLoadingNotulen}
+                    className="py-1.5 px-3 border border-slate-200 hover:border-orange-500 text-slate-600 hover:text-orange-600 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 w-fit"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isLoadingNotulen ? 'animate-spin text-orange-500' : ''}`} />
+                    <span>Segarkan</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Form Input / Edit (Hanya tampil untuk Sekretaris / Admin) */}
+              {/* Form Input / Edit (Hanya tampil untuk Sekretaris / RT / Admin) */}
               {isSekretaris && (
                 <div id="notulen-form-container">
                   <form 
                     onSubmit={handleSaveNotulen}
-                    className="p-5 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4 max-w-2xl font-sans"
+                    className="p-5 sm:p-6 bg-slate-50 border border-slate-200/70 rounded-3xl space-y-4 max-w-4xl font-sans shadow-xs"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
                       <h4 className="font-extrabold text-xs uppercase tracking-wider flex items-center gap-1.5">
                         {editingNotulen ? (
-                          <span className="text-amber-500 flex items-center gap-1.5">
+                          <span className="text-amber-600 flex items-center gap-1.5">
                             <Edit className="w-3.5 h-3.5" /> Mode Edit: Perbarui Notulen #{editingNotulen.id}
                           </span>
                         ) : (
-                          <span className="text-slate-500 flex items-center gap-1.5">
-                            <Plus className="w-3.5 h-3.5 text-orange-500" /> Catat Hasil Rapat Baru
+                          <span className="text-slate-700 flex items-center gap-1.5">
+                            <Plus className="w-3.5 h-3.5 text-orange-500" /> Formulir Catat Hasil Rapat Baru
                           </span>
                         )}
                       </h4>
@@ -7720,8 +7784,9 @@ export default function AdminDashboard({
                       )}
                     </div>
 
-                    <div className="space-y-3.5 text-xs font-sans">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-4 text-xs font-sans">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Field 1: Tanggal Rapat */}
                         <div className="space-y-1">
                           <label className="font-bold text-slate-700 flex items-center gap-1">
                             <Calendar className="w-3.5 h-3.5 text-orange-500" /> Tanggal Rapat *
@@ -7731,17 +7796,18 @@ export default function AdminDashboard({
                             type="date"
                             value={notulenForm.tanggal_rapat}
                             onChange={(e) => setNotulenForm({ ...notulenForm, tanggal_rapat: e.target.value })}
-                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold focus:border-orange-500 transition-colors"
                           />
                         </div>
 
+                        {/* Field 2: Topik Musyawarah */}
                         <div className="space-y-1">
                           <div className="flex justify-between items-center">
                             <label className="font-bold text-slate-700 flex items-center gap-1">
-                              <FileText className="w-3.5 h-3.5 text-orange-500" /> Topik Musyawarah *
+                              <FileText className="w-3.5 h-3.5 text-orange-500" /> Topik / Agenda Musyawarah *
                             </label>
-                            <span className={`text-[10px] ${notulenForm.topik.length > 180 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
-                              {notulenForm.topik.length}/200
+                            <span className={`text-[10px] ${(notulenForm.topik?.length || 0) > 180 ? 'text-amber-500 font-bold' : 'text-slate-400'}`}>
+                              {notulenForm.topik?.length || 0}/200
                             </span>
                           </div>
                           <input
@@ -7750,26 +7816,29 @@ export default function AdminDashboard({
                             maxLength={200}
                             value={notulenForm.topik}
                             onChange={(e) => setNotulenForm({ ...notulenForm, topik: e.target.value })}
-                            placeholder="Contoh: Persiapan kerja bakti lingkungan"
-                            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
+                            placeholder="Contoh: Rapat Koordinasi Keamanan & Kebersihan Lingkungan RT 006"
+                            className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold focus:border-orange-500 transition-colors"
                           />
                         </div>
                       </div>
 
+                      {/* Field 3: Hasil Musyawarah / Keputusan Rapat */}
                       <div className="space-y-1">
-                        <label className="font-bold text-slate-700">Hasil Musyawarah / Keputusan Rapat *</label>
+                        <label className="font-bold text-slate-700 flex items-center gap-1">
+                          ✍️ Hasil Musyawarah / Keputusan Rapat *
+                        </label>
                         <textarea
                           required
-                          rows={3}
+                          rows={4}
                           value={notulenForm.hasil_keputusan}
                           onChange={(e) => setNotulenForm({ ...notulenForm, hasil_keputusan: e.target.value })}
-                          placeholder="Tulis keputusan penting, rencana aksi, atau hasil kesepakatan rapat..."
-                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 leading-relaxed"
+                          placeholder="Tuliskan poin pembahasan, hasil musyawarah, dan kesepakatan rapat secara lengkap..."
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl outline-none text-slate-900 leading-relaxed focus:border-orange-500 transition-colors"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60">
                       <button 
                         type="submit" 
                         disabled={isSubmittingNotulen}
@@ -7788,7 +7857,7 @@ export default function AdminDashboard({
                         ) : (
                           <>
                             <Plus className="w-3.5 h-3.5" />
-                            <span>Simpan Notulen</span>
+                            <span>Simpan Notulen Rapat</span>
                           </>
                         )}
                       </button>
@@ -7806,50 +7875,6 @@ export default function AdminDashboard({
                 </div>
               )}
 
-              {/* Filter Tanggal & Ringkasan */}
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-bold text-slate-500 flex items-center gap-1 text-[11px]">
-                    <Filter className="w-3.5 h-3.5 text-orange-500" /> Filter Tanggal:
-                  </span>
-                  <input
-                    type="date"
-                    value={notulenFilterDate.date_from}
-                    onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_from: e.target.value })}
-                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs outline-none text-slate-800"
-                  />
-                  <span className="text-slate-400 text-xs">s/d</span>
-                  <input
-                    type="date"
-                    value={notulenFilterDate.date_to}
-                    onChange={(e) => setNotulenFilterDate({ ...notulenFilterDate, date_to: e.target.value })}
-                    className="px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs outline-none text-slate-800"
-                  />
-                  <button
-                    onClick={() => fetchNotulenList(1, notulenFilterDate.date_from, notulenFilterDate.date_to)}
-                    className="px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg text-[11px] cursor-pointer transition-all shadow-xs"
-                  >
-                    Terapkan
-                  </button>
-                  {(notulenFilterDate.date_from || notulenFilterDate.date_to) && (
-                    <button
-                      onClick={() => {
-                        setNotulenFilterDate({ date_from: '', date_to: '' });
-                        fetchNotulenList(1, '', '');
-                      }}
-                      className="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-600 font-bold rounded-lg text-[11px] cursor-pointer"
-                    >
-                      Reset
-                    </button>
-                  )}
-                </div>
-                {notulenPagination?.total !== undefined && (
-                  <span className="text-[11px] font-bold text-slate-400">
-                    Total: {notulenPagination.total} Notulen
-                  </span>
-                )}
-              </div>
-
               {/* Tabel Notulen Rapat */}
               <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
                 <table className="w-full text-left text-xs border-collapse">
@@ -7858,7 +7883,7 @@ export default function AdminDashboard({
                       <th className="p-4 w-36">Tanggal Rapat</th>
                       <th className="p-4 w-1/3">Topik Musyawarah</th>
                       <th className="p-4">Hasil / Keputusan Rapat</th>
-                      <th className="p-4 text-center w-28">Aksi</th>
+                      <th className="p-4 text-center w-36">Aksi & Dokumen</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -7879,26 +7904,36 @@ export default function AdminDashboard({
                       </tr>
                     ) : (
                       notulenList.map((n) => {
-                        const rawDate = n.tanggal_rapat || n.tanggal || n.date;
+                        const rawDate = n.tanggal_rapat || n.tanggal || n.created_at || n.date;
                         const formattedDate = rawDate ? formatDateIndo(rawDate) : '-';
-                        const topikText = n.topik || n.title || '-';
-                        const decisionText = n.hasil_keputusan || n.decisions || '-';
+                        const topikText = n.topik || n.judul || n.title || '-';
+                        const keputusanText = n.hasil_keputusan || n.isi || n.content || '-';
 
                         return (
                           <tr key={n.id} className="hover:bg-slate-50/50 transition-colors">
-                            <td className="p-4 font-mono font-bold text-slate-600 text-xs whitespace-nowrap">
-                              {formattedDate}
-                            </td>
-                            <td className="p-4 font-bold text-slate-800 text-xs">
-                              {topikText}
-                            </td>
-                            <td className="p-4 text-slate-600 text-xs">
-                              <div className="line-clamp-2 max-w-md cursor-pointer hover:text-slate-900" onClick={() => setViewingNotulenDetail(n)} title="Klik untuk membaca detail lengkap">
-                                {decisionText}
+                            <td className="p-4 align-top">
+                              <div className="font-mono font-bold text-slate-700 text-xs whitespace-nowrap">
+                                {formattedDate}
                               </div>
                             </td>
-                            <td className="p-4 text-center whitespace-nowrap">
-                              <div className="flex items-center justify-center gap-1.5">
+                            <td className="p-4 align-top font-bold text-slate-800 text-xs">
+                              <div>{topikText}</div>
+                            </td>
+                            <td className="p-4 align-top text-slate-600 text-xs">
+                              <div className="line-clamp-2 max-w-md cursor-pointer hover:text-slate-900" onClick={() => setViewingNotulenDetail(n)} title="Klik untuk membaca detail lengkap">
+                                {keputusanText}
+                              </div>
+                            </td>
+                            <td className="p-4 align-top text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                                <button
+                                  onClick={() => setViewingNotulenDoc(n)}
+                                  title="Cetak Berita Acara & Ekspor PDF"
+                                  className="py-1 px-2 text-orange-600 hover:text-white hover:bg-orange-500 bg-orange-50 rounded-lg transition-colors cursor-pointer border border-orange-200 flex items-center gap-1 font-bold text-[10px]"
+                                >
+                                  <Printer className="w-3 h-3" />
+                                  <span>Cetak / PDF</span>
+                                </button>
                                 <button
                                   onClick={() => setViewingNotulenDetail(n)}
                                   title="Lihat Detail Lengkap"
@@ -7937,7 +7972,7 @@ export default function AdminDashboard({
                 {notulenPagination && notulenPagination.total_pages > 1 && (
                   <div className="p-4 flex items-center justify-between border-t border-slate-200/60 text-xs font-bold text-slate-500">
                     <span>
-                      Halaman {notulenPagination.page} dari {notulenPagination.total_pages} ({notulenPagination.total} Total Notulen)
+                      Halaman {notulenPagination.page} dari {notulenPagination.total_pages} {notulenPagination.total !== undefined ? `(${notulenPagination.total} Total Notulen)` : ''}
                     </span>
                     <div className="flex items-center gap-2">
                       <button
@@ -7961,8 +7996,8 @@ export default function AdminDashboard({
 
               {/* Modal Detail Notulen Rapat */}
               {viewingNotulenDetail && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-                  <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up font-sans">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in font-sans">
+                  <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-5 animate-scale-up">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
                       <div className="flex items-center gap-2">
                         <div className="p-2 bg-orange-500/10 text-orange-600 rounded-xl">
@@ -7981,25 +8016,28 @@ export default function AdminDashboard({
                       </button>
                     </div>
 
-                    <div className="space-y-3.5 text-xs">
+                    <div className="space-y-3.5 text-xs max-h-[60vh] overflow-y-auto pr-1">
                       <div>
-                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Tanggal Pelaksanaan</label>
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Tanggal Rapat</label>
                         <div className="mt-1 font-mono font-bold text-slate-800">
-                          {formatDateIndo(viewingNotulenDetail.tanggal_rapat || viewingNotulenDetail.date)}
+                          {formatDateIndo(viewingNotulenDetail.tanggal_rapat || viewingNotulenDetail.tanggal || viewingNotulenDetail.created_at || viewingNotulenDetail.date)}
                         </div>
                       </div>
+
                       <div>
-                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Agenda / Topik Musyawarah</label>
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Topik / Agenda Musyawarah</label>
                         <div className="mt-1 font-bold text-slate-900 text-sm">
-                          {viewingNotulenDetail.topik || viewingNotulenDetail.title}
+                          {viewingNotulenDetail.topik || viewingNotulenDetail.judul || viewingNotulenDetail.title}
                         </div>
                       </div>
+
                       <div>
-                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Hasil / Keputusan Musyawarah</label>
-                        <div className="mt-1 p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl whitespace-pre-wrap text-slate-700 leading-relaxed max-h-60 overflow-y-auto">
-                          {viewingNotulenDetail.hasil_keputusan || viewingNotulenDetail.decisions}
+                        <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Hasil Musyawarah / Keputusan Rapat</label>
+                        <div className="mt-1 p-3.5 bg-slate-50 border border-slate-200/60 rounded-xl whitespace-pre-wrap text-slate-800 leading-relaxed font-normal">
+                          {viewingNotulenDetail.hasil_keputusan || viewingNotulenDetail.isi || viewingNotulenDetail.content || '-'}
                         </div>
                       </div>
+
                       {(viewingNotulenDetail.created_at || viewingNotulenDetail.updated_at) && (
                         <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
                           <span>Dibuat: {viewingNotulenDetail.created_at ? new Date(viewingNotulenDetail.created_at).toLocaleString('id-ID') : '-'}</span>
@@ -8008,10 +8046,20 @@ export default function AdminDashboard({
                       )}
                     </div>
 
-                    <div className="flex justify-end pt-2">
+                    <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setViewingNotulenDoc(viewingNotulenDetail);
+                          setViewingNotulenDetail(null);
+                        }}
+                        className="py-2 px-4 bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5 shadow-md shadow-orange-500/20"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Pratinjau Cetak / PDF</span>
+                      </button>
                       <button
                         onClick={() => setViewingNotulenDetail(null)}
-                        className="py-2 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
+                        className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer transition-all"
                       >
                         Tutup
                       </button>
@@ -8502,27 +8550,44 @@ export default function AdminDashboard({
 
               {/* Gender and residency structure */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed font-sans pt-4 border-t border-slate-200/60">
-                <div className="space-y-3">
-                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between font-bold">
-                      <span>Laki-laki</span>
-                      <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Warga</span>
+                {(() => {
+                  const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
+                  const total = living.length;
+                  const male = living.filter(w => {
+                    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                    return g.startsWith('l') || g.includes('laki') || g === 'pria';
+                  }).length;
+                  const female = living.filter(w => {
+                    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                    return g.startsWith('p') || g.includes('perempuan') || g.includes('wanita');
+                  }).length;
+                  const malePct = total > 0 ? ((male / total) * 100).toFixed(1) : '0.0';
+                  const femalePct = total > 0 ? ((female / total) * 100).toFixed(1) : '0.0';
+
+                  return (
+                    <div className="space-y-3">
+                      <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between font-bold">
+                          <span>Laki-laki</span>
+                          <span>{male} Warga ({malePct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${malePct}%` }}></div>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between font-bold">
+                          <span>Perempuan</span>
+                          <span>{female} Warga ({femalePct}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                          <div className="bg-pink-500 h-full transition-all duration-500" style={{ width: `${femalePct}%` }}></div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div className="bg-sky-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between font-bold">
-                      <span>Perempuan</span>
-                      <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Warga</span>
-                    </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div className="bg-pink-500 h-full" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <div className="space-y-3">
                   <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Status Kependudukan</h4>
@@ -8670,29 +8735,46 @@ export default function AdminDashboard({
               {/* Statistics Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 font-sans">
                 {/* Card 1: Demografi Kepala Keluarga */}
-                <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
-                  <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
-                  <div className="space-y-3 text-xs leading-none">
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between font-bold">
-                        <span className="text-slate-600">Laki-laki</span>
-                        <span>{wargaList.filter(w => w.gender === 'Laki-laki').length} Orang</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Laki-laki').length / wargaList.length) * 100}%` }}></div>
+                {(() => {
+                  const living = (wargaList || []).filter(w => (w.statusHidup || w.status_hidup) !== 'Meninggal');
+                  const total = living.length;
+                  const male = living.filter(w => {
+                    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                    return g.startsWith('l') || g.includes('laki') || g === 'pria';
+                  }).length;
+                  const female = living.filter(w => {
+                    const g = String(w.gender || w.jenisKelamin || w.jenis_kelamin || '').trim().toLowerCase();
+                    return g.startsWith('p') || g.includes('perempuan') || g.includes('wanita');
+                  }).length;
+                  const malePct = total > 0 ? ((male / total) * 100).toFixed(1) : '0.0';
+                  const femalePct = total > 0 ? ((female / total) * 100).toFixed(1) : '0.0';
+
+                  return (
+                    <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
+                      <h4 className="font-extrabold text-[10px] text-slate-400 uppercase tracking-widest">Rasio Jenis Kelamin</h4>
+                      <div className="space-y-3 text-xs leading-none">
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between font-bold">
+                            <span className="text-slate-600">Laki-laki</span>
+                            <span>{male} Orang ({malePct}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div className="bg-sky-500 h-full transition-all duration-500" style={{ width: `${malePct}%` }}></div>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between font-bold">
+                            <span className="text-slate-600">Perempuan</span>
+                            <span>{female} Orang ({femalePct}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                            <div className="bg-pink-500 h-full transition-all duration-500" style={{ width: `${femalePct}%` }}></div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <div className="flex justify-between font-bold">
-                        <span className="text-slate-600">Perempuan</span>
-                        <span>{wargaList.filter(w => w.gender === 'Perempuan').length} Orang</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div className="bg-pink-500 h-full transition-all duration-500" style={{ width: `${(wargaList.filter(w => w.gender === 'Perempuan').length / wargaList.length) * 100}%` }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Card 2: Keuangan Kas Ringkasan */}
                 <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
@@ -9144,7 +9226,7 @@ export default function AdminDashboard({
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="px-2.5 py-0.5 bg-orange-500/10 text-orange-600 border border-orange-200/50 rounded-lg text-[10px] font-extrabold uppercase tracking-wider">
-                      Transparansi Kas RT 05 / RW 11
+                      Transparansi Kas RT 006 / RW 011
                     </span>
                     <span className="text-[10px] text-emerald-600 font-mono font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
@@ -9259,7 +9341,7 @@ export default function AdminDashboard({
                       <span className="font-bold font-mono text-slate-700">{formatRupiah(sisaKas)}</span>
                     </div>
                   ) : (
-                    <p className="text-[11px] text-slate-500 mt-1">Saldo bersih likuid pada Kas RT 05 Villa Mutiara Mas Cinere.</p>
+                    <p className="text-[11px] text-slate-500 mt-1">Saldo bersih likuid pada Kas RT 006 Villa Mutiara Mas Cinere.</p>
                   )}
                 </div>
               </div>
@@ -9297,7 +9379,7 @@ export default function AdminDashboard({
                   }`}
                 >
                   <Wallet className="w-4 h-4" />
-                  <span>Rekening Transfer & QRIS RT 05</span>
+                  <span>Rekening Transfer & QRIS RT 006</span>
                 </button>
               </div>
 
@@ -9626,7 +9708,7 @@ export default function AdminDashboard({
                 </div>
               )}
 
-              {/* SUBTAB 3: REKENING & QRIS RESMI RT 05 */}
+              {/* SUBTAB 3: REKENING & QRIS RESMI RT 006 */}
               {kasSubTab === 'rekening_qris' && (
                 <div className="space-y-6 animate-fade-in font-sans">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
@@ -9634,7 +9716,7 @@ export default function AdminDashboard({
                     <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
                       <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-orange-500/10 rounded-full blur-2xl"></div>
                       <div className="flex justify-between items-center">
-                        <span className="font-extrabold text-xs text-orange-400 uppercase tracking-widest">KARTU DEBIT KAS RT 05</span>
+                        <span className="font-extrabold text-xs text-orange-400 uppercase tracking-widest">KARTU DEBIT KAS RT 006</span>
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">BANK MANDIRI</span>
                       </div>
                       <div className="space-y-1.5 pt-4 font-sans">
@@ -9644,7 +9726,7 @@ export default function AdminDashboard({
                       <div className="flex justify-between items-end pt-4 border-t border-slate-800">
                         <div className="space-y-0.5">
                           <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
-                          <p className="text-xs font-black text-slate-200">KAS RT 05 VILLA MUTIARA MAS CINERE</p>
+                          <p className="text-xs font-black text-slate-200">KAS RT 006 VILLA MUTIARA MAS CINERE</p>
                         </div>
                         <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
                       </div>
@@ -9658,12 +9740,12 @@ export default function AdminDashboard({
                           <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-slate-900"></div>
                           <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-slate-900"></div>
                           <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-slate-900"></div>
-                          <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT05</span>
+                          <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT006</span>
                           <div className="mt-2 w-14 h-14 border border-dashed border-slate-450 rounded-md animate-pulse"></div>
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 05 / RW 11</h5>
+                        <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 006 / RW 011</h5>
                         <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                       </div>
                     </div>
@@ -9683,45 +9765,9 @@ export default function AdminDashboard({
             <div className="space-y-8 animate-fade-in font-sans">
               {/* Bagian 1: Pengaturan Tarif & Saldo Kas */}
               <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">Daftar Jenis Iuran Warga</h3>
-                    <p className="text-xs text-slate-400">Pengaturan tarif iuran wajib dan sukarela RT 05 Villa Mutiara Mas Cinere.</p>
-                  </div>
-
-                  {(currentUser.role === 'bendahara' || currentUser.role === 'admin' || currentUser.role === 'rt') && (
-                    <form
-                      onSubmit={handleUpdateIplSetting}
-                      className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-550">Set Tarif IPL (Rp):</span>
-                        <input
-                          required
-                          type="number"
-                          value={iplAmountInput}
-                          onChange={(e) => setIplAmountInput(e.target.value)}
-                          className="w-24 px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-800"
-                        />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-bold text-slate-550">Saldo Awal (Rp):</span>
-                        <input
-                          required
-                          type="number"
-                          value={previousBalanceInput}
-                          onChange={(e) => setPreviousBalanceInput(e.target.value)}
-                          className="w-28 px-2 py-1 bg-white border border-slate-200 rounded-lg outline-none font-bold text-slate-800"
-                        />
-                      </div>
-                      <button
-                        type="submit"
-                        className="py-1 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg cursor-pointer transition-colors"
-                      >
-                        Update
-                      </button>
-                    </form>
-                  )}
+                <div className="border-b border-slate-100 pb-4">
+                  <h3 className="text-lg font-bold text-slate-900">Daftar Jenis Iuran Warga</h3>
+                  <p className="text-xs text-slate-400">Informasi kategori tarif iuran wajib dan sukarela RT 006 Villa Mutiara Mas Cinere.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {jenisIuranList.map((j) => (
@@ -10829,7 +10875,7 @@ export default function AdminDashboard({
           {activeTab === 'keuangan_qris' && (
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 pb-4">
-                <h3 className="text-lg font-bold text-slate-900">Rekening Transfer & QRIS RT 05</h3>
+                <h3 className="text-lg font-bold text-slate-900">Rekening Transfer & QRIS RT 006</h3>
                 <p className="text-xs text-slate-400">Informasi pembayaran resmi untuk warga mentransfer iuran bulanan.</p>
               </div>
 
@@ -10838,7 +10884,7 @@ export default function AdminDashboard({
                 <div className="p-6 bg-slate-900 text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl relative overflow-hidden">
                   <div className="absolute right-[-20px] top-[-20px] w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl"></div>
                   <div className="flex justify-between items-center">
-                    <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 05</span>
+                    <span className="font-extrabold text-xs text-emerald-450 uppercase tracking-widest">KARTU DEBIT RT 006</span>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">BANK MANDIRI</span>
                   </div>
                   <div className="space-y-1.5 pt-4 font-sans">
@@ -10848,7 +10894,7 @@ export default function AdminDashboard({
                   <div className="flex justify-between items-end pt-4 border-t border-slate-800">
                     <div className="space-y-0.5">
                       <span className="text-slate-500 text-[9px] font-bold uppercase tracking-wider block">Pemilik Rekening</span>
-                      <p className="text-xs font-black text-slate-200">KAS RT 05 VILLA MUTIARA MAS CINERE</p>
+                      <p className="text-xs font-black text-slate-200">KAS RT 006 VILLA MUTIARA MAS CINERE</p>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-400 rounded-md font-bold">AKTIF</span>
                   </div>
@@ -10863,12 +10909,12 @@ export default function AdminDashboard({
                       <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-slate-900"></div>
                       <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-slate-900"></div>
                       <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-slate-900"></div>
-                      <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT05</span>
+                      <span className="font-mono font-black text-[9px] bg-slate-900 text-white py-1 px-2.5 rounded-md tracking-widest shadow-md">QRIS RT006</span>
                       <div className="mt-2 w-14 h-14 border border-dashed border-slate-450 rounded-md animate-pulse"></div>
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 05 / RW 11</h5>
+                    <h5 className="font-extrabold text-xs text-slate-900">QRIS RT 006 / RW 011</h5>
                     <p className="text-[10px] text-slate-400 leading-relaxed max-w-[200px]">Scan barcode di atas menggunakan m-banking atau e-wallet (GoPay, OVO, Dana).</p>
                   </div>
                 </div>
@@ -10931,11 +10977,11 @@ export default function AdminDashboard({
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-900">Laporan Keuangan Tahunan Kas RT (2026)</h3>
-                <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 05.</p>
+                <p className="text-xs text-slate-400">Rangkuman akumulasi keuangan kas tahunan RT 006.</p>
               </div>
               
               <div className="p-6 bg-slate-50 border border-slate-200/60 rounded-3xl space-y-4">
-                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 05</h4>
+                <h4 className="font-extrabold text-xs text-slate-400 uppercase tracking-wider">Laporan Kumulatif Buku Kas RT 006</h4>
                 <div className="space-y-4 text-xs font-sans">
                   <div className="flex justify-between items-center py-2 border-b border-slate-100">
                     <span className="text-slate-500 font-bold">Januari - Juni 2026 (Saldo Awal Terakumulasi)</span>
@@ -10963,7 +11009,7 @@ export default function AdminDashboard({
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-900">Tabel Rekapitulasi Pembayaran Iuran Bulanan Warga</h3>
-                <p className="text-xs text-slate-400">Daftar status lunas warga RT 05 Villa Mutiara Mas Cinere per bulan.</p>
+                <p className="text-xs text-slate-400">Daftar status lunas warga RT 006 Villa Mutiara Mas Cinere per bulan.</p>
               </div>
 
               <div className="overflow-x-auto border border-slate-200/60 rounded-2xl">
@@ -11009,7 +11055,7 @@ export default function AdminDashboard({
             <div className="bg-white border border-slate-200/60 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6 animate-fade-in font-sans">
               <div className="border-b border-slate-100 pb-4">
                 <h3 className="text-lg font-bold text-slate-900">Ekspor & Cetak Laporan Keuangan</h3>
-                <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 05.</p>
+                <p className="text-xs text-slate-400">Ekspor/cetak fisik Buku Kas Umum dan Rekapitulasi Iuran RT 006.</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
@@ -11336,19 +11382,19 @@ export default function AdminDashboard({
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Tetangga</span>
-                        <p className="font-bold text-slate-900">RT 05</p>
+                        <p className="font-bold text-slate-900">RT 006</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Rukun Warga</span>
-                        <p className="font-bold text-slate-900">RW 11</p>
+                        <p className="font-bold text-slate-900">RW 011</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kelurahan</span>
-                        <p className="font-bold text-slate-900">Cinere</p>
+                        <p className="font-bold text-slate-900">Grogol</p>
                       </div>
                       <div>
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Kecamatan</span>
-                        <p className="font-bold text-slate-900">Cinere</p>
+                        <p className="font-bold text-slate-900">Limo</p>
                       </div>
                       <div className="col-span-2">
                         <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Perumahan / Lokasi</span>
@@ -12323,7 +12369,7 @@ export default function AdminDashboard({
                     <input
                       required
                       type="text"
-                      placeholder="Contoh: Balai Warga RT 05"
+                      placeholder="Contoh: Balai Warga RT 006"
                       value={agendaForm.location}
                       onChange={(e) => setAgendaForm({ ...agendaForm, location: e.target.value })}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none"
@@ -12646,7 +12692,7 @@ export default function AdminDashboard({
                     type="text"
                     value={suratKeluarForm.nomorSurat}
                     onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, nomorSurat: e.target.value })}
-                    placeholder="Contoh: 104/RT05/VII/2026"
+                    placeholder="Contoh: 104/RT006/VII/2026"
                     className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-mono font-bold"
                   />
                 </div>
@@ -12700,7 +12746,7 @@ export default function AdminDashboard({
                   type="text"
                   value={suratKeluarForm.tujuan}
                   onChange={(e) => setSuratKeluarForm({ ...suratKeluarForm, tujuan: e.target.value })}
-                  placeholder="Contoh: Kelurahan Cinere (Pengurusan E-KTP)"
+                  placeholder="Contoh: Kelurahan Grogol (Pengurusan E-KTP)"
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none text-slate-900 font-semibold"
                 />
               </div>
@@ -13581,24 +13627,124 @@ export default function AdminDashboard({
       )}
 
       {/* 5. MODAL PRATINJAU & CETAK SURAT PENGANTAR RESMI RT (A4) */}
-      {viewingApprovedLetter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[92vh] my-4">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-orange-500 to-amber-500 no-print"></div>
+      {viewingApprovedLetter && (() => {
+        const isApprovedLetter = ['approved', 'disetujui', 'selesai', 'completed'].includes(
+          String(viewingApprovedLetter.status || '').toLowerCase()
+        );
 
-            <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center no-print shrink-0">
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+            <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up flex flex-col max-h-[92vh] my-4">
+              <div className={`absolute top-0 left-0 right-0 h-1 no-print ${
+                isApprovedLetter ? 'bg-gradient-to-r from-emerald-500 to-teal-500' : 'bg-gradient-to-r from-amber-500 to-orange-500'
+              }`}></div>
+
+              <div className="p-4 sm:p-6 border-b border-slate-100 flex justify-between items-center no-print shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                    isApprovedLetter ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'
+                  }`}>
+                    <Printer className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isApprovedLetter ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        Status: {viewingApprovedLetter.status || 'Menunggu'} {isApprovedLetter ? '(Sah & Disetujui)' : '(Belum Disetujui)'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setViewingApprovedLetter(null)} 
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
+                <SuratPengantarPrintable letter={viewingApprovedLetter} />
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
+                <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
+                <div className="flex items-center gap-2">
+                  {!isApprovedLetter && (
+                    <button
+                      onClick={async () => {
+                        await handleSubmissionStatus(viewingApprovedLetter.id, 'Disetujui');
+                        setViewingApprovedLetter(prev => ({ ...prev, status: 'Disetujui' }));
+                      }}
+                      className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/20 flex items-center gap-1.5"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Setujui & Buka Kunci Cetak</span>
+                    </button>
+                  )}
+
+                  {isApprovedLetter ? (
+                    <button
+                      onClick={() => window.print()}
+                      className="py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
+                    >
+                      <Printer className="w-4 h-4" />
+                      <span>Cetak Surat / Simpan PDF</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        Swal.fire({
+                          title: 'Surat Belum Disetujui 🔒',
+                          text: 'Silakan klik tombol "Setujui & Buka Kunci Cetak" terlebih dahulu agar surat menjadi sah sebelum dicetak.',
+                          icon: 'info',
+                          confirmButtonColor: '#ea580c',
+                          confirmButtonText: 'Mengerti'
+                        });
+                      }}
+                      className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                      title="Surat belum disetujui"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Cetak Terkunci</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setViewingApprovedLetter(null)}
+                    className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 4. PRATINJAU & CETAK NOTULEN RAPAT RESMI RT 006 / RW 011 */}
+      {viewingNotulenDoc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs animate-fade-in no-print-bg">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden font-sans">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 no-print">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center shrink-0">
+                <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-600">
                   <Printer className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Format cetak A4 dokumen surat pengantar warga Kota Depok</p>
+                  <h3 className="font-extrabold text-slate-900 text-base">Berita Acara & Notulen Rapat Resmi</h3>
+                  <p className="text-xs text-slate-400">
+                    Kop Surat Resmi RT 006 / RW 011 • Format Standar Cetak / Ekspor PDF A4
+                  </p>
                 </div>
               </div>
               <button 
-                onClick={() => setViewingApprovedLetter(null)} 
+                onClick={() => setViewingNotulenDoc(null)} 
                 className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <XIcon className="w-4 h-4" />
@@ -13606,24 +13752,25 @@ export default function AdminDashboard({
             </div>
 
             <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
-              <SuratPengantarPrintable letter={viewingApprovedLetter} />
+              <NotulenRapatPrintable notulen={viewingNotulenDoc} />
             </div>
 
-            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011 (A4)</span>
-              <div className="flex gap-2">
+            <div className="p-4 sm:p-5 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print bg-white">
+              <span className="text-slate-400 font-bold hidden sm:inline">Format: Dokumen Resmi Notulen RT 006 / RW 011 (A4)</span>
+              <div className="flex items-center gap-2 ml-auto">
                 <button
-                  onClick={() => window.print()}
-                  className="py-2.5 px-4 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-1.5"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Cetak Surat / Simpan PDF</span>
-                </button>
-                <button
-                  onClick={() => setViewingApprovedLetter(null)}
-                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
+                  type="button"
+                  onClick={() => setViewingNotulenDoc(null)}
+                  className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Tutup
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="py-2.5 px-5 bg-orange-500 hover:bg-orange-600 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-orange-500/20 flex items-center gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Cetak Dokumen / Ekspor PDF</span>
                 </button>
               </div>
             </div>
@@ -13631,7 +13778,7 @@ export default function AdminDashboard({
         </div>
       )}
 
-      {/* 4. EMAIL OTP VERIFICATION POP-UP MODAL (FLOW 1) */}
+      {/* 5. EMAIL OTP VERIFICATION POP-UP MODAL (FLOW 1) */}
       <OtpVerificationModal
         isOpen={showOtpModal}
         onClose={() => {

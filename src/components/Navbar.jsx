@@ -65,7 +65,7 @@ export default function Navbar({
                 Villa Mutiara Mas Cinere
               </h1>
               <p className="text-[10px] font-bold text-orange-600 uppercase tracking-wider">
-                RT 05 / RW 11
+                RT 006 / RW 011
               </p>
             </div>
           </div>

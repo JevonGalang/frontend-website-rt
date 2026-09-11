@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X } from 'lucide-react';
+import { Send, FileText, CheckCircle2, ChevronRight, Printer, Eye, EyeOff, AlertCircle, Download, X, Lock } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { getSessionToken } from '../utils/authSession';
 import { API_BASE_URL } from '../config/api';
@@ -424,7 +424,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 </div>
                 <h3 className="text-2xl font-extrabold text-slate-900">Pengajuan Berhasil Dikirim!</h3>
                 <p className="text-slate-655 text-sm max-w-md">
-                  Data pengisian Anda sudah tercatat di sistem RT 05 Villa Mutiara Mas Cinere. Pengurus RT akan segera memproses dokumen Anda.
+                  Data pengisian Anda sudah tercatat di sistem RT 006 Villa Mutiara Mas Cinere. Pengurus RT akan segera memproses dokumen Anda.
                 </p>
               </div>
 
@@ -433,7 +433,7 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
                 <div className="text-center pb-4 mb-4 border-b border-dashed border-slate-300">
                   <h4 className="font-extrabold text-slate-800 text-base">BUKTI PENGAJUAN SURAT PENGANTAR</h4>
                   <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-semibold mt-1">
-                    RT 05 / RW 11 - Villa Mutiara Mas Cinere
+                    RT 006 / RW 011 - Villa Mutiara Mas Cinere
                   </span>
                   <span className="block text-xs text-slate-500 mt-2">
                     Tanggal Pengajuan: {submittedData.submissionDate}
@@ -685,54 +685,97 @@ export default function Layanan({ currentUser, submissionsList = [], setSubmissi
         )}
 
       {/* PREVIEW KOP SURAT TEMPLATE MODAL */}
-      {viewingApprovedLetter && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
-          <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-8 max-h-[90vh] flex flex-col">
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500 no-print"></div>
-            
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print">
-              <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
-              <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {viewingApprovedLetter && (() => {
+        const isApprovedLetter = ['approved', 'disetujui', 'selesai', 'completed'].includes(
+          String(viewingApprovedLetter.status || '').toLowerCase()
+        );
 
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
-              <SuratPengantarPrintable
-                letter={viewingApprovedLetter}
-                currentUser={currentUser}
-              />
-            </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-xs no-print" onClick={() => setViewingApprovedLetter(null)}></div>
+            <div className="relative bg-white w-full max-w-3xl rounded-3xl border border-slate-200/60 shadow-2xl overflow-hidden z-10 animate-scale-up my-8 max-h-[90vh] flex flex-col">
+              <div className={`absolute top-0 left-0 right-0 h-1.5 no-print ${
+                isApprovedLetter
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                  : 'bg-gradient-to-r from-amber-500 to-orange-500'
+              }`}></div>
+              
+              <div className="p-6 border-b border-slate-100 flex justify-between items-center font-sans no-print">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Pratinjau Surat Resmi RT 006 / RW 011</h3>
+                  {viewingApprovedLetter.status && (
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full mt-1 inline-block ${
+                      isApprovedLetter
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      Status: {viewingApprovedLetter.status} {isApprovedLetter ? '(Dokumen Sah & Resmi)' : '(Menunggu Persetujuan RT / Sekretaris — Belum Dapat Dicetak)'}
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setViewingApprovedLetter(null)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-            <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
-              <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => window.print()}
-                  className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
-                >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Cetak Surat</span>
-                </button>
-                <button
-                  onClick={() => Swal.fire({ title: 'Simulasi Unduh', text: `Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat || 'Surat_Pengantar'}.docx`, icon: 'info' })}
-                  className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Unduh Dokumen</span>
-                </button>
-                <button
-                  onClick={() => setViewingApprovedLetter(null)}
-                  className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
-                >
-                  Tutup
-                </button>
+              <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh] bg-slate-100 flex justify-center">
+                <SuratPengantarPrintable
+                  letter={viewingApprovedLetter}
+                  currentUser={currentUser}
+                />
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex justify-between items-center font-sans text-xs no-print">
+                <span className="text-slate-400 font-bold">Format: Dokumen Resmi RT 006 / RW 011</span>
+                <div className="flex items-center gap-2">
+                  {isApprovedLetter ? (
+                    <>
+                      <button
+                        onClick={() => window.print()}
+                        className="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl transition-all cursor-pointer shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        <span>Cetak Surat</span>
+                      </button>
+                      <button
+                        onClick={() => Swal.fire({ title: 'Simulasi Unduh', text: `Mengunduh berkas surat resmi: ${viewingApprovedLetter.wargaTipeSurat || 'Surat_Pengantar'}.docx`, icon: 'info' })}
+                        className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Unduh Dokumen</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        Swal.fire({
+                          title: 'Surat Belum Disetujui 🔒',
+                          text: 'Surat pengantar ini masih berstatus Menunggu Persetujuan dari Ketua RT atau Sekretaris. Anda baru dapat mencetak dan mengunduh berkas resmi setelah disetujui.',
+                          icon: 'warning',
+                          confirmButtonColor: '#059669',
+                          confirmButtonText: 'Mengerti'
+                        });
+                      }}
+                      className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-slate-200"
+                      title="Surat belum disetujui oleh RT/Sekretaris"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Cetak Terkunci (Belum Disetujui)</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setViewingApprovedLetter(null)}
+                    className="py-2.5 px-4 border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold rounded-xl cursor-pointer"
+                  >
+                    Tutup
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       </div>
     </section>
   );
